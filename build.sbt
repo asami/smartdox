@@ -6,6 +6,8 @@ scalaVersion := "2.9.1"
 
 scalacOptions += "-deprecation"
 
+scalacOptions += "-unchecked"
+
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "6.0.3"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test"
