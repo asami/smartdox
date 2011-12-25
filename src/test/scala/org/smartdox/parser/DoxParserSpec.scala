@@ -11,7 +11,7 @@ import org.goldenport.scalaz.ScalazMatchers
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 24, 2011
+ * @version Dec. 26, 2011
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -25,6 +25,19 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
       }
       "scalaz" in {
         parse_orgmode_z(in, out)
+      }
+      "short" in {
+        parse_orgmode("* OK", out)
+      }
+    }
+    "nest" that {
+      "first/second" in {
+        parse_orgmode("* First\n** Second\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2><section><h3>Second</h3></section></section></body></html>")
+      }
+      "first,contents/second,contents" in {
+        parse_orgmode("* First\n1st contents.\n** Second\n2nd *contents*.\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2>1st contents.<section><h3>Second</h3>2nd <bold>contents</bold>.</section></section></body></html>")
       }
     }
   }

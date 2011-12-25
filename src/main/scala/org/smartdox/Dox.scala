@@ -77,7 +77,7 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
     title.foreach(_.toString(buf))
     buf.append("</")
     buf.append(showh)
-    buf.append(">")    
+    buf.append(">")
   }
 }
 
