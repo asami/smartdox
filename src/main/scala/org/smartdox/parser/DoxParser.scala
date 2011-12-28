@@ -103,38 +103,63 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def block: Parser[Block] = ul
+  def block: Parser[Block] = ulol
 
-  def ul: Parser[Ul] = {
-    def ulline: Parser[(String, List[ListContent])] = {
-      "[ ]+[-][ ]".r~rep(inline)<~opt(newline) ^^ {
-        case indent~contents => (indent, contents)
+  sealed abstract class ListLine(val indent: Int, val contents: List[ListContent])
+  case class UlLine(i: Int, c: List[ListContent]) extends ListLine(i, c)
+  case class OlLine(i: Int, c: List[ListContent]) extends ListLine(i, c)
+  object ListLine {
+    def apply(s: String, c: List[ListContent]): ListLine = {
+      val iu = s.indexOf('-')
+      if (iu != -1) UlLine(iu, c)
+      else {
+         val io = s.indexWhere(Character.isDigit(_))
+         if (io != -1) OlLine(io, c)
+         else sys.error("Unknown list line = " + s)
+      }
+    }
+  }
+
+  def ulol: Parser[Block] = {
+    def uoline: Parser[ListLine] = {
+      ("[ ]+[-][ ]".r|"""[ ]+\d+[.][ ]""".r)~rep(inline)<~opt(newline) ^^ {
+        case indent~contents => ListLine(indent, contents)
       } 
     }
-    def lines2lis(lines: List[(String, List[ListContent])]): List[Li] = {
-      require (!lines.isEmpty, "ul lines is empty")
-      var current = lines.map { case (l, r) => (l.indexOf('-'), r) }
-      var previ = current.head._1
+    def lines2lis(lines: List[ListLine]): List[Li] = {
+      require (!lines.isEmpty, "ul/ol lines are empty")
+      var current = lines
+      var previ = current.head.indent
 
       def parse(): List[Li] = {
         val lis = new ArrayBuffer[Li]
         println("current = " + current)
         do {
-          val (i, c) = current.head
-          if (i == previ) {
-            val li = Li(c)
+          val line = current.head
+          if (line.indent == previ) {
+            val li = Li(line.contents)
             lis += li
-            previ = i
+            previ = line.indent
             current = current.tail
             println("currentx = " + current)
-          } else if (i > previ) {
-            previ = i 
-            val children = parse()
-            val ul = Ul(children)
-            val last = lis.last
-            lis(lis.length - 1) = last :+ ul
+          } else if (line.indent > previ) {
+            previ = line.indent
+            current.head match {
+              case _: UlLine => {
+                val children = parse()
+                val ul = Ul(children)
+                val last = lis.last
+                lis(lis.length - 1) = last :+ ul
+              }
+              case _: OlLine => {
+                val children = parse()
+                val ol = Ol(children)
+                val last = lis.last
+                lis(lis.length - 1) = last :+ ol                
+              }
+            }
           } else {
-            previ = i 
+            previ = line.indent
             return lis.toList
           }
         } while (!current.isEmpty)
@@ -142,8 +167,11 @@ object DoxParser extends RegexParsers {
       }
       parse()
     }
-    rep1(ulline) ^^ {
-      case ulline => Ul(lines2lis(ulline))
+    rep1(uoline) ^^ {
+      case line => line.head match {
+        case _: UlLine => Ul(lines2lis(line))
+        case _: OlLine => Ol(lines2lis(line))
+      }
     }
   }
 

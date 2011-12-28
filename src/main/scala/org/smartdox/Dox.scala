@@ -136,6 +136,10 @@ case class Ul(contents: List[Li]) extends Block with ListContent {
   override val elements = contents
 }
 
+case class Ol(contents: List[Li]) extends Block with ListContent {
+  override val elements = contents
+}
+
 case class Li(contents: List[ListContent]) extends Block {
   override val elements = contents
 
