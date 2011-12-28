@@ -40,6 +40,16 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
             "<!DOCTYPE html><html><head></head><body><section><h2>First</h2>1st contents.<section><h3>Second</h3>2nd <bold>contents</bold>.</section></section></body></html>")
       }
     }
+    "ul" that {
+      "typical" in {
+        parse_orgmode("* First\n - first\n - second\n - third\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2><ul><li>first</li><li>second</li><li>third</li></ul></section></body></html>")
+      }
+      "nest" in {
+        parse_orgmode("* First\n - first\n  - first.first\n  - first.second\n - second\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2><ul><li>first<ul><li>first.first</li><li>first.second</li></ul></li><li>second</li></ul></section></body></html>")
+      }
+    }
   }
 
   def parse_orgmode(in: String, out: String) {

@@ -8,7 +8,7 @@ import Scalaz._
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Dec. 25, 2011
+ * @version Dec. 28, 2011
  * @author  ASAMI, Tomoharu
  */
 abstract class Dox {
@@ -46,7 +46,10 @@ abstract class Dox {
 trait Block extends Dox {
 }
 
-trait Inline extends Dox {
+trait Inline extends Dox with ListContent {
+}
+
+trait ListContent extends Dox {  
 }
 
 object Dox {
@@ -59,7 +62,20 @@ case class Document(head: Head, body: Body) extends Dox {
   override def showCloseText = "</html>"
 }
 
-case class Head() extends Dox {
+case class Head(
+    title: InlineContents = Nil,
+    author: InlineContents = Nil) extends Dox {
+}
+
+object Head {
+  def builder() = new Builder
+
+  class Builder {
+    var title: InlineContents = Nil
+    var author: InlineContents = Nil
+
+    def build() = new Head(title, author)
+  }
 }
 
 case class Body(contents: List[Dox]) extends Dox {
@@ -97,4 +113,33 @@ case class Text(contents: String) extends Inline {
 
 case class Bold(contents: List[Inline]) extends Inline {
   override val elements = contents
+}
+
+// 2011-12-26
+case class Italic(contents: List[Inline]) extends Inline {
+  override val elements = contents
+}
+
+case class Underline(contents: List[Inline]) extends Inline {
+  override val elements = contents
+}
+
+case class Code(contents: List[Inline]) extends Inline {
+  override val elements = contents
+}
+
+case class Pre(contents: List[Inline]) extends Inline {
+  override val elements = contents
+}
+
+case class Ul(contents: List[Li]) extends Block with ListContent {
+  override val elements = contents
+}
+
+case class Li(contents: List[ListContent]) extends Block {
+  override val elements = contents
+
+  def :+(elem: ListContent): Li = {
+    Li(contents :+ elem)
+  }
 }
