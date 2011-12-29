@@ -45,8 +45,8 @@ object DoxParser extends RegexParsers {
   }
 
   def body: Parser[Body] = {
-    section1s ^^ {
-      case section1 => Body(section1)
+    contents~section1s ^^ {
+      case contents~section1 => Body(contents ::: section1)
     }
   }
 

@@ -79,7 +79,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
       }
       "simple" in {
         parse_orgmode("Hello SmartDox",
-            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2><ul><li>first</li><li>second</li><li>third</li></ul></section></body></html>")
+            "<!DOCTYPE html><html><head></head><body>Hello SmartDox</body></html>")
       }
     }
   }
