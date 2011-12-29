@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 28, 2011
+ * @version Dec. 29, 2011
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -175,10 +175,10 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def inline: Parser[Inline] = (text|bold)
+  def inline: Parser[Inline] = (text|bold|italic|underline|code|pre|bold_xml|italic_xml|underline_xml|code_xml|pre_xml)
 
   def text: Parser[Text] = {
-    """[^*\n\r]+""".r ^^ {
+    """[^*/_=~<>\n\r]+""".r ^^ {
       case s => 
         println("s = " + s);Text(s)
     }
@@ -191,10 +191,53 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def bold_xml: Parser[Inline] = {
+    inline_xml("b") ^^ {
+      case elem => Bold(elem.contents)
+    }
+  }
+
+  case class XElement[T <: Dox](params: List[XParam], contents: List[T])
+  case class XParam(name: String, value: String)
+
+  def inline_xml(name: String): Parser[XElement[Inline]] = {
+    def xmlparam: Parser[XParam] = {
+      " "~opt(whiteSpace)~"""\w""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
+        case _~_~name~_~_~_~_~value~_ => XParam(name, value)
+      }
+    }
+    def xmlparams: Parser[List[XParam]] = {
+      rep(xmlparam)
+    }
+    "<"~opt(whiteSpace)~name~xmlparams~opt(whiteSpace)~">"~rep(text)~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
+      case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents)
+    }
+  }
+
+  def contents_xml(name: String): Parser[XElement[Dox]] = {
+    def xmlparam: Parser[XParam] = {
+      " "~opt(whiteSpace)~"""\w""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
+        case _~_~name~_~_~_~_~value~_ => XParam(name, value)
+      }
+    }
+    def xmlparams: Parser[List[XParam]] = {
+      rep(xmlparam)
+    }
+    "<"~opt(whiteSpace)~name~xmlparams~opt(whiteSpace)~">"~contents~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
+      case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents)
+    }
+  }
+
   def italic: Parser[Inline] = {
     "/"~>rep(inline)<~"/" ^^ {
       case inline if (inline.isEmpty) => Text("/")
       case inline => Italic(inline)
+    }
+  }
+
+  def italic_xml: Parser[Inline] = {
+    inline_xml("i") ^^ {
+      case elem => Italic(elem.contents)
     }
   }
 
@@ -205,6 +248,12 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def underline_xml: Parser[Inline] = {
+    inline_xml("u") ^^ {
+      case elem => Underline(elem.contents)
+    }
+  }
+
   def code: Parser[Inline] = {
     "="~>rep(inline)<~"=" ^^ {
       case inline if (inline.isEmpty) => Text("=")
@@ -212,10 +261,22 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def code_xml: Parser[Inline] = {
+    inline_xml("code") ^^ {
+      case elem => Code(elem.contents)
+    }
+  }
+
   def pre: Parser[Inline] = {
     "~"~>rep(inline)<~"~" ^^ {
       case inline if (inline.isEmpty) => Text("~")
       case inline => Pre(inline)
+    }
+  }
+
+  def pre_xml: Parser[Inline] = {
+    inline_xml("pre") ^^ {
+      case elem => Pre(elem.contents)
     }
   }
 }

@@ -100,7 +100,8 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
 case class Div() extends Block {
 }
 
-case class P() extends Block {
+case class Paragraph() extends Block {
+  override def showTerm = "p"
 }
 
 case class Text(contents: String) extends Inline {
@@ -113,15 +114,18 @@ case class Text(contents: String) extends Inline {
 
 case class Bold(contents: List[Inline]) extends Inline {
   override val elements = contents
+  override def showTerm = "b"
 }
 
 // 2011-12-26
 case class Italic(contents: List[Inline]) extends Inline {
   override val elements = contents
+  override def showTerm = "i"
 }
 
 case class Underline(contents: List[Inline]) extends Inline {
   override val elements = contents
+  override def showTerm = "u"
 }
 
 case class Code(contents: List[Inline]) extends Inline {
@@ -130,6 +134,7 @@ case class Code(contents: List[Inline]) extends Inline {
 
 case class Pre(contents: List[Inline]) extends Inline {
   override val elements = contents
+
 }
 
 case class Ul(contents: List[Li]) extends Block with ListContent {
