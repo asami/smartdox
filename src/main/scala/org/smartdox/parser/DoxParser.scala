@@ -5,10 +5,12 @@ import org.smartdox._
 import scalaz._
 import Scalaz._
 import scala.collection.mutable.ArrayBuffer
+import java.net.URI
+import Dox._
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 29, 2011
+ * @version Dec. 30, 2011
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -103,11 +105,14 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def block: Parser[Block] = ulol
+  def block: Parser[Block] = dl|ulol
 
-  sealed abstract class ListLine(val indent: Int, val contents: List[ListContent])
-  case class UlLine(i: Int, c: List[ListContent]) extends ListLine(i, c)
-  case class OlLine(i: Int, c: List[ListContent]) extends ListLine(i, c)
+  sealed trait ListLine {
+    val indent: Int
+    val contents: List[ListContent]
+  }      
+  case class UlLine(indent: Int, contents: List[ListContent]) extends ListLine
+  case class OlLine(indent: Int, contents: List[ListContent]) extends ListLine
   object ListLine {
     def apply(s: String, c: List[ListContent]): ListLine = {
       val iu = s.indexOf('-')
@@ -117,6 +122,17 @@ object DoxParser extends RegexParsers {
          if (io != -1) OlLine(io, c)
          else sys.error("Unknown list line = " + s)
       }
+    }
+  }
+
+  def dl: Parser[Dl] = {
+    def dline: Parser[(Dt, Dd)] = {
+      "[ ]+[-][ ]".r~>rep(inline)~" :: "~rep(inline)<~opt(newline) ^^ {
+        case term~_~desc => (Dt(term.toText), Dd(desc))
+      }
+    }
+    rep1(dline) ^^ {
+      case line => Dl(line)
     }
   }
 
@@ -175,10 +191,18 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def inline: Parser[Inline] = (text|bold|italic|underline|code|pre|bold_xml|italic_xml|underline_xml|code_xml|pre_xml)
+  def inline: Parser[Inline] = (space|text|bold|italic|underline|code|pre|del|
+      bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
+      hyperlink|hyperlink_xml|hyperlink_literal)
+
+  def space: Parser[Space] = {
+    "[ ]+".r ^^ {
+      case _ => Space()
+    }
+  }
 
   def text: Parser[Text] = {
-    """[^*/_=~<>\n\r]+""".r ^^ {
+    """[^*/_=~+<>\[\] :\n\r]+""".r ^^ {
       case s => 
         println("s = " + s);Text(s)
     }
@@ -202,7 +226,7 @@ object DoxParser extends RegexParsers {
 
   def inline_xml(name: String): Parser[XElement[Inline]] = {
     def xmlparam: Parser[XParam] = {
-      " "~opt(whiteSpace)~"""\w""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
+      " "~opt(whiteSpace)~"""\w+""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
         case _~_~name~_~_~_~_~value~_ => XParam(name, value)
       }
     }
@@ -216,7 +240,7 @@ object DoxParser extends RegexParsers {
 
   def contents_xml(name: String): Parser[XElement[Dox]] = {
     def xmlparam: Parser[XParam] = {
-      " "~opt(whiteSpace)~"""\w""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
+      " "~opt(whiteSpace)~"""\w+""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
         case _~_~name~_~_~_~_~value~_ => XParam(name, value)
       }
     }
@@ -277,6 +301,45 @@ object DoxParser extends RegexParsers {
   def pre_xml: Parser[Inline] = {
     inline_xml("pre") ^^ {
       case elem => Pre(elem.contents)
+    }
+  }
+
+  def del: Parser[Inline] = {
+    "+"~>rep(inline)<~"+" ^^ {
+      case inline if (inline.isEmpty) => Text("+")
+      case inline => Del(inline)
+    }
+  }
+
+  def del_xml: Parser[Inline] = {
+    inline_xml("del") ^^ {
+      case elem => Del(elem.contents)
+    }
+  }
+
+  def hyperlink: Parser[Inline] = {
+    def label: Parser[List[Inline]] = {
+      "["~>rep(inline)<~"]"
+    }
+    "[["~>"""[^]]+""".r~"]"~opt(label)<~"]" ^^ {
+      case link~_~label => Hyperlink(label | List(Text(link)), new URI(link))
+    }
+  }
+
+  def hyperlink_xml: Parser[Hyperlink] = {
+    def warning = "***No href***"
+    inline_xml("a") ^^ {
+      case elem => {
+        val href = elem.params.find(_.name == "href").map(_.value)
+        val txt = href ? elem.contents | elem.contents :+ Text(warning)
+        Hyperlink(txt, new URI(href | ""))
+      }
+    }
+  }
+
+  def hyperlink_literal: Parser[Hyperlink] = {
+    "http://[^ ]+".r ^^ {
+      case uri => Hyperlink(List(Text(uri)), new URI(uri))
     }
   }
 }

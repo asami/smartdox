@@ -11,7 +11,7 @@ import org.goldenport.scalaz.ScalazMatchers
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 29, 2011
+ * @version Dec. 30, 2011
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -62,14 +62,14 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
     }
     "inline" that {
       "typical" in {
-        parse_orgmode("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ post\n",
-            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> post</section></body></html>")
+        parse_orgmode("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</section></body></html>")
       }
     }
     "inline xml" that {
       "typical" in {
-        parse_orgmode("* First\n pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> post\n",
-            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> post</section></body></html>")
+        parse_orgmode("* First\n pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</section></body></html>")
       }
     }
     "structure" that {
@@ -80,6 +80,20 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
       "simple" in {
         parse_orgmode("Hello SmartDox",
             "<!DOCTYPE html><html><head></head><body>Hello SmartDox</body></html>")
+      }
+    }
+    "hyperlink" that {
+      "typical" in {
+        parse_orgmode("[[http://www.yahoo.com/][Yahoo]]",
+            """<!DOCTYPE html><html><head></head><body><a href="http://www.yahoo.com/">Yahoo</a></body></html>""")
+      }
+      "simple" in {
+        parse_orgmode("[[http://www.yahoo.com/]]",
+            """<!DOCTYPE html><html><head></head><body><a href="http://www.yahoo.com/">http://www.yahoo.com/</a></body></html>""")
+      }
+      "xml" in {
+        parse_orgmode("""<a href="http://www.yahoo.com/">Yahoo</a>""",
+            """<!DOCTYPE html><html><head></head><body><a href="http://www.yahoo.com/">Yahoo</a></body></html>""")
       }
     }
   }

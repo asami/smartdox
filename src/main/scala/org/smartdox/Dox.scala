@@ -2,19 +2,27 @@ package org.smartdox
 
 import scalaz._
 import Scalaz._
+import java.net.URI
 
 /*
  * derived from SNode.java since Sep. 17, 2006
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Dec. 28, 2011
+ * @version Dec. 30, 2011
  * @author  ASAMI, Tomoharu
  */
-abstract class Dox {
+trait Dox {
   val elements: List[Dox] = Nil
   def showTerm = getClass.getSimpleName().toLowerCase()
-  def showOpenText = "<" + showTerm + ">"
+  def showParams: Map[String, String] = Map.empty
+  lazy val showParamsText = showParams.map {
+    case (k, v) => """%s="%s"""".format(k, v) 
+  } mkString(" ")
+  def showOpenText = {
+    val params = showParamsText.isEmpty ? "" | " " + showParamsText
+    "<" + showTerm + params + ">"
+  }
   def showCloseText = "</" + showTerm + ">"
   def showContentsElements = elements
 
@@ -41,6 +49,16 @@ abstract class Dox {
   protected def show_Close(buf: StringBuilder) {
     buf.append(showCloseText)
   }
+
+  def toText(): String = {
+    val buf = new StringBuilder
+    to_Text(buf)
+    buf.toString
+  }
+
+  protected def to_Text(buf: StringBuilder) {
+    showContentsElements.foreach(_.to_Text(buf))
+  }
 }
 
 trait Block extends Dox {
@@ -53,6 +71,9 @@ trait ListContent extends Dox {
 }
 
 object Dox {
+  implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
+    new Fragment(contents)
+  }
 }
 
 case class Document(head: Head, body: Body) extends Dox {
@@ -110,6 +131,9 @@ case class Text(contents: String) extends Inline {
   override def show_Contents(buf: StringBuilder) {
     buf.append(contents) // TODO escape html5
   }
+  override def to_Text(buf: StringBuilder) {
+    buf.append(contents)
+  }
 }
 
 case class Bold(contents: List[Inline]) extends Inline {
@@ -134,7 +158,6 @@ case class Code(contents: List[Inline]) extends Inline {
 
 case class Pre(contents: List[Inline]) extends Inline {
   override val elements = contents
-
 }
 
 case class Ul(contents: List[Li]) extends Block with ListContent {
@@ -151,4 +174,77 @@ case class Li(contents: List[ListContent]) extends Block {
   def :+(elem: ListContent): Li = {
     Li(contents :+ elem)
   }
+}
+
+// 2011-12-30
+case class Del(contents: List[Inline]) extends Inline {
+  override val elements = contents
+}
+
+case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
+  override val elements = contents
+  override def showTerm = "a"
+  override def showParams = Map("href" -> href.toASCIIString())
+}
+
+case class Img(href: URI) extends Inline {
+}
+
+case class Table(head: THead, body: TBody, foot: TFoot) {
+  
+}
+
+trait TableCompartment {
+  val records: List[TR]
+}
+
+case class THead(records: List[TR]) extends TableCompartment {
+}
+
+case class TBody(records: List[TR]) extends TableCompartment {
+}
+
+case class TFoot(records: List[TR]) extends TableCompartment {
+}
+
+case class TR(fields: List[TField]) {
+}
+
+trait TField {
+  val contents: List[Inline]
+}
+
+case class TD(contents: List[Inline]) extends TField {
+}
+
+case class TH(contents: List[Inline]) extends TField {  
+}
+
+case class Space() extends Inline {
+  override def showOpenText = ""
+  override def showCloseText = ""
+  override def show_Contents(buf: StringBuilder) {
+    buf.append(" ")
+  }
+  override def to_Text(buf: StringBuilder) {
+    buf.append(" ")
+  }
+}
+
+case class Dl(contents: List[(Dt, Dd)]) extends Block {
+  override val elements: List[Dox] = contents flatMap {
+    case (dt, dd) => List(dt, dd)
+  }
+}
+
+case class Dt(contents: String) extends Block {
+  override val elements = List(Text(contents))
+}
+
+case class Dd(contents: List[Inline]) extends Block {
+  override val elements = contents
+}
+
+case class Fragment(contents: List[Dox]) extends Dox {
+  override val elements = contents
 }
