@@ -127,7 +127,7 @@ object DoxParser extends RegexParsers {
 
   def dl: Parser[Dl] = {
     def dline: Parser[(Dt, Dd)] = {
-      "[ ]+[-][ ]".r~>rep(inline)~" :: "~rep(inline)<~opt(newline) ^^ {
+      "[ ]+[-][ ]".r~>rep(text)~" :: "~rep(inline)<~opt(newline) ^^ {
         case term~_~desc => (Dt(term.toText), Dd(desc))
       }
     }

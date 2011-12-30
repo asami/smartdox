@@ -60,6 +60,12 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
             "<!DOCTYPE html><html><head></head><body><section><h2>First</h2><ol><li>first<ol><li>first.first</li><li>first.second</li></ol></li><li>second</li></ol></section></body></html>")
       }
     }
+    "dl" that {
+      "typical" in {
+        parse_orgmode("* First\n - first :: one\n - second :: two\n - third :: three\n",
+            "<!DOCTYPE html><html><head></head><body><section><h2>First</h2><dl><dt>first</dt><dd>one</dd><dt>second</dt><dd>two</dd><dt>third</dt><dd>three</dd></dl></section></body></html>")
+      }
+    }
     "inline" that {
       "typical" in {
         parse_orgmode("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
