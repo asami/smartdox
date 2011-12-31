@@ -190,6 +190,14 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
         parse_orgmode_simple("[[image/simple.png]]", """<img src="image/simple.png"/>""")
       }
     }
+    "figure" that {
+      val figure = """#+CAPTION: Figure
+#+LABEL: fig
+[[image/simple.png]]"""
+      "typical" in {
+        parse_orgmode_simple(figure, """<figure id="fig"><img src="image/simple.png"/><figcaption>Figure</figcaption></figure>""")
+      }
+    }
   }
 
   def parse_orgmode_simple(in: String, out: String) {

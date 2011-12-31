@@ -278,6 +278,7 @@ case class Caption(contents: List[Inline]) extends Block {
 // 2011-12-31
 case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) extends Block {
   override val elements = List(img, caption)
+  override def showParams = List("id" -> label).flatMap(_.sequence).toMap
 }
 
 case class Figcaption(contents: List[Inline]) extends Block {
