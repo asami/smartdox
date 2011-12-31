@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Dec. 31, 2011
+ * @version Jan.  1, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -135,7 +135,8 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
 case class Div() extends Block {
 }
 
-case class Paragraph() extends Block {
+case class Paragraph(contents: List[Dox]) extends Block {
+  override val elements = contents
   override def showTerm = "p"
 }
 
@@ -283,4 +284,20 @@ case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) e
 
 case class Figcaption(contents: List[Inline]) extends Block {
   override val elements = contents
+}
+
+case class EmptyLine() extends Block {  
+}
+
+// 2011-01-01
+case class Newline() extends Inline {
+  override def isOpenClose = false
+  override def showOpenText = ""
+  override def showCloseText = ""
+  override def show_Contents(buf: StringBuilder) {
+    buf.append("\n")
+  }
+  override def to_Text(buf: StringBuilder) {
+    buf.append("\n")
+  }
 }

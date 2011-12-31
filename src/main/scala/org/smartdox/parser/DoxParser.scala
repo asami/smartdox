@@ -10,7 +10,7 @@ import Dox._
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 31, 2011
+ * @version Jan.  1, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -94,18 +94,46 @@ object DoxParser extends RegexParsers {
   }
 
   def contents: Parser[List[Dox]] = {
-    rep(contentsline) ^^ {
-      case contents => contents.flatten
+    def foldemptyline(a: List[Dox], r: List[Dox], e: Dox) =
+      if (r.nonEmpty) (a :+ Paragraph(r), nil) else (a, nil)
+    def foldstrongblock(a: List[Dox], r: List[Dox], e: Dox) =
+      if (r.nonEmpty) ((a :+ Paragraph(r)) :+ e, nil) else (a :+ e, nil)
+    def foldweakblock(a: List[Dox], r: List[Dox], e: Dox) =
+      if (r.nonEmpty) (a, r :+ e) else (a :+ e, r) 
+    def foldinline(a: List[Dox], r: List[Dox], e: Dox) = (a, r :+ e)
+    rep(contentsline|emptyline) ^^ {
+      case contents => {
+        val (a, r) = contents.flatten.foldl(Pair(nil[Dox], nil[Dox])) {
+          case ((a, r), e) => e match {
+            case _: EmptyLine => foldemptyline(a, r, e)
+            case _: Inline => foldinline(a, r, e)
+            case _: Ul => foldweakblock(a, r, e)
+            case _: Ol => foldweakblock(a, r, e)
+            case _: Dl => foldweakblock(a, r, e)
+            case _ => foldstrongblock(a, r, e)
+          }
+        }
+        if (r.nonEmpty) a :+ Paragraph(r) else a
+      }
     }
   }
 
   def contentsline: Parser[List[Dox]] = {
     not("[*]+[ ]".r)~>rep1(block|inline)<~opt(newline) ^^ {
-      case inline => println("contentsline = " +inline);inline
+      case contents => {
+        println("contentsline = " + contents)
+        contents
+      }
     }
   }
 
   def block: Parser[Block] = dl|ulol|table|figure
+
+  def emptyline: Parser[List[EmptyLine]] = {
+    newline ^^ {
+      case _ => List(EmptyLine())
+    }
+  } 
 
   sealed trait ListLine {
     val indent: Int

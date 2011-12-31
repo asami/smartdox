@@ -11,7 +11,7 @@ import org.goldenport.scalaz.ScalazMatchers
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 31, 2011
+ * @version Jan.  1, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -37,7 +37,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
       }
       "first,contents/second,contents" in {
         parse_orgmode("* First\n1st contents.\n** Second\n2nd *contents*.\n",
-            "<!DOCTYPE html><html><head/><body><section><h2>First</h2>1st contents.<section><h3>Second</h3>2nd <b>contents</b>.</section></section></body></html>")
+            "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p>1st contents.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p></section></section></body></html>")
       }
     }
     "ul" that {
@@ -69,13 +69,13 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
     "inline" that {
       "typical" in {
         parse_orgmode("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
-            "<!DOCTYPE html><html><head/><body><section><h2>First</h2> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</section></body></html>")
+            "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
       }
     }
     "inline xml" that {
       "typical" in {
         parse_orgmode("* First\n pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post\n",
-            "<!DOCTYPE html><html><head/><body><section><h2>First</h2> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</section></body></html>")
+            "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
       }
     }
     "structure" that {
@@ -85,21 +85,21 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
       }
       "simple" in {
         parse_orgmode("Hello SmartDox",
-            "<!DOCTYPE html><html><head/><body>Hello SmartDox</body></html>")
+            "<!DOCTYPE html><html><head/><body><p>Hello SmartDox</p></body></html>")
       }
     }
     "hyperlink" that {
       "typical" in {
         parse_orgmode("[[http://www.yahoo.com/][Yahoo]]",
-            """<!DOCTYPE html><html><head/><body><a href="http://www.yahoo.com/">Yahoo</a></body></html>""")
+            """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">Yahoo</a></p></body></html>""")
       }
       "simple" in {
         parse_orgmode("[[http://www.yahoo.com/]]",
-            """<!DOCTYPE html><html><head/><body><a href="http://www.yahoo.com/">http://www.yahoo.com/</a></body></html>""")
+            """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">http://www.yahoo.com/</a></p></body></html>""")
       }
       "xml" in {
         parse_orgmode("""<a href="http://www.yahoo.com/">Yahoo</a>""",
-            """<!DOCTYPE html><html><head/><body><a href="http://www.yahoo.com/">Yahoo</a></body></html>""")
+            """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">Yahoo</a></p></body></html>""")
       }
     }
   }
@@ -187,7 +187,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
   "Image" should {
     "img" that {
       "typical" in {
-        parse_orgmode_simple("[[image/simple.png]]", """<img src="image/simple.png"/>""")
+        parse_orgmode_simple("[[image/simple.png]]", """<p><img src="image/simple.png"/></p>""")
       }
     }
     "figure" that {
@@ -196,6 +196,26 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
 [[image/simple.png]]"""
       "typical" in {
         parse_orgmode_simple(figure, """<figure id="fig"><img src="image/simple.png"/><figcaption>Figure</figcaption></figure>""")
+      }
+    }
+  }
+  "Paragraph" should {
+    "prologue" that {
+      "one paragraph" in {
+        parse_orgmode_simple("First.\n",
+            """<p>First.</p>""")
+      }
+      "three paragraphs" in {
+        parse_orgmode_simple("First.\n\nSecond.\n\nThird.\n",
+            """<p>First.</p><p>Second.</p><p>Third.</p>""")
+      }
+      "duplicate empty lines" in {
+        parse_orgmode_simple("\nFirst.\n\n\nSecond.\n\n\nThird.\n\n",
+            """<p>First.</p><p>Second.</p><p>Third.</p>""")
+      }
+      "first,contents/second,contents" in {
+        parse_orgmode_simple("* First\n1st contents.\n\ncont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
+            """<section><h2>First</h2><p>1st contents.</p><p>cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
       }
     }
   }
