@@ -105,7 +105,7 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def block: Parser[Block] = dl|ulol|table
+  def block: Parser[Block] = dl|ulol|table|figure
 
   sealed trait ListLine {
     val indent: Int
@@ -201,8 +201,43 @@ object DoxParser extends RegexParsers {
       l.dropWhile(isspace).reverse.dropWhile(isspace).reverse
     }
   }
-  
+
+  // 2011-12-31
+  sealed trait Attribute
+  case class CaptionAttribute(value: List[Inline]) extends Attribute
+  case class LabelAttribute(value: String) extends Attribute
+  case class HtmlAttribute(value: String) extends Attribute
+  case class LatexAttribute(value: String) extends Attribute
+  case class CommentAttribute(value: String) extends Attribute 
+
+  def attrcaption: Parser[Attribute] = {
+    "#+CAPTION: "~>rep(inline)<~opt(newline) ^^ {
+      case value => CaptionAttribute(value)
+    }
+  }
+
+  def attrlabel: Parser[Attribute] = {
+    "#+LABEL: "~>"[^\n\r]*".r<~opt(newline) ^^ {
+      case value => LabelAttribute(value)
+    }
+  }
+
+  def attrhtml: Parser[Attribute] = {
+    "#+ATTR_HTML: "~>"[^\n\r]*".r<~opt(newline) ^^ {
+      case value => HtmlAttribute(value)
+    }
+  }
+
+  def attrlatex: Parser[Attribute] = {
+    "#+ATTR_LATEX: "~>"[^\n\r]*".r<~opt(newline) ^^ {
+      case value => LatexAttribute(value)
+    }
+  }
+
+  def floatattr=attrcaption|attrlabel|attrhtml|attrlatex
+
   def table: Parser[Table] = {
+    def tableattrs: Parser[List[Attribute]] = rep(floatattr)
     def tableline: Parser[TableLine] = frameline|dataline
     def frameline: Parser[FrameTableLine] = {
       "[|][-][^\n\r]*".r<~opt(newline) ^^ {
@@ -274,18 +309,40 @@ object DoxParser extends RegexParsers {
         TR(d.contents.map(TH(_)))
       }
     }
-    rep1(tableline) ^^ {
-      case lines => {
+    tableattrs~rep1(tableline) ^^ {
+      case attrs~lines => {
         val normalized = normalize(lines)
+        val caption = attrs.collectFirst {
+          case c: CaptionAttribute => c.value
+        }.map(Caption)
+        val label = attrs.collectFirst {
+          case c: LabelAttribute => c.value
+        }
         val (head, body, foot) = build(normalized)
-        Table(head, body, foot)
+        Table(head, body, foot, caption, label)
       }
+    }
+  }
+
+  def figure: Parser[Figure] = {
+    rep1(floatattr)~img<~opt(newline) ^^ {
+      case attrs~img => {
+        val caption = attrs.collectFirst {
+          case c: CaptionAttribute => c.value
+        }.map(Figcaption) | Figcaption(Nil)
+        val label = attrs.collectFirst {
+          case c: LabelAttribute => c.value
+        }
+        Figure(img, caption, label)
+      }
+    } ^^ {
+      case fig if fig.caption.contents.nonEmpty => fig
     }
   }
 
   def inline: Parser[Inline] = (space|text|bold|italic|underline|code|pre|del|
       bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
-      hyperlink|hyperlink_xml|hyperlink_literal)
+      img|hyperlink|hyperlink_xml|hyperlink_literal)
 
   def space: Parser[Space] = {
     "[ ]+".r ^^ {
@@ -432,6 +489,12 @@ object DoxParser extends RegexParsers {
   def hyperlink_literal: Parser[Hyperlink] = {
     "http://[^ ]+".r ^^ {
       case uri => Hyperlink(List(Text(uri)), new URI(uri))
+    }
+  }
+
+  def img: Parser[Img] = {
+    "[["~>"""[^]]+[.](png|jpeg|jpg|gif)""".r<~"]]" ^^ {
+      case filename => Img(new URI(filename))
     }
   }
 }

@@ -19,23 +19,36 @@ trait Dox {
   lazy val showParamsText = showParams.map {
     case (k, v) => """%s="%s"""".format(k, v) 
   } mkString(" ")
+  def showOpenCloseText = {
+    val params = showParamsText.isEmpty ? "" | " " + showParamsText
+    "<" + showTerm + params + "/>"
+  }
   def showOpenText = {
     val params = showParamsText.isEmpty ? "" | " " + showParamsText
     "<" + showTerm + params + ">"
   }
   def showCloseText = "</" + showTerm + ">"
   def showContentsElements = elements
+  def isOpenClose = showContentsElements.isEmpty
 
   def toString(buf: StringBuilder) {
-    show_Open(buf)
-    show_Contents(buf)
-    show_Close(buf)
+    if (isOpenClose) {
+      show_Open_Close(buf)
+    } else {
+      show_Open(buf)
+      show_Contents(buf)
+      show_Close(buf)
+    }
   }
   
   override def toString() = {
     val buf = new StringBuilder
     toString(buf)
     buf.toString()
+  }
+
+  protected def show_Open_Close(buf: StringBuilder) {
+    buf.append(showOpenCloseText)
   }
 
   protected def show_Open(buf: StringBuilder) {
@@ -116,6 +129,7 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
     buf.append(showh)
     buf.append(">")
   }
+  override def isOpenClose = false
 }
 
 case class Div() extends Block {
@@ -126,6 +140,7 @@ case class Paragraph() extends Block {
 }
 
 case class Text(contents: String) extends Inline {
+  override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
   override def show_Contents(buf: StringBuilder) {
@@ -188,10 +203,13 @@ case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
 }
 
 case class Img(href: URI) extends Inline {
+  override val elements = Nil
+  override def showParams = Map("src" -> href.toASCIIString())  
 }
 
-case class Table(head: Option[THead], body: TBody, foot: Option[TFoot]) extends Block {
-  override val elements = List(head, body.some, foot).flatten
+case class Table(head: Option[THead], body: TBody, foot: Option[TFoot], 
+    caption: Option[Caption], label: Option[String]) extends Block {
+  override val elements = List(caption, head, body.some, foot).flatten
 }
 
 trait TableCompartment extends Block {
@@ -224,6 +242,7 @@ case class TH(contents: List[Inline]) extends TField {
 }
 
 case class Space() extends Inline {
+  override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
   override def show_Contents(buf: StringBuilder) {
@@ -249,5 +268,18 @@ case class Dd(contents: List[Inline]) extends Block {
 }
 
 case class Fragment(contents: List[Dox]) extends Dox {
+  override val elements = contents
+}
+
+case class Caption(contents: List[Inline]) extends Block {
+  override val elements = contents
+}
+
+// 2011-12-31
+case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) extends Block {
+  override val elements = List(img, caption)
+}
+
+case class Figcaption(contents: List[Inline]) extends Block {
   override val elements = contents
 }
