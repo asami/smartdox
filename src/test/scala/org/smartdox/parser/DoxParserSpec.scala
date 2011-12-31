@@ -11,7 +11,7 @@ import org.goldenport.scalaz.ScalazMatchers
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 30, 2011
+ * @version Dec. 31, 2011
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -102,6 +102,74 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
             """<!DOCTYPE html><html><head></head><body><a href="http://www.yahoo.com/">Yahoo</a></body></html>""")
       }
     }
+    "table" that {
+      val tabletypical = """|------
+| one | two | three |
+|----"""
+      val tablesimple = """| one | two | three |"""
+      val tablesimple2 = """| one | two | three """
+      val tablemulti = """|------
+| one | two | three |
+| four | five | six |        
+|----"""
+      val tableheadertypical = """|-----
+|h1|h2|h3|
+|----
+|one | two |three |
+|four| five | six|
+|---"""
+      val tableheadersimple = """|h1|h2|h3|
+|----
+|one | two |three |
+|four| five | six|"""
+      val tablefootertypical = """|-----
+|h1|h2|h3|
+|----
+|one | two |three |
+|four| five | six|
+|---
+| sum1 |sum2 | sum3|
+|---"""
+      val tablefootersimple = """|h1|h2|h3|
+|----
+|one | two |three |
+|four| five | six|
+|---
+| sum1 |sum2 | sum3|"""
+      val result = "<table><tbody><tr><td>one</td><td>two</td><td>three</td></tr></tbody></table>"
+      val resultmulti = "<table><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody></table>"
+      val resultheader = "<table><thead><tr><th>h1</th><th>h2</th><th>h3</th></tr></thead><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody></table>"
+      val resultfooter = "<table><thead><tr><th>h1</th><th>h2</th><th>h3</th></tr></thead><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody><tfoot><tr><td>sum1</td><td>sum2</td><td>sum3</td></tr></tfoot></table>"
+      "typical" in {
+        parse_orgmode_simple(tabletypical, result)
+      }
+      "simple" in {
+        parse_orgmode_simple(tablesimple, result)
+      }
+      "simple2" in {
+        parse_orgmode_simple(tablesimple2, result)
+      }
+      "multi" in {
+        parse_orgmode_simple(tablemulti, resultmulti)
+      }
+      "header" in {
+        parse_orgmode_simple(tableheadertypical, resultheader)
+      }
+      "headersimple" in {
+        parse_orgmode_simple(tableheadersimple, resultheader)
+      }
+      "footer" in {
+        parse_orgmode_simple(tablefootertypical, resultfooter)
+      }
+      "footersimple" in {
+        parse_orgmode_simple(tablefootersimple, resultfooter)
+      }
+    }
+  }
+
+  def parse_orgmode_simple(in: String, out: String) {
+    parse_orgmode(in, 
+        """<!DOCTYPE html><html><head></head><body>%s</body></html>""".format(out))
   }
 
   def parse_orgmode(in: String, out: String) {

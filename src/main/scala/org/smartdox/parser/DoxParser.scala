@@ -10,7 +10,7 @@ import Dox._
 
 /*
  * @since   Dec. 24, 2011
- * @version Dec. 30, 2011
+ * @version Dec. 31, 2011
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -105,12 +105,12 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def block: Parser[Block] = dl|ulol
+  def block: Parser[Block] = dl|ulol|table
 
   sealed trait ListLine {
     val indent: Int
     val contents: List[ListContent]
-  }      
+  }
   case class UlLine(indent: Int, contents: List[ListContent]) extends ListLine
   case class OlLine(indent: Int, contents: List[ListContent]) extends ListLine
   object ListLine {
@@ -191,6 +191,98 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  sealed trait TableLine
+  case class FrameTableLine() extends TableLine
+  case class DataTableLine(contents: List[List[Inline]]) extends TableLine
+
+  def normalize_space(lines: List[List[Inline]]): List[List[Inline]] = {
+    def isspace(inline: Inline) = inline.isInstanceOf[Space]
+    for (l <- lines) yield {
+      l.dropWhile(isspace).reverse.dropWhile(isspace).reverse
+    }
+  }
+  
+  def table: Parser[Table] = {
+    def tableline: Parser[TableLine] = frameline|dataline
+    def frameline: Parser[FrameTableLine] = {
+      "[|][-][^\n\r]*".r<~opt(newline) ^^ {
+        case _ => FrameTableLine()
+      }
+    }
+    def dataline: Parser[DataTableLine] = {
+      "|"~>repsep(rep(inline), "|")<~opt(newline) ^^ {
+        case lines => {
+          val ls = normalize_space(lines)
+          if (ls.last.nonEmpty) DataTableLine(ls)
+          else DataTableLine(ls.dropRight(1))
+        }
+      }
+    }
+    def normalize(lines: List[TableLine]): List[TableLine] = {
+      val (_, frameremovedreverse) = lines.foldl((FrameTableLine(): TableLine, nil[TableLine])) {
+        case ((prev, a), e) => {
+          if (prev.isInstanceOf[FrameTableLine] && e.isInstanceOf[FrameTableLine]) {
+            (prev, a)
+          } else {
+            (e, e :: a)
+          }
+        }
+      }
+      frameremovedreverse.dropWhile(_.isInstanceOf[FrameTableLine]).reverse
+    }
+    def build(lines: List[TableLine]): (Option[THead], TBody, Option[TFoot]) = {
+      val aggregatedreverse = lines.foldl(nil[List[TableLine]]) {
+        case (a, e) => {
+          e match {
+            case _: FrameTableLine => nil :: a 
+            case d: DataTableLine => if (a == Nil) List(List(d)) else (d :: a.head) :: a.tail
+          }
+        }
+      }
+      val aggregated = aggregatedreverse.foldl(nil[List[TableLine]]) {
+        case (a, e) => e.reverse :: a
+      }
+      aggregated.length match {
+        case 0 => (None, TBody(Nil), None)
+        case 1 => (None, TBody(datarecords(aggregated.head)), None)
+        case 2 => (THead(headrecords(aggregated.head)).some,
+            TBody(datarecords(aggregated.last)), None)
+        case 3 => (THead(headrecords(aggregated(0))).some,
+            TBody(datarecords(aggregated(1))),
+            TFoot(datarecords(aggregated(2))).some)
+        case _ => {
+          val data = aggregated.slice(1, aggregated.length - 1).flatten
+          (THead(headrecords(aggregated.head)).some,
+            TBody(datarecords(data)),
+            TFoot(datarecords(aggregated.last)).some)
+        }
+      }
+    }
+    def datarecords(lines: List[TableLine]): List[TR] = {
+      val data = lines.collect {
+        case d: DataTableLine => d
+      }
+      for (d <- data) yield {
+        TR(d.contents.map(TD(_)))
+      }
+    }
+    def headrecords(lines: List[TableLine]): List[TR] = {
+      val data = lines.collect {
+        case d: DataTableLine => d
+      }
+      for (d <- data) yield {
+        TR(d.contents.map(TH(_)))
+      }
+    }
+    rep1(tableline) ^^ {
+      case lines => {
+        val normalized = normalize(lines)
+        val (head, body, foot) = build(normalized)
+        Table(head, body, foot)
+      }
+    }
+  }
+
   def inline: Parser[Inline] = (space|text|bold|italic|underline|code|pre|del|
       bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
       hyperlink|hyperlink_xml|hyperlink_literal)
@@ -202,7 +294,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text: Parser[Text] = {
-    """[^*/_=~+<>\[\] :\n\r]+""".r ^^ {
+    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
       case s => 
         println("s = " + s);Text(s)
     }

@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Dec. 30, 2011
+ * @version Dec. 31, 2011
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -190,12 +190,13 @@ case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
 case class Img(href: URI) extends Inline {
 }
 
-case class Table(head: THead, body: TBody, foot: TFoot) {
-  
+case class Table(head: Option[THead], body: TBody, foot: Option[TFoot]) extends Block {
+  override val elements = List(head, body.some, foot).flatten
 }
 
-trait TableCompartment {
+trait TableCompartment extends Block {
   val records: List[TR]
+  override val elements = records
 }
 
 case class THead(records: List[TR]) extends TableCompartment {
@@ -207,11 +208,13 @@ case class TBody(records: List[TR]) extends TableCompartment {
 case class TFoot(records: List[TR]) extends TableCompartment {
 }
 
-case class TR(fields: List[TField]) {
+case class TR(fields: List[TField]) extends Block {
+  override val elements = fields
 }
 
-trait TField {
+trait TField extends Block {
   val contents: List[Inline]
+  override val elements = contents
 }
 
 case class TD(contents: List[Inline]) extends TField {
