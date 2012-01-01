@@ -184,18 +184,40 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
       }
     }
   }
+  val imgdot = "#+begin_dot image/simple.png\nDOT\n#+end_dot\n"
   "Image" should {
     "img" that {
       "typical" in {
         parse_orgmode_simple("[[image/simple.png]]", """<p><img src="image/simple.png"/></p>""")
+      }
+      "embedded dot" in {
+        parse_orgmode_simple(imgdot, """<p><img src="image/simple.png"/></p>""")
+      }
+      "embedded ditaa" in {
+        parse_orgmode_simple("#+begin_ditaa image/simple.png\nDITAA\n#+end_ditaa\n", """<p><img src="image/simple.png"/></p>""")
+      }
+      "first,contents/second,contents" in {
+        parse_orgmode_simple("* First\n1st contents.\n#+begin_dot image/simple.png\nDOT\n#+end_dot\n1st cont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
+            """<section><h2>First</h2><p>1st contents.<img src="image/simple.png"/>1st cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
       }
     }
     "figure" that {
       val figure = """#+CAPTION: Figure
 #+LABEL: fig
 [[image/simple.png]]"""
+      val result = """<figure id="fig"><img src="image/simple.png"/><figcaption>Figure</figcaption></figure>"""
       "typical" in {
-        parse_orgmode_simple(figure, """<figure id="fig"><img src="image/simple.png"/><figcaption>Figure</figcaption></figure>""")
+        parse_orgmode_simple(figure, result)
+      }
+      val figuredot = """#+CAPTION: Figure
+#+LABEL: fig
+""" + imgdot
+      "typical dot" in {
+        parse_orgmode_simple(figuredot, result)
+      }
+      "first,contents/second,contents" in {
+        parse_orgmode_simple("* First\n1st contents.\n#+CAPTION: Figure\n#+LABEL: fig\n#+begin_dot image/simple.png\nDOT\n#+end_dot\n1st cont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
+            """<section><h2>First</h2><p>1st contents.</p>%s<p>1st cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""".format(result))
       }
     }
   }

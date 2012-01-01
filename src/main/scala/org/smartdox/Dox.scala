@@ -203,10 +203,7 @@ case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
   override def showParams = Map("href" -> href.toASCIIString())
 }
 
-case class Img(href: URI) extends Inline {
-  override val elements = Nil
-  override def showParams = Map("src" -> href.toASCIIString())  
-}
+case class ReferenceImg(src: URI) extends Img
 
 case class Table(head: Option[THead], body: TBody, foot: Option[TFoot], 
     caption: Option[Caption], label: Option[String]) extends Block {
@@ -300,4 +297,22 @@ case class Newline() extends Inline {
   override def to_Text(buf: StringBuilder) {
     buf.append("\n")
   }
+}
+
+trait Img extends Inline {
+  val src: URI
+  override val elements = Nil
+  override def showTerm = "img"
+  override def showParams = Map("src" -> src.toASCIIString())  
+}
+
+trait EmbeddedImg extends Img {
+  val contents: String
+  val params: List[String]
+}
+
+case class DotImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
+}
+
+case class DitaaImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
 }

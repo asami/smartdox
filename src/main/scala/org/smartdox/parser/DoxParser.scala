@@ -101,7 +101,7 @@ object DoxParser extends RegexParsers {
     def foldweakblock(a: List[Dox], r: List[Dox], e: Dox) =
       if (r.nonEmpty) (a, r :+ e) else (a :+ e, r) 
     def foldinline(a: List[Dox], r: List[Dox], e: Dox) = (a, r :+ e)
-    rep(contentsline|emptyline) ^^ {
+    rep(embedded|contentsline|emptyline) ^^ {
       case contents => {
         val (a, r) = contents.flatten.foldl(Pair(nil[Dox], nil[Dox])) {
           case ((a, r), e) => e match {
@@ -126,6 +126,8 @@ object DoxParser extends RegexParsers {
       }
     }
   }
+
+  def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa)
 
   def block: Parser[Block] = dl|ulol|table|figure
 
@@ -239,25 +241,25 @@ object DoxParser extends RegexParsers {
   case class CommentAttribute(value: String) extends Attribute 
 
   def attrcaption: Parser[Attribute] = {
-    "#+CAPTION: "~>rep(inline)<~opt(newline) ^^ {
+    ("#+CAPTION: "|"#+caption: ")~>rep(inline)<~opt(newline) ^^ {
       case value => CaptionAttribute(value)
     }
   }
 
   def attrlabel: Parser[Attribute] = {
-    "#+LABEL: "~>"[^\n\r]*".r<~opt(newline) ^^ {
+    ("#+LABEL: "|"#+label: ")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => LabelAttribute(value)
     }
   }
 
   def attrhtml: Parser[Attribute] = {
-    "#+ATTR_HTML: "~>"[^\n\r]*".r<~opt(newline) ^^ {
+    ("#+ATTR_HTML: "|"#+attr_html")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => HtmlAttribute(value)
     }
   }
 
   def attrlatex: Parser[Attribute] = {
-    "#+ATTR_LATEX: "~>"[^\n\r]*".r<~opt(newline) ^^ {
+    ("#+ATTR_LATEX: "|"#+attr_latex")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => LatexAttribute(value)
     }
   }
@@ -353,7 +355,7 @@ object DoxParser extends RegexParsers {
   }
 
   def figure: Parser[Figure] = {
-    rep1(floatattr)~img<~opt(newline) ^^ {
+    rep1(floatattr)~(img|img_dot|img_ditaa)<~opt(newline) ^^ {
       case attrs~img => {
         val caption = attrs.collectFirst {
           case c: CaptionAttribute => c.value
@@ -522,7 +524,37 @@ object DoxParser extends RegexParsers {
 
   def img: Parser[Img] = {
     "[["~>"""[^]]+[.](png|jpeg|jpg|gif)""".r<~"]]" ^^ {
-      case filename => Img(new URI(filename))
+      case filename => ReferenceImg(new URI(filename))
+    }
+  }
+
+  def img_dot: Parser[Img] = {
+    ("#+BEGIN_DOT "|"#+begin_dot")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DOT "|"#+end_dot")~"[ ]*".r~opt(newline) ^^ {
+      case params~_~contents => {
+        val filename = params.head
+        DotImg(new URI(filename), contents, params.tail)
+      }
+    }
+  }
+
+  def img_ditaa: Parser[Img] = {
+    ("#+BEGIN_DITAA "|"#+begin_ditaa")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DITAA "|"#+end_ditaa")~"[ ]*".r~opt(newline) ^^ {
+      case params~_~contents => {
+        val filename = params.head
+        DitaaImg(new URI(filename), contents, params.tail)
+      }
+    }
+  }
+
+  def embedlines: Parser[String] = {
+    rep(embedline) ^^ {
+      case lines => lines.mkString("\n")
+    }
+  }
+
+  def embedline: Parser[String] = {
+    not("#+END_"|"#+end_")~>"[^\n\r]*".r<~newline ^^ {
+      case contents => contents
     }
   }
 }
