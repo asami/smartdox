@@ -235,6 +235,8 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
         parse_orgmode_simple("\nFirst.\n\n\nSecond.\n\n\nThird.\n\n",
             """<p>First.</p><p>Second.</p><p>Third.</p>""")
       }
+    }
+    "inside sections" that {
       "first,contents/second,contents" in {
         parse_orgmode_simple("* First\n1st contents.\n\ncont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
             """<section><h2>First</h2><p>1st contents.</p><p>cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
