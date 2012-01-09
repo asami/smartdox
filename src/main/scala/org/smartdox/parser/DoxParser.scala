@@ -7,21 +7,28 @@ import Scalaz._
 import scala.collection.mutable.ArrayBuffer
 import java.net.URI
 import Dox._
+import java.io.Reader
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan.  1, 2012
+ * @version Jan.  9, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
   override def skipWhitespace = false
   val newline = """(\r\n|\n|\r)""".r
 
+  def parseOrgmode(reader: Reader) = parseAll(orgmode, reader)
   def parseOrgmode(in: String) = parseAll(orgmode, in)
 
-  def parseOrgmodeZ(in: String) = parseOrgmode(in) match {
-    case s: Success[_] => s.get.success[String].liftFailNel
-    case n: NoSuccess => n.msg.fail[Dox].liftFailNel
+  def parseOrgmodeZ(reader: Reader) = parseOrgmode(reader) |> _to_validation
+  def parseOrgmodeZ(in: String) = parseOrgmode(in) |> _to_validation
+
+  private def _to_validation(result: ParseResult[Dox]): Validation[NonEmptyList[String], Dox] = {
+    result match {
+      case s: Success[_] => s.get.success[String].liftFailNel
+      case n: NoSuccess => n.msg.fail[Dox].liftFailNel
+    }
   }
 
   def orgmode: Parser[Dox] = {
