@@ -11,7 +11,7 @@ import java.io.Reader
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan.  9, 2012
+ * @version Jan. 10, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -164,7 +164,7 @@ object DoxParser extends RegexParsers {
 
   def dl: Parser[Dl] = {
     def dline: Parser[(Dt, Dd)] = {
-      "[ ]+[-][ ]".r~>rep(text)~" :: "~rep(inline)<~opt(newline) ^^ {
+      "[ ]*[-][ ]".r~>rep(text)~" :: "~rep(inline)<~opt(newline) ^^ {
         case term~_~desc => (Dt(term.toText), Dd(desc))
       }
     }
@@ -175,7 +175,7 @@ object DoxParser extends RegexParsers {
 
   def ulol: Parser[Block] = {
     def uoline: Parser[ListLine] = {
-      ("[ ]+[-][ ]".r|"""[ ]+\d+[.][ ]""".r)~rep(inline)<~opt(newline) ^^ {
+      ("[ ]*[-][ ]".r|"""[ ]+\d+[.][ ]""".r)~rep(inline)<~opt(newline) ^^ {
         case indent~contents => ListLine(indent, contents)
       } 
     }
