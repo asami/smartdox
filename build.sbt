@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "0.1-SNAPSHOT"
+version := "0.1.1-SNAPSHOT"
 
 scalaVersion := "2.9.1"
 
