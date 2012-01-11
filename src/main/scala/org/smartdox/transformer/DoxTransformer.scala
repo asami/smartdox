@@ -11,22 +11,316 @@ import scala.util.parsing.input.Reader
 
 /*
  * @since   Jan. 11, 2012
- * @version Jan. 11, 2012
+ * @version Jan. 12, 2012
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
   type Elem = Dox
+  type Out
 
-  def parseDox(in: Dox) = {
+  def transform(in: Dox): ParseResult[Out] = {
     document(new DoxReader(in))
   } 
 
-  def parseDoxZ(in: Dox) = parseDox(in) match {
+  def transformZ(in: Dox): Validation[NonEmptyList[String], Out] = transform(in) match {
     case s: Success[_] => s.get.success[String].liftFailNel
-    case n: NoSuccess => n.msg.fail[Dox].liftFailNel
+    case n: NoSuccess => n.msg.fail[Out].liftFailNel
   }
 
-  def document: Parser[Dox] = {
-    sys.error("not implemented yet.")
+  def document: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Document => Success(documentOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
   }
+
+  def documentOut(d: Document): Out
+
+  def head: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Head => Success(headOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def headOut(d: Head): Out
+
+  def body: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Body => Success(bodyOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def bodyOut(d: Body): Out
+
+  def section: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Section => Success(sectionOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def sectionOut(d: Section): Out
+
+  def div: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Div => Success(divOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def divOut(d: Div): Out
+
+  def paragraph: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Paragraph => Success(paragraphOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def paragraphOut(d: Paragraph): Out
+
+  def text: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Text => Success(textOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def textOut(d: Text): Out
+
+  def bold: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Bold => Success(boldOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def boldOut(d: Bold): Out
+
+  def italic: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Italic => Success(italicOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def italicOut(d: Italic): Out
+
+  def underline: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Underline => Success(underlineOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def underlineOut(d: Underline): Out
+
+  def code: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Code => Success(codeOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def codeOut(d: Code): Out
+
+  def pre: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Pre => Success(preOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def preOut(d: Pre): Out
+
+  def ul: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Ul => Success(ulOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def ulOut(d: Ul): Out
+
+  def ol: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Ol => Success(olOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def olOut(d: Ol): Out
+
+  def li: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Li => Success(liOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def liOut(d: Li): Out
+
+  def del: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Del => Success(delOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def delOut(d: Del): Out
+
+  def hyperlink: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Hyperlink => Success(hyperlinkOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def hyperlinkOut(d: Hyperlink): Out
+
+  def referenceImg: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: ReferenceImg => Success(referenceImgOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def referenceImgOut(d: ReferenceImg): Out
+
+  def table: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Table => Success(tableOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def tableOut(d: Table): Out
+
+  def space: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Space => Success(spaceOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def spaceOut(d: Space): Out
+
+  def dl: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Dl => Success(dlOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def dlOut(d: Dl): Out
+
+  def dt: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Dt => Success(dtOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def dtOut(d: Dt): Out
+
+  def dd: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Dd => Success(ddOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def ddOut(d: Dd): Out
+
+  def fragment: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Fragment => Success(fragmentOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def fragmentOut(d: Fragment): Out
+
+  def figure: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Figure => Success(figureOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def figureOut(d: Figure): Out
+
+  def dotImg: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: DotImg => Success(dotImgOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def dotImgOut(d: DotImg): Out
+
+  def ditaaImg: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: DitaaImg => Success(ditaaImgOut(d), in.rest)
+        case d => Failure(d.showTerm, in) 
+      }
+    }
+  }
+
+  def ditaaImgOut(d: DitaaImg): Out
 }

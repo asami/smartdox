@@ -6,7 +6,7 @@ import org.smartdox.Dox
 
 /*
  * @since   Jan. 11, 2012
- * @version Jan. 11, 2012
+ * @version Jan. 12, 2012
  * @author  ASAMI, Tomoharu
  */
 class DoxReader(val dox: Dox) extends Reader[Dox] {
