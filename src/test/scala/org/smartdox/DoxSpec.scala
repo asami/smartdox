@@ -20,7 +20,7 @@ import scala.util.parsing.input.Reader
 @RunWith(classOf[JUnitRunner])
 class DoxSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
   "Dox" should {
-    "a" that {
+    "tree" that {
       val in = "* OK"
       val out = "List(<!DOCTYPE html><html><head/><body><section><h2>OK</h2></section></body></html>, <head/>, <body><section><h2>OK</h2></section></body>, <section><h2>OK</h2></section>)"
       "plain" in {

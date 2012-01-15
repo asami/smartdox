@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 13, 2012
+ * @version Jan. 15, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -184,6 +184,27 @@ trait Dox {
     }
   }
 */
+  def find(p: Dox => Boolean): Option[Dox] = {
+    if (p(this)) this.some
+    else {
+      for (e <- elements) {
+        val r = e.find(p)
+        if (r.isDefined) return r
+      }
+      None
+    }
+  }
+
+  def collectFirst[T](pf: PartialFunction[Dox, T]): Option[T] = {
+    if (pf.isDefinedAt(this)) pf(this).some
+    else {
+      for (e <- elements) {
+        if (pf.isDefinedAt(e)) return pf(e).some
+
+      }
+      None
+    }
+  }
 }
 
 trait Block extends Dox {
@@ -196,11 +217,14 @@ trait ListContent extends Dox {
 }
 
 object Dox {
+  type DoxV = ValidationNEL[String, Dox]
+  type TreeDoxV = ValidationNEL[String, Tree[Dox]]
+
   implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
     new Fragment(contents)
   }
 
-  implicit def DoxShow: Show[Dox] = shows(_.toShowString) 
+  implicit def DoxShow: Show[Dox] = shows(_.toShowString)
 
   def tree(dox: Dox): Tree[Dox] = {
     Scalaz.node(dox, dox.elements.toStream.map(tree))
@@ -232,10 +256,19 @@ object Dox {
     }
   }
 
-  def untree(tree: Tree[Dox]) = untreeV(tree)
+  def untree(tree: Tree[Dox]) = untreeE(tree)
 
-  val lens: Lens[Dox, Tree[Dox]] = {
-    Lens(tree, (d, t) => untreeE(t))
+  val treeLens: Lens[Dox, Tree[Dox]] = {
+    Lens(tree, (d, t) => untree(t))
+  }
+
+  val treeLensV: Lens[DoxV, TreeDoxV] = {
+    Lens((d: DoxV) => d.map(tree),
+        (d, t) => t.map(untree))
+  }
+
+  def tableLens(p: Table => Boolean = {(x: Table) => true}): Lens[Dox, Table] = {
+    sys.error("not implemented yet")
   }
 }
 
@@ -301,6 +334,10 @@ case class Body(contents: List[Dox]) extends Dox {
   }
 }
 
+object Body {
+  def apply(contents: Dox*) = new Body(contents.toList)
+}
+
 case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) extends Dox {
   override val elements = contents
   override def show_Open(buf: StringBuilder) {
@@ -322,11 +359,13 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
   }
 }
 
-case class Div(contents: List[Dox]) extends Block {
+case class Div(contents: List[Dox] = Nil) extends Block {
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs))
   }
 }
+
+object Div extends Div(Nil)
 
 case class Paragraph(contents: List[Dox]) extends Block {
   override val elements = contents
@@ -405,6 +444,10 @@ case class Ul(contents: List[Li]) extends Block with ListContent {
   }
 }
 
+object Ul {
+  def apply(contents: Li*) = new Ul(contents.toList) 
+}
+
 case class Ol(contents: List[Li]) extends Block with ListContent {
   override val elements = contents
 
@@ -423,6 +466,11 @@ case class Li(contents: List[ListContent]) extends Block {
   override def copyV(cs: List[Dox]) = {
     to_list_content(cs).map(copy)
   }
+}
+
+object Li {
+  def apply(text: String) = new Li(List(Text(text)))
+  def apply(es: ListContent*) = new Li(es.toList)
 }
 
 // 2011-12-30
