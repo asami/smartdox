@@ -7,14 +7,14 @@ import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
-import org.goldenport.scalaz.ScalazMatchers
+import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox.parser.DoxParser
 import scala.collection.mutable.ArrayBuffer
 import scala.util.parsing.input.Reader
 
 /*
  * @since   Jan. 12, 2012
- * @version Jan. 13, 2012
+ * @version Jan. 15, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])

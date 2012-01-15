@@ -7,11 +7,11 @@ import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
-import org.goldenport.scalaz.ScalazMatchers
+import org.goldenport.scalatest.ScalazMatchers
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan.  1, 2012
+ * @version Jan. 15, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
