@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 15, 2012
+ * @version Jan. 16, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -85,7 +85,21 @@ trait Dox {
     showContentsElements.foreach(_.to_Text(buf))
   }
 
-  def copyV(cs: List[Dox]): ValidationNEL[String, Dox]
+  // invoke copyWV
+  def copyV(cs: List[Dox]): ValidationNEL[String, Dox] = {
+    copyWV(cs).over
+  }
+
+  // invoke copyV
+  @deprecated
+  def copyWV(cs: List[Dox]): Writer[List[String], ValidationNEL[String, Dox]] = {
+    writer(nil, copyV(cs))
+  }
+
+  // invoke copyV
+  def copyVW(cs: List[Dox]): ValidationNEL[String, Writer[List[String], Dox]] = {
+    copyV(cs).map(writer(nil, _))
+  }
 
   protected final def to_failure[T, U](o: T)(implicit s: Show[T]): Failure[NonEmptyList[String], U] = {
     Failure(NonEmptyList(to_failure_message(o)(s)))
@@ -218,7 +232,11 @@ trait ListContent extends Dox {
 
 object Dox {
   type DoxV = ValidationNEL[String, Dox]
+  type DoxVW = ValidationNEL[String, Writer[List[String], Dox]]
+  type DoxWV = Writer[List[String], DoxV]
   type TreeDoxV = ValidationNEL[String, Tree[Dox]]
+  type TreeDoxVW = ValidationNEL[String, Writer[List[String], Tree[Dox]]]
+  type TreeDoxWV = Writer[List[String], TreeDoxV]
 
   implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
     new Fragment(contents)
@@ -255,15 +273,60 @@ object Dox {
     if (errors.nonEmpty) {
       Failure(errors.toNel.get)
     } else {
-      println("untreeV success = " + tree.drawTree)
+//      println("untreeV success = " + tree.drawTree)
       val cs = children.collect {
           case Success(d) => d
       }
-      println("untreeV success children = " + cs)
+//      println("untreeV success children = " + cs)
       val r = tree.rootLabel.copyV(cs)
-      println("untreeV success result = " + r.either.right.toString)
+//      println("untreeV success result = " + r.either.right.toString)
       r
     }
+  }
+
+  @deprecated
+  def untreeWV(tree: Tree[Dox]): Writer[List[String], ValidationNEL[String, Dox]] = {
+//    println("untreeV: " + tree.drawTree)
+    val children = tree.subForest.map(untreeWV).toList
+//    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
+    val errors = children.map(_.over).flatMap {
+      case Success(d) => Nil
+      case Failure(e) => e.list
+    }
+    val log = children.flatMap(_.written)
+//    if (errors.nonEmpty) {
+//      println("children -> errors: " + children + "," + errors + "/" + tree.subForest.toList)
+//    }
+    if (errors.nonEmpty) {
+      writer(log, Failure(errors.toNel.get))
+    } else {
+//      println("untreeV success = " + tree.drawTree)
+      val cs = children.map(_.over).collect {
+          case Success(d) => d
+      }
+//      println("untreeV success children = " + cs)
+      val r = tree.rootLabel.copyWV(cs)
+//      println("untreeV success result = " + r.either.right.toString)
+      writer(log ::: r.written, r.over)
+    }    
+  }
+
+  def untreeVW(tree: Tree[Dox]): ValidationNEL[String, Writer[List[String], Dox]] = {
+    val children = tree.subForest.map(untreeVW).toList
+    val errors = children.flatMap {
+      case Success(d) => Nil
+      case Failure(e) => e.list
+    }
+    if (errors.nonEmpty) {
+      errors.toNel.get.fail
+    } else {
+      val cs = children.collect {
+          case Success(d) => d
+      }
+      val log = cs.flatMap(_.written)
+      val r = tree.rootLabel.copyVW(cs.map(_.over))
+      r.map(x => writer(log ::: x.written, x.over))
+    }    
   }
 
   def untree(tree: Tree[Dox]) = untreeE(tree)
@@ -277,8 +340,20 @@ object Dox {
         (d, t) => t.map(untree))
   }
 
+  val treeLensVW: Lens[DoxVW, TreeDoxVW] = {
+    def pushback(t: TreeDoxVW): DoxVW = {
+      t.flatMap(x => untreeVW(x.over))
+    }
+    Lens((d: DoxVW) => d.map(_.map(tree)),
+        (d, t) => pushback(t))
+  }
+
   def tableLens(p: Table => Boolean = {(x: Table) => true}): Lens[Dox, Table] = {
     sys.error("not implemented yet")
+  }
+
+  def html5(name: String, children: List[Dox]) = {
+    Html5(name, Nil, children)
   }
 }
 
@@ -713,5 +788,15 @@ case class DotImg(src: URI, contents: String, params: List[String] = Nil) extend
 case class DitaaImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
+  }
+}
+
+// 2011-01-16
+case class Html5(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+  override val elements = contents
+  override def showTerm = name
+
+  override def copyV(cs: List[Dox]) = {
+    Success(copy(name, attributes, cs))
   }
 }
