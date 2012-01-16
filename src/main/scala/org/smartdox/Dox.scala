@@ -32,7 +32,7 @@ trait Dox {
   def isOpenClose = showContentsElements.isEmpty
 
   def toString(buf: StringBuilder, maxlength: Option[Int] = None) {
-    if (maxlength.map(_ >= buf.length) | false) {
+    if (maxlength.map(_ <= buf.length) | false) {
       if (!buf.endsWith("...")) {
         buf ++= "..." 
       }
@@ -242,17 +242,27 @@ object Dox {
   }
 
   def untreeV(tree: Tree[Dox]): ValidationNEL[String, Dox] = {
+//    println("untreeV: " + tree.drawTree)
     val children = tree.subForest.map(untreeV).toList
+//    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
     val errors = children.flatMap {
       case Success(d) => Nil
       case Failure(e) => e.list
     }
-    if (errors.nonEmpty) Failure(errors.toNel.get)
-    else {
-      tree.rootLabel.copyV(
-        children.collect {
+//    if (errors.nonEmpty) {
+//      println("children -> errors: " + children + "," + errors + "/" + tree.subForest.toList)
+//    }
+    if (errors.nonEmpty) {
+      Failure(errors.toNel.get)
+    } else {
+      println("untreeV success = " + tree.drawTree)
+      val cs = children.collect {
           case Success(d) => d
-        })
+      }
+      println("untreeV success children = " + cs)
+      val r = tree.rootLabel.copyV(cs)
+      println("untreeV success result = " + r.either.right.toString)
+      r
     }
   }
 
@@ -354,12 +364,14 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
   override def isOpenClose = false
 
   override def copyV(cs: List[Dox]) = {
-    if (cs.isEmpty) Success(copy(title, cs, level)) // XXX level
-    else to_failure(cs)
+    Success(copy(title, cs, level)) // XXX level
   }
 }
 
 case class Div(contents: List[Dox] = Nil) extends Block {
+  override def showTerm = "div"
+  override val elements = contents
+
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs))
   }
@@ -399,6 +411,10 @@ case class Bold(contents: List[Inline]) extends Inline {
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
   }
+}
+
+object Bold extends Bold(Nil) {
+  def apply(contents: Inline*) = new Bold(contents.toList)
 }
 
 // 2011-12-26
