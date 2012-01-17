@@ -136,7 +136,7 @@ object DoxParser extends RegexParsers {
 
   def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
-  def block: Parser[Block] = dl|ulol|table|figure|console|program
+  def block: Parser[Block] = dl|ulol|table|figure|console|program|includeprogram
 
   def emptyline: Parser[List[EmptyLine]] = {
     newline ^^ {
@@ -413,6 +413,19 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def includeprogram: Parser[Program] = {
+    starter("include:")~"[ ]*".r~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
+      case filename~_~_~params => {
+        Program("", List("src" -> filename))
+      }
+    }
+  }
+
+  def starter(name: String): Parser[String] = {
+    val upper = name.toUpperCase
+    ("#+" + upper|"#+" + name)
+  }
+    
   def inline: Parser[Inline] = (space|text|bold|italic|underline|code|pre|del|
       bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
       img|hyperlink|hyperlink_xml|hyperlink_literal)

@@ -14,6 +14,9 @@ import java.net.URI
  */
 trait Dox {
   val elements: List[Dox] = Nil
+  lazy val attributeMap = Map(showParams: _*)
+  def attribute(name: String): Option[String] = attributeMap.get(name)
+
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
   lazy val showParamsText = showParams.map {
@@ -540,7 +543,7 @@ case class Pre(contents: String, attributes: List[(String, String)] = Nil) exten
   override def showParams = attributes
 
   override def copyV(cs: List[Dox]) = {
-    to_plain_text(cs).map(copy(_, attributes))
+    to_plain_text(cs) >| copy(contents, attributes)
   }
 }
 
