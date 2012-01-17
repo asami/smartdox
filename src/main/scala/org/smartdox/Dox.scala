@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 16, 2012
+ * @version Jan. 17, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -219,6 +219,8 @@ trait Dox {
       None
     }
   }
+
+  def toVW: Dox.DoxVW = Dox.vw(this)
 }
 
 trait Block extends Dox {
@@ -235,6 +237,7 @@ object Dox {
   type DoxVW = ValidationNEL[String, Writer[List[String], Dox]]
   type DoxWV = Writer[List[String], DoxV]
   type TreeDoxV = ValidationNEL[String, Tree[Dox]]
+  type TreeDoxW = Writer[List[String], Tree[Dox]]
   type TreeDoxVW = ValidationNEL[String, Writer[List[String], Tree[Dox]]]
   type TreeDoxWV = Writer[List[String], TreeDoxV]
 
@@ -354,6 +357,10 @@ object Dox {
 
   def html5(name: String, children: List[Dox]) = {
     Html5(name, Nil, children)
+  }
+
+  def vw(d: Dox): DoxVW = {
+    success(writer(nil, d))
   }
 }
 
