@@ -248,25 +248,25 @@ object DoxParser extends RegexParsers {
   case class CommentAttribute(value: String) extends Attribute 
 
   def attrcaption: Parser[Attribute] = {
-    ("#+CAPTION: "|"#+caption: ")~>rep(inline)<~opt(newline) ^^ {
+    starter_colon("caption")~>rep(inline)<~opt(newline) ^^ {
       case value => CaptionAttribute(value)
     }
   }
 
   def attrlabel: Parser[Attribute] = {
-    startercolon("label")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    starter_colon("label")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => LabelAttribute(value)
     }
   }
 
   def attrhtml: Parser[Attribute] = {
-    startercolon("attr_html")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    starter_colon("attr_html")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => HtmlAttribute(value)
     }
   }
 
   def attrlatex: Parser[Attribute] = {
-    startercolon("attr_latex")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    starter_colon("attr_latex")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => LatexAttribute(value)
     }
   }
@@ -414,27 +414,27 @@ object DoxParser extends RegexParsers {
   }
 
   def includeprogram: Parser[Program] = {
-    startercolon("include")~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
+    starter_colon("include")~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
       case filename~_~_~params => {
         Program("", List("src" -> filename))
       }
     }
   }
 
-  def starter0(name: String): Parser[String] = {
-    ("(?i)(#+" + name + ")").r<~"[ ]+".r
-  }
-
-  def startercolon0(name: String): Parser[String] = {
-    ("(?i)(#+" + name + ":)").r<~"[ ]*".r
-  }
-
   def starter(name: String): Parser[String] = {
+    ("(?i)([#][+]" + name + ")").r<~"[ ]+".r
+  }
+
+  def starter_colon(name: String): Parser[String] = {
+    ("(?i)([#][+]" + name + ":)").r<~"[ ]*".r
+  }
+
+  def starter0(name: String): Parser[String] = {
     val upper = name.toUpperCase
     ("#+" + upper|"#+" + name)<~"[ ]+".r
   }
 
-  def startercolon(name: String): Parser[String] = {
+  def startercolon0(name: String): Parser[String] = {
     val upper = name.toUpperCase
     ("#+" + upper + ":"|"#+" + name + ":")<~"[ ]*".r
   }
