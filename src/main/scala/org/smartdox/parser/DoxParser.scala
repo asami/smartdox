@@ -254,19 +254,19 @@ object DoxParser extends RegexParsers {
   }
 
   def attrlabel: Parser[Attribute] = {
-    ("#+LABEL: "|"#+label: ")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    startercolon("label")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => LabelAttribute(value)
     }
   }
 
   def attrhtml: Parser[Attribute] = {
-    ("#+ATTR_HTML: "|"#+attr_html")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    startercolon("attr_html")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => HtmlAttribute(value)
     }
   }
 
   def attrlatex: Parser[Attribute] = {
-    ("#+ATTR_LATEX: "|"#+attr_latex")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    startercolon("attr_latex")~>"[^\n\r]*".r<~opt(newline) ^^ {
       case value => LatexAttribute(value)
     }
   }
@@ -414,16 +414,29 @@ object DoxParser extends RegexParsers {
   }
 
   def includeprogram: Parser[Program] = {
-    starter("include:")~"[ ]*".r~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
+    startercolon("include")~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
       case filename~_~_~params => {
         Program("", List("src" -> filename))
       }
     }
   }
 
+  def starter0(name: String): Parser[String] = {
+    ("(?i)(#+" + name + ")").r<~"[ ]+".r
+  }
+
+  def startercolon0(name: String): Parser[String] = {
+    ("(?i)(#+" + name + ":)").r<~"[ ]*".r
+  }
+
   def starter(name: String): Parser[String] = {
     val upper = name.toUpperCase
-    ("#+" + upper|"#+" + name)
+    ("#+" + upper|"#+" + name)<~"[ ]+".r
+  }
+
+  def startercolon(name: String): Parser[String] = {
+    val upper = name.toUpperCase
+    ("#+" + upper + ":"|"#+" + name + ":")<~"[ ]*".r
   }
     
   def inline: Parser[Inline] = (space|text|bold|italic|underline|code|pre|del|
@@ -579,11 +592,15 @@ object DoxParser extends RegexParsers {
   }
 
   def img: Parser[Img] = {
-    "[["~>"""[^]]+[.](png|jpeg|jpg|gif)""".r<~"]]" ^^ {
-      case filename => ReferenceImg(new URI(filename))
+    "[["~>"""[^]]+[.]""".r~img_suffix<~"]]" ^^ {
+      case name~suffix => ReferenceImg(new URI(name+suffix))
     }
   }
 
+  def img_suffix: Parser[String] = {
+    "(png|jpeg|jpg|gif|pdf)".r    
+  }
+  
   def img_dot: Parser[Img] = {
     ("#+BEGIN_DOT"|"#+begin_dot")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DOT "|"#+end_dot")~"[ ]*".r~opt(newline) ^^ {
       case params~_~contents => {

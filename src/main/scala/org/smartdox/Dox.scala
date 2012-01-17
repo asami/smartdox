@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 17, 2012
+ * @version Jan. 18, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -174,6 +174,12 @@ trait Dox {
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
+  }
+
+  protected final def to_figure(cs: List[Dox]): ValidationNEL[String, (Option[Img], Option[Figcaption])] = {    
+    val img = cs.collectFirst { case x: Img => x }
+    val caption = cs.collectFirst { case x: Figcaption => x }
+    Success((img, caption))
   }
 
   protected final def to_list_content(cs: List[Dox]): ValidationNEL[String, List[ListContent]] = {
@@ -471,7 +477,9 @@ case class Div(contents: List[Dox] = Nil) extends Block {
   }
 }
 
-object Div extends Div(Nil)
+object Div extends Div(Nil) {
+  def apply(d: Dox) = new Div(List(d))
+}
 
 case class Paragraph(contents: List[Dox]) extends Block {
   override val elements = contents
@@ -753,7 +761,9 @@ case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) e
   override def showParams = List("id" -> label).flatMap(_.sequence)
 
   override def copyV(cs: List[Dox]) = {
-    to_empty(cs).map(_ => this)
+    to_figure(cs).map { case (i, c) =>
+      copy(i | img, c | caption, label)
+    }
   }
 }
 
