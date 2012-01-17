@@ -15,7 +15,7 @@ import java.net.URI
 trait Dox {
   val elements: List[Dox] = Nil
   def showTerm = getClass.getSimpleName().toLowerCase()
-  def showParams: Map[String, String] = Map.empty
+  def showParams: List[(String, String)] = Nil
   lazy val showParamsText = showParams.map {
     case (k, v) => """%s="%s"""".format(k, v) 
   } mkString(" ")
@@ -198,6 +198,13 @@ trait Dox {
     }
   }
 */
+
+  protected final def to_plain_text(cs: List[Dox]): ValidationNEL[String, String] = {
+    val (ss, es) = cs.partition(_.isInstanceOf[Text])
+    if (es.nonEmpty) "Not text".failNel
+    else ss.mkString.success
+  }
+
   def find(p: Dox => Boolean): Option[Dox] = {
     if (p(this)) this.some
     else {
@@ -328,6 +335,8 @@ object Dox {
       }
       val log = cs.flatMap(_.written)
       val r = tree.rootLabel.copyVW(cs.map(_.over))
+      println("untreeVW <= " + tree.drawTree)
+      r.foreach(x => println("untreeVM => " + x.over.toString))
       r.map(x => writer(log ::: x.written, x.over))
     }    
   }
@@ -526,11 +535,12 @@ case class Code(contents: List[Inline]) extends Inline {
   }
 }
 
-case class Pre(contents: List[Inline]) extends Inline {
-  override val elements = contents
+case class Pre(contents: String, attributes: List[(String, String)] = Nil) extends Inline {
+  override val elements = List(Text(contents))
+  override def showParams = attributes
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_plain_text(cs).map(copy(_, attributes))
   }
 }
 
@@ -583,7 +593,7 @@ case class Del(contents: List[Inline]) extends Inline {
 case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
   override val elements = contents
   override def showTerm = "a"
-  override def showParams = Map("href" -> href.toASCIIString())
+  override def showParams = List("href" -> href.toASCIIString())
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, href))
@@ -737,7 +747,7 @@ case class Caption(contents: List[Inline]) extends Block {
 // 2011-12-31
 case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) extends Block {
   override val elements = List(img, caption)
-  override def showParams = List("id" -> label).flatMap(_.sequence).toMap
+  override def showParams = List("id" -> label).flatMap(_.sequence)
 
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
@@ -778,7 +788,7 @@ trait Img extends Inline {
   val src: URI
   override val elements = Nil
   override def showTerm = "img"
-  override def showParams = Map("src" -> src.toASCIIString())  
+  override def showParams = List("src" -> src.toASCIIString())  
 }
 
 trait EmbeddedImg extends Img {
@@ -805,5 +815,26 @@ case class Html5(name: String, attributes: List[(String, String)], contents: Lis
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
+  }
+}
+
+// 2011-01-17
+case class Program(contents: String, attributes: List[(String, String)] = Nil) extends Block {
+  override val elements = List(new Text(contents))
+  override def showTerm = "pre"
+  override def showParams = attributes
+
+  override def copyV(cs: List[Dox]) = {
+    to_plain_text(cs).map(_ => this)
+  }
+}
+
+case class Console(contents: String, attributes: List[(String, String)] = Nil) extends Block {
+  override val elements = List(new Text(contents))
+  override def showTerm = "console"
+  override def showParams = attributes
+
+  override def copyV(cs: List[Dox]) = {
+    to_plain_text(cs).map(_ => this)
   }
 }

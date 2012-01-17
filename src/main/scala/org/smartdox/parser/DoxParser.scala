@@ -11,7 +11,7 @@ import java.io.Reader
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 10, 2012
+ * @version Jan. 17, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -134,9 +134,9 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa)
+  def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
-  def block: Parser[Block] = dl|ulol|table|figure
+  def block: Parser[Block] = dl|ulol|table|figure|console|program
 
   def emptyline: Parser[List[EmptyLine]] = {
     newline ^^ {
@@ -362,7 +362,7 @@ object DoxParser extends RegexParsers {
   }
 
   def figure: Parser[Figure] = {
-    rep1(floatattr)~(img|img_dot|img_ditaa)<~opt(newline) ^^ {
+    rep1(floatattr)~(img|img_dot|img_ditaa|img_sm)<~opt(newline) ^^ {
       case attrs~img => {
         val caption = attrs.collectFirst {
           case c: CaptionAttribute => c.value
@@ -374,6 +374,42 @@ object DoxParser extends RegexParsers {
       }
     } ^^ {
       case fig if fig.caption.contents.nonEmpty => fig
+    }
+  }
+
+  def program: Parser[Program] = {
+    beginend("src") { (params: List[String], contents: String) =>
+      val filename = params.head
+      Program(contents)
+    }
+  }
+
+  def beginend[T](name: String)(body: (List[String], String) => T): Parser[T] = {
+    val upper = name.toUpperCase
+    ("#+BEGIN_" + upper|"#+begin_" + name)~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_" + upper|"#+end_" + name)~"[ ]*".r~opt(newline) ^^ {
+      case params~_~contents => {
+        body(params, contents)
+      }
+    }    
+  }
+
+  def console: Parser[Console] = {
+    beginendmatch("src"){ (ps: List[String], contents: String) => 
+      ps.headOption.map(_ == "console") | false
+    } { (params: List[String], contents: String) =>
+      val filename = params.head
+      Console(contents)
+    }    
+  }
+
+  def beginendmatch[T](name: String)(
+      p: (List[String], String) => Boolean)
+      (body: (List[String], String) => T): Parser[T] = {
+    val upper = name.toUpperCase
+    ("#+BEGIN_" + upper|"#+begin_" + name)~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_" + upper|"#+end_" + name)~"[ ]*".r~opt(newline) ^? {
+      case params~_~contents if p(params, contents) => {
+        body(params, contents)
+      }
     }
   }
 
@@ -480,13 +516,13 @@ object DoxParser extends RegexParsers {
   def pre: Parser[Inline] = {
     "~"~>rep(inline)<~"~" ^^ {
       case inline if (inline.isEmpty) => Text("~")
-      case inline => Pre(inline)
+      case inline => Pre(inline.mkString)
     }
   }
 
   def pre_xml: Parser[Inline] = {
     inline_xml("pre") ^^ {
-      case elem => Pre(elem.contents)
+      case elem => Pre(elem.contents.mkString)
     }
   }
 
@@ -536,7 +572,7 @@ object DoxParser extends RegexParsers {
   }
 
   def img_dot: Parser[Img] = {
-    ("#+BEGIN_DOT "|"#+begin_dot")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DOT "|"#+end_dot")~"[ ]*".r~opt(newline) ^^ {
+    ("#+BEGIN_DOT"|"#+begin_dot")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DOT "|"#+end_dot")~"[ ]*".r~opt(newline) ^^ {
       case params~_~contents => {
         val filename = params.head
         DotImg(new URI(filename), contents, params.tail)
@@ -545,10 +581,30 @@ object DoxParser extends RegexParsers {
   }
 
   def img_ditaa: Parser[Img] = {
-    ("#+BEGIN_DITAA "|"#+begin_ditaa")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DITAA "|"#+end_ditaa")~"[ ]*".r~opt(newline) ^^ {
+    ("#+BEGIN_DITAA"|"#+begin_ditaa")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_DITAA "|"#+end_ditaa")~"[ ]*".r~opt(newline) ^^ {
       case params~_~contents => {
         val filename = params.head
         DitaaImg(new URI(filename), contents, params.tail)
+      }
+    }
+  }
+
+  def img_sm: Parser[Img] = img_sm_csv|img_sm_org
+
+  def img_sm_org: Parser[Img] = {
+    ("#+BEGIN_SM_ORG"|"#+begin_sm_org")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_SM_ORG "|"#+end_sm_org")~"[ ]*".r~opt(newline) ^^ {
+      case params~_~contents => {
+        val filename = params.head
+        DitaaImg(new URI(filename), contents, params.tail) // SmOrgImg
+      }
+    }
+  }  
+
+  def img_sm_csv: Parser[Img] = {
+    ("#+BEGIN_SM_CSV "|"#+begin_sm_csv")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_SM_CSV "|"#+end_sm_csv")~"[ ]*".r~opt(newline) ^^ {
+      case params~_~contents => {
+        val filename = params.head
+        DitaaImg(new URI(filename), contents, params.tail) // SmCsvImg
       }
     }
   }
