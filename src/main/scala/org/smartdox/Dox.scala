@@ -250,6 +250,7 @@ trait ListContent extends Dox {
 
 object Dox {
   type DoxV = ValidationNEL[String, Dox]
+  type DoxW = Writer[List[String], Dox]
   type DoxVW = ValidationNEL[String, Writer[List[String], Dox]]
   type DoxWV = Writer[List[String], DoxV]
   type TreeDoxV = ValidationNEL[String, Tree[Dox]]
@@ -849,5 +850,16 @@ case class Console(contents: String, attributes: List[(String, String)] = Nil) e
 
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
+  }
+}
+
+// 2011-01-18
+case class SDoc(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+  override val elements = contents
+  override def showTerm = name
+  override def showParams = attributes
+
+  override def copyV(cs: List[Dox]) = {
+    Success(copy(name, attributes, cs))
   }
 }
