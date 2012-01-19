@@ -728,7 +728,7 @@ case class Dt(contents: String) extends Block {
   override val elements = List(Text(contents))
 
   override def copyV(cs: List[Dox]) = {
-    to_empty(cs).map(_ => this)
+    to_inline(cs).map(_ => this)
   }
 }
 
