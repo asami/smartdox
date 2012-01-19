@@ -38,18 +38,65 @@ object DoxParser extends RegexParsers {
   }
 
   def head: Parser[Head] = {
+    rep(head_slot) ^^ {
+      case slots => {
+        val builder = Head.builder
+        for ((name, value) <- slots) {
+          name.toLowerCase match {
+            case "title" => builder.title = value
+            case "author" => builder.author = value
+            case _ => {}
+          }
+        }
+        builder.build
+      }
+    }
+  }
+
+  def head_slot: Parser[(String, InlineContents)] = {
+    "#+"~>"[^:]+".r~":[ ]*".r~rep(inline)<~opt(newline) ^^ {
+      case name~_~value => (name, value)
+    }
+  }
+
+  def head1: Parser[Head] = {
+    opt(head_title)~opt(head_author) ^^ {
+      case title~author => {
+        val builder = Head.builder
+        builder.title = title | nil
+        builder.author = author | nil
+        builder.build
+      }
+    }
+  }
+
+  def head_title: Parser[InlineContents] = {
+    starter_colon("title")~>rep(inline)<~opt(newline) ^^ {
+      case inline => inline
+    }
+  }
+
+  def head_author: Parser[InlineContents] = {
+    starter_colon("author")~>rep(inline)<~opt(newline) ^^ {
+      case inline => inline
+    }
+  }
+
+  def head0: Parser[Head] = {
     val builder = Head.builder
     def title: Parser[Unit] = {
+//      starter_colon("title")~>rep(inline)<~opt(newline) ^^ {
       "#+TITLE: "~>rep(inline)<~opt(newline) ^^ {
         case inline => builder.title = inline
       }
     }
     def author: Parser[Unit] = {
-      "#+AUTHOR: "~>rep(inline)<~opt(newline) ^^ {
+      starter_colon("author")~>rep(inline)<~opt(newline) ^^ {
         case inline => builder.author = inline
       }
     }
     rep(title|author)
+    println("head: " + builder)
     success(builder.build)
   }
 
@@ -427,6 +474,7 @@ object DoxParser extends RegexParsers {
 
   def starter_colon(name: String): Parser[String] = {
     ("(?i)([#][+]" + name + ":)").r<~"[ ]*".r
+//    ("""(?i)\([#][+]""" + name + """:\)""").r<~"[ ]*".r
   }
 
   def starter0(name: String): Parser[String] = {
