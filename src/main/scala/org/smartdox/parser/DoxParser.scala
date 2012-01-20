@@ -673,7 +673,7 @@ object DoxParser extends RegexParsers {
     ("#+BEGIN_SM_ORG"|"#+begin_sm_org")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_SM_ORG "|"#+end_sm_org")~"[ ]*".r~opt(newline) ^^ {
       case params~_~contents => {
         val filename = params.head
-        DitaaImg(new URI(filename), contents, params.tail) // SmOrgImg
+        SmCsvImg(new URI(filename), contents, params.tail) // SmOrgImg
       }
     }
   }  
@@ -682,7 +682,7 @@ object DoxParser extends RegexParsers {
     ("#+BEGIN_SM_CSV "|"#+begin_sm_csv")~"[ ]+".r~>rep1sep("[^ \n\r]+".r, "[ ]+".r)~newline~embedlines<~("#+END_SM_CSV "|"#+end_sm_csv")~"[ ]*".r~opt(newline) ^^ {
       case params~_~contents => {
         val filename = params.head
-        DitaaImg(new URI(filename), contents, params.tail) // SmCsvImg
+        SmCsvImg(new URI(filename), contents, params.tail)
       }
     }
   }

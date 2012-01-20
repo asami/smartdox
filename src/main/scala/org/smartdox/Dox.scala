@@ -863,3 +863,10 @@ case class SDoc(name: String, attributes: List[(String, String)], contents: List
     Success(copy(name, attributes, cs))
   }
 }
+
+// 2011-01-20
+case class SmCsvImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
+  override def copyV(cs: List[Dox]) = {
+    to_empty(cs).map(_ => this)
+  }
+}
