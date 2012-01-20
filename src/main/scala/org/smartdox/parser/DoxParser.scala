@@ -329,7 +329,7 @@ object DoxParser extends RegexParsers {
       }
     }
     def dataline: Parser[DataTableLine] = {
-      "|"~>repsep(rep(inline), "|")<~opt(newline) ^^ {
+      "|"~>repsep(rep(inline_table), "|")<~opt(newline) ^^ {
         case lines => {
           val ls = normalize_space(lines)
           if (ls.last.nonEmpty) DataTableLine(ls)
@@ -487,7 +487,11 @@ object DoxParser extends RegexParsers {
     ("#+" + upper + ":"|"#+" + name + ":")<~"[ ]*".r
   }
     
-  def inline: Parser[Inline] = (space|text|bold|italic|underline|code|pre|del|
+  def inline: Parser[Inline] = (space|text|inline_elements)
+
+  def inline_table: Parser[Inline] = (space|text_table|inline_elements)
+
+  def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
       bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
       img|hyperlink|hyperlink_xml|hyperlink_literal)
 
@@ -498,7 +502,15 @@ object DoxParser extends RegexParsers {
   }
 
   def text: Parser[Text] = {
-    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
+//    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
+    """[^*/_=~+<>\[\] \n\r]+""".r ^^ {
+      case s => 
+        println("s = " + s);Text(s)
+    }
+  }
+
+  def text_table: Parser[Text] = {
+    """[^*/_=~+<>\[\] |\n\r]+""".r ^^ {
       case s => 
         println("s = " + s);Text(s)
     }
