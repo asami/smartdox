@@ -45,6 +45,7 @@ object DoxParser extends RegexParsers {
           name.toLowerCase match {
             case "title" => builder.title = value
             case "author" => builder.author = value
+            case "date" => builder.date = value
             case _ => {}
           }
         }

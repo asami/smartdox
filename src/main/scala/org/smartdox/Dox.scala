@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 18, 2012
+ * @version Jan. 21, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -87,6 +87,8 @@ trait Dox {
   protected def to_Text(buf: StringBuilder) {
     showContentsElements.foreach(_.to_Text(buf))
   }
+
+  def tree: Tree[Dox] = Dox.tree(this)
 
   // invoke copyWV
   def copyV(cs: List[Dox]): ValidationNEL[String, Dox] = {
@@ -419,7 +421,8 @@ case class Document(head: Head, body: Body) extends Dox {
 
 case class Head(
     title: InlineContents = Nil,
-    author: InlineContents = Nil) extends Dox {
+    author: InlineContents = Nil,
+    date: InlineContents = Nil) extends Dox {
   override def copyV(cs: List[Dox]) = {
     if (cs.isEmpty) Success(this)
     else to_failure(cs)
@@ -432,8 +435,9 @@ object Head {
   class Builder {
     var title: InlineContents = Nil
     var author: InlineContents = Nil
+    var date: InlineContents = Nil
 
-    def build() = new Head(title, author)
+    def build() = new Head(title, author, date)
   }
 }
 
