@@ -11,7 +11,7 @@ import java.io.Reader
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 20, 2012
+ * @version Jan. 21, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -97,7 +97,7 @@ object DoxParser extends RegexParsers {
       }
     }
     rep(title|author)
-    println("head: " + builder)
+//    println("head: " + builder)
     success(builder.build)
   }
 
@@ -112,9 +112,9 @@ object DoxParser extends RegexParsers {
   def section1: Parser[Section] = {
     "* "~>rep(inline)~opt(newline)~opt(contents)~rep(section2) ^^ {
       case title~_~contents~section2 => {
-        println("section1xs#title = " + title)
-        println("section1xs#contntents = " + contents)
-        println("section1xs#section2 = " + section2)
+//        println("section1xs#title = " + title)
+//        println("section1xs#contntents = " + contents)
+//        println("section1xs#section2 = " + section2)
         Section(title, (contents | nil) ::: section2, 1)
       }
     }
@@ -123,28 +123,32 @@ object DoxParser extends RegexParsers {
   def section2: Parser[Section] = {
     "** "~>rep(inline)~opt(newline)~opt(contents)~rep(section3) ^^ {
       case title~_~contents~section3 => 
-        println("section2 = " + title + "," + contents);Section(title, (contents | nil) ::: section3, 2)
+//        println("section2 = " + title + "," + contents);Section(title, (contents | nil) ::: section3, 2)
+        Section(title, (contents | nil) ::: section3, 2)
     }
   }
 
   def section3: Parser[Section] = {
     "*** "~>rep(inline)~opt(newline)~opt(contents)~rep(section4) ^^ {
       case title~_~contents~section4 => 
-        println("section3 = " + title + "," + contents);Section(title, (contents | nil) ::: section4, 3)
+//        println("section3 = " + title + "," + contents);Section(title, (contents | nil) ::: section4, 3)
+        Section(title, (contents | nil) ::: section4, 3)
     }
   }
 
   def section4: Parser[Section] = {
     "**** "~>rep(inline)~opt(newline)~opt(contents)~rep(section5) ^^ {
       case title~_~contents~section5 =>
-        println("section4 = " + title + "," + contents);Section(title, (contents | nil) ::: section5, 3)
+//        println("section4 = " + title + "," + contents);Section(title, (contents | nil) ::: section5, 3)
+        Section(title, (contents | nil) ::: section5, 3)
     }
   }
 
   def section5: Parser[Section] = {
     "***** "~>rep(inline)~opt(newline)~opt(contents) ^^ {
       case title~_~contents =>
-        println("section4 = " + title + "," + contents);Section(title, contents | nil, 3)
+//        println("section4 = " + title + "," + contents);Section(title, contents | nil, 3)
+        Section(title, contents | nil, 3)
     }
   }
 
@@ -176,7 +180,7 @@ object DoxParser extends RegexParsers {
   def contentsline: Parser[List[Dox]] = {
     not("[*]+[ ]".r)~>rep1(block|inline)<~opt(newline) ^^ {
       case contents => {
-        println("contentsline = " + contents)
+//        println("contentsline = " + contents)
         contents
       }
     }
@@ -234,7 +238,7 @@ object DoxParser extends RegexParsers {
 
       def parse(): List[Li] = {
         val lis = new ArrayBuffer[Li]
-        println("current = " + current)
+//        println("current = " + current)
         do {
           val line = current.head
           if (line.indent == previ) {
@@ -242,7 +246,7 @@ object DoxParser extends RegexParsers {
             lis += li
             previ = line.indent
             current = current.tail
-            println("currentx = " + current)
+//            println("currentx = " + current)
           } else if (line.indent > previ) {
             previ = line.indent
             current.head match {
@@ -506,14 +510,16 @@ object DoxParser extends RegexParsers {
 //    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
     """[^*/_=~+<>\[\] \n\r]+""".r ^^ {
       case s => 
-        println("s = " + s);Text(s)
+//        println("s = " + s);Text(s)
+        Text(s)
     }
   }
 
   def text_table: Parser[Text] = {
     """[^*/_=~+<>\[\] |\n\r]+""".r ^^ {
       case s => 
-        println("s = " + s);Text(s)
+//        println("s = " + s);Text(s)
+        Text(s)
     }
   }
 

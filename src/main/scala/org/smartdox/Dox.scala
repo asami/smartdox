@@ -347,8 +347,8 @@ object Dox {
       }
       val log = cs.flatMap(_.written)
       val r = tree.rootLabel.copyVW(cs.map(_.over))
-      println("untreeVW <= " + tree.drawTree)
-      r.foreach(x => println("untreeVM => " + x.over.toString))
+//      println("untreeVW <= " + tree.drawTree)
+//      r.foreach(x => println("untreeVM => " + x.over.toString))
       r.map(x => writer(log ::: x.written, x.over))
     }    
   }

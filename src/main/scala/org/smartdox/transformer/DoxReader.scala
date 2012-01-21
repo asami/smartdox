@@ -6,7 +6,7 @@ import org.smartdox.Dox
 
 /*
  * @since   Jan. 11, 2012
- * @version Jan. 13, 2012
+ * @version Jan. 21, 2012
  * @author  ASAMI, Tomoharu
  */
 class DoxReader(val dox: Dox) extends Reader[Dox] {
@@ -21,10 +21,11 @@ class DoxReader(val dox: Dox) extends Reader[Dox] {
 
 // XXX suppot close element token
 class DoxReader2(val elements: List[Dox], val stack: List[List[Dox]]) extends Reader[Dox] {
-  val input = "DoxReader2: " + elements + ", " + stack
-  print(input)
-  println()
-  def first = elements.head ensuring {x => println("first = " + x);true}
+//  val input = "DoxReader2: " + elements + ", " + stack
+//  print(input)
+//  println()
+//  def first = elements.head ensuring {x => println("first = " + x);true}
+  def first = elements.head
   def rest = {
     if (atEnd) this
     else {
