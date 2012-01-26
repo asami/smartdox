@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 21, 2012
+ * @version Jan. 26, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -534,6 +534,10 @@ case class Italic(contents: List[Inline]) extends Inline {
   }
 }
 
+object Italic extends Italic(Nil) {
+  def apply(contents: Inline*) = new Italic(contents.toList)
+}
+
 case class Underline(contents: List[Inline]) extends Inline {
   override val elements = contents
   override def showTerm = "u"
@@ -543,12 +547,20 @@ case class Underline(contents: List[Inline]) extends Inline {
   }
 }
 
+object Underline extends Underline(Nil) {
+  def apply(contents: Inline*) = new Underline(contents.toList)
+}
+
 case class Code(contents: List[Inline]) extends Inline {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
   }
+}
+
+object Code extends Code(Nil) {
+  def apply(contents: Inline*) = new Code(contents.toList)
 }
 
 case class Pre(contents: String, attributes: List[(String, String)] = Nil) extends Inline {
@@ -604,6 +616,10 @@ case class Del(contents: List[Inline]) extends Inline {
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
   }
+}
+
+object Del extends Del(Nil) {
+  def apply(contents: Inline*) = new Del(contents.toList)
 }
 
 case class Hyperlink(contents: List[Inline], href: URI) extends Inline {

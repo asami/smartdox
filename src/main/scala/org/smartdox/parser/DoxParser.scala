@@ -8,10 +8,11 @@ import scala.collection.mutable.ArrayBuffer
 import java.net.URI
 import Dox._
 import java.io.Reader
+import scala.util.matching.Regex
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 21, 2012
+ * @version Jan. 26, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -33,7 +34,26 @@ object DoxParser extends RegexParsers {
 
   def orgmode: Parser[Dox] = {
     head~body ^^ {
-      case head~body => Document(head, body)
+      case head~body => {
+        if (head.title.isEmpty) {
+          body.contents match {
+            case (x: Paragraph) :: xs => {
+              if (x.contents.isEmpty || !x.contents.head.isInstanceOf[Inline]) {
+                Document(head, body)
+              } else {
+                val cs = x.contents.tail.span { c => 
+                  c.isInstanceOf[Inline] && !c.isInstanceOf[Text]
+                }
+                val is = (x.contents.head :: cs._1) collect { case i: Inline => i }
+                Document(head.copy(is), body.copy(Paragraph(cs._2) :: xs))
+              }
+            }
+            case _ => Document(head, body)
+          }
+        } else {
+          Document(head, body)
+        } 
+      }
     }
   }
 
@@ -523,11 +543,32 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def bold: Parser[Inline] = {
-    "*"~>rep(inline)<~"*" ^^ {
-      case inline if (inline.isEmpty) => Text("*")
-      case inline => Bold(inline)
+  def bold: Parser[Inline] = text_markup("*", Bold(_))
+
+  def bold0: Parser[Inline] = {
+    "*"~>text_until("*")~opt("*"|newline) ^^ {
+      case text~mark => {
+        mark match {
+          case Some(m) if m == "*" => Bold(Text(text))
+          case _ => Text("*" + text)
+        }
+      } 
     }
+  }
+
+  def text_markup(delim: String, elem: Text => Inline): Parser[Inline] = {
+    delim~>text_until(delim)~opt(delim|newline) ^^ {
+      case text~mark => {
+        mark match {
+          case Some(m) if m == delim => elem(Text(text))
+          case _ => Text(delim + text)
+        }
+      } 
+    }
+  }
+
+  def text_until(delim: String): Regex = {
+    ("[^" + delim + "]*").r
   }
 
   def bold_xml: Parser[Inline] = {
@@ -567,7 +608,9 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def italic: Parser[Inline] = {
+  def italic: Parser[Inline] = text_markup("/", Italic(_))
+
+  def italic0: Parser[Inline] = {
     "/"~>rep(inline)<~"/" ^^ {
       case inline if (inline.isEmpty) => Text("/")
       case inline => Italic(inline)
@@ -580,7 +623,9 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def underline: Parser[Inline] = {
+  def underline: Parser[Inline] = text_markup("_", Underline(_))
+
+  def underline0: Parser[Inline] = {
     "_"~>rep(inline)<~"_" ^^ {
       case inline if (inline.isEmpty) => Text("_")
       case inline => Underline(inline)
@@ -593,7 +638,9 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def code: Parser[Inline] = {
+  def code: Parser[Inline] = text_markup("=", Code(_))
+  
+  def code0: Parser[Inline] = {
     "="~>rep(inline)<~"=" ^^ {
       case inline if (inline.isEmpty) => Text("=")
       case inline => Code(inline)
@@ -606,7 +653,9 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def pre: Parser[Inline] = {
+  def pre: Parser[Inline] = text_markup("~", (t => Pre(t.contents)))
+
+  def pre0: Parser[Inline] = {
     "~"~>rep(inline)<~"~" ^^ {
       case inline if (inline.isEmpty) => Text("~")
       case inline => Pre(inline.mkString)
@@ -619,7 +668,9 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def del: Parser[Inline] = {
+  def del: Parser[Inline] = text_markup("+", Del(_))
+
+  def del0: Parser[Inline] = {
     "+"~>rep(inline)<~"+" ^^ {
       case inline if (inline.isEmpty) => Text("+")
       case inline => Del(inline)
