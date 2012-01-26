@@ -589,7 +589,7 @@ object DoxParser extends RegexParsers {
     def xmlparams: Parser[List[XParam]] = {
       rep(xmlparam)
     }
-    "<"~opt(whiteSpace)~name~xmlparams~opt(whiteSpace)~">"~rep(text)~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
+    "<"~opt(whiteSpace)~name~xmlparams~opt(whiteSpace)~">"~rep(inline)~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
       case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents)
     }
   }
