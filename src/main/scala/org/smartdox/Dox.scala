@@ -427,6 +427,26 @@ case class Head(
     if (cs.isEmpty) Success(this)
     else to_failure(cs)
   }
+
+  override def show_Open(buf: StringBuilder) {
+    def showslot(name: String, contents: InlineContents) {
+      if (contents.nonEmpty) {
+        buf.append("<")
+        buf.append(name)
+        buf.append(">")
+        contents.foreach(_.toString(buf))
+        buf.append("</")
+        buf.append(name)
+        buf.append(">")
+      }
+    }
+    buf.append(showOpenText)
+    showslot("title", title)
+    showslot("author", author)
+    showslot("date", date)
+  }
+
+  override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
 }
 
 object Head {

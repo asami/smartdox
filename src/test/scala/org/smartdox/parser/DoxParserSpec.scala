@@ -9,13 +9,13 @@ import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 
-/*
+/**
  * @since   Dec. 24, 2011
- * @version Jan. 15, 2012
+ * @version Jan. 27, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
+class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
   "Foundation" should {
     "simple" that {
       val in = "* OK"
@@ -83,9 +83,22 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
         parse_orgmode("",
             "<!DOCTYPE html><html><head/><body/></html>")
       }
-      "simple" in {
+      "simple in top" in {
         parse_orgmode("Hello SmartDox",
             "<!DOCTYPE html><html><head/><body><p>Hello SmartDox</p></body></html>")
+      }
+      "multi line in top" in {
+        parse_orgmode("Hello\nSmartDox\n",
+            "<!DOCTYPE html><html><head/><body><p>Hello SmartDox</p></body></html>")
+      }
+      "auto title" in {
+        parse_orgmode_auto_title("Hello SmartDox",
+            "<!DOCTYPE html><html><head><title>Hello SmartDox</title></head><body/></html>")
+      }
+      "auto title and body" in {
+        // "Hello\nSmartDox\n"の場合の動きがorg-modeと異なるが、仕様としておく。
+        parse_orgmode_auto_title("Hello\n\nSmartDox\n",
+            "<!DOCTYPE html><html><head><title>Hello</title></head><body><p>SmartDox</p></body></html>")
       }
     }
     "hyperlink" that {
@@ -241,26 +254,6 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers {
         parse_orgmode_simple("* First\n1st contents.\n\ncont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
             """<section><h2>First</h2><p>1st contents.</p><p>cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
       }
-    }
-  }
-
-  def parse_orgmode_simple(in: String, out: String) {
-    parse_orgmode(in, 
-        """<!DOCTYPE html><html><head/><body>%s</body></html>""".format(out))
-  }
-
-  def parse_orgmode(in: String, out: String) {
-    val result = DoxParser.parseOrgmode(in)
-    result should be ('successful)
-    val dox = result.get
-    dox.toString() should be (out)
-  }
-
-  def parse_orgmode_z(in: String, out: String) {
-    val result = DoxParser.parseOrgmodeZ(in)
-    result should success
-    result match {
-      case Success(dox) => dox.toString should be (out)
     }
   }
 }

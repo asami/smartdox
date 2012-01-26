@@ -12,7 +12,7 @@ import scala.util.matching.Regex
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 26, 2012
+ * @version Jan. 27, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -21,6 +21,8 @@ object DoxParser extends RegexParsers {
 
   def parseOrgmode(reader: Reader) = parseAll(orgmode, reader)
   def parseOrgmode(in: String) = parseAll(orgmode, in)
+  def parseOrgmodeAutoTitle(reader: Reader) = parseAll(orgmode_auto_title, reader)
+  def parseOrgmodeAutoTitle(in: String) = parseAll(orgmode_auto_title, in)
 
   def parseOrgmodeZ(reader: Reader) = parseOrgmode(reader) |> _to_validation
   def parseOrgmodeZ(in: String) = parseOrgmode(in) |> _to_validation
@@ -34,6 +36,12 @@ object DoxParser extends RegexParsers {
 
   def orgmode: Parser[Dox] = {
     head~body ^^ {
+      case head~body => Document(head, body)
+    }
+  }
+
+  def orgmode_auto_title: Parser[Dox] = {
+    head~body ^^ {
       case head~body => {
         if (head.title.isEmpty) {
           body.contents match {
@@ -45,7 +53,8 @@ object DoxParser extends RegexParsers {
                   c.isInstanceOf[Inline] && !c.isInstanceOf[Text]
                 }
                 val is = (x.contents.head :: cs._1) collect { case i: Inline => i }
-                Document(head.copy(is), body.copy(Paragraph(cs._2) :: xs))
+                val l = if (cs._2.isEmpty) xs else Paragraph(cs._2) :: xs
+                Document(head.copy(is), body.copy(l))
               }
             }
             case _ => Document(head, body)
@@ -58,8 +67,8 @@ object DoxParser extends RegexParsers {
   }
 
   def head: Parser[Head] = {
-    rep(head_slot) ^^ {
-      case slots => {
+    opt(head_slots) ^^ { // rep(head_slot) ^^ {
+      case Some(slots) => {
         val builder = Head.builder
         for ((name, value) <- slots) {
           name.toLowerCase match {
@@ -71,6 +80,13 @@ object DoxParser extends RegexParsers {
         }
         builder.build
       }
+      case None => Head()
+    }
+  }
+
+  def head_slots: Parser[List[(String, InlineContents)]] = {
+    head_title~rep(head_slot) ^^ {
+      case x~xs => ("title", x) :: xs 
     }
   }
 
@@ -192,8 +208,45 @@ object DoxParser extends RegexParsers {
             case _ => foldstrongblock(a, r, e)
           }
         }
-        if (r.nonEmpty) a :+ Paragraph(r) else a
+        if (r.nonEmpty) a :+ Paragraph(normalize_paragraph(r)) else a
       }
+    }
+  }
+
+  def normalize_paragraph(xs: List[Dox]): List[Dox] = {
+    def concat(lhs: String, rhs: String): String = {
+      if (isWordSeparate(lhs, rhs)) lhs + " " + rhs
+      else lhs + rhs
+    }
+    val a = xs.foldRight((nil[Dox], "")) { (x, a) =>
+      val (l, s) = a
+      x match {
+        case t: Text => {
+          if (s.isEmpty()) {
+            if (isWordSeparate(t.contents, l)) (l, t.contents + " ")
+            else (l, t.contents) 
+          } 
+          else (l, concat(t.contents, s)) 
+        }
+        case sp: Space => {
+          if (s.isEmpty()) (l, "")
+          else if (s.charAt(0) == ' ') (l, s)
+          else (l, " " + s)
+        }
+        case _ => {
+          if (s.isEmpty()) {
+            if (isWordSeparate(x, l)) (x :: Text(" ") :: l, "")            
+            else (x :: l, "")  
+          } else {
+            if (isWordSeparate(x, s)) (x :: Text(" " + s) :: l, "") 
+            else (x :: Text(s) :: l, "") 
+          }
+        }
+      }
+    }
+    a match {
+      case (l, s) if s.nonEmpty => Text(s) :: l 
+      case (l, s) => l
     }
   }
 
@@ -320,33 +373,55 @@ object DoxParser extends RegexParsers {
   case class CommentAttribute(value: String) extends Attribute 
 
   def attrcaption: Parser[Attribute] = {
-    starter_colon("caption")~>rep(inline)<~opt(newline) ^^ {
+    starter_colon("caption")~>rep(inline)<~newline ^^ {
       case value => CaptionAttribute(value)
     }
   }
 
   def attrlabel: Parser[Attribute] = {
-    starter_colon("label")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    starter_colon("label")~>"[^\n\r]*".r<~newline ^^ {
       case value => LabelAttribute(value)
     }
   }
 
   def attrhtml: Parser[Attribute] = {
-    starter_colon("attr_html")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    starter_colon("attr_html")~>"[^\n\r]*".r<~newline ^^ {
       case value => HtmlAttribute(value)
     }
   }
 
   def attrlatex: Parser[Attribute] = {
-    starter_colon("attr_latex")~>"[^\n\r]*".r<~opt(newline) ^^ {
+    starter_colon("attr_latex")~>"[^\n\r]*".r<~newline ^^ {
       case value => LatexAttribute(value)
     }
   }
 
   def floatattr=attrcaption|attrlabel|attrhtml|attrlatex
 
+  def attr_slot: Parser[(String, String)] = {
+    "#+"~>"[^:]+".r~"[:][ ]*".r~"[^\n\r]*".r<~newline ^^ {
+      case name~_~value => (name.trim.toLowerCase, value) // ensuring{x => println("attr_slot:" + x);true}
+    }
+  }
+
   def table: Parser[Table] = {
     def tableattrs: Parser[List[Attribute]] = rep(floatattr)
+    def tableattrs0: Parser[List[Attribute]] = {
+      rep(attr_slot) ^^ {
+        case attrs => {
+          val a = for ((name, value) <- attrs) yield {
+            name match {
+              case "caption" => CaptionAttribute(List(Text(value))).some
+              case "label" => LabelAttribute(value).some
+              case "attr_html" => HtmlAttribute(value).some
+              case "attr_latex" => LatexAttribute(value).some
+              case _ => None
+            }
+          }
+          a.flatten
+        }
+      }
+    }
     def tableline: Parser[TableLine] = frameline|dataline
     def frameline: Parser[FrameTableLine] = {
       "[|][-][^\n\r]*".r<~opt(newline) ^^ {
@@ -418,8 +493,10 @@ object DoxParser extends RegexParsers {
         TR(d.contents.map(TH(_)))
       }
     }
+//    println("try table")
     tableattrs~rep1(tableline) ^^ {
       case attrs~lines => {
+//        println("attrs: " + attrs)
         val normalized = normalize(lines)
         val caption = attrs.collectFirst {
           case c: CaptionAttribute => c.value
@@ -428,6 +505,7 @@ object DoxParser extends RegexParsers {
           case c: LabelAttribute => c.value
         }
         val (head, body, foot) = build(normalized)
+//        println("success table")
         Table(head, body, foot, caption, label)
       }
     }
@@ -768,4 +846,40 @@ object DoxParser extends RegexParsers {
       case contents => contents
     }
   }
+
+  // derived from USmartDoc
+  def isWordSeparateLang(c: Char): Boolean = {
+    val ub = Character.UnicodeBlock.of(c)
+    ub.equals(Character.UnicodeBlock.BASIC_LATIN) ||
+    ub.equals(Character.UnicodeBlock.LATIN_1_SUPPLEMENT) ||
+    ub.equals(Character.UnicodeBlock.LATIN_EXTENDED_A) ||
+    ub.equals(Character.UnicodeBlock.LATIN_EXTENDED_B)
+  }   
+
+  def isWordSeparate(before: Dox, after: Dox): Boolean = {
+    isWordSeparate(before.toText, after.toText)
+  }
+
+  def isWordSeparate(before: String, after: Dox): Boolean = {
+    isWordSeparate(before, after.toText)
+  }
+
+  def isWordSeparate(before: Dox, after: String): Boolean = {
+    isWordSeparate(before.toText, after)
+  }
+
+  def isWordSeparate(before: String, after: String): Boolean = {
+      if (before.length() == 0) {
+        return (false)
+      }
+      if (after.length() == 0) {
+        return (false)
+      }
+      val bc = before.charAt(before.length() - 1)
+      val ac = after.charAt(0)
+      bc != ' ' && ac != ' ' &&
+      bc != '.' && ac != '.' &&
+      isWordSeparateLang(bc) &&
+      isWordSeparateLang(ac) ensuring{x => println("isWordSeparate(%s, %s) = %s", before, after, x);true}
+    }
 }
