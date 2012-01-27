@@ -12,7 +12,7 @@ import scala.util.matching.Regex
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 27, 2012
+ * @version Jan. 28, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -635,7 +635,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_markup(delim: String, elem: Text => Inline): Parser[Inline] = {
-    delim~>text_until(delim)~opt(delim|newline) ^^ {
+    delim~>text_until(delim)~opt(delim) ^^ {
       case text~mark => {
         mark match {
           case Some(m) if m == delim => elem(Text(text))
@@ -646,7 +646,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_until(delim: String): Regex = {
-    ("[^" + delim + "]*").r
+    ("[^" + delim + "\n\r]*").r
   }
 
   def bold_xml: Parser[Inline] = {
@@ -880,6 +880,6 @@ object DoxParser extends RegexParsers {
       bc != ' ' && ac != ' ' &&
       bc != '.' && ac != '.' &&
       isWordSeparateLang(bc) &&
-      isWordSeparateLang(ac) ensuring{x => println("isWordSeparate(%s, %s) = %s", before, after, x);true}
+      isWordSeparateLang(ac) // ensuring{x => println("isWordSeparate(%s, %s) = %s".format(before, after, x));true}
     }
 }
