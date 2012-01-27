@@ -590,13 +590,19 @@ object DoxParser extends RegexParsers {
     ("#+" + upper + ":"|"#+" + name + ":")<~"[ ]*".r
   }
     
-  def inline: Parser[Inline] = (space|text|inline_elements)
+  def inline: Parser[Inline] = (special_literals|space|text|inline_elements)
 
-  def inline_table: Parser[Inline] = (space|text_table|inline_elements)
+  def inline_table: Parser[Inline] = (special_literals|space|text_table|inline_elements)
+
+  def inline_hyperlink: Parser[Inline] = (space|text_hyperlink|inline_elements) // inline_hyperlink
 
   def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
       bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
-      img|hyperlink|hyperlink_xml|hyperlink_literal)
+      img|not_hyperlink|hyperlink|hyperlink_xml)
+
+  def special_literals: Parser[Inline] = {
+    hyperlink_literal
+  }
 
   def space: Parser[Space] = {
     "[ ]+".r ^^ {
@@ -605,8 +611,9 @@ object DoxParser extends RegexParsers {
   }
 
   def text: Parser[Text] = {
+    // special charactors: :|]
 //    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
-    """[^*/_=~+<>\[\] \n\r]+""".r ^^ {
+    """[^*/_=~+<>\[ \n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         Text(s)
@@ -614,6 +621,14 @@ object DoxParser extends RegexParsers {
   }
 
   def text_table: Parser[Text] = {
+    """[^*/_=~+<>\[ |\n\r]+""".r ^^ {
+      case s => 
+//        println("s = " + s);Text(s)
+        Text(s)
+    }
+  }
+
+  def text_hyperlink: Parser[Text] = {
     """[^*/_=~+<>\[\] |\n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
@@ -761,9 +776,15 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def not_hyperlink: Parser[Inline] = {
+    "["~not("[") ^^ {
+      case _ => Text("[")
+    }
+  }
+
   def hyperlink: Parser[Inline] = {
     def label: Parser[List[Inline]] = {
-      "["~>rep(inline)<~"]"
+      "["~>rep(inline_hyperlink)<~"]"
     }
     "[["~>"""[^]]+""".r~"]"~opt(label)<~"]" ^^ {
       case link~_~label => Hyperlink(label | List(Text(link)), new URI(link))
@@ -781,12 +802,25 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def hyperlink_literal0: Parser[Hyperlink] = {
+    log("http://")("hyperlink_literal") ^^ {
+      case l => val uri = l + "";Hyperlink(List(Text(uri)), new URI(uri))
+    }
+  }
+
   def hyperlink_literal: Parser[Hyperlink] = {
-    "http://[^ ]+".r ^^ {
+    """(http|https)://[^ \n\r]*""".r ^^ {
       case uri => Hyperlink(List(Text(uri)), new URI(uri))
     }
   }
 
+  def hyperlink_literal1: Parser[Hyperlink] = {
+    "http://www.yahoo.com/" ^^ {
+      case uri => Hyperlink(List(Text(uri)), new URI(uri))
+    }
+  }
+
+  
   def img: Parser[Img] = {
     "[["~>"""[^]]+[.]""".r~img_suffix<~"]]" ^^ {
       case name~suffix => ReferenceImg(new URI(name+suffix))
@@ -879,6 +913,7 @@ object DoxParser extends RegexParsers {
       val ac = after.charAt(0)
       bc != ' ' && ac != ' ' &&
       bc != '.' && ac != '.' &&
+      bc != '[' && ac != ']' &&
       isWordSeparateLang(bc) &&
       isWordSeparateLang(ac) // ensuring{x => println("isWordSeparate(%s, %s) = %s".format(before, after, x));true}
     }

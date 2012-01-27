@@ -114,6 +114,14 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
         parse_orgmode("""<a href="http://www.yahoo.com/">Yahoo</a>""",
             """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">Yahoo</a></p></body></html>""")
       }
+      "not hyperlink" in {
+        parse_orgmode("""[not link]""",
+            """<!DOCTYPE html><html><head/><body><p>[not link]</p></body></html>""")
+      }
+      "implicit hyperlink" in {
+        parse_orgmode("""http://www.yahoo.com/""",
+            """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">http://www.yahoo.com/</a></p></body></html>""")
+      }
     }
   }
   "Table" should {

@@ -9,11 +9,38 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Jan. 27, 2012
+ * @version Jan. 28, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
-  "HotSpot" should {
+  "0.2.2" should {
+      "not hyperlink left" in {
+        parse_orgmode("""[""",
+            """<!DOCTYPE html><html><head/><body><p>[</p></body></html>""")
+      }
+      "not hyperlink left word" in {
+        parse_orgmode("""[not""",
+            """<!DOCTYPE html><html><head/><body><p>[not</p></body></html>""")
+      }
+      "not hyperlink left word newline" in {
+        parse_orgmode("[not\n",
+            """<!DOCTYPE html><html><head/><body><p>[not</p></body></html>""")
+      }
+      "not hyperlink right" in {
+        parse_orgmode("""]""",
+            """<!DOCTYPE html><html><head/><body><p>]</p></body></html>""")
+      }
+      "not hyperlink" in {
+        parse_orgmode("""[not link]""",
+            """<!DOCTYPE html><html><head/><body><p>[not link]</p></body></html>""")
+      }
+      "implicit hyperlink" in {
+        parse_orgmode("""http://www.yahoo.com/""",
+            """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">http://www.yahoo.com/</a></p></body></html>""")
+      }
+  }
+/*
+  "0.2.1" should {
     "title" that {
       "auto title and body" in {
         parse_orgmode_auto_title("Hello\n\nSmartDox\n",
@@ -45,6 +72,7 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
       }
     }
   }
+*/
 }
 
 object HotSpot {
