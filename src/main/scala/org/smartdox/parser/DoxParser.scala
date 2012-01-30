@@ -12,7 +12,7 @@ import scala.util.matching.Regex
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 28, 2012
+ * @version Jan. 31, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -613,7 +613,7 @@ object DoxParser extends RegexParsers {
   def text: Parser[Text] = {
     // special charactors: :|]
 //    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
-    """[^*/_=~+<>\[ \n\r]+""".r ^^ {
+    """[^*/_=~+<\[ \n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         Text(s)
@@ -621,7 +621,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_table: Parser[Text] = {
-    """[^*/_=~+<>\[ |\n\r]+""".r ^^ {
+    """[^*/_=~+<\[ |\n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         Text(s)
@@ -629,7 +629,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_hyperlink: Parser[Text] = {
-    """[^*/_=~+<>\[\] |\n\r]+""".r ^^ {
+    """[^*/_=~+<\[\] |\n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         Text(s)
@@ -661,7 +661,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_until(delim: String): Regex = {
-    ("[^" + delim + "\n\r]*").r
+    ("[^" + delim + "<\n\r]*").r
   }
 
   def bold_xml: Parser[Inline] = {
