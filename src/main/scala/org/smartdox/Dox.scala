@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 26, 2012
+ * @version Feb.  2, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -383,6 +383,31 @@ object Dox {
   def vw(d: Dox): DoxVW = {
     success(writer(nil, d))
   }
+
+  // derived from UXML
+  def escape(string: String) = {
+    if (string.indexOf('<') == -1 &&
+        string.indexOf('>') == -1 &&
+        string.indexOf('&') == -1 &&
+        string.indexOf('"') == -1 &&
+        string.indexOf('\'') == -1) {
+      string
+    } else {
+      val buf = new StringBuilder()
+      val size = string.length();
+      for (i <- 0 until size) {
+        string.charAt(i) match {
+          case '<'  => buf.append("&lt;")
+          case '>'  => buf.append("&gt;")
+          case '&'  => buf.append("&amp;")
+          case '"'  => buf.append("&quot;")
+          case '\'' => buf.append("&apos;")
+          case c    => buf.append(c)
+        }
+      }
+      buf.toString // ensuring {x => println("ESCAPE: " + string + " => " + x);true}
+    }
+  }
 }
 
 case class Document(head: Head, body: Body) extends Dox {
@@ -520,7 +545,7 @@ case class Text(contents: String) extends Inline {
   override def showOpenText = ""
   override def showCloseText = ""
   override def show_Contents(buf: StringBuilder) {
-    buf.append(contents) // TODO escape html5
+    buf.append(Dox.escape(contents))
   }
   override def to_Text(buf: StringBuilder) {
     buf.append(contents)
