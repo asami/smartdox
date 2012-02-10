@@ -9,14 +9,18 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Jan. 31, 2012
+ * @version Feb. 10, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
   "0.2.2" should {
+      "missing closing / and ] in table" in {
+        parse_orgmode_simple("""| [[http://example.com/][Some/None] |""",
+            """<table><tbody><tr><td><a href="http://example.com/">Some/None</a></td></tr></tbody></table>""")
+      }
       "= in code" in {
         parse_orgmode_simple("""<code>(b >= 0).option(b.toString)</code>""",
-            """<p><code>(b >= 0).option(b.toString)</code></p>""")
+            """<p><code>(b &gt;= 0).option(b.toString)</code></p>""")
       }
       "not hyperlink left" in {
         parse_orgmode("""[""",

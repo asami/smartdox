@@ -11,7 +11,7 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Dec. 24, 2011
- * @version Jan. 31, 2012
+ * @version Feb. 10, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -79,7 +79,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
       }
       "= in code" in {
         parse_orgmode_simple("""<code>(b >= 0).option(b.toString)</code>""",
-            """<p><code>(b >= 0).option(b.toString)</code></p>""")
+            """<p><code>(b &gt;= 0).option(b.toString)</code></p>""")
       }      
     }
     "structure" that {
@@ -206,6 +206,10 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
       }
       "caption" in {
         parse_orgmode_simple(tablecaption, resultcaption)
+      }
+      "missing closing / and ] in table" in {
+        parse_orgmode_simple("""| [[http://example.com/][Some/None] |""",
+            """<table><tbody><tr><td><a href="http://example.com/">Some/None</a></td></tr></tbody></table>""")
       }
     }
   }
