@@ -12,7 +12,7 @@ import scala.util.matching.Regex
 
 /*
  * @since   Dec. 24, 2011
- * @version Feb. 10, 2012
+ * @version Feb. 11, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -631,7 +631,7 @@ object DoxParser extends RegexParsers {
   def text_hyperlink: Parser[Text] = {
     """[^*/_=~+<\[\] |\n\r]+""".r ^^ {
       case s => {
-        println("s = " + s);Text(s)
+//        println("s = " + s);Text(s)
         Text(s)
       }
     }
