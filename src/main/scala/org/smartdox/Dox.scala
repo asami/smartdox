@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Feb.  2, 2012
+ * @version Feb. 15, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox {
@@ -934,4 +934,8 @@ case class SmCsvImg(src: URI, contents: String, params: List[String] = Nil) exte
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
+}
+
+// 2012-02-15
+object Empty extends Dox {
 }
