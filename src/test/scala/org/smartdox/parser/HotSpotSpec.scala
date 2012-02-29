@@ -9,10 +9,35 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Feb. 10, 2012
+ * @version Feb. 28, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
+  // "/", "~", "<", ">"
+  // <t>, <text>, <tt> 導入 
+  "0.2.4" should {
+      "<< >>" in {
+        parse_orgmode_simple("""<<*>>""",
+            """&lt;*&gt;""")
+      }
+      "<t>" in {
+        parse_orgmode_simple("""<t><*></t>""",
+            """&lt;*&gt;""")
+      }
+      "<t> with /" in {
+        parse_orgmode_simple("""<t>/a/b/c</t>""",
+            """/a/b/c""")
+      }
+      "<span>" in {
+        parse_orgmode_simple("""<span>*span*</span>""",
+            """<span><bold>span</bold></span>""")
+      }
+      "<tt>" in {
+        parse_orgmode_simple("""<tt><*></tt>""",
+            """<tt>&lt;*&gt;</tt>""")
+      }
+  }
+/*
   "0.2.2" should {
       "missing closing / and ] in table" in {
         parse_orgmode_simple("""| [[http://example.com/][Some/None] |""",
@@ -47,7 +72,6 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
             """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">http://www.yahoo.com/</a></p></body></html>""")
       }
   }
-/*
   "0.2.1" should {
     "title" that {
       "auto title and body" in {

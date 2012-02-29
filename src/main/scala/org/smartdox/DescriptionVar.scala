@@ -7,14 +7,14 @@ import javax.xml.datatype.XMLGregorianCalendar
 
 /*
  * @since   Feb. 17, 2012
- * @version Feb. 17, 2012
+ * @version Feb. 28, 2012
  * @author  ASAMI, Tomoharu
  */
 class DescriptionVar {
   var name: String = ""
-  var title: Option[Dox] = None
-  var summary: Option[Dox] = None
-  var content: Option[Dox] = None
+  var title: Dox = EmptyDox
+  var summary: Dox = EmptyDox
+  var content: Dox = EmptyDox
   var published: Option[XMLGregorianCalendar] = None
   var updated: Option[XMLGregorianCalendar] = None
   var id: Option[String] = None
@@ -25,7 +25,9 @@ class DescriptionVar {
   var rights: Option[String] = None
   var source: Option[String] = None
 
-  def titleString: String = title.map(_.toText()) orZero
+  def titleString: String = title.toText
+  def summaryString: String = summary.toText
+  def contentString: String = content.toText
 }
 /*
   var atomId: Option[String] = None

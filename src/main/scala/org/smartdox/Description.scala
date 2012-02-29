@@ -5,14 +5,15 @@ import javax.xml.datatype.XMLGregorianCalendar
 
 /*
  * @since   Feb. 17, 2012
- * @version Feb. 17, 2012
+ *  version Feb. 17, 2012
+ * @version Feb. 29, 2012
  * @author  ASAMI, Tomoharu
  */
 case class Description(
     name: String,
-    title: Option[Dox] = None,
-    summary: Option[Dox] = None,
-    content: Option[Dox] = None,
+    title: Dox = EmptyDox,
+    summary: Dox = EmptyDox,
+    content: Dox = EmptyDox,
     published: Option[XMLGregorianCalendar] = None,
     updated: Option[XMLGregorianCalendar] = None,
     id: Option[String] = None,

@@ -9,10 +9,10 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Feb. 17, 2012
+ * @version Feb. 28, 2012
  * @author  ASAMI, Tomoharu
  */
-trait Dox {
+trait Dox extends NotNull { // Use EmptyDox for null object.
   val elements: List[Dox] = Nil
   lazy val attributeMap = Map(showParams: _*)
   def attribute(name: String): Option[String] = attributeMap.get(name)
@@ -250,7 +250,22 @@ trait Inline extends Dox with ListContent {
 trait ListContent extends Dox {  
 }
 
-object Dox {
+trait UseDox {
+  implicit def toDox(string: String): Dox = {
+    parser.DoxParser.parseOrgmodeZ(string) match {
+      case Success(s) => s
+      case Failure(ms) => Ul(ms.list.map(Li(_)))
+    }
+  }
+
+  implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
+    new Fragment(contents)
+  }
+
+  implicit def DoxShow: Show[Dox] = shows(_.toShowString)
+}
+
+object Dox extends UseDox {
   type DoxV = ValidationNEL[String, Dox]
   type DoxW = Writer[List[String], Dox]
   type DoxVW = ValidationNEL[String, Writer[List[String], Dox]]
@@ -259,12 +274,6 @@ object Dox {
   type TreeDoxW = Writer[List[String], Tree[Dox]]
   type TreeDoxVW = ValidationNEL[String, Writer[List[String], Tree[Dox]]]
   type TreeDoxWV = Writer[List[String], TreeDoxV]
-
-  implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
-    new Fragment(contents)
-  }
-
-  implicit def DoxShow: Show[Dox] = shows(_.toShowString)
 
   def tree(dox: Dox): Tree[Dox] = {
     Scalaz.node(dox, dox.elements.toStream.map(tree))
