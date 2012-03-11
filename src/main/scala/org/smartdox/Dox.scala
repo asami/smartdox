@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Feb. 28, 2012
+ * @version Mar. 11, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -722,11 +722,33 @@ case class Table(head: Option[THead], body: TBody, foot: Option[TFoot],
       }
     }
   }
+
+  def width: Int = {
+    List(head, body.some, foot).flatten.map(_.width).max
+  }
+
+  def height: Int = {
+    List(head, body.some, foot).flatten.map(_.height).sum
+  }
 }
 
 trait TableCompartment extends Block {
   val records: List[TR]
   override val elements = records
+
+  def width: Int = records.map(_.length).max
+  def height: Int = records.length
+
+  def getText(x: Int, y: Int): String = {
+    if (records.length > y) {
+      val r = records(y)
+      if (r.fields.length > x) {
+        val f = r.fields(x)
+        return f.toText
+      }
+    }
+    return ""
+  }
 }
 
 case class THead(records: List[TR]) extends TableCompartment {
@@ -753,6 +775,7 @@ case class TR(fields: List[TField]) extends Block {
   override def copyV(cs: List[Dox]) = {
     to_tfield(cs).map(copy)
   }
+  def length = fields.length
 }
 
 trait TField extends Block {
@@ -928,7 +951,8 @@ case class Console(contents: String, attributes: List[(String, String)] = Nil) e
 }
 
 // 2011-01-18
-case class SDoc(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+// SDoc conflict
+case class SDocX(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
   override val elements = contents
   override def showTerm = name
   override def showParams = attributes
