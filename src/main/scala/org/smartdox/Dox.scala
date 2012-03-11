@@ -951,8 +951,7 @@ case class Console(contents: String, attributes: List[(String, String)] = Nil) e
 }
 
 // 2011-01-18
-// SDoc conflict
-case class SDocX(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+case class SmartDoc(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
   override val elements = contents
   override def showTerm = name
   override def showParams = attributes
