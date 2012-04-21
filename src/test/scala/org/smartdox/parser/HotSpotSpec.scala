@@ -9,10 +9,13 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Jan. 28, 2012
+ * @version Mar.  7, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
+  // comment # and subtree
+  // space in dl
+  // file:abc.png
   "0.2.2" should {
       "not hyperlink left" in {
         parse_orgmode("""[""",
