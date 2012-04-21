@@ -12,7 +12,7 @@ import scala.util.matching.Regex
 
 /*
  * @since   Dec. 24, 2011
- * @version Jan. 28, 2012
+ * @version Feb. 11, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -613,7 +613,7 @@ object DoxParser extends RegexParsers {
   def text: Parser[Text] = {
     // special charactors: :|]
 //    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
-    """[^*/_=~+<>\[ \n\r]+""".r ^^ {
+    """[^*/_=~+<\[ \n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         Text(s)
@@ -621,7 +621,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_table: Parser[Text] = {
-    """[^*/_=~+<>\[ |\n\r]+""".r ^^ {
+    """[^*/_=~+<\[ |\n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         Text(s)
@@ -629,10 +629,11 @@ object DoxParser extends RegexParsers {
   }
 
   def text_hyperlink: Parser[Text] = {
-    """[^*/_=~+<>\[\] |\n\r]+""".r ^^ {
-      case s => 
+    """[^*/_=~+<\[\] |\n\r]+""".r ^^ {
+      case s => {
 //        println("s = " + s);Text(s)
         Text(s)
+      }
     }
   }
 
@@ -661,7 +662,7 @@ object DoxParser extends RegexParsers {
   }
 
   def text_until(delim: String): Regex = {
-    ("[^" + delim + "\n\r]*").r
+    ("[^" + delim + "\\]<\n\r]*").r
   }
 
   def bold_xml: Parser[Inline] = {
@@ -782,11 +783,37 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def hyperlink0: Parser[Inline] = (hyperlink1|hyperlink1x|hyperlink2)
+
+  def hyperlink1: Parser[Inline] = {
+    "[["~>"""[^]]+""".r~"]["~rep(inline_hyperlink)<~"]]" ^^ {
+      case link~_~label => {
+        if (label.isEmpty) Hyperlink(List(Text(link)), new URI(link))
+        else Hyperlink(label, new URI(link))
+      }
+    }
+  }
+
+  def hyperlink1x: Parser[Inline] = {
+    "[["~>"""[^]]+""".r~"]["~rep(inline_hyperlink)<~"]" ^^ {
+      case link~_~label => {
+        if (label.isEmpty) Hyperlink(List(Text(link)), new URI(link))
+        else Hyperlink(label, new URI(link))
+      }
+    }
+  }
+
+  def hyperlink2: Parser[Inline] = {
+    "[["~>"""[^]]+""".r<~"]]" ^^ {
+      case link => Hyperlink(List(Text(link)), new URI(link))
+    }
+  }
+
   def hyperlink: Parser[Inline] = {
     def label: Parser[List[Inline]] = {
       "["~>rep(inline_hyperlink)<~"]"
     }
-    "[["~>"""[^]]+""".r~"]"~opt(label)<~"]" ^^ {
+    "[["~>"""[^]]+""".r~"]"~opt(label)<~opt("]") ^^ {
       case link~_~label => Hyperlink(label | List(Text(link)), new URI(link))
     }
   }

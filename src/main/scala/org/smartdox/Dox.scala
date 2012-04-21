@@ -9,10 +9,10 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Jan. 26, 2012
+ * @version Mar. 11, 2012
  * @author  ASAMI, Tomoharu
  */
-trait Dox {
+trait Dox extends NotNull { // Use EmptyDox for null object.
   val elements: List[Dox] = Nil
   lazy val attributeMap = Map(showParams: _*)
   def attribute(name: String): Option[String] = attributeMap.get(name)
@@ -250,7 +250,22 @@ trait Inline extends Dox with ListContent {
 trait ListContent extends Dox {  
 }
 
-object Dox {
+trait UseDox {
+  implicit def toDox(string: String): Dox = {
+    parser.DoxParser.parseOrgmodeZ(string) match {
+      case Success(s) => s
+      case Failure(ms) => Ul(ms.list.map(Li(_)))
+    }
+  }
+
+  implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
+    new Fragment(contents)
+  }
+
+  implicit def DoxShow: Show[Dox] = shows(_.toShowString)
+}
+
+object Dox extends UseDox {
   type DoxV = ValidationNEL[String, Dox]
   type DoxW = Writer[List[String], Dox]
   type DoxVW = ValidationNEL[String, Writer[List[String], Dox]]
@@ -259,12 +274,6 @@ object Dox {
   type TreeDoxW = Writer[List[String], Tree[Dox]]
   type TreeDoxVW = ValidationNEL[String, Writer[List[String], Tree[Dox]]]
   type TreeDoxWV = Writer[List[String], TreeDoxV]
-
-  implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
-    new Fragment(contents)
-  }
-
-  implicit def DoxShow: Show[Dox] = shows(_.toShowString)
 
   def tree(dox: Dox): Tree[Dox] = {
     Scalaz.node(dox, dox.elements.toStream.map(tree))
@@ -382,6 +391,31 @@ object Dox {
 
   def vw(d: Dox): DoxVW = {
     success(writer(nil, d))
+  }
+
+  // derived from UXML
+  def escape(string: String) = {
+    if (string.indexOf('<') == -1 &&
+        string.indexOf('>') == -1 &&
+        string.indexOf('&') == -1 &&
+        string.indexOf('"') == -1 &&
+        string.indexOf('\'') == -1) {
+      string
+    } else {
+      val buf = new StringBuilder()
+      val size = string.length();
+      for (i <- 0 until size) {
+        string.charAt(i) match {
+          case '<'  => buf.append("&lt;")
+          case '>'  => buf.append("&gt;")
+          case '&'  => buf.append("&amp;")
+          case '"'  => buf.append("&quot;")
+          case '\'' => buf.append("&apos;")
+          case c    => buf.append(c)
+        }
+      }
+      buf.toString // ensuring {x => println("ESCAPE: " + string + " => " + x);true}
+    }
   }
 }
 
@@ -520,7 +554,7 @@ case class Text(contents: String) extends Inline {
   override def showOpenText = ""
   override def showCloseText = ""
   override def show_Contents(buf: StringBuilder) {
-    buf.append(contents) // TODO escape html5
+    buf.append(Dox.escape(contents))
   }
   override def to_Text(buf: StringBuilder) {
     buf.append(contents)
@@ -688,11 +722,33 @@ case class Table(head: Option[THead], body: TBody, foot: Option[TFoot],
       }
     }
   }
+
+  def width: Int = {
+    List(head, body.some, foot).flatten.map(_.width).max
+  }
+
+  def height: Int = {
+    List(head, body.some, foot).flatten.map(_.height).sum
+  }
 }
 
 trait TableCompartment extends Block {
   val records: List[TR]
   override val elements = records
+
+  def width: Int = records.map(_.length).max
+  def height: Int = records.length
+
+  def getText(x: Int, y: Int): String = {
+    if (records.length > y) {
+      val r = records(y)
+      if (r.fields.length > x) {
+        val f = r.fields(x)
+        return f.toText
+      }
+    }
+    return ""
+  }
 }
 
 case class THead(records: List[TR]) extends TableCompartment {
@@ -719,6 +775,7 @@ case class TR(fields: List[TField]) extends Block {
   override def copyV(cs: List[Dox]) = {
     to_tfield(cs).map(copy)
   }
+  def length = fields.length
 }
 
 trait TField extends Block {
@@ -894,7 +951,7 @@ case class Console(contents: String, attributes: List[(String, String)] = Nil) e
 }
 
 // 2011-01-18
-case class SDoc(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+case class SmartDoc(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
   override val elements = contents
   override def showTerm = name
   override def showParams = attributes
@@ -909,4 +966,8 @@ case class SmCsvImg(src: URI, contents: String, params: List[String] = Nil) exte
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
+}
+
+// 2012-02-15
+object EmptyDox extends Dox {
 }
