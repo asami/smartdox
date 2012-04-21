@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Mar. 11, 2012
+ * @version Apr. 22, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -92,11 +92,13 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
 
   // invoke copyWV
   def copyV(cs: List[Dox]): ValidationNEL[String, Dox] = {
-    copyWV(cs).over
+//    copyWV(cs).over
+//    copyVW(cs).map(_.over)
+    sys.error("not implemented yet")
   }
 
   // invoke copyV
-  @deprecated
+  @deprecated("Use copyVW", "0.2.4")
   def copyWV(cs: List[Dox]): Writer[List[String], ValidationNEL[String, Dox]] = {
     writer(nil, copyV(cs))
   }
@@ -315,7 +317,7 @@ object Dox extends UseDox {
     }
   }
 
-  @deprecated
+  @deprecated("Use untreeVW", "0.2.4")
   def untreeWV(tree: Tree[Dox]): Writer[List[String], ValidationNEL[String, Dox]] = {
 //    println("untreeV: " + tree.drawTree)
     val children = tree.subForest.map(untreeWV).toList
