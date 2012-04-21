@@ -10,9 +10,10 @@ import Dox._
 import java.io.Reader
 import scala.util.matching.Regex
 
-/*
+/**
  * @since   Dec. 24, 2011
- * @version Feb. 11, 2012
+ *  version Feb. 11, 2012
+ * @version Apr. 22, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -196,7 +197,7 @@ object DoxParser extends RegexParsers {
     def foldweakblock(a: List[Dox], r: List[Dox], e: Dox) =
       if (r.nonEmpty) (a, r :+ e) else (a :+ e, r) 
     def foldinline(a: List[Dox], r: List[Dox], e: Dox) = (a, r :+ e)
-    rep(embedded|contentsline|emptyline) ^^ {
+    rep(commentline|embedded|contentsline|emptyline) ^^ {
       case contents => {
         val (a, r) = contents.flatten.foldl(Pair(nil[Dox], nil[Dox])) {
           case ((a, r), e) => e match {
@@ -261,11 +262,17 @@ object DoxParser extends RegexParsers {
 
   def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
-  def block: Parser[Block] = dl|ulol|table|figure|console|program|includeprogram
+  def block: Parser[Block] = dl|ulol|table|figure|console|program|includeprogram|commentblock
 
   def emptyline: Parser[List[EmptyLine]] = {
     newline ^^ {
       case _ => List(EmptyLine())
+    }
+  } 
+
+  def commentline: Parser[List[Dox]] = {
+    "[#][^+]".r~>"[^\n\r]*".r<~newline ^^ {
+      case _ => Nil
     }
   } 
 
@@ -583,6 +590,12 @@ object DoxParser extends RegexParsers {
   def starter0(name: String): Parser[String] = {
     val upper = name.toUpperCase
     ("#+" + upper|"#+" + name)<~"[ ]+".r
+  }
+
+  def commentblock: Parser[Div] = {
+    beginend("comment") { (params: List[String], contents: String) =>
+      Div()
+    }
   }
 
   def startercolon0(name: String): Parser[String] = {

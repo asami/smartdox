@@ -20,20 +20,24 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
   // <t>, <text>, <tt> 導入
   "0.2.5" should {
     "comment #" in {
-      parse_orgmode_simple("""abc\n#def\nghi""",
-            """abc ghi""")
+      parse_orgmode_simple("abc\n#def\nghi",
+            """<p>abc ghi</p>""")
     }
     "comment section" in {
-      parse_orgmode_simple("""* COMMENT abc\ndef\nghi\n* jkl""",
+      parse_orgmode_simple("* COMMENT abc\ndef\nghi\n* jkl",
+            """<section><h2>jkl</h2></section>""")
+    }
+    "comment attribute" in {
+      parse_orgmode_simple("abc\n#+BEGIN_COMMENT\ndef\n#+END_COMMENT\nghi\n",
             """<section><h2>First</h2>jkl</section>""")
     }
     "file:abc.png" in {
-      parse_orgmode_simple("""file:abc.png""",
-            """<img src="abc.png"/>""")
+      parse_orgmode_simple("file:abc.png",
+            """<p><img src="abc.png"/></p>""")
     }
     "file:abc.doc" in {
-      parse_orgmode_simple("""file:abc.doc""",
-            """<a href="abc.doc">abc.doc</a>""")
+      parse_orgmode_simple("file:abc.doc",
+            """<p><a href="abc.doc">abc.doc</a></p>""")
     }
     "<tt>" in {
       parse_orgmode_simple("""<tt>abc</tt>""",
