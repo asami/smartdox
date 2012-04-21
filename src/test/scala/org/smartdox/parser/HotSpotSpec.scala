@@ -17,12 +17,48 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
   // space in dl
   // file:abc.png
   // "/", "~", "<", ">"
-  // <t>, <text>, <tt> 導入 
+  // <t>, <text>, <tt> 導入
+  "0.2.5" should {
+    "comment #" in {
+      parse_orgmode_simple("""abc\n#def\nghi""",
+            """abc ghi""")
+    }
+    "comment section" in {
+      parse_orgmode_simple("""* COMMENT abc\ndef\nghi\n* jkl""",
+            """<section><h2>First</h2>jkl</section>""")
+    }
+    "file:abc.png" in {
+      parse_orgmode_simple("""file:abc.png""",
+            """<img src="abc.png"/>""")
+    }
+    "file:abc.doc" in {
+      parse_orgmode_simple("""file:abc.doc""",
+            """<a href="abc.doc">abc.doc</a>""")
+    }
+    "<tt>" in {
+      parse_orgmode_simple("""<tt>abc</tt>""",
+            """<tt>abc</tt>""")
+    }
+  }
   "0.2.4" should {
-      "<< >>" in {
-        parse_orgmode_simple("""<<*>>""",
+    "<< >>" in {
+      parse_orgmode_simple("""<<*>>""",
             """&lt;*&gt;""")
-      }
+    }
+    "<: :>" in {
+      parse_orgmode_simple("""<:<*>:>""",
+            """&lt;*&gt;""")
+    }
+    "<: :> with /" in {
+      parse_orgmode_simple("""<:/a/b/c:>""",
+            """/a/b/c""")
+    }
+    "<span>" in {
+      parse_orgmode_simple("""<span>*span*</span>""",
+            """<span><bold>span</bold></span>""")
+    }
+  }
+/* Spec candidates
       "<t>" in {
         parse_orgmode_simple("""<t><*></t>""",
             """&lt;*&gt;""")
@@ -31,15 +67,12 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
         parse_orgmode_simple("""<t>/a/b/c</t>""",
             """/a/b/c""")
       }
-      "<span>" in {
-        parse_orgmode_simple("""<span>*span*</span>""",
-            """<span><bold>span</bold></span>""")
-      }
       "<tt>" in {
         parse_orgmode_simple("""<tt><*></tt>""",
             """<tt>&lt;*&gt;</tt>""")
       }
-  }
+ */
+
 /*
   "0.2.2" should {
       "missing closing / and ] in table" in {
