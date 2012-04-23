@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Apr. 22, 2012
+ * @version Apr. 23, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -839,7 +839,7 @@ case class Dd(contents: List[Inline]) extends Block {
   }
 }
 
-case class Fragment(contents: List[Dox]) extends Dox {
+case class Fragment(contents: List[Dox]) extends Dox with Block with Inline with ListContent {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {

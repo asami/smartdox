@@ -13,7 +13,7 @@ import scala.util.matching.Regex
 /**
  * @since   Dec. 24, 2011
  *  version Feb. 11, 2012
- * @version Apr. 22, 2012
+ * @version Apr. 23, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -255,14 +255,19 @@ object DoxParser extends RegexParsers {
     not("[*]+[ ]".r)~>rep1(block|inline)<~opt(newline) ^^ {
       case contents => {
 //        println("contentsline = " + contents)
-        contents
+        contents.flatMap {
+          _ match {
+            case f: Fragment => f.contents
+            case l => List(l)
+          }
+        }
       }
     }
   }
 
   def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
-  def block: Parser[Block] = dl|ulol|table|figure|console|program|includeprogram|commentblock
+  def block: Parser[Block] = dl|ulol|table|commentblock|figure|console|program|includeprogram
 
   def emptyline: Parser[List[EmptyLine]] = {
     newline ^^ {
@@ -550,6 +555,15 @@ object DoxParser extends RegexParsers {
     }    
   }
 
+  def beginendnop[T](name: String)(body: => T): Parser[T] = {
+    val upper = name.toUpperCase
+    ("#+BEGIN_" + upper|"#+begin_" + name)~"[^ \n\r]*".r~>newline~embedlines<~("#+END_" + upper|"#+end_" + name)~"[ ]*".r~opt(newline) ^^ {
+      case _~contents => {
+        body
+      }
+    }  
+  }
+
   def console: Parser[Console] = {
     beginendmatch("src"){ (ps: List[String], contents: String) => 
       ps.headOption.map(_ == "console") | false
@@ -592,9 +606,9 @@ object DoxParser extends RegexParsers {
     ("#+" + upper|"#+" + name)<~"[ ]+".r
   }
 
-  def commentblock: Parser[Div] = {
-    beginend("comment") { (params: List[String], contents: String) =>
-      Div()
+  def commentblock: Parser[Block] = {
+    beginendnop("comment") {
+      Fragment(Nil)
     }
   }
 

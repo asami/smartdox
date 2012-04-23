@@ -9,7 +9,7 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Apr. 22, 2012
+ * @version Apr. 23, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
@@ -27,9 +27,13 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
       parse_orgmode_simple("* COMMENT abc\ndef\nghi\n* jkl",
             """<section><h2>jkl</h2></section>""")
     }
-    "comment attribute" in {
+    "comment block" in {
       parse_orgmode_simple("abc\n#+BEGIN_COMMENT\ndef\n#+END_COMMENT\nghi\n",
-            """<section><h2>First</h2>jkl</section>""")
+            """<p>abc ghi</p>""")
+    }
+    "comment block lowercase" in {
+      parse_orgmode_simple("abc\n#+begin_comment\ndef\n#+end_comment\nghi\n",
+            """<p>abc ghi</p>""")
     }
     "file:abc.png" in {
       parse_orgmode_simple("file:abc.png",
