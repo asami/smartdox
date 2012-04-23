@@ -644,7 +644,7 @@ object DoxParser extends RegexParsers {
       img|not_hyperlink|hyperlink|hyperlink_xml)
 
   def special_literals: Parser[Inline] = {
-    hyperlink_literal
+    hyperlink_literal | file_literal
   }
 
   def space: Parser[Space] = {
@@ -878,10 +878,30 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def hyperlink_literal: Parser[Hyperlink] = {
+  def hyperlink_literal: Parser[Inline] = {
     """(http|https)://[^ \n\r]*""".r ^^ {
+      case uri if _is_image(uri) => ReferenceImg(new URI(uri))
       case uri => Hyperlink(List(Text(uri)), new URI(uri))
     }
+  }
+
+  def file_literal: Parser[Inline] = {
+    def adjust(s: String) = {
+      s.substring("file:".length)
+    }
+    """(file):[^ \n\r]*""".r ^^ {
+      case uri if _is_image(uri) => {
+        ReferenceImg(new URI(adjust(uri)))
+      }
+      case uri => {
+        val u = adjust(uri)
+        Hyperlink(List(Text(u)), new URI(u))
+      }
+    }
+  }
+
+  private def _is_image(s: String) = {
+    List("png", "gif", "jpeg", "jpg").exists(x => s.endsWith("." + x))
   }
 
   def hyperlink_literal1: Parser[Hyperlink] = {
@@ -889,7 +909,6 @@ object DoxParser extends RegexParsers {
       case uri => Hyperlink(List(Text(uri)), new URI(uri))
     }
   }
-
   
   def img: Parser[Img] = {
     "[["~>"""[^]]+[.]""".r~img_suffix<~"]]" ^^ {
