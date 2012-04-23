@@ -176,24 +176,27 @@ object DoxParser extends RegexParsers {
   def section2: Parser[Section] = {
     "** "~>rep(inline)~opt(newline)~opt(contents)~rep(section3) ^^ {
       case title~_~contents~section3 => 
+        val sections = _filter_sections(section3)
 //        println("section2 = " + title + "," + contents);Section(title, (contents | nil) ::: section3, 2)
-        Section(title, (contents | nil) ::: section3, 2)
+        Section(title, (contents | nil) ::: sections, 2)
     }
   }
 
   def section3: Parser[Section] = {
     "*** "~>rep(inline)~opt(newline)~opt(contents)~rep(section4) ^^ {
       case title~_~contents~section4 => 
+        val sections = _filter_sections(section4)
 //        println("section3 = " + title + "," + contents);Section(title, (contents | nil) ::: section4, 3)
-        Section(title, (contents | nil) ::: section4, 3)
+        Section(title, (contents | nil) ::: sections, 3)
     }
   }
 
   def section4: Parser[Section] = {
     "**** "~>rep(inline)~opt(newline)~opt(contents)~rep(section5) ^^ {
       case title~_~contents~section5 =>
+        val sections = _filter_sections(section5)
 //        println("section4 = " + title + "," + contents);Section(title, (contents | nil) ::: section5, 3)
-        Section(title, (contents | nil) ::: section5, 3)
+        Section(title, (contents | nil) ::: sections, 3)
     }
   }
 
