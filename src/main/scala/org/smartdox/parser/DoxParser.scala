@@ -13,7 +13,7 @@ import scala.util.matching.Regex
 /**
  * @since   Dec. 24, 2011
  *  version Feb. 11, 2012
- * @version Apr. 23, 2012
+ * @version Apr. 24, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -144,15 +144,31 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def section1s: Parser[List[Section]] = rep(section1)
+  def section1s: Parser[List[Section]] = {
+    rep(section1) ^^ {
+      case sections => _filter_sections(sections)
+    }
+  }
+
+  private def _filter_sections(sections: List[Section]): List[Section] = {
+    sections.flatMap(_filter_section)
+  }
+
+  private def _filter_section(section: Section): List[Section] = {
+    section.title match {
+      case (x: Text) :: _ if x.contents.startsWith("COMMENT") => Nil
+      case _ => List(section)
+    }
+  }
 
   def section1: Parser[Section] = {
     "* "~>rep(inline)~opt(newline)~opt(contents)~rep(section2) ^^ {
       case title~_~contents~section2 => {
+        val sections = _filter_sections(section2)
 //        println("section1xs#title = " + title)
 //        println("section1xs#contntents = " + contents)
 //        println("section1xs#section2 = " + section2)
-        Section(title, (contents | nil) ::: section2, 1)
+        Section(title, (contents | nil) ::: sections, 1)
       }
     }
   }

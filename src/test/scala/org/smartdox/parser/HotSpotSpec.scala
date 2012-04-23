@@ -67,6 +67,10 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
     }
   }
 /* Spec candidates
+    "&lt;&amp;&gt;" in {
+      parse_orgmode_simple("""&lt;&amp;&gt;""",
+            """<p>&lt;&amp;&gt;</p>""")
+    }
       "<t>" in {
         parse_orgmode_simple("""<t><*></t>""",
             """&lt;*&gt;""")
