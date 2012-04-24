@@ -9,7 +9,7 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Apr. 23, 2012
+ * @version Apr. 24, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
@@ -45,25 +45,25 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
     }
     "<tt>" in {
       parse_orgmode_simple("""<tt>abc</tt>""",
-            """<tt>abc</tt>""")
+            """<p><tt>abc</tt></p>""")
     }
   }
   "0.2.4" should {
     "<< >>" in {
       parse_orgmode_simple("""<<*>>""",
-            """&lt;*&gt;""")
+            """<p>&lt;*&gt;</p>""")
     }
     "<: :>" in {
       parse_orgmode_simple("""<:<*>:>""",
-            """&lt;*&gt;""")
+            """<p>&lt;*&gt;</p>""")
     }
     "<: :> with /" in {
       parse_orgmode_simple("""<:/a/b/c:>""",
-            """/a/b/c""")
+            """<p>/a/b/c</p>""")
     }
     "<span>" in {
       parse_orgmode_simple("""<span>*span*</span>""",
-            """<span><bold>span</bold></span>""")
+            """<p><span><bold>span</bold></span></p>""")
     }
   }
 /* Spec candidates

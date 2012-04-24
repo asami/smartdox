@@ -9,7 +9,7 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Apr. 23, 2012
+ * @version Apr. 24, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -972,4 +972,17 @@ case class SmCsvImg(src: URI, contents: String, params: List[String] = Nil) exte
 
 // 2012-02-15
 object EmptyDox extends Dox {
+}
+
+// 2012-04-24
+case class Tt(contents: List[Inline]) extends Inline {
+  override val elements = contents
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy)
+  }
+}
+
+object Tt extends Tt(Nil) {
+  def apply(contents: Inline*) = new Tt(contents.toList)
 }

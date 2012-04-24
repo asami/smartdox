@@ -644,6 +644,7 @@ object DoxParser extends RegexParsers {
 
   def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
       bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
+      tt_xml|
       img|not_hyperlink|hyperlink|hyperlink_xml)
 
   def special_literals: Parser[Inline] = {
@@ -721,31 +722,28 @@ object DoxParser extends RegexParsers {
   case class XParam(name: String, value: String)
 
   def inline_xml(name: String): Parser[XElement[Inline]] = {
-    def xmlparam: Parser[XParam] = {
-      " "~opt(whiteSpace)~"""\w+""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
-        case _~_~name~_~_~_~_~value~_ => XParam(name, value)
-      }
-    }
-    def xmlparams: Parser[List[XParam]] = {
-      rep(xmlparam)
-    }
-    "<"~opt(whiteSpace)~name~xmlparams~opt(whiteSpace)~">"~rep(inline)~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
+    "<"~opt(whiteSpace)~name~xml_params~opt(whiteSpace)~">"~rep(inline)~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
       case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents)
     }
   }
 
   def contents_xml(name: String): Parser[XElement[Dox]] = {
-    def xmlparam: Parser[XParam] = {
-      " "~opt(whiteSpace)~"""\w+""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
-        case _~_~name~_~_~_~_~value~_ => XParam(name, value)
-      }
-    }
     def xmlparams: Parser[List[XParam]] = {
-      rep(xmlparam)
+      rep(xml_param)
     }
-    "<"~opt(whiteSpace)~name~xmlparams~opt(whiteSpace)~">"~contents~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
+    "<"~opt(whiteSpace)~name~xml_params~opt(whiteSpace)~">"~contents~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
       case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents)
     }
+  }
+
+  def xml_param: Parser[XParam] = {
+    " "~opt(whiteSpace)~"""\w+""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
+      case _~_~name~_~_~_~_~value~_ => XParam(name, value)
+    }
+  }
+
+  def xml_params: Parser[List[XParam]] = {
+      rep(xml_param)
   }
 
   def italic: Parser[Inline] = text_markup("/", Italic(_))
@@ -820,6 +818,12 @@ object DoxParser extends RegexParsers {
   def del_xml: Parser[Inline] = {
     inline_xml("del") ^^ {
       case elem => Del(elem.contents)
+    }
+  }
+
+  def tt_xml: Parser[Inline] = {
+    inline_xml("tt") ^^ {
+      case elem => Tt(elem.contents)
     }
   }
 
