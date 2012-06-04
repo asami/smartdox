@@ -13,7 +13,8 @@ import scala.util.matching.Regex
 /**
  * @since   Dec. 24, 2011
  *  version Feb. 11, 2012
- * @version Apr. 24, 2012
+ *  version Apr. 24, 2012
+ * @version Jun.  5, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -286,7 +287,7 @@ object DoxParser extends RegexParsers {
 
   def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
-  def block: Parser[Block] = dl|ulol|table|commentblock|figure|console|program|includeprogram
+  def block: Parser[Block] = dl|ulol|table|commentblock|figure|console|program|includeprogram|div_xml
 
   def emptyline: Parser[List[EmptyLine]] = {
     newline ^^ {
@@ -635,6 +636,12 @@ object DoxParser extends RegexParsers {
     val upper = name.toUpperCase
     ("#+" + upper + ":"|"#+" + name + ":")<~"[ ]*".r
   }
+
+  def div_xml: Parser[Div] = {
+    inline_xml("div") ^^ {
+      case elem => Div(elem.contents)
+    }
+  }
     
   def inline: Parser[Inline] = (special_literals|space|text|inline_elements)
 
@@ -643,7 +650,7 @@ object DoxParser extends RegexParsers {
   def inline_hyperlink: Parser[Inline] = (space|text_hyperlink|inline_elements) // inline_hyperlink
 
   def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
-      bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
+      span_xml|bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
       tt_xml|
       img|not_hyperlink|hyperlink|hyperlink_xml)
 
@@ -681,6 +688,12 @@ object DoxParser extends RegexParsers {
 //        println("s = " + s);Text(s)
         Text(s)
       }
+    }
+  }
+
+  def span_xml: Parser[Inline] = {
+    inline_xml("span") ^^ {
+      case elem => Span(elem.contents)
     }
   }
 

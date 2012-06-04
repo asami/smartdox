@@ -9,7 +9,8 @@ import java.net.URI
  * derived from SDoc.scala since Sep.  1, 2008
  *
  * @since   Dec. 24, 2011
- * @version Apr. 24, 2012
+ *  version Apr. 24, 2012
+ * @version Jun.  5, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -985,4 +986,18 @@ case class Tt(contents: List[Inline]) extends Inline {
 
 object Tt extends Tt(Nil) {
   def apply(contents: Inline*) = new Tt(contents.toList)
+}
+
+// 2012-06-05
+case class Span(contents: List[Inline]) extends Inline {
+  override val elements = contents
+  override def showTerm = "span"
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy)
+  }
+}
+
+object Span extends Span(Nil) {
+  def apply(contents: Inline*) = new Span(contents.toList)
 }
