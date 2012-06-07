@@ -14,7 +14,7 @@ import scala.util.matching.Regex
  * @since   Dec. 24, 2011
  *  version Feb. 11, 2012
  *  version Apr. 24, 2012
- * @version Jun.  5, 2012
+ * @version Jun.  7, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -650,12 +650,13 @@ object DoxParser extends RegexParsers {
   def inline_hyperlink: Parser[Inline] = (space|text_hyperlink|inline_elements) // inline_hyperlink
 
   def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
+      literal_inline|
       span_xml|bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
       tt_xml|t_xml|
       img|not_hyperlink|hyperlink|hyperlink_xml)
 
   def special_literals: Parser[Inline] = {
-    hyperlink_literal | file_literal
+    hyperlink_literal | file_literal // | greater_than | less_than
   }
 
   def space: Parser[Space] = {
@@ -688,6 +689,14 @@ object DoxParser extends RegexParsers {
 //        println("s = " + s);Text(s)
         Text(s)
       }
+    }
+  }
+
+  def literal_inline: Parser[Text] = {
+    "<["~>"""[^]]*""".r<~"]>" ^^ {
+      case text => {
+        Text(text)
+      } 
     }
   }
 
@@ -939,6 +948,20 @@ object DoxParser extends RegexParsers {
   def hyperlink_literal1: Parser[Hyperlink] = {
     "http://www.yahoo.com/" ^^ {
       case uri => Hyperlink(List(Text(uri)), new URI(uri))
+    }
+  }
+
+  @deprecated("unused", "20120607")
+  def greater_than: Parser[Text] = {
+    ">>" ^^ {
+      case _ => Text(">&&")
+    }
+  }
+
+  @deprecated("unused", "20120607")
+  def less_than: Parser[Text] = {
+    "<<" ^^ {
+      case _ => Text("<%%")
     }
   }
   
