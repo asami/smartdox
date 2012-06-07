@@ -651,7 +651,7 @@ object DoxParser extends RegexParsers {
 
   def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
       span_xml|bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
-      tt_xml|
+      tt_xml|t_xml|
       img|not_hyperlink|hyperlink|hyperlink_xml)
 
   def special_literals: Parser[Inline] = {
@@ -749,6 +749,12 @@ object DoxParser extends RegexParsers {
     }
   }
 
+  def text_xml(name: String): Parser[(List[XParam], String)] = {
+    "<"~opt(whiteSpace)~name~xml_params~opt(whiteSpace)~">"~"""[^<]*""".r~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
+      case _~_~_~params~_~_~contents~_~_~_~_~_ => (params, contents)
+    }
+  }
+
   def xml_param: Parser[XParam] = {
     " "~opt(whiteSpace)~"""\w+""".r~opt(whiteSpace)~"="~opt(whiteSpace)~'"'~"""[^"]*""".r~'"' ^^ {
       case _~_~name~_~_~_~_~value~_ => XParam(name, value)
@@ -837,6 +843,12 @@ object DoxParser extends RegexParsers {
   def tt_xml: Parser[Inline] = {
     inline_xml("tt") ^^ {
       case elem => Tt(elem.contents)
+    }
+  }
+
+  def t_xml: Parser[Inline] = {
+    text_xml("t") ^^ {
+      case (params, contents) => Text(contents)
     }
   }
 

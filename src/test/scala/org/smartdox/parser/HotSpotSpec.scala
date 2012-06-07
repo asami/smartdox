@@ -61,6 +61,10 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
       parse_orgmode_simple("""<:/a/b/c:>""",
             """<p>/a/b/c</p>""")
     }
+    "<t>" in {
+      parse_orgmode_simple("""<t>*span*</t>""",
+            """<p>*span*</p>""")
+    }
     "<span>" in {
       parse_orgmode_simple("""<span>*span*</span>""",
             """<p><span><b>span</b></span></p>""")
