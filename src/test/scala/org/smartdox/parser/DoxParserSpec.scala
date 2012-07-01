@@ -11,7 +11,7 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Dec. 24, 2011
- * @version Feb. 10, 2012
+ * @version Jul.  1, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -270,6 +270,54 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
         parse_orgmode_simple("* First\n1st contents.\n\ncont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
             """<section><h2>First</h2><p>1st contents.</p><p>cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
       }
+    }
+  }
+  "Comment" should {
+    "comment #" in {
+      parse_orgmode_simple("abc\n#def\nghi",
+            """<p>abc ghi</p>""")
+    }
+    "comment section" in {
+      parse_orgmode_simple("* COMMENT abc\ndef\nghi\n* jkl",
+            """<section><h2>jkl</h2></section>""")
+    }
+    "comment block" in {
+      parse_orgmode_simple("abc\n#+BEGIN_COMMENT\ndef\n#+END_COMMENT\nghi\n",
+            """<p>abc ghi</p>""")
+    }
+    "comment block lowercase" in {
+      parse_orgmode_simple("abc\n#+begin_comment\ndef\n#+end_comment\nghi\n",
+            """<p>abc ghi</p>""")
+    }
+    "file:abc.png" in {
+      parse_orgmode_simple("file:abc.png",
+            """<p><img src="abc.png"/></p>""")
+    }
+    "file:abc.doc" in {
+      parse_orgmode_simple("file:abc.doc",
+            """<p><a href="abc.doc">abc.doc</a></p>""")
+    }
+    "<tt>" in {
+      parse_orgmode_simple("""<tt>abc</tt>""",
+            """<p><tt>abc</tt></p>""")
+    }
+  }
+  "Literal" should {
+    "<: :>" in {
+      parse_orgmode_simple("""<[<*>]>""",
+            """<p>&lt;*&gt;</p>""")
+    }
+    "<: :> with /" in {
+      parse_orgmode_simple("""<[/a/b/c]>""",
+            """<p>/a/b/c</p>""")
+    }
+    "<t>" in {
+      parse_orgmode_simple("""<t>*span*</t>""",
+            """<p>*span*</p>""")
+    }
+    "<span>" in {
+      parse_orgmode_simple("""<span>*span*</span>""",
+            """<p><span><b>span</b></span></p>""")
     }
   }
 }
