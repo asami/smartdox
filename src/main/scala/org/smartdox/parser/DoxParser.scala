@@ -14,7 +14,8 @@ import scala.util.matching.Regex
  * @since   Dec. 24, 2011
  *  version Feb. 11, 2012
  *  version Apr. 24, 2012
- * @version Jun.  7, 2012
+ *  version Jun.  7, 2012
+ * @version Jul.  4, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -388,6 +389,7 @@ object DoxParser extends RegexParsers {
   sealed trait TableLine
   case class FrameTableLine() extends TableLine
   case class DataTableLine(contents: List[List[Inline]]) extends TableLine
+  case class IncludeTableLine(uri: String, params: List[String]) extends TableLine
 
   def normalize_space(lines: List[List[Inline]]): List[List[Inline]] = {
     def isspace(inline: Inline) = inline.isInstanceOf[Space]
@@ -454,6 +456,9 @@ object DoxParser extends RegexParsers {
         }
       }
     }
+    def tablelines: Parser[List[TableLine]] = {
+      rep1(frameline|dataline|includetable)
+    }
     def tableline: Parser[TableLine] = frameline|dataline
     def frameline: Parser[FrameTableLine] = {
       "[|][-][^\n\r]*".r<~opt(newline) ^^ {
@@ -487,6 +492,7 @@ object DoxParser extends RegexParsers {
           e match {
             case _: FrameTableLine => nil :: a 
             case d: DataTableLine => if (a == Nil) List(List(d)) else (d :: a.head) :: a.tail
+            case t: IncludeTableLine => if (a == Nil) List(List(t)) else (t :: a.head) :: a.tail
           }
         }
       }
@@ -511,13 +517,27 @@ object DoxParser extends RegexParsers {
     }
     def datarecords(lines: List[TableLine]): List[TR] = {
       val data = lines.collect {
+        case d: DataTableLine => d.contents.map(TD(_))
+        case d: IncludeTableLine => List(TTable(d.uri, d.params))
+      }
+      data.map(TR)
+    }
+    def headrecords(lines: List[TableLine]): List[TR] = {
+      val data = lines.collect {
+        case d: DataTableLine => d.contents.map(TH(_))
+        case d: IncludeTableLine => List(TTable(d.uri, d.params))
+      }
+      data.map(TR)
+    }
+    def datarecords0(lines: List[TableLine]): List[TR] = {
+      val data = lines.collect {
         case d: DataTableLine => d
       }
       for (d <- data) yield {
         TR(d.contents.map(TD(_)))
       }
     }
-    def headrecords(lines: List[TableLine]): List[TR] = {
+    def headrecords0(lines: List[TableLine]): List[TR] = {
       val data = lines.collect {
         case d: DataTableLine => d
       }
@@ -526,7 +546,7 @@ object DoxParser extends RegexParsers {
       }
     }
 //    println("try table")
-    tableattrs~rep1(tableline) ^^ {
+    tableattrs~tablelines ^^ {
       case attrs~lines => {
 //        println("attrs: " + attrs)
         val normalized = normalize(lines)
@@ -556,6 +576,14 @@ object DoxParser extends RegexParsers {
       }
     } ^^ {
       case fig if fig.caption.contents.nonEmpty => fig
+    }
+  }
+
+  def includetable: Parser[TableLine] = {
+    starter_colon("table")~"\""~>"""[^"]+""".r~"\""~"[ ]*".r~repsep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
+      case filename~_~_~params => {
+        IncludeTableLine(filename, params)
+      }
     }
   }
 

@@ -10,7 +10,8 @@ import java.net.URI
  *
  * @since   Dec. 24, 2011
  *  version Apr. 24, 2012
- * @version Jun.  5, 2012
+ *  version Jun.  5, 2012
+ * @version Jul.  4, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -796,6 +797,11 @@ case class TH(contents: List[Inline]) extends TField {
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
   }
+}
+
+case class TTable(uri: String, params: List[String]) extends TField { // 2012-07-04
+  override val contents = Nil
+  override val elements = Nil
 }
 
 case class Space() extends Inline {
