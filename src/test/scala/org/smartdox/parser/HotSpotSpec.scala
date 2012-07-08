@@ -9,14 +9,14 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Jul.  1, 2012
+ * @version Jul.  8, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
   "0.3.0" should {
     "table" in {
-      parse_orgmode_simple("""#+table: "test.csv"\n""",
-            """<p>abc ghi</p>""")
+      parse_orgmode_simple("#+table: \"test.csv\" src\n",
+            """<table><tbody><ttable uri="test.csv" src="true"/></tbody></table>""")
     }
   }
 /*

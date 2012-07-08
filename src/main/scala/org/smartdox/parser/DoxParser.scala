@@ -15,7 +15,7 @@ import scala.util.matching.Regex
  *  version Feb. 11, 2012
  *  version Apr. 24, 2012
  *  version Jun.  7, 2012
- * @version Jul.  4, 2012
+ * @version Jul.  8, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -515,19 +515,17 @@ object DoxParser extends RegexParsers {
         }
       }
     }
-    def datarecords(lines: List[TableLine]): List[TR] = {
-      val data = lines.collect {
-        case d: DataTableLine => d.contents.map(TD(_))
-        case d: IncludeTableLine => List(TTable(d.uri, d.params))
+    def datarecords(lines: List[TableLine]): List[TRecord] = {
+      lines.collect {
+        case d: DataTableLine => TR(d.contents.map(TD(_)))
+        case d: IncludeTableLine => TTable(d.uri, d.params)
       }
-      data.map(TR)
     }
-    def headrecords(lines: List[TableLine]): List[TR] = {
-      val data = lines.collect {
-        case d: DataTableLine => d.contents.map(TH(_))
-        case d: IncludeTableLine => List(TTable(d.uri, d.params))
+    def headrecords(lines: List[TableLine]): List[TRecord] = {
+      lines.collect {
+        case d: DataTableLine => TR(d.contents.map(TH(_)))
+        case d: IncludeTableLine => TTable(d.uri, d.params)
       }
-      data.map(TR)
     }
     def datarecords0(lines: List[TableLine]): List[TR] = {
       val data = lines.collect {

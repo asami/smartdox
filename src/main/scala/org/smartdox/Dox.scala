@@ -11,7 +11,7 @@ import java.net.URI
  * @since   Dec. 24, 2011
  *  version Apr. 24, 2012
  *  version Jun.  5, 2012
- * @version Jul.  4, 2012
+ * @version Jul.  8, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -737,7 +737,7 @@ case class Table(head: Option[THead], body: TBody, foot: Option[TFoot],
 }
 
 trait TableCompartment extends Block {
-  val records: List[TR]
+  val records: List[TRecord]
   override val elements = records
 
   def width: Int = records.map(_.length).max
@@ -755,25 +755,30 @@ trait TableCompartment extends Block {
   }
 }
 
-case class THead(records: List[TR]) extends TableCompartment {
+trait TRecord extends Block {
+  val fields: List[TField]
+  def length: Int
+}
+
+case class THead(records: List[TRecord]) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy)
   }
 }
 
-case class TBody(records: List[TR]) extends TableCompartment {
+case class TBody(records: List[TRecord]) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy)
   }
 }
 
-case class TFoot(records: List[TR]) extends TableCompartment {
+case class TFoot(records: List[TRecord]) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy)
   }
 }
 
-case class TR(fields: List[TField]) extends Block {
+case class TR(fields: List[TField]) extends TRecord {
   override val elements = fields
 
   override def copyV(cs: List[Dox]) = {
@@ -799,9 +804,20 @@ case class TH(contents: List[Inline]) extends TField {
   }
 }
 
-case class TTable(uri: String, params: List[String]) extends TField { // 2012-07-04
+case class TTable(uri: String, params: List[String]) extends TRecord with TField { // 2012-07-04
   override val contents = Nil
   override val elements = Nil
+  override def showParams = ("uri", uri) :: params.flatMap {
+    _.trim.split(":").toList match {
+      case Nil => Nil
+      case "" :: Nil => Nil
+      case x :: Nil => List(x.trim -> "true")
+      case x :: xs => List(x.trim -> xs.mkString(":").trim)
+    }
+  }
+
+  val fields = Nil
+  def length = 0
 }
 
 case class Space() extends Inline {
