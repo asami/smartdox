@@ -22,6 +22,10 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
       parse_orgmode_simple("- This is \n a pen.\n",
             """<ul><li>This is a pen.</li></ul>""")
     }
+    "ul nest" in {
+      parse_orgmode_simple("- One\n - Two\n Two-One\n",
+            """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+    }      
   }
 /*
   // comment # and subtree

@@ -307,6 +307,9 @@ object DoxParser extends RegexParsers {
   }
   case class UlLine(indent: Int, contents: List[ListContent]) extends ListLine
   case class OlLine(indent: Int, contents: List[ListContent]) extends ListLine
+  case class ContListLine(contents: List[ListContent]) extends ListLine {
+    val indent = 0
+  }
   object ListLine {
     def apply(s: String, c: List[ListContent]): ListLine = {
       val iu = s.indexOf('-')
@@ -367,6 +370,7 @@ object DoxParser extends RegexParsers {
                 val last = lis.last
                 lis(lis.length - 1) = last :+ ol                
               }
+              case _ => sys.error("not reached.")
             }
           } else {
             previ = line.indent
@@ -377,11 +381,39 @@ object DoxParser extends RegexParsers {
       }
       parse()
     }
-    rep1(uoline) ^^ {
-      case line => line.head match {
-        case _: UlLine => Ul(lines2lis(line))
-        case _: OlLine => Ol(lines2lis(line))
+    def contline: Parser[ContListLine] = {
+      "[ ]+".r~>rep(inline)<~(newline) ^^ {
+        case inline => ContListLine(inline)
       }
+    }
+    def concat(l: List[ListContent], r: List[ListContent]): List[ListContent] = {
+      normalize_paragraph(l ::: r) collect { case x: ListContent => x }
+    }
+    uoline~rep(uoline|contline) ^^ {
+      case head~tail => {
+        val a = tail.foldLeft(List(head)) {
+          (a, x) => {
+            x match {
+              case c: ContListLine => a.head match {
+                case l: UlLine => l.copy(l.indent, concat(l.contents, c.contents)) :: a.tail
+                case o: OlLine => o.copy(o.indent, concat(o.contents, c.contents)) :: a.tail
+                case _ => sys.error("not reached")
+              }
+              case _ => x :: a
+            }
+          }
+        }
+        val b = a.reverse
+        b.head match {
+          case _: UlLine => Ul(lines2lis(b))
+          case _: OlLine => Ol(lines2lis(b))
+          case _ => sys.error("not reached")
+        }
+      }
+//      case line => line.head match {
+//        case _: UlLine => Ul(lines2lis(line))
+//        case _: OlLine => Ol(lines2lis(line))
+//      }
     }
   }
 
