@@ -2,8 +2,7 @@ package org.smartdox.parser
 
 import scala.util.parsing.combinator.RegexParsers
 import org.smartdox._
-import scalaz._
-import Scalaz._
+import scalaz._, Scalaz._
 import scala.collection.mutable.ArrayBuffer
 import java.net.URI
 import Dox._
@@ -15,7 +14,7 @@ import scala.util.matching.Regex
  *  version Feb. 11, 2012
  *  version Apr. 24, 2012
  *  version Jun.  7, 2012
- * @version Jul.  8, 2012
+ * @version Jul. 22, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -438,7 +437,7 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def table: Parser[Table] = {
+  def table: Parser[TableBlock] = {
     def tableattrs: Parser[List[Attribute]] = rep(floatattr)
     def tableattrs0: Parser[List[Attribute]] = {
       rep(attr_slot) ^^ {
@@ -486,7 +485,7 @@ object DoxParser extends RegexParsers {
       }
       frameremovedreverse.dropWhile(_.isInstanceOf[FrameTableLine]).reverse
     }
-    def build(lines: List[TableLine]): (Option[THead], TBody, Option[TFoot]) = {
+    def build(lines: List[TableLine]): Either[TTable, (Option[THead], TBody, Option[TFoot])] = {
       val aggregatedreverse = lines.foldl(nil[List[TableLine]]) {
         case (a, e) => {
           e match {
@@ -499,20 +498,12 @@ object DoxParser extends RegexParsers {
       val aggregated = aggregatedreverse.foldl(nil[List[TableLine]]) {
         case (a, e) => e.reverse :: a
       }
-      aggregated.length match {
-        case 0 => (None, TBody(Nil), None)
-        case 1 => (None, TBody(datarecords(aggregated.head)), None)
-        case 2 => (THead(headrecords(aggregated.head)).some,
-            TBody(datarecords(aggregated.last)), None)
-        case 3 => (THead(headrecords(aggregated(0))).some,
-            TBody(datarecords(aggregated(1))),
-            TFoot(datarecords(aggregated(2))).some)
-        case _ => {
-          val data = aggregated.slice(1, aggregated.length - 1).flatten
-          (THead(headrecords(aggregated.head)).some,
-            TBody(datarecords(data)),
-            TFoot(datarecords(aggregated.last)).some)
-        }
+      val ttabled = aggregated.headOption.flatMap(_.headOption) collect {
+        case x: IncludeTableLine => x 
+      }
+      ttabled match {
+        case Some(x) => TTable(x.uri, x.params).left
+        case None => maketable(aggregated).right
       }
     }
     def datarecords(lines: List[TableLine]): List[TRecord] = {
@@ -543,6 +534,23 @@ object DoxParser extends RegexParsers {
         TR(d.contents.map(TH(_)))
       }
     }
+    def maketable(aggregated: List[List[TableLine]]) = {
+      aggregated.length match {
+        case 0 => (None, TBody(Nil), None)
+        case 1 => (None, TBody(datarecords(aggregated.head)), None)
+        case 2 => (THead(headrecords(aggregated.head)).some,
+            TBody(datarecords(aggregated.last)), None)
+        case 3 => (THead(headrecords(aggregated(0))).some,
+            TBody(datarecords(aggregated(1))),
+            TFoot(datarecords(aggregated(2))).some)
+        case _ => {
+          val data = aggregated.slice(1, aggregated.length - 1).flatten
+          (THead(headrecords(aggregated.head)).some,
+            TBody(datarecords(data)),
+            TFoot(datarecords(aggregated.last)).some)
+        }
+      }
+    }
 //    println("try table")
     tableattrs~tablelines ^^ {
       case attrs~lines => {
@@ -554,9 +562,11 @@ object DoxParser extends RegexParsers {
         val label = attrs.collectFirst {
           case c: LabelAttribute => c.value
         }
-        val (head, body, foot) = build(normalized)
-//        println("success table")
-        Table(head, body, foot, caption, label)
+        build(normalized) match {
+          case Right((head, body, foot)) =>
+            Table(head, body, foot, caption, label)
+          case Left(ttable) => ttable.copy(caption = caption, label = label)
+        }
       }
     }
   }

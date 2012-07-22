@@ -4,7 +4,7 @@ organization := "org.smartdox"
 
 version := "0.3.0-SNAPSHOT"
 
-scalaVersion := "2.9.2"
+// scalaVersion := "2.9.1"
 
 crossScalaVersions := Seq("2.9.1", "2.9.2")
 
@@ -24,6 +24,6 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalatest-lib" % "0.2.0" % "test"
 
-libraryDependencies += "junit" % "junit" % "4.8" % "test"
+libraryDependencies += "junit" % "junit" % "4.10" % "test"
 
 publishTo := Some(Resolver.file("asamioffice", file("target/maven-repository")))
