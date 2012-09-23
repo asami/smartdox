@@ -11,7 +11,8 @@ import java.net.URI
  * @since   Dec. 24, 2011
  *  version Apr. 24, 2012
  *  version Jun.  5, 2012
- * @version Jul. 22, 2012
+ *  version Jul. 22, 2012
+ * @version Sep. 24, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -812,22 +813,24 @@ case class TH(contents: List[Inline]) extends TField {
 case class TTable(uri: String, params: List[String],
                   caption: Option[Caption] = None,
                   label: Option[String] = None
-                ) extends TableBlock with TRecord with TField { // 2012-07-04
-  override val contents = Nil
-  override val elements = Nil
+                ) extends TableBlock with TRecord { // with TField { // 2012-07-04
+//  override val contents = Nil
+  val contents = Nil
+  override val elements = List(caption).flatten
   override def showParams = ("uri", uri) :: params.flatMap {
     _.trim.split(":").toList match {
       case Nil => Nil
       case "" :: Nil => Nil
       case x :: Nil => List(x.trim -> "true")
       case x :: xs => List(x.trim -> xs.mkString(":").trim)
-    }
+    } 
   }
 
   val fields = Nil
   def length = 0
 
   override def copyV(cs: List[Dox]) = {
+    println("TTable copyV = " + cs)
     Success(this) // XXX
   }
 }
