@@ -7,39 +7,54 @@ import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
 import org.goldenport.scalatest.ScalazMatchers
 
-/**
+/*
  * @since   Jan. 27, 2012
- * @version Sep. 15, 2012
+ *  version Sep. 15, 2012
+ * @version Oct. 10, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
-  "0.3.0" should {
-    "table" in {
-      parse_orgmode_simple("#+table: \"test.csv\" src\n",
-            """<ttable uri="test.csv" src="true"/>""")
+  "0.3.1" should {
+    "table" that {
+      "* in table" in {
+        parse_orgmode_simple("""| one | 10 * 20 | three |""",
+                             """<table><tbody><tr><td>one</td><td>10 * 20</td><td>three</td></tr></tbody></table>""")
+      }
+      "_ in table" in {
+        parse_orgmode_simple("""| one | column_id | three |""",
+                             """<table><tbody><tr><td>one</td><td>column<sub>id</sub></td><td>three</td></tr></tbody></table>""")
+      }
     }
-    "ul" in {
-      parse_orgmode_simple("- This is \n a pen.\n",
-            """<ul><li>This is a pen.</li></ul>""")
+    "adornment" that {
+      "sub" in {
+        parse_orgmode_simple("""column_id""",
+                             """column<sub>id</sub>""")
+      }
+      "sup" in {
+        parse_orgmode_simple("""column_{id}""",
+                             """column<sup>id</sup>""")
+      }
     }
-    "ul nest" in {
-      parse_orgmode_simple("- One\n - Two\n Two-One\n",
-            """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+    "html literal" that {
+      "not xml" in {
+        parse_orgmode_simple("See under below.\n#+begin_html\n<ul><li>abc</ul>\n#+end_html\nShee above.\n",
+                             """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+      }
     }
-/*
-    "quote" in {
-      parse_orgmode_simple("See under below.\n#+begin_quote\nThis is the definition\n#+end_quote\nShee above.\n",
-            """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+    "div" that {
+      "quote" in {
+        parse_orgmode_simple("See under below.\n#+begin_quote\nThis is the definition\n#+end_quote\nShee above.\n",
+                             """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+      }
+      "verse" in {
+        parse_orgmode_simple("See under below.\n#+begin_verse\nThis is the definition\n#+end_verse\nShee above.\n",
+                             """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+      }
+      "center" in {
+        parse_orgmode_simple("See under below.\n#+begin_center\nThis is the definition\n#+end_center\nShee above.\n",
+                             """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+      }
     }
-    "verse" in {
-      parse_orgmode_simple("See under below.\n#+begin_verse\nThis is the definition\n#+end_verse\nShee above.\n",
-            """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
-    }
-    "center" in {
-      parse_orgmode_simple("See under below.\n#+begin_center\nThis is the definition\n#+end_center\nShee above.\n",
-            """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
-    }      
-*/
   }
 /*
   // comment # and subtree

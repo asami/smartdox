@@ -9,9 +9,10 @@ import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 
-/**
+/*
  * @since   Dec. 24, 2011
- * @version Jul.  1, 2012
+ *  version Jul.  1, 2012
+ * @version Oct. 10, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -48,6 +49,14 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
       "nest" in {
         parse_orgmode("* First\n - first\n  - first.first\n  - first.second\n - second\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ul><li>first<ul><li>first.first</li><li>first.second</li></ul></li><li>second</li></ul></section></body></html>")
+      }
+      "continue" in {
+        parse_orgmode_simple("- This is \n a pen.\n",
+                             """<ul><li>This is a pen.</li></ul>""")
+      }
+      "ul nest" in {
+        parse_orgmode_simple("- One\n - Two\n Two-One\n",
+                             """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
       }
     }
     "ol" that {
@@ -211,6 +220,10 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
         parse_orgmode_simple("""| [[http://example.com/][Some/None] |""",
             """<table><tbody><tr><td><a href="http://example.com/">Some/None</a></td></tr></tbody></table>""")
       }
+      "external csv" in {
+        parse_orgmode_simple("#+table: \"test.csv\" src\n",
+                             """<ttable uri="test.csv" src="true"/>""")
+      }
     }
   }
   val imgdot = "#+begin_dot image/simple.png\nDOT\n#+end_dot\n"
@@ -303,11 +316,11 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
     }
   }
   "Literal" should {
-    "<: :>" in {
+    "<[ ]>" in {
       parse_orgmode_simple("""<[<*>]>""",
             """<p>&lt;*&gt;</p>""")
     }
-    "<: :> with /" in {
+    "<[ ]> with /" in {
       parse_orgmode_simple("""<[/a/b/c]>""",
             """<p>/a/b/c</p>""")
     }
