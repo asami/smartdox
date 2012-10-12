@@ -14,7 +14,8 @@ import scala.util.matching.Regex
  *  version Feb. 11, 2012
  *  version Apr. 24, 2012
  *  version Jun.  7, 2012
- * @version Jul. 22, 2012
+ *  version Jul. 22, 2012
+ * @version Oct. 12, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -94,7 +95,7 @@ object DoxParser extends RegexParsers {
 
   def head_slot: Parser[(String, InlineContents)] = {
     "#+"~>"[^:]+".r~":[ ]*".r~rep(inline)<~opt(newline) ^^ {
-      case name~_~value => (name, value)
+      case name~_~value => (name, value.flatten)
     }
   }
 
@@ -111,13 +112,13 @@ object DoxParser extends RegexParsers {
 
   def head_title: Parser[InlineContents] = {
     starter_colon("title")~>rep(inline)<~opt(newline) ^^ {
-      case inline => inline
+      case inline => inline.flatten
     }
   }
 
   def head_author: Parser[InlineContents] = {
     starter_colon("author")~>rep(inline)<~opt(newline) ^^ {
-      case inline => inline
+      case inline => inline.flatten
     }
   }
 
@@ -126,12 +127,12 @@ object DoxParser extends RegexParsers {
     def title: Parser[Unit] = {
 //      starter_colon("title")~>rep(inline)<~opt(newline) ^^ {
       "#+TITLE: "~>rep(inline)<~opt(newline) ^^ {
-        case inline => builder.title = inline
+        case inline => builder.title = inline.flatten
       }
     }
     def author: Parser[Unit] = {
       starter_colon("author")~>rep(inline)<~opt(newline) ^^ {
-        case inline => builder.author = inline
+        case inline => builder.author = inline.flatten
       }
     }
     rep(title|author)
@@ -169,7 +170,7 @@ object DoxParser extends RegexParsers {
 //        println("section1xs#title = " + title)
 //        println("section1xs#contntents = " + contents)
 //        println("section1xs#section2 = " + section2)
-        Section(title, (contents | nil) ::: sections, 1)
+        Section(title.flatten, (contents | nil) ::: sections, 1)
       }
     }
   }
@@ -179,7 +180,7 @@ object DoxParser extends RegexParsers {
       case title~_~contents~section3 => 
         val sections = _filter_sections(section3)
 //        println("section2 = " + title + "," + contents);Section(title, (contents | nil) ::: section3, 2)
-        Section(title, (contents | nil) ::: sections, 2)
+        Section(title.flatten, (contents | nil) ::: sections, 2)
     }
   }
 
@@ -188,7 +189,7 @@ object DoxParser extends RegexParsers {
       case title~_~contents~section4 => 
         val sections = _filter_sections(section4)
 //        println("section3 = " + title + "," + contents);Section(title, (contents | nil) ::: section4, 3)
-        Section(title, (contents | nil) ::: sections, 3)
+        Section(title.flatten, (contents | nil) ::: sections, 3)
     }
   }
 
@@ -197,7 +198,7 @@ object DoxParser extends RegexParsers {
       case title~_~contents~section5 =>
         val sections = _filter_sections(section5)
 //        println("section4 = " + title + "," + contents);Section(title, (contents | nil) ::: section5, 3)
-        Section(title, (contents | nil) ::: sections, 3)
+        Section(title.flatten, (contents | nil) ::: sections, 3)
     }
   }
 
@@ -205,7 +206,7 @@ object DoxParser extends RegexParsers {
     "***** "~>rep(inline)~opt(newline)~opt(contents) ^^ {
       case title~_~contents =>
 //        println("section4 = " + title + "," + contents);Section(title, contents | nil, 3)
-        Section(title, contents | nil, 3)
+        Section(title.flatten, contents | nil, 3)
     }
   }
 
@@ -272,15 +273,11 @@ object DoxParser extends RegexParsers {
   }
 
   def contentsline: Parser[List[Dox]] = {
-    not("[*]+[ ]".r)~>rep1(block|inline)<~opt(newline) ^^ {
-      case contents => {
-//        println("contentsline = " + contents)
-        contents.flatMap {
-          _ match {
-            case f: Fragment => f.contents
-            case l => List(l)
-          }
-        }
+    not("[*]+[ ]".r)~>rep1(block_as_contents|inline)<~opt(newline) ^^ {
+      case contents => contents.flatten.flatMap {
+        case fra: Fragment => fra.contents
+        case block: Block => List(block)
+        case inline => List(inline)
       }
     }
   }
@@ -288,6 +285,8 @@ object DoxParser extends RegexParsers {
   def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
   def block: Parser[Block] = dl|ulol|table|commentblock|figure|console|program|includeprogram|div_xml
+
+  def block_as_contents: Parser[List[Block]] = block.map(x => List(x))
 
   def emptyline: Parser[List[EmptyLine]] = {
     newline ^^ {
@@ -325,7 +324,7 @@ object DoxParser extends RegexParsers {
   def dl: Parser[Dl] = {
     def dline: Parser[(Dt, Dd)] = {
       "[ ]*[-][ ]".r~>rep(text)~" :: "~rep(inline)<~opt(newline) ^^ {
-        case term~_~desc => (Dt(term.toText), Dd(desc))
+        case term~_~desc => (Dt(term.flatten.toText), Dd(desc.flatten))
       }
     }
     rep1(dline) ^^ {
@@ -336,7 +335,7 @@ object DoxParser extends RegexParsers {
   def ulol: Parser[Block] = {
     def uoline: Parser[ListLine] = {
       ("[ ]*[-][ ]".r|"""[ ]*\d+[.][ ]""".r)~rep(inline)<~opt(newline) ^^ {
-        case indent~contents => ListLine(indent, contents)
+        case indent~contents => ListLine(indent, contents.flatten)
       } 
     }
     def lines2lis(lines: List[ListLine]): List[Li] = {
@@ -383,7 +382,7 @@ object DoxParser extends RegexParsers {
     }
     def contline: Parser[ContListLine] = {
       "[ ]+".r~>rep(inline)<~(newline) ^^ {
-        case inline => ContListLine(inline)
+        case inline => ContListLine(inline.flatten)
       }
     }
     def concat(l: List[ListContent], r: List[ListContent]): List[ListContent] = {
@@ -439,7 +438,7 @@ object DoxParser extends RegexParsers {
 
   def attrcaption: Parser[Attribute] = {
     starter_colon("caption")~>rep(inline)<~newline ^^ {
-      case value => CaptionAttribute(value)
+      case value => CaptionAttribute(value.flatten)
     }
   }
 
@@ -499,7 +498,7 @@ object DoxParser extends RegexParsers {
     def dataline: Parser[DataTableLine] = {
       "|"~>repsep(rep(inline_table), "|")<~opt(newline) ^^ {
         case lines => {
-          val ls = normalize_space(lines)
+          val ls = normalize_space(lines.map(_.flatten))
           if (ls.last.nonEmpty) DataTableLine(ls)
           else DataTableLine(ls.dropRight(1))
         }
@@ -710,71 +709,71 @@ object DoxParser extends RegexParsers {
       case elem => Div(elem.contents)
     }
   }
-    
-  def inline: Parser[Inline] = (special_literals|space|text|inline_elements)
 
-  def inline_table: Parser[Inline] = (special_literals|space|text_table|inline_elements)
+  def inline: Parser[InlineContents] = (special_literals|space|text|inline_elements)
 
-  def inline_hyperlink: Parser[Inline] = (space|text_hyperlink|inline_elements) // inline_hyperlink
+  def inline_table: Parser[InlineContents] = (special_literals|space|text_table|inline_elements)
 
-  def inline_elements: Parser[Inline] = (bold|italic|underline|code|pre|del|
+  def inline_hyperlink: Parser[InlineContents] = (space|text_hyperlink|inline_elements) // inline_hyperlink
+
+  def inline_elements: Parser[InlineContents] = (bold|italic|underline|code|pre|del|
       literal_inline|
       span_xml|bold_xml|italic_xml|underline_xml|code_xml|pre_xml|del_xml|
       tt_xml|t_xml|
-      img|not_hyperlink|hyperlink|hyperlink_xml)
+      img_as_contents|not_hyperlink|hyperlink|hyperlink_xml)
 
-  def special_literals: Parser[Inline] = {
+  def special_literals: Parser[InlineContents] = {
     hyperlink_literal | file_literal // | greater_than | less_than
   }
 
-  def space: Parser[Space] = {
+  def space: Parser[InlineContents] = {
     "[ ]+".r ^^ {
-      case _ => Space()
+      case _ => List(Space())
     }
   }
 
-  def text: Parser[Text] = {
+  def text: Parser[List[Text]] = {
     // special charactors: :|]
 //    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
     """[^*/_=~+<\[ \n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
-        Text(s)
+        List(Text(s))
     }
   }
 
-  def text_table: Parser[Text] = {
+  def text_table: Parser[List[Text]] = {
     """[^*/_=~+<\[ |\n\r]+""".r ^^ {
       case s => 
 //        println("s = " + s);Text(s)
-        Text(s)
+        List(Text(s))
     }
   }
 
-  def text_hyperlink: Parser[Text] = {
+  def text_hyperlink: Parser[List[Text]] = {
     """[^*/_=~+<\[\] |\n\r]+""".r ^^ {
       case s => {
 //        println("s = " + s);Text(s)
-        Text(s)
+        List(Text(s))
       }
     }
   }
 
-  def literal_inline: Parser[Text] = {
+  def literal_inline: Parser[List[Text]] = {
     "<["~>"""[^]]*""".r<~"]>" ^^ {
       case text => {
-        Text(text)
+        List(Text(text))
       } 
     }
   }
 
-  def span_xml: Parser[Inline] = {
+  def span_xml: Parser[InlineContents] = {
     inline_xml("span") ^^ {
-      case elem => Span(elem.contents)
+      case elem => List(Span(elem.contents))
     }
   }
 
-  def bold: Parser[Inline] = text_markup("*", Bold(_))
+  def bold: Parser[InlineContents] = text_markup("*", Bold(_))
 
   def bold0: Parser[Inline] = {
     "*"~>text_until("*")~opt("*"|newline) ^^ {
@@ -787,24 +786,38 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def text_markup(delim: String, elem: Text => Inline): Parser[Inline] = {
+  def text_markup0(delim: String, elem: Text => Inline): Parser[InlineContents] = {
+//    " "~delim~>text_until(delim)~opt(delim~" ") ^^ {
     delim~>text_until(delim)~opt(delim) ^^ {
       case text~mark => {
         mark match {
-          case Some(m) if m == delim => elem(Text(text))
-          case _ => Text(delim + text)
+          case Some(m) if m == delim => List(Text(" "), elem(Text(text)))
+          case _ => List(Text(" " + delim + text))
         }
       } 
     }
   }
 
-  def text_until(delim: String): Regex = {
-    ("[^" + delim + "\\]<\n\r]*").r
+  def text_markup(delim: String, elem: Text => Inline): Parser[InlineContents] = {
+//    " "~delim~>text_until(delim)~opt(delim~" ") ^^ {
+    delim~>text_until(delim)~opt(delim) ^^ {
+      case text~mark => {
+        mark match {
+          case Some(m) if m == delim => List(elem(Text(text)))
+          case _ => List(Text(delim + text))
+        }
+      } 
+    }
   }
 
-  def bold_xml: Parser[Inline] = {
+
+  def text_until(delim: String): Regex = {
+    ("[^" + delim + "\\]<|\n\r]*").r
+  }
+
+  def bold_xml: Parser[InlineContents] = {
     inline_xml("b") ^^ {
-      case elem => Bold(elem.contents)
+      case elem => List(Bold(elem.contents))
     }
   }
 
@@ -813,7 +826,7 @@ object DoxParser extends RegexParsers {
 
   def inline_xml(name: String): Parser[XElement[Inline]] = {
     "<"~opt(whiteSpace)~name~xml_params~opt(whiteSpace)~">"~rep(inline)~"</"~opt(whiteSpace)~name~opt(whiteSpace)~">" ^^ {
-      case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents)
+      case _~_~_~params~_~_~contents~_~_~_~_~_ => XElement(params, contents.flatten)
     }
   }
 
@@ -842,52 +855,52 @@ object DoxParser extends RegexParsers {
       rep(xml_param)
   }
 
-  def italic: Parser[Inline] = text_markup("/", Italic(_))
+  def italic: Parser[InlineContents] = text_markup("/", Italic(_))
 
   def italic0: Parser[Inline] = {
     "/"~>rep(inline)<~"/" ^^ {
       case inline if (inline.isEmpty) => Text("/")
-      case inline => Italic(inline)
+      case inline => Italic(inline.flatten)
     }
   }
 
-  def italic_xml: Parser[Inline] = {
+  def italic_xml: Parser[InlineContents] = {
     inline_xml("i") ^^ {
-      case elem => Italic(elem.contents)
+      case elem => List(Italic(elem.contents))
     }
   }
 
-  def underline: Parser[Inline] = text_markup("_", Underline(_))
+  def underline: Parser[InlineContents] = text_markup("_", Underline(_))
 
   def underline0: Parser[Inline] = {
     "_"~>rep(inline)<~"_" ^^ {
       case inline if (inline.isEmpty) => Text("_")
-      case inline => Underline(inline)
+      case inline => Underline(inline.flatten)
     }
   }
 
-  def underline_xml: Parser[Inline] = {
+  def underline_xml: Parser[InlineContents] = {
     inline_xml("u") ^^ {
-      case elem => Underline(elem.contents)
+      case elem => List(Underline(elem.contents))
     }
   }
 
-  def code: Parser[Inline] = text_markup("=", Code(_))
+  def code: Parser[InlineContents] = text_markup("=", Code(_))
   
   def code0: Parser[Inline] = {
     "="~>rep(inline)<~"=" ^^ {
       case inline if (inline.isEmpty) => Text("=")
-      case inline => Code(inline)
+      case inline => Code(inline.flatten)
     }
   }
 
-  def code_xml: Parser[Inline] = {
+  def code_xml: Parser[InlineContents] = {
     inline_xml("code") ^^ {
-      case elem => Code(elem.contents)
+      case elem => List(Code(elem.contents))
     }
   }
 
-  def pre: Parser[Inline] = text_markup("~", (t => Pre(t.contents)))
+  def pre: Parser[InlineContents] = text_markup("~", (t => Pre(t.contents)))
 
   def pre0: Parser[Inline] = {
     "~"~>rep(inline)<~"~" ^^ {
@@ -896,42 +909,42 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def pre_xml: Parser[Inline] = {
+  def pre_xml: Parser[InlineContents] = {
     inline_xml("pre") ^^ {
-      case elem => Pre(elem.contents.mkString)
+      case elem => List(Pre(elem.contents.mkString))
     }
   }
 
-  def del: Parser[Inline] = text_markup("+", Del(_))
+  def del: Parser[InlineContents] = text_markup("+", Del(_))
 
   def del0: Parser[Inline] = {
     "+"~>rep(inline)<~"+" ^^ {
       case inline if (inline.isEmpty) => Text("+")
-      case inline => Del(inline)
+      case inline => Del(inline.flatten)
     }
   }
 
-  def del_xml: Parser[Inline] = {
+  def del_xml: Parser[InlineContents] = {
     inline_xml("del") ^^ {
-      case elem => Del(elem.contents)
+      case elem => List(Del(elem.contents))
     }
   }
 
-  def tt_xml: Parser[Inline] = {
+  def tt_xml: Parser[InlineContents] = {
     inline_xml("tt") ^^ {
-      case elem => Tt(elem.contents)
+      case elem => List(Tt(elem.contents))
     }
   }
 
-  def t_xml: Parser[Inline] = {
+  def t_xml: Parser[InlineContents] = {
     text_xml("t") ^^ {
-      case (params, contents) => Text(contents)
+      case (params, contents) => List(Text(contents))
     }
   }
 
-  def not_hyperlink: Parser[Inline] = {
+  def not_hyperlink: Parser[InlineContents] = {
     "["~not("[") ^^ {
-      case _ => Text("[")
+      case _ => List(Text("["))
     }
   }
 
@@ -941,7 +954,7 @@ object DoxParser extends RegexParsers {
     "[["~>"""[^]]+""".r~"]["~rep(inline_hyperlink)<~"]]" ^^ {
       case link~_~label => {
         if (label.isEmpty) Hyperlink(List(Text(link)), new URI(link))
-        else Hyperlink(label, new URI(link))
+        else Hyperlink(label.flatten, new URI(link))
       }
     }
   }
@@ -950,7 +963,7 @@ object DoxParser extends RegexParsers {
     "[["~>"""[^]]+""".r~"]["~rep(inline_hyperlink)<~"]" ^^ {
       case link~_~label => {
         if (label.isEmpty) Hyperlink(List(Text(link)), new URI(link))
-        else Hyperlink(label, new URI(link))
+        else Hyperlink(label.flatten, new URI(link))
       }
     }
   }
@@ -961,22 +974,25 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def hyperlink: Parser[Inline] = {
-    def label: Parser[List[Inline]] = {
+  def hyperlink: Parser[InlineContents] = {
+    def label: Parser[List[InlineContents]] = {
       "["~>rep(inline_hyperlink)<~"]"
     }
     "[["~>"""[^]]+""".r~"]"~opt(label)<~opt("]") ^^ {
-      case link~_~label => Hyperlink(label | List(Text(link)), new URI(link))
+      case link~_~label => {
+        val s = label | List(List(Text(link)))
+        List(Hyperlink(s.flatten, new URI(link)))
+      }
     }
   }
 
-  def hyperlink_xml: Parser[Hyperlink] = {
+  def hyperlink_xml: Parser[List[Hyperlink]] = {
     def warning = "***No href***"
     inline_xml("a") ^^ {
       case elem => {
         val href = elem.params.find(_.name == "href").map(_.value)
         val txt = href ? elem.contents | elem.contents :+ Text(warning)
-        Hyperlink(txt, new URI(href | ""))
+        List(Hyperlink(txt, new URI(href | "")))
       }
     }
   }
@@ -987,24 +1003,24 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def hyperlink_literal: Parser[Inline] = {
+  def hyperlink_literal: Parser[InlineContents] = {
     """(http|https)://[^ \n\r]*""".r ^^ {
-      case uri if _is_image(uri) => ReferenceImg(new URI(uri))
-      case uri => Hyperlink(List(Text(uri)), new URI(uri))
+      case uri if _is_image(uri) => List(ReferenceImg(new URI(uri)))
+      case uri => List(Hyperlink(List(Text(uri)), new URI(uri)))
     }
   }
 
-  def file_literal: Parser[Inline] = {
+  def file_literal: Parser[InlineContents] = {
     def adjust(s: String) = {
       s.substring("file:".length)
     }
     """(file):[^ \n\r]*""".r ^^ {
       case uri if _is_image(uri) => {
-        ReferenceImg(new URI(adjust(uri)))
+        List(ReferenceImg(new URI(adjust(uri))))
       }
       case uri => {
         val u = adjust(uri)
-        Hyperlink(List(Text(u)), new URI(u))
+        List(Hyperlink(List(Text(u)), new URI(u)))
       }
     }
   }
@@ -1038,6 +1054,8 @@ object DoxParser extends RegexParsers {
       case name~suffix => ReferenceImg(new URI(name+suffix))
     }
   }
+
+  def img_as_contents: Parser[List[Img]] = img.map(x => List(x))
 
   def img_suffix: Parser[String] = {
     "(png|jpeg|jpg|gif|pdf)".r    
