@@ -15,7 +15,7 @@ import scala.util.matching.Regex
  *  version Apr. 24, 2012
  *  version Jun.  7, 2012
  *  version Jul. 22, 2012
- * @version Oct. 12, 2012
+ * @version Oct. 15, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -787,19 +787,17 @@ object DoxParser extends RegexParsers {
   }
 
   def text_markup0(delim: String, elem: Text => Inline): Parser[InlineContents] = {
-//    " "~delim~>text_until(delim)~opt(delim~" ") ^^ {
-    delim~>text_until(delim)~opt(delim) ^^ {
-      case text~mark => {
-        mark match {
-          case Some(m) if m == delim => List(Text(" "), elem(Text(text)))
-          case _ => List(Text(" " + delim + text))
+    " "~delim~>text_until(delim)~delim~"""[ \n\r.]""".r ^^ {
+      case text~_~post => {
+        post match {
+          case "." => List(elem(Text(text)), Text(" "))
+          case _ => List(elem(Text(text)))
         }
       } 
     }
   }
 
   def text_markup(delim: String, elem: Text => Inline): Parser[InlineContents] = {
-//    " "~delim~>text_until(delim)~opt(delim~" ") ^^ {
     delim~>text_until(delim)~opt(delim) ^^ {
       case text~mark => {
         mark match {
@@ -810,9 +808,8 @@ object DoxParser extends RegexParsers {
     }
   }
 
-
   def text_until(delim: String): Regex = {
-    ("[^" + delim + "\\]<|\n\r]*").r
+    ("""[^%s\]<|\n\r ]*""".format(delim)).r
   }
 
   def bold_xml: Parser[InlineContents] = {
