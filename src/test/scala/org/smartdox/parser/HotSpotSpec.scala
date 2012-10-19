@@ -10,7 +10,7 @@ import org.goldenport.scalatest.ScalazMatchers
 /*
  * @since   Jan. 27, 2012
  *  version Sep. 15, 2012
- * @version Oct. 10, 2012
+ * @version Oct. 19, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
@@ -20,6 +20,7 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
         parse_orgmode_simple("""| one | 10 * 20 | three |""",
                              """<table><tbody><tr><td>one</td><td>10 * 20</td><td>three</td></tr></tbody></table>""")
       }
+/*
       "_ in table" in {
         parse_orgmode_simple("""| one | column_id | three |""",
                              """<table><tbody><tr><td>one</td><td>column<sub>id</sub></td><td>three</td></tr></tbody></table>""")
@@ -54,6 +55,7 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
         parse_orgmode_simple("See under below.\n#+begin_center\nThis is the definition\n#+end_center\nShee above.\n",
                              """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
       }
+*/
     }
   }
 /*
