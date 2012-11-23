@@ -15,7 +15,8 @@ import scala.util.matching.Regex
  *  version Apr. 24, 2012
  *  version Jun.  7, 2012
  *  version Jul. 22, 2012
- * @version Oct. 15, 2012
+ *  version Oct. 15, 2012
+ * @version Nov. 23, 2012
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -284,7 +285,7 @@ object DoxParser extends RegexParsers {
 
   def embedded: Parser[List[Dox]] = rep1(img_dot|img_ditaa|img_sm)
 
-  def block: Parser[Block] = dl|ulol|table|commentblock|figure|console|program|includeprogram|div_xml
+  def block: Parser[Block] = dl|ulol|table|commentblock|figure|console|program|includeprogram|includedoc|div_xml
 
   def block_as_contents: Parser[List[Block]] = block.map(x => List(x))
 
@@ -675,6 +676,14 @@ object DoxParser extends RegexParsers {
     starter_colon("include")~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
       case filename~_~_~params => {
         Program("", List("src" -> filename))
+      }
+    }
+  }
+
+  def includedoc: Parser[IncludeDoc] = {
+    starter_colon("include")~"\""~>"""[^"]+""".r<~"\""~opt(newline) ^^ {
+      case filename => {
+        IncludeDoc(filename)
       }
     }
   }

@@ -12,7 +12,7 @@ import java.net.URI
  *  version Apr. 24, 2012
  *  version Jun.  5, 2012
  *  version Jul. 22, 2012
- * @version Sep. 24, 2012
+ * @version Nov. 23, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -1037,4 +1037,8 @@ case class Span(contents: List[Inline]) extends Inline {
 
 object Span extends Span(Nil) {
   def apply(contents: Inline*) = new Span(contents.toList)
+}
+
+// 2012-11-23
+case class IncludeDoc(filename: String) extends Block {
 }
