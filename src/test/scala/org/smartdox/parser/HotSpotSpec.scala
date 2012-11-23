@@ -10,10 +10,19 @@ import org.goldenport.scalatest.ScalazMatchers
 /*
  * @since   Jan. 27, 2012
  *  version Sep. 15, 2012
- * @version Oct. 19, 2012
+ *  version Oct. 19, 2012
+ * @version Nov. 23, 2012
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
+  "0.3.2" should {
+    "includedoc" that {
+      "includedoc" in {
+        parse_orgmode_simple("""#+include: "abc.org"""",
+                             """<includedoc filename="abc.org"/>""")
+      }
+    }
+  }
   "0.3.1" should {
     "table" that {
       "* in table" in {
