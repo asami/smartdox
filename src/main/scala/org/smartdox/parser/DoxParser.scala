@@ -1,13 +1,15 @@
 package org.smartdox.parser
 
-import scala.util.parsing.combinator.RegexParsers
-import org.smartdox._
-import scalaz._, Scalaz._
-import scala.collection.mutable.ArrayBuffer
+import com.asamioffice.goldenport.text.UPathString
+import java.io.{Reader, BufferedReader, InputStreamReader}
 import java.net.URI
-import Dox._
-import java.io.Reader
+import scala.collection.mutable.ArrayBuffer
+import scala.util.parsing.combinator.RegexParsers
 import scala.util.matching.Regex
+import scalaz._, Scalaz._
+import org.smartdox._
+import Dox._
+import com.asamioffice.goldenport.io.UURL
 
 /**
  * @since   Dec. 24, 2011
@@ -25,17 +27,86 @@ object DoxParser extends RegexParsers {
 
   def parseOrgmode(reader: Reader) = parseAll(orgmode, reader)
   def parseOrgmode(in: String) = parseAll(orgmode, in)
+  def parseOrgmode(uri: URI): ParseResult[Dox] = {
+    var reader: BufferedReader = null
+    try {
+      val url = UURL.getURLFromFileOrURLName(uri.toString)
+      reader = new BufferedReader(new InputStreamReader(url.openStream, "utf-8"))
+      parseAll(orgmode, reader) match {
+        case s: Success[_] => {
+          val base = _make_base(uri)
+          s.map(_resolve_include(base, _))
+        }
+        case n: NoSuccess => n
+      }
+    } finally {
+      if (reader != null) reader.close
+    }
+  }
   def parseOrgmodeAutoTitle(reader: Reader) = parseAll(orgmode_auto_title, reader)
   def parseOrgmodeAutoTitle(in: String) = parseAll(orgmode_auto_title, in)
 
   def parseOrgmodeZ(reader: Reader) = parseOrgmode(reader) |> _to_validation
   def parseOrgmodeZ(in: String) = parseOrgmode(in) |> _to_validation
+  def parseOrgmodeZ(uri: URI) = parseOrgmode(uri) |> _to_validation
 
   private def _to_validation(result: ParseResult[Dox]): Validation[NonEmptyList[String], Dox] = {
     result match {
       case s: Success[_] => s.get.success[String].liftFailNel
       case n: NoSuccess => n.msg.fail[Dox].liftFailNel
     }
+  }
+
+  private def _resolve_include(base: String, dox: Dox): Dox = {
+    val t = Dox.tree(dox)
+    val r = _resolve_include_tree(base, t)
+    Dox.untreeE(r)
+  }
+
+  private def _resolve_include_tree(base: String, t: Tree[Dox]): Tree[Dox] = {
+//    println("DoxParser#_resolve_include_tree = " + _resolve_include_children(base, t.subForest))
+    node(t.rootLabel, _resolve_include_children(base, t.subForest))
+  }
+
+  private def _resolve_include_children(base: String, xs: Stream[Tree[Dox]]): Stream[Tree[Dox]] = {
+//    println("DoxParser#_resolve_include_children = " + xs.toList.map(_.rootLabel))
+    val r = xs.flatMap(x => x.rootLabel match {
+      case i: IncludeDoc => {
+        val uri = _make_uri(base, i.filename)
+//        println("DoxParser#_resolve_include_children = " + uri)
+        parseOrgmode(uri) match {
+          case s: Success[_] => {
+//            println("DoxParser success: " + s.get)
+            _body_fragment(s.get)
+          }
+          case n: NoSuccess => { // XXX
+            println("DoxParser: " + i.filename + " not found.")
+            None
+          }
+        }
+      }
+      case _ => _resolve_include_tree(base, x).some
+    })
+//    println("DoxParser result: " + r.toList.map(_.drawTree))
+    r
+  }
+
+  private def _body_fragment(t: Dox): Stream[Tree[Dox]] = {
+    t.elements(1).elements.map(_.tree).toStream
+  }
+
+  /**
+   * @return null current directory
+   */
+  private def _make_base(uri: URI): String = {
+    UPathString.getContainerPathname(uri.toString)
+  }
+
+  /**
+   * @param base null means current directory
+   */
+  private def _make_uri(base: String, filename: String): URI = {
+    new URI(UPathString.concatPathname(base, filename))
   }
 
   def orgmode: Parser[Dox] = {

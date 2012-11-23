@@ -1042,4 +1042,9 @@ object Span extends Span(Nil) {
 // 2012-11-23
 case class IncludeDoc(filename: String) extends Block {
   override def showParams = List(("filename", filename))
+
+  override def copyV(cs: List[Dox]) = {
+    println("IncludeDoc#copyV: " + cs)
+    Div(cs).success
+  }
 }
