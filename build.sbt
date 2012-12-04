@@ -14,9 +14,13 @@ scalacOptions += "-unchecked"
 
 resolvers += "Asami Maven Repository" at "http://www.asamioffice.com/maven"
 
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"
+
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "6.0.4"
 
-libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.1"
+libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2-SNAPSHOT"
+
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "0.1.4-SNAPSHOT"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "0.2.0"
 
