@@ -32,14 +32,20 @@ trait Doxes {
     dox_table(h, b, caption, id)
   }
 
-  def dox_section(title: String, contents: Seq[Dox]): Section = {
-    Section(dox_text(title), contents.toList)
+  def dox_section(depth: Int, title: String, contents: Seq[Dox]): Section = {
+    Section(dox_text(title), contents.toList, depth)
   }
 
   def dox_text(s: String) = List(Text(s))
 
-  def dox_program(xml: Elem): Program = {
-    Program(XmlUtil.prettyString(xml.toString))
+  def dox_program(title: String, xml: Elem, id: String = null): Program = {
+    val attrs = List(("title", title).some,
+                     Option(id).map(x => ("id", x))).flatten
+    Program(XmlUtil.prettyString(xml.toString), attrs)
+  }
+
+  def dox_p(s: String, args: Any*): Paragraph = {
+    Paragraph(dox_text(s.format(args: _*)))
   }
 }
 

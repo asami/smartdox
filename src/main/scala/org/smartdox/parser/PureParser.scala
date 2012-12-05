@@ -28,6 +28,7 @@ object PureParser {
       case "body" => buildBody(elem)
       case "section" => buildSection(elem)
       case "div" => buildDiv(elem)
+      case "p" => buildParagraph(elem)
       case "text" => buildText(elem)
       case "b" => buildBold(elem)
       case "i" => buildItalic(elem)
@@ -151,6 +152,10 @@ object PureParser {
     Div(build(elem))
   }
 
+  def buildParagraph(elem: XNode): Paragraph = {
+    Paragraph(buildInline(elem))
+  }
+
   def buildText(elem: XNode): org.smartdox.Text = {
     org.smartdox.Text(elem.text)
   }
@@ -245,7 +250,7 @@ object PureParser {
   }
 
   def getLabel(elem: XNode): Option[String] = {
-    println("PureParser#getLabel = " + getAttribute(elem, "id"))
+//    println("PureParser#getLabel = " + getAttribute(elem, "id"))
     getAttribute(elem, "id")
   }
 
