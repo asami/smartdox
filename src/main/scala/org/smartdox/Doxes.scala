@@ -10,16 +10,26 @@ import com.asamioffice.goldenport.xml.XmlUtil
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
-  def dox_table(header: Seq[String], body: Seq[Seq[Any]]): Table = {
-    val thead = THead(Nil)
-    val tbody = TBody(Nil)
-    Table(thead.some, tbody, None, None, None)
+  def dox_table(header: Seq[String], body: Seq[Seq[Any]],
+                caption: String = null, id: String = null): Table = {
+    val h = TR(header.map(x => TH(dox_text(x))).toList)
+    val b = for (r <- body.toList) yield {
+      TR(for (f <- r.toList) yield {
+        TD(dox_text(f.toString))
+      })
+    }
+    val c = Option(caption).map(x => Caption(dox_text(x)))
+    val l = Option(id)
+    val thead = THead(List(h))
+    val tbody = TBody(b)
+    Table(thead.some, tbody, None, c, l)
   }
 
-  def dox_table(header: Product, body: Seq[Product]): Table = {
+  def dox_table_tuple(header: Product, body: Seq[Product],
+                      caption: String = null, id: String = null): Table = {
     val h: Seq[String] = header.productIterator.map(_.toString).toList
     val b: Seq[Seq[Any]] = body.map(_.productIterator.toList)
-    dox_table(h, b)
+    dox_table(h, b, caption, id)
   }
 
   def dox_section(title: String, contents: Seq[Dox]): Section = {

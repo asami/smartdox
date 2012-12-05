@@ -12,7 +12,8 @@ import java.net.URI
  *  version Apr. 24, 2012
  *  version Jun.  5, 2012
  *  version Jul. 22, 2012
- * @version Nov. 23, 2012
+ *  version Nov. 23, 2012
+ * @version Dec.  5, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -705,6 +706,7 @@ trait TableBlock extends Block {
 case class Table(head: Option[THead], body: TBody, foot: Option[TFoot], 
     caption: Option[Caption], label: Option[String]) extends TableBlock {
   override val elements = List(caption, head, body.some, foot).flatten
+  override def showParams = label.toList.map(x => ("id", x))
 
   override def copyV(cs: List[Dox]) = {
     if (cs.isEmpty) to_failure(cs)

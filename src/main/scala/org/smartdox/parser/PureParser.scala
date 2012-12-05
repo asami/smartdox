@@ -229,15 +229,15 @@ object PureParser {
   }
 
   def getTHead(elem: XNode): Option[THead] = {
-    elem.child.find(_.label == "head").map(buildTHead)
+    elem.child.find(_.label == "thead").map(buildTHead)
   }
 
   def getTBody(elem: XNode): TBody = {
-    elem.child.find(_.label == "body").map(buildTBody) | TBody(Nil) // XXX
+    elem.child.find(_.label == "tbody").map(buildTBody) | TBody(Nil) // XXX
   }
 
   def getTFoot(elem: XNode): Option[TFoot] = {
-    elem.child.find(_.label == "foot").map(buildTFoot)
+    elem.child.find(_.label == "tfoot").map(buildTFoot)
   }
 
   def getCaption(elem: XNode): Option[Caption] = {
@@ -245,6 +245,7 @@ object PureParser {
   }
 
   def getLabel(elem: XNode): Option[String] = {
+    println("PureParser#getLabel = " + getAttribute(elem, "id"))
     getAttribute(elem, "id")
   }
 
