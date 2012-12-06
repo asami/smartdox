@@ -9,7 +9,7 @@ import Dox._, Doxes._
 
 /**
  * @since   Dec.  5, 2012
- * @version Dec.  5, 2012
+ * @version Dec.  6, 2012
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -189,7 +189,7 @@ object PureParser {
   }
 
   def buildLis(elem: XNode): List[Li] = {
-    elem.withFilter(_.label == "li").map(buildLi).toList
+    elem.child.withFilter(_.label == "li").map(buildLi).toList
   }
 
   def buildOl(elem: XNode): Ol = {
@@ -201,7 +201,7 @@ object PureParser {
   }
 
   def buildList(elem: XNode): List[ListContent] = {
-    elem.map(build).toList collect {
+    elem.child.map(build).toList collect {
       case l: ListContent => l
     }
   }
