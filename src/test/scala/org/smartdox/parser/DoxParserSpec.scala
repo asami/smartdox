@@ -12,7 +12,8 @@ import org.goldenport.scalatest.ScalazMatchers
 /*
  * @since   Dec. 24, 2011
  *  version Jul.  1, 2012
- * @version Oct. 10, 2012
+ *  version Oct. 10, 2012
+ * @version Dec.  6, 2012
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -173,7 +174,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
 |---
 | sum1 |sum2 | sum3|"""
       val tablecaption = """#+CAPTION: Title
-#+LABEL: title
+#+LABEL: tablelabel
 #+ATTR_HTML: width=80%
 #+ATTR_LATEX: width=15cm
 |-----
@@ -188,7 +189,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
       val resultmulti = "<table><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody></table>"
       val resultheader = "<table><thead><tr><th>h1</th><th>h2</th><th>h3</th></tr></thead><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody></table>"
       val resultfooter = "<table><thead><tr><th>h1</th><th>h2</th><th>h3</th></tr></thead><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody><tfoot><tr><td>sum1</td><td>sum2</td><td>sum3</td></tr></tfoot></table>"
-      val resultcaption = "<table><caption>Title</caption><thead><tr><th>h1</th><th>h2</th><th>h3</th></tr></thead><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody><tfoot><tr><td>sum1</td><td>sum2</td><td>sum3</td></tr></tfoot></table>"
+      val resultcaption = """<table id="tablelabel"><caption>Title</caption><thead><tr><th>h1</th><th>h2</th><th>h3</th></tr></thead><tbody><tr><td>one</td><td>two</td><td>three</td></tr><tr><td>four</td><td>five</td><td>six</td></tr></tbody><tfoot><tr><td>sum1</td><td>sum2</td><td>sum3</td></tr></tfoot></table>"""
       "typical" in {
         parse_orgmode_simple(tabletypical, result)
       }
