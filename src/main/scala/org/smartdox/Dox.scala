@@ -1,7 +1,6 @@
 package org.smartdox
 
-import scalaz._
-import Scalaz._
+import scalaz._, Scalaz._
 import java.net.URI
 
 /*
@@ -13,7 +12,7 @@ import java.net.URI
  *  version Jun.  5, 2012
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
- * @version Dec.  5, 2012
+ * @version Dec. 18, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -90,6 +89,31 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
 
   protected def to_Text(buf: StringBuilder) {
     showContentsElements.foreach(_.to_Text(buf))
+  }
+
+  def toData(): String = {
+    val buf = new StringBuilder
+    to_data(buf)
+//    println("Dox#toData(%s) = %s".format(this, buf))
+    buf.toString
+  }
+
+  protected def to_data(buf: StringBuilder) {
+    to_Data_Prologue(buf)
+    to_Data(buf)
+    to_Data_Epilogue(buf)
+  }
+
+  protected def to_Data_Prologue(buf: StringBuilder) {
+//    println("Dox#to_Data_Prologue = " + this)
+  }
+
+  protected def to_Data(buf: StringBuilder) {
+    showContentsElements.foreach(_.to_data(buf))
+  }
+
+  protected def to_Data_Epilogue(buf: StringBuilder) {
+//    println("Dox#to_Data_Epilogue = " + this)
   }
 
   def tree: Tree[Dox] = Dox.tree(this)
@@ -565,6 +589,9 @@ case class Text(contents: String) extends Inline {
   override def to_Text(buf: StringBuilder) {
     buf.append(contents)
   }
+  override def to_Data(buf: StringBuilder) {
+    buf.append(contents)
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
@@ -601,6 +628,14 @@ object Italic extends Italic(Nil) {
 case class Underline(contents: List[Inline]) extends Inline {
   override val elements = contents
   override def showTerm = "u"
+
+  override def to_Data_Prologue(buf: StringBuilder) {
+    buf.append("_")
+  }
+
+  override def to_Data_Epilogue(buf: StringBuilder) {
+    buf.append("_")
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
@@ -761,6 +796,24 @@ trait TableCompartment extends Block {
     }
     return ""
   }
+
+  def getField(x: Int, y: Int): Option[TField] = {
+    if (records.length > y) {
+      val r = records(y)
+      if (r.fields.length > x) {
+        return r.fields(x).some
+      }
+    }
+    return None
+  }
+
+  def getContent(x: Int, y: Int): Option[List[Inline]] = {
+    getField(x, y).map(_.contents)
+  }
+
+  def getData(x: Int, y: Int): String = {
+    getField(x, y).map(_.toData) | ""
+  }
 }
 
 trait TRecord extends Block {
@@ -832,7 +885,7 @@ case class TTable(uri: String, params: List[String],
   def length = 0
 
   override def copyV(cs: List[Dox]) = {
-    println("TTable copyV = " + cs)
+//    println("TTable copyV = " + cs)
     Success(this) // XXX
   }
 }
@@ -1046,7 +1099,7 @@ case class IncludeDoc(filename: String) extends Block {
   override def showParams = List(("filename", filename))
 
   override def copyV(cs: List[Dox]) = {
-    println("IncludeDoc#copyV: " + cs)
+//    println("IncludeDoc#copyV: " + cs)
     Div(cs).success
   }
 }
