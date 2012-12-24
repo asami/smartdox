@@ -12,7 +12,7 @@ import java.net.URI
  *  version Jun.  5, 2012
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
- * @version Dec. 18, 2012
+ * @version Dec. 24, 2012
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -615,6 +615,14 @@ object Bold extends Bold(Nil) {
 case class Italic(contents: List[Inline]) extends Inline {
   override val elements = contents
   override def showTerm = "i"
+
+  override def to_Data_Prologue(buf: StringBuilder) {
+    buf.append("/")
+  }
+
+  override def to_Data_Epilogue(buf: StringBuilder) {
+    buf.append("/")
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
