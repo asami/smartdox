@@ -9,7 +9,7 @@ import Dox._, Doxes._
 
 /**
  * @since   Dec.  5, 2012
- * @version Dec.  6, 2012
+ * @version Jan. 15, 2014
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -74,7 +74,7 @@ object PureParser {
 //    println("PureParser#buildDocument = " + elem)
 //    println("... = " + elem.child.find(_.label == "head"))
     val head: Head = elem.child.find(_.label == "head").map(buildHead) | Head()
-    val body: Body = elem.child.find(_.label == "body").map(buildBody) | Body()
+    val body: Body = elem.child.find(_.label == "body").map(buildBody) | Body(Nil)
     Document(head, body)
   }
 
