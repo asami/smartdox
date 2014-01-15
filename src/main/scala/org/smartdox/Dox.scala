@@ -12,7 +12,8 @@ import java.net.URI
  *  version Jun.  5, 2012
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
- * @version Dec. 24, 2012
+ *  version Dec. 24, 2012
+ * @version Jan. 15, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -534,7 +535,7 @@ case class Body(contents: List[Dox]) extends Dox {
 }
 
 object Body {
-  def apply(contents: Dox*) = new Body(contents.toList)
+  def apply(element: Dox) = new Body(List(element))
 }
 
 case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) extends Dox {
@@ -608,7 +609,7 @@ case class Bold(contents: List[Inline]) extends Inline {
 }
 
 object Bold extends Bold(Nil) {
-  def apply(contents: Inline*) = new Bold(contents.toList)
+  def apply(element: Inline) = new Bold(List(element))
 }
 
 // 2011-12-26
@@ -630,7 +631,7 @@ case class Italic(contents: List[Inline]) extends Inline {
 }
 
 object Italic extends Italic(Nil) {
-  def apply(contents: Inline*) = new Italic(contents.toList)
+  def apply(element: Inline) = new Italic(List(element))
 }
 
 case class Underline(contents: List[Inline]) extends Inline {
@@ -651,7 +652,7 @@ case class Underline(contents: List[Inline]) extends Inline {
 }
 
 object Underline extends Underline(Nil) {
-  def apply(contents: Inline*) = new Underline(contents.toList)
+  def apply(element: Inline) = new Underline(List(element))
 }
 
 case class Code(contents: List[Inline]) extends Inline {
@@ -663,7 +664,7 @@ case class Code(contents: List[Inline]) extends Inline {
 }
 
 object Code extends Code(Nil) {
-  def apply(contents: Inline*) = new Code(contents.toList)
+  def apply(element: Inline) = new Code(List(element))
 }
 
 case class Pre(contents: String, attributes: List[(String, String)] = Nil) extends Inline {
@@ -684,7 +685,7 @@ case class Ul(contents: List[Li]) extends Block with ListContent {
 }
 
 object Ul {
-  def apply(contents: Li*) = new Ul(contents.toList) 
+  def apply(element: Li) = new Ul(List(element))
 }
 
 case class Ol(contents: List[Li]) extends Block with ListContent {
@@ -709,7 +710,7 @@ case class Li(contents: List[ListContent]) extends Block {
 
 object Li {
   def apply(text: String) = new Li(List(Text(text)))
-  def apply(es: ListContent*) = new Li(es.toList)
+  def apply(element: ListContent) = new Li(List(element))
 }
 
 // 2011-12-30
@@ -722,7 +723,7 @@ case class Del(contents: List[Inline]) extends Inline {
 }
 
 object Del extends Del(Nil) {
-  def apply(contents: Inline*) = new Del(contents.toList)
+  def apply(element: Inline) = new Del(List(element))
 }
 
 case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
@@ -1073,6 +1074,8 @@ case class SmCsvImg(src: URI, contents: String, params: List[String] = Nil) exte
 
 // 2012-02-15
 object EmptyDox extends Dox {
+  override def toString(buf: StringBuilder, maxlength: Option[Int] = None) {
+  }
 }
 
 // 2012-04-24
@@ -1085,7 +1088,7 @@ case class Tt(contents: List[Inline]) extends Inline {
 }
 
 object Tt extends Tt(Nil) {
-  def apply(contents: Inline*) = new Tt(contents.toList)
+  def apply(element: Inline) = new Tt(List(element))
 }
 
 // 2012-06-05
@@ -1099,7 +1102,7 @@ case class Span(contents: List[Inline]) extends Inline {
 }
 
 object Span extends Span(Nil) {
-  def apply(contents: Inline*) = new Span(contents.toList)
+  def apply(element: Inline) = new Span(List(element))
 }
 
 // 2012-11-23
