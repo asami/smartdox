@@ -5,12 +5,12 @@ import javax.xml.datatype.XMLGregorianCalendar
 
 /*
  * @since   Feb. 17, 2012
- *  version Feb. 17, 2012
- * @version Feb. 29, 2012
+ *  version Feb. 29, 2012
+ * @version Jan. 16, 2014
  * @author  ASAMI, Tomoharu
  */
 case class Description(
-    name: String,
+    name: Option[String] = None,
     title: Dox = EmptyDox,
     summary: Dox = EmptyDox,
     content: Dox = EmptyDox,

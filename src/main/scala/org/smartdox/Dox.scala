@@ -13,7 +13,7 @@ import java.net.URI
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
  *  version Dec. 24, 2012
- * @version Jan. 15, 2014
+ * @version Jan. 16, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -943,6 +943,9 @@ case class Dd(contents: List[Inline]) extends Block {
 
 case class Fragment(contents: List[Dox]) extends Dox with Block with Inline with ListContent {
   override val elements = contents
+  override def isOpenClose = false
+  override def showOpenText = ""
+  override def showCloseText = ""
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs))

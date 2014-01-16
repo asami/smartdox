@@ -3,13 +3,17 @@ package org.smartdox
 import scalaz._, Scalaz._
 import scala.xml.Elem
 import com.asamioffice.goldenport.xml.XmlUtil
+import org.goldenport.Strings.blankp
 
 /*
  * @since   Dec.  5, 2012
- * @version Jan. 15, 2014
+ * @version Jan. 16, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
+  implicit def inlineListWrapper(s: String): List[Inline] = dox_inline(s)
+  implicit def string2InlinesWrapper(s: String): Inlines = Inlines(dox_inline(s))
+  implicit def string2BlocksWrapper(s: String): Blocks = Blocks(dox_block(s))
   implicit def doxes2InlinesWrapper(xs: Seq[Dox]): Inlines = dox_inline(xs)
   implicit def doxes2BlocksWrapper(xs: Seq[Dox]): Blocks = Blocks(xs.toList)
 
@@ -76,9 +80,75 @@ trait Doxes {
       case Document(_, body) => body.contents
     }
   }
+
+  import parser.DoxParser
+
+  protected def dox_inline(s: String): List[Inline] = {
+    DoxParser.parseOrgmodeZ(s) match {
+      case Success(d) => dox_inline(d)
+      case Failure(msgs) => sys.error(msgs.list.mkString("/"))
+    }
+  }
+
+  protected def dox_block(s: String): List[Dox] = {
+    DoxParser.parseOrgmodeZ(s) match {
+      case Success(d) => dox_block(d)
+      case Failure(msgs) => sys.error(msgs.list.mkString("/"))
+    }
+  }
+
+  protected def dox_desc(
+    title: String = null,
+    summary: String = null,
+    content: String = null,
+    concat: Boolean = true
+  ): Description = {
+    def toi(s: String) = {
+      if (blankp(s)) Inlines(Nil) else string2InlinesWrapper(s)
+    }
+    def tob(s: String) = {
+      if (blankp(s)) Blocks(Nil) else string2BlocksWrapper(s)
+    }
+    val sm = toi(summary)
+    val c = if (concat) {
+      tob(content).toDox match {
+        case Fragment(xs) => Fragment(sm.toParagraph :: xs)
+        case EmptyDox => sm.toParagraph
+        case x => Fragment(List(sm.toParagraph, x))
+      } 
+    } else tob(content).toDox
+    Description(
+      title = toi(title).toDox,
+      summary = sm.toDox,
+      content = c
+    )
+  }
 }
 
 object Doxes extends Doxes
 
-case class Inlines(inlines: List[Inline])
-case class Blocks(blocks: List[Dox])
+case class Inlines(inlines: List[Inline]) {
+  def toDox = {
+    inlines match {
+      case Nil => EmptyDox
+      case List(x) => x
+      case xs => Fragment(xs)
+    }
+  }
+
+  def toParagraph = {
+    inlines match {
+      case Nil => EmptyDox
+      case xs => Paragraph(inlines)
+    }
+  }
+}
+case class Blocks(blocks: List[Dox]) {
+  def toDox = {
+    blocks match {
+      case Nil => EmptyDox
+      case List(x) => x
+      case xs => Fragment(xs)
+    }
+  }
+}

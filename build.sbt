@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "0.3.4"
+version := "0.3.5-SNAPSHOT"
 
 // scalaVersion := "2.9.1"
 
@@ -20,7 +20,7 @@ libraryDependencies += "org.scalaz" %% "scalaz-core" % "6.0.4"
 
 libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "0.1.4"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "0.1.8"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "0.2.0"
 
