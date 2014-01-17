@@ -13,7 +13,7 @@ import java.net.URI
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
  *  version Dec. 24, 2012
- * @version Jan. 16, 2014
+ * @version Jan. 17, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -485,9 +485,12 @@ case class Document(head: Head, body: Body) extends Dox {
 }
 
 case class Head(
-    title: InlineContents = Nil,
-    author: InlineContents = Nil,
-    date: InlineContents = Nil) extends Dox {
+  title: InlineContents = Nil,
+  author: InlineContents = Nil,
+  date: InlineContents = Nil,
+  css: Option[String] = None,
+  csslink: Option[String] = None
+) extends Dox {
   override def copyV(cs: List[Dox]) = {
     if (cs.isEmpty) Success(this)
     else to_failure(cs)
@@ -509,6 +512,16 @@ case class Head(
     showslot("title", title)
     showslot("author", author)
     showslot("date", date)
+    css foreach { x =>
+      buf.append("<style type=\"text/css\"><!--\n")
+      buf.append(x)
+      buf.append("\n--></style>")
+    }
+    csslink foreach { x =>
+      buf.append("<link rel=\"stylesheet\" type=\"text/css\" href=\">")
+      buf.append(x)
+      buf.append("\">")
+    }
   }
 
   override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
