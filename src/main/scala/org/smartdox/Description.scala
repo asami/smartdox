@@ -6,7 +6,7 @@ import javax.xml.datatype.XMLGregorianCalendar
 /*
  * @since   Feb. 17, 2012
  *  version Feb. 29, 2012
- * @version Jan. 16, 2014
+ * @version Jan. 20, 2014
  * @author  ASAMI, Tomoharu
  */
 case class Description(
@@ -38,3 +38,7 @@ case class Description(
   var atomContent: Option[String] = None
   var atomLinks: List[String] = Nil
 */
+
+object Description {
+  val empty = Description()
+}
