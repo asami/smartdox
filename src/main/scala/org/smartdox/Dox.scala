@@ -13,7 +13,7 @@ import java.net.URI
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
  *  version Dec. 24, 2012
- * @version Jan. 26, 2014
+ * @version Jan. 29, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -1053,7 +1053,7 @@ case class Html5(name: String, attributes: List[(String, String)], contents: Lis
 case class Program(contents: String, attributes: List[(String, String)] = Nil) extends Block {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
-  override def showParams = attributes ++ List("class", "program")
+  override def showParams = attributes ++ List("class" -> "program")
 
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
@@ -1063,7 +1063,7 @@ case class Program(contents: String, attributes: List[(String, String)] = Nil) e
 case class Console(contents: String, attributes: List[(String, String)] = Nil) extends Block {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
-  override def showParams = attributes ++ List("class", "console")
+  override def showParams = attributes ++ List("class" -> "console")
 
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
