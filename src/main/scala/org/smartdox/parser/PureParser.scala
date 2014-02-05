@@ -9,7 +9,8 @@ import Dox._, Doxes._
 
 /**
  * @since   Dec.  5, 2012
- * @version Jan. 15, 2014
+ *  version Jan. 15, 2014
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -269,7 +270,7 @@ object PureParser {
   def buildRecords(elem: XNode): List[TRecord] = {
     elem.child.map(build).collect {
       case x: TRecord => x
-    } toList
+    }.toList
   }
 
   def buildTR(elem: XNode): TR = {
@@ -279,7 +280,7 @@ object PureParser {
   def buildFields(elem: XNode): List[TField] = {
     elem.child.map(build).collect {
       case x: TField => x
-    } toList
+    }.toList
   }
 
   def buildTD(elem: XNode): TD = {
@@ -299,9 +300,9 @@ object PureParser {
   }
 
   def buildDlContents(elem: XNode): List[(Dt, Dd)] = {
-    val xs = elem.child.filter(_ match {
-      case _: Dt => true
-      case _: Dd => true
+    val xs = elem.child.filter(_.label match {
+      case "dt" => true
+      case "dd" => true
       case _ => false
     })
     buildDlContents(xs, Vector()).toList
@@ -310,10 +311,10 @@ object PureParser {
   def buildDlContents(xs: Seq[XNode], r: Vector[(Dt, Dd)]): Vector[(Dt, Dd)] = {
     xs match {
       case Nil => r
-      case (t: Dt) :: (d: Dd) :: xs => buildDlContents(xs, r :+ (t, d))
-      case (t: Dt) :: (t2: Dt) :: xs => buildDlContents(t2 :: xs, r :+ (t, Dd(Nil)))
-      case (t: Dt) :: Nil => r :+ (t, Dd(Nil))
-      case (d: Dd) :: xs => buildDlContents(xs, r :+ (Dt(""), d))
+      case Dt(t) :: Dd(d) :: xs => buildDlContents(xs, r :+ (t, d))
+      case Dt(t) :: t2 :: xs if t2.label == "dt"=> buildDlContents(t2 :: xs, r :+ (t, Dd(Nil)))
+      case Dt(t) :: Nil => r :+ (t, Dd(Nil))
+      case Dd(d) :: xs => buildDlContents(xs, r :+ (Dt(""), d))
     }
   }
 

@@ -4,19 +4,20 @@ import scalaz._
 import Scalaz._
 import scala.util.parsing.combinator.Parsers
 import org.scalatest.WordSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.Matchers
 import org.goldenport.scalatest.ScalazMatchers
 
 /*
  * @since   Jan. 27, 2012
  *  version Sep. 15, 2012
  *  version Oct. 19, 2012
- * @version Nov. 23, 2012
+ *  version Nov. 23, 2012
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
-class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
+class HotSpotSpec extends WordSpec with Matchers with ScalazMatchers with UseDoxParser {
   "0.3.2" should {
-    "includedoc" that {
+    "includedoc" which {
       "includedoc" in {
         parse_orgmode_simple("""#+include: "abc.org"""",
                              """<includedoc filename="abc.org"/>""")
@@ -24,7 +25,7 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
     }
   }
   "0.3.1" should {
-    "table" that {
+    "table" which {
       "* in table" in {
         parse_orgmode_simple("""| one | 10 * 20 | three |""",
                              """<table><tbody><tr><td>one</td><td>10 * 20</td><td>three</td></tr></tbody></table>""")
@@ -35,7 +36,7 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
                              """<table><tbody><tr><td>one</td><td>column<sub>id</sub></td><td>three</td></tr></tbody></table>""")
       }
     }
-    "adornment" that {
+    "adornment" which {
       "sub" in {
         parse_orgmode_simple("""column_id""",
                              """column<sub>id</sub>""")
@@ -45,13 +46,13 @@ class HotSpotSpec extends WordSpec with ShouldMatchers with ScalazMatchers with 
                              """column<sup>id</sup>""")
       }
     }
-    "html literal" that {
+    "html literal" which {
       "not xml" in {
         parse_orgmode_simple("See under below.\n#+begin_html\n<ul><li>abc</ul>\n#+end_html\nShee above.\n",
                              """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
       }
     }
-    "div" that {
+    "div" which {
       "quote" in {
         parse_orgmode_simple("See under below.\n#+begin_quote\nThis is the definition\n#+end_quote\nShee above.\n",
                              """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")

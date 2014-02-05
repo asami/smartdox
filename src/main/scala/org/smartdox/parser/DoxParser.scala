@@ -6,7 +6,7 @@ import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 import scala.util.parsing.combinator.RegexParsers
 import scala.util.matching.Regex
-import scalaz._, Scalaz._
+import scalaz._, Scalaz._, Validation._, Tree._
 import org.smartdox._
 import Dox._
 import com.asamioffice.goldenport.io.UURL
@@ -18,7 +18,8 @@ import com.asamioffice.goldenport.io.UURL
  *  version Jun.  7, 2012
  *  version Jul. 22, 2012
  *  version Oct. 15, 2012
- * @version Nov. 23, 2012
+ *  version Nov. 23, 2012
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -52,8 +53,8 @@ object DoxParser extends RegexParsers {
 
   private def _to_validation(result: ParseResult[Dox]): Validation[NonEmptyList[String], Dox] = {
     result match {
-      case s: Success[_] => s.get.success[String].liftFailNel
-      case n: NoSuccess => n.msg.fail[Dox].liftFailNel
+      case s: Success[_] => s.get.success[String].toValidationNel
+      case n: NoSuccess => n.msg.fail[Dox].toValidationNel
     }
   }
 
@@ -175,8 +176,8 @@ object DoxParser extends RegexParsers {
     opt(head_title)~opt(head_author) ^^ {
       case title~author => {
         val builder = Head.builder
-        builder.title = title | nil
-        builder.author = author | nil
+        builder.title = title | Nil
+        builder.author = author | Nil
         builder.build
       }
     }
@@ -242,7 +243,7 @@ object DoxParser extends RegexParsers {
 //        println("section1xs#title = " + title)
 //        println("section1xs#contntents = " + contents)
 //        println("section1xs#section2 = " + section2)
-        Section(title.flatten, (contents | nil) ::: sections, 1)
+        Section(title.flatten, (contents | Nil) ::: sections, 1)
       }
     }
   }
@@ -251,8 +252,8 @@ object DoxParser extends RegexParsers {
     "** "~>rep(inline)~opt(newline)~opt(contents)~rep(section3) ^^ {
       case title~_~contents~section3 => 
         val sections = _filter_sections(section3)
-//        println("section2 = " + title + "," + contents);Section(title, (contents | nil) ::: section3, 2)
-        Section(title.flatten, (contents | nil) ::: sections, 2)
+//        println("section2 = " + title + "," + contents);Section(title, (contents | Nil) ::: section3, 2)
+        Section(title.flatten, (contents | Nil) ::: sections, 2)
     }
   }
 
@@ -260,8 +261,8 @@ object DoxParser extends RegexParsers {
     "*** "~>rep(inline)~opt(newline)~opt(contents)~rep(section4) ^^ {
       case title~_~contents~section4 => 
         val sections = _filter_sections(section4)
-//        println("section3 = " + title + "," + contents);Section(title, (contents | nil) ::: section4, 3)
-        Section(title.flatten, (contents | nil) ::: sections, 3)
+//        println("section3 = " + title + "," + contents);Section(title, (contents | Nil) ::: section4, 3)
+        Section(title.flatten, (contents | Nil) ::: sections, 3)
     }
   }
 
@@ -269,30 +270,30 @@ object DoxParser extends RegexParsers {
     "**** "~>rep(inline)~opt(newline)~opt(contents)~rep(section5) ^^ {
       case title~_~contents~section5 =>
         val sections = _filter_sections(section5)
-//        println("section4 = " + title + "," + contents);Section(title, (contents | nil) ::: section5, 3)
-        Section(title.flatten, (contents | nil) ::: sections, 3)
+//        println("section4 = " + title + "," + contents);Section(title, (contents | Nil) ::: section5, 3)
+        Section(title.flatten, (contents | Nil) ::: sections, 3)
     }
   }
 
   def section5: Parser[Section] = {
     "***** "~>rep(inline)~opt(newline)~opt(contents) ^^ {
       case title~_~contents =>
-//        println("section4 = " + title + "," + contents);Section(title, contents | nil, 3)
-        Section(title.flatten, contents | nil, 3)
+//        println("section4 = " + title + "," + contents);Section(title, contents | Nil, 3)
+        Section(title.flatten, contents | Nil, 3)
     }
   }
 
   def contents: Parser[List[Dox]] = {
     def foldemptyline(a: List[Dox], r: List[Dox], e: Dox) =
-      if (r.nonEmpty) (a :+ Paragraph(r), nil) else (a, nil)
+      if (r.nonEmpty) (a :+ Paragraph(r), Nil) else (a, Nil)
     def foldstrongblock(a: List[Dox], r: List[Dox], e: Dox) =
-      if (r.nonEmpty) ((a :+ Paragraph(r)) :+ e, nil) else (a :+ e, nil)
+      if (r.nonEmpty) ((a :+ Paragraph(r)) :+ e, Nil) else (a :+ e, Nil)
     def foldweakblock(a: List[Dox], r: List[Dox], e: Dox) =
       if (r.nonEmpty) (a, r :+ e) else (a :+ e, r) 
     def foldinline(a: List[Dox], r: List[Dox], e: Dox) = (a, r :+ e)
     rep(commentline|embedded|contentsline|emptyline) ^^ {
       case contents => {
-        val (a, r) = contents.flatten.foldl(Pair(nil[Dox], nil[Dox])) {
+        val (a, r) = contents.flatten.foldLeft(Pair(List.empty[Dox], List.empty[Dox])) {
           case ((a, r), e) => e match {
             case _: EmptyLine => foldemptyline(a, r, e)
             case _: Inline => foldinline(a, r, e)
@@ -312,7 +313,7 @@ object DoxParser extends RegexParsers {
       if (isWordSeparate(lhs, rhs)) lhs + " " + rhs
       else lhs + rhs
     }
-    val a = xs.foldRight((nil[Dox], "")) { (x, a) =>
+    val a = xs.foldRight((List.empty[Dox], "")) { (x, a) =>
       val (l, s) = a
       x match {
         case t: Text => {
@@ -577,7 +578,7 @@ object DoxParser extends RegexParsers {
       }
     }
     def normalize(lines: List[TableLine]): List[TableLine] = {
-      val (_, frameremovedreverse) = lines.foldl((FrameTableLine(): TableLine, nil[TableLine])) {
+      val (_, frameremovedreverse) = lines.foldLeft((FrameTableLine(): TableLine, List.empty[TableLine])) {
         case ((prev, a), e) => {
           if (prev.isInstanceOf[FrameTableLine] && e.isInstanceOf[FrameTableLine]) {
             (prev, a)
@@ -589,24 +590,24 @@ object DoxParser extends RegexParsers {
       frameremovedreverse.dropWhile(_.isInstanceOf[FrameTableLine]).reverse
     }
     def build(lines: List[TableLine]): Either[TTable, (Option[THead], TBody, Option[TFoot])] = {
-      val aggregatedreverse = lines.foldl(nil[List[TableLine]]) {
+      val aggregatedreverse = lines.foldLeft(List.empty[List[TableLine]]) {
         case (a, e) => {
           e match {
-            case _: FrameTableLine => nil :: a 
+            case _: FrameTableLine => Nil :: a 
             case d: DataTableLine => if (a == Nil) List(List(d)) else (d :: a.head) :: a.tail
             case t: IncludeTableLine => if (a == Nil) List(List(t)) else (t :: a.head) :: a.tail
           }
         }
       }
-      val aggregated = aggregatedreverse.foldl(nil[List[TableLine]]) {
+      val aggregated = aggregatedreverse.foldLeft(List.empty[List[TableLine]]) {
         case (a, e) => e.reverse :: a
       }
       val ttabled = aggregated.headOption.flatMap(_.headOption) collect {
         case x: IncludeTableLine => x 
       }
       ttabled match {
-        case Some(x) => TTable(x.uri, x.params).left
-        case None => maketable(aggregated).right
+        case Some(x) => Left(TTable(x.uri, x.params))
+        case None => Right(maketable(aggregated))
       }
     }
     def datarecords(lines: List[TableLine]): List[TRecord] = {

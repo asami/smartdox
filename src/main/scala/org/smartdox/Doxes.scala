@@ -1,5 +1,6 @@
 package org.smartdox
 
+import scala.language.implicitConversions
 import scalaz._, Scalaz._
 import scala.xml.Elem
 import com.asamioffice.goldenport.xml.XmlUtil
@@ -7,7 +8,8 @@ import org.goldenport.Strings.blankp
 
 /*
  * @since   Dec.  5, 2012
- * @version Jan. 16, 2014
+ *  version Jan. 16, 2014
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {

@@ -11,7 +11,7 @@ import scala.util.parsing.input.Reader
 
 /*
  * @since   Jan. 11, 2012
- * @version Jan. 12, 2012
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
@@ -23,8 +23,8 @@ trait DoxTransformer extends Parsers {
   } 
 
   def transformZ(in: Dox): Validation[NonEmptyList[String], Out] = transform(in) match {
-    case s: Success[_] => s.get.success[String].liftFailNel
-    case n: NoSuccess => n.msg.fail[Out].liftFailNel
+    case s: Success[_] => s.get.success[String].toValidationNel
+    case n: NoSuccess => n.msg.fail[Out].toValidationNel
   }
 
   def document: Parser[Out] = new Parser[Out] {

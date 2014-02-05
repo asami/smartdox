@@ -1,7 +1,9 @@
 package org.smartdox
 
-import scalaz._, Scalaz._
+import scala.language.implicitConversions
+import scalaz._, Scalaz._, WriterT._, Show._, Validation._
 import java.net.URI
+import scala.xml.{Node => XNode, _}
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -13,7 +15,8 @@ import java.net.URI
  *  version Jul. 22, 2012
  *  version Nov. 23, 2012
  *  version Dec. 24, 2012
- * @version Jan. 29, 2014
+ *  version Jan. 29, 2014
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -120,21 +123,21 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   def tree: Tree[Dox] = Dox.tree(this)
 
   // invoke copyWV
-  def copyV(cs: List[Dox]): ValidationNEL[String, Dox] = {
-//    copyWV(cs).over
-//    copyVW(cs).map(_.over)
+  def copyV(cs: List[Dox]): ValidationNel[String, Dox] = {
+//    copyWV(cs).value
+//    copyVW(cs).map(_.value)
     sys.error("not implemented yet")
   }
 
   // invoke copyV
   @deprecated("Use copyVW", "0.2.4")
-  def copyWV(cs: List[Dox]): Writer[List[String], ValidationNEL[String, Dox]] = {
-    writer(nil, copyV(cs))
+  def copyWV(cs: List[Dox]): Writer[List[String], ValidationNel[String, Dox]] = {
+    writer((Nil, copyV(cs)))
   }
 
   // invoke copyV
-  def copyVW(cs: List[Dox]): ValidationNEL[String, Writer[List[String], Dox]] = {
-    copyV(cs).map(writer(nil, _))
+  def copyVW(cs: List[Dox]): ValidationNel[String, Writer[List[String], Dox]] = {
+    copyV(cs).map(writer(Nil, _))
   }
 
   protected final def to_failure[T, U](o: T)(implicit s: Show[T]): Failure[NonEmptyList[String], U] = {
@@ -145,17 +148,17 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     showTerm + ": " + s.show(o)
   }
 
-  protected final def to_empty(cs: List[Dox]): ValidationNEL[String, List[Dox]] = {
+  protected final def to_empty(cs: List[Dox]): ValidationNel[String, List[Dox]] = {
     if (cs.isEmpty) Success(Nil)
     else to_failure(cs)
   }
 
-  private def _to_vs(cs: List[Dox]): List[ValidationNEL[String, Dox]] = {
+  private def _to_vs(cs: List[Dox]): List[ValidationNel[String, Dox]] = {
     cs.map(Success(_))
   }
 
-  protected final def to_inline(cs: List[Dox]): ValidationNEL[String, List[Inline]] = {
-    cs.foldr(Success(Nil): ValidationNEL[String, List[Inline]]) {
+  protected final def to_inline(cs: List[Dox]): ValidationNel[String, List[Inline]] = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[Inline]]) {
       case (i: Inline, Success(a)) => Success(i :: a)
       case (i: Inline, e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -163,8 +166,8 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
   }
 
-  protected final def to_li(cs: List[Dox]): ValidationNEL[String, List[Li]] = {
-    cs.foldr(Success(Nil): ValidationNEL[String, List[Li]]) {
+  protected final def to_li(cs: List[Dox]): ValidationNel[String, List[Li]] = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[Li]]) {
       case (d: Li, Success(a)) => Success(d :: a)
       case (d: Li, e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -172,8 +175,8 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
   }
 
-  protected final def to_tr(cs: List[Dox]): ValidationNEL[String, List[TR]] = {
-    cs.foldr(Success(Nil): ValidationNEL[String, List[TR]]) {
+  protected final def to_tr(cs: List[Dox]): ValidationNel[String, List[TR]] = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[TR]]) {
       case (d: TR, Success(a)) => Success(d :: a)
       case (d: TR, e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -181,8 +184,8 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
   }
 
-  protected final def to_tfield(cs: List[Dox]): ValidationNEL[String, List[TField]] = {
-    cs.foldr(Success(Nil): ValidationNEL[String, List[TField]]) {
+  protected final def to_tfield(cs: List[Dox]): ValidationNel[String, List[TField]] = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[TField]]) {
       case (d: TField, Success(a)) => Success(d :: a)
       case (d: TField, e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -190,7 +193,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
   }
 
-  protected final def to_dtdd(cs: List[Dox]): ValidationNEL[String, List[(Dt, Dd)]] = {    
+  protected final def to_dtdd(cs: List[Dox]): ValidationNel[String, List[(Dt, Dd)]] = {    
     object DtDd {
       def unapply(xs: List[_]): Option[(Dt, Dd)] = {
         xs match {
@@ -201,7 +204,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
 
     val xs = cs.sliding(2, 2).toList
-    xs.foldr(Success(Nil): ValidationNEL[String, List[(Dt, Dd)]]) {
+    xs.foldRight(Success(Nil): ValidationNel[String, List[(Dt, Dd)]]) {
       case (DtDd(dt, dd), Success(a)) => Success((dt, dd) :: a)
       case (DtDd(_, _), e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -209,14 +212,14 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
   }
 
-  protected final def to_figure(cs: List[Dox]): ValidationNEL[String, (Option[Img], Option[Figcaption])] = {    
+  protected final def to_figure(cs: List[Dox]): ValidationNel[String, (Option[Img], Option[Figcaption])] = {    
     val img = cs.collectFirst { case x: Img => x }
     val caption = cs.collectFirst { case x: Figcaption => x }
     Success((img, caption))
   }
 
-  protected final def to_list_content(cs: List[Dox]): ValidationNEL[String, List[ListContent]] = {
-    cs.foldr(Success(Nil): ValidationNEL[String, List[ListContent]]) {
+  protected final def to_list_content(cs: List[Dox]): ValidationNel[String, List[ListContent]] = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[ListContent]]) {
       case (d: ListContent, Success(a)) => Success(d :: a)
       case (d: ListContent, e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -225,8 +228,8 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   }
 
 /* don't work so that type A is erased
-  protected final def to_listA[A](cs: List[Dox]): ValidationNEL[String, List[A]] = {
-    cs.foldr(Success(Nil): ValidationNEL[String, List[A]]) {
+  protected final def to_listA[A](cs: List[Dox]): ValidationNel[String, List[A]] = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[A]]) {
       case (d: A, Success(a)) => Success(d :: a)
       case (d: A, e: Failure[_, _]) => e
       case (d, Success(a)) => to_failure(d)
@@ -234,14 +237,14 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     }
   }
 
-  protected final def to_text(cs: List[Dox]): ValidationNEL[String, String] = {
-    _to_vs(cs).foldr(Success(""): ValidationNEL[String, String]) {
+  protected final def to_text(cs: List[Dox]): ValidationNel[String, String] = {
+    _to_vs(cs).foldRight(Success(""): ValidationNel[String, String]) {
       case (e, a) => (e |@| a)(_ + _)
     }
   }
 */
 
-  protected final def to_plain_text(cs: List[Dox]): ValidationNEL[String, String] = {
+  protected final def to_plain_text(cs: List[Dox]): ValidationNel[String, String] = {
     val (ss, es) = cs.partition(_.isInstanceOf[Text])
     if (es.nonEmpty) "Not text".failNel
     else ss.mkString.success
@@ -297,17 +300,17 @@ trait UseDox {
 }
 
 object Dox extends UseDox {
-  type DoxV = ValidationNEL[String, Dox]
+  type DoxV = ValidationNel[String, Dox]
   type DoxW = Writer[List[String], Dox]
-  type DoxVW = ValidationNEL[String, Writer[List[String], Dox]]
+  type DoxVW = ValidationNel[String, Writer[List[String], Dox]]
   type DoxWV = Writer[List[String], DoxV]
-  type TreeDoxV = ValidationNEL[String, Tree[Dox]]
+  type TreeDoxV = ValidationNel[String, Tree[Dox]]
   type TreeDoxW = Writer[List[String], Tree[Dox]]
-  type TreeDoxVW = ValidationNEL[String, Writer[List[String], Tree[Dox]]]
+  type TreeDoxVW = ValidationNel[String, Writer[List[String], Tree[Dox]]]
   type TreeDoxWV = Writer[List[String], TreeDoxV]
 
   def tree(dox: Dox): Tree[Dox] = {
-    Scalaz.node(dox, dox.elements.toStream.map(tree))
+    Tree.node(dox, dox.elements.toStream.map(tree))
   }
 
   def untreeE(tree: Tree[Dox]): Dox = {
@@ -321,7 +324,7 @@ object Dox extends UseDox {
     untreeV(tree).toOption
   }
 
-  def untreeV(tree: Tree[Dox]): ValidationNEL[String, Dox] = {
+  def untreeV(tree: Tree[Dox]): ValidationNel[String, Dox] = {
 //    println("untreeV: " + tree.drawTree)
     val children = tree.subForest.map(untreeV).toList
 //    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
@@ -347,11 +350,11 @@ object Dox extends UseDox {
   }
 
   @deprecated("Use untreeVW", "0.2.4")
-  def untreeWV(tree: Tree[Dox]): Writer[List[String], ValidationNEL[String, Dox]] = {
+  def untreeWV(tree: Tree[Dox]): Writer[List[String], ValidationNel[String, Dox]] = {
 //    println("untreeV: " + tree.drawTree)
     val children = tree.subForest.map(untreeWV).toList
 //    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
-    val errors = children.map(_.over).flatMap {
+    val errors = children.map(_.value).flatMap {
       case Success(d) => Nil
       case Failure(e) => e.list
     }
@@ -363,17 +366,17 @@ object Dox extends UseDox {
       writer(log, Failure(errors.toNel.get))
     } else {
 //      println("untreeV success = " + tree.drawTree)
-      val cs = children.map(_.over).collect {
+      val cs = children.map(_.value).collect {
           case Success(d) => d
       }
 //      println("untreeV success children = " + cs)
       val r = tree.rootLabel.copyWV(cs)
 //      println("untreeV success result = " + r.either.right.toString)
-      writer(log ::: r.written, r.over)
+      writer(log ::: r.written, r.value)
     }    
   }
 
-  def untreeVW(tree: Tree[Dox]): ValidationNEL[String, Writer[List[String], Dox]] = {
+  def untreeVW(tree: Tree[Dox]): ValidationNel[String, Writer[List[String], Dox]] = {
     val children = tree.subForest.map(untreeVW).toList
     val errors = children.flatMap {
       case Success(d) => Nil
@@ -386,15 +389,16 @@ object Dox extends UseDox {
           case Success(d) => d
       }
       val log = cs.flatMap(_.written)
-      val r = tree.rootLabel.copyVW(cs.map(_.over))
+      val r = tree.rootLabel.copyVW(cs.map(_.value))
 //      println("untreeVW <= " + tree.drawTree)
-//      r.foreach(x => println("untreeVM => " + x.over.toString))
-      r.map(x => writer(log ::: x.written, x.over))
+//      r.foreach(x => println("untreeVM => " + x.value.toString))
+      r.map(x => writer(log ::: x.written, x.value))
     }    
   }
 
   def untree(tree: Tree[Dox]) = untreeE(tree)
 
+/*
   val treeLens: Lens[Dox, Tree[Dox]] = {
     Lens(tree, (d, t) => untree(t))
   }
@@ -406,7 +410,7 @@ object Dox extends UseDox {
 
   val treeLensVW: Lens[DoxVW, TreeDoxVW] = {
     def pushback(t: TreeDoxVW): DoxVW = {
-      t.flatMap(x => untreeVW(x.over))
+      t.flatMap(x => untreeVW(x.value))
     }
     Lens((d: DoxVW) => d.map(_.map(tree)),
         (d, t) => pushback(t))
@@ -415,13 +419,14 @@ object Dox extends UseDox {
   def tableLens(p: Table => Boolean = {(x: Table) => true}): Lens[Dox, Table] = {
     sys.error("not implemented yet")
   }
+*/
 
   def html5(name: String, children: List[Dox]) = {
     Html5(name, Nil, children)
   }
 
   def vw(d: Dox): DoxVW = {
-    success(writer(nil, d))
+    success(writer(Nil, d))
   }
 
   // derived from UXML
@@ -457,7 +462,7 @@ case class Document(head: Head, body: Body) extends Dox {
   override def showCloseText = "</html>"
 
   override def copyV(cs: List[Dox]) = {
-    def s(h: Head, b: Body): ValidationNEL[String, Dox] = {
+    def s(h: Head, b: Body): ValidationNel[String, Dox] = {
       Success(copy(h, b))
     }
 
@@ -469,11 +474,11 @@ case class Document(head: Head, body: Body) extends Dox {
         case d => to_failure(d)
       }
       case 2 => {
-        val h: ValidationNEL[String, Head] = cs(0) match {
+        val h: ValidationNel[String, Head] = cs(0) match {
           case h: Head => Success(h)
           case d => to_failure(d)
         }
-        val b: ValidationNEL[String, Body] = cs(1) match {
+        val b: ValidationNel[String, Body] = cs(1) match {
           case b: Body => Success(b)
           case d => to_failure(d)
         }
@@ -946,11 +951,23 @@ case class Dt(contents: String) extends Block {
   }
 }
 
+object Dt {
+  def unapply(x: XNode): Option[Dt] = {
+    ???
+  }
+}
+
 case class Dd(contents: List[Inline]) extends Block {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy)
+  }
+}
+
+object Dd {
+  def unapply(x: XNode): Option[Dd] = {
+    ???
   }
 }
 

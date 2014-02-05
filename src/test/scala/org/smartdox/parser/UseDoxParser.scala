@@ -2,15 +2,15 @@ package org.smartdox.parser
 
 import scalaz._
 import Scalaz._
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.Matchers
 import org.goldenport.scalatest.ScalazMatchers
 
 /**
  * @since   Jan. 27, 2012
- * @version Jan. 27, 2012
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
-trait UseDoxParser extends ShouldMatchers with ScalazMatchers {
+trait UseDoxParser extends Matchers with ScalazMatchers {
   def parse_orgmode_simple(in: String, out: String) {
     parse_orgmode(in, 
         """<!DOCTYPE html><html><head/><body>%s</body></html>""".format(out))
@@ -35,6 +35,7 @@ trait UseDoxParser extends ShouldMatchers with ScalazMatchers {
     result should success
     result match {
       case Success(dox) => dox.toString should be (out)
+      case Failure(_) => ???
     }
   }
 }

@@ -4,7 +4,7 @@ import scalaz._
 import Scalaz._
 import scala.util.parsing.combinator.Parsers
 import org.scalatest.WordSpec
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
@@ -13,13 +13,14 @@ import org.goldenport.scalatest.ScalazMatchers
  * @since   Dec. 24, 2011
  *  version Jul.  1, 2012
  *  version Oct. 10, 2012
- * @version Dec.  6, 2012
+ *  version Dec.  6, 2012
+ * @version Feb.  5, 2014
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers with UseDoxParser {
+class DoxParserSpec extends WordSpec with Matchers with ScalazMatchers with UseDoxParser {
   "Foundation" should {
-    "simple" that {
+    "simple" which {
       val in = "* OK"
       val out = "<!DOCTYPE html><html><head/><body><section><h2>OK</h2></section></body></html>"
       "plain" in {
@@ -32,7 +33,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
         parse_orgmode("* OK", out)
       }
     }
-    "nest" that {
+    "nest" which {
       "first/second" in {
         parse_orgmode("* First\n** Second\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><section><h3>Second</h3></section></section></body></html>")
@@ -42,7 +43,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p>1st contents.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p></section></section></body></html>")
       }
     }
-    "ul" that {
+    "ul" which {
       "typical" in {
         parse_orgmode("* First\n - first\n - second\n - third\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ul><li>first</li><li>second</li><li>third</li></ul></section></body></html>")
@@ -60,7 +61,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
                              """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
       }
     }
-    "ol" that {
+    "ol" which {
       "typical" in {
         parse_orgmode("* First\n 1. first\n 2. second\n 3. third\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ol><li>first</li><li>second</li><li>third</li></ol></section></body></html>")
@@ -70,19 +71,19 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ol><li>first<ol><li>first.first</li><li>first.second</li></ol></li><li>second</li></ol></section></body></html>")
       }
     }
-    "dl" that {
+    "dl" which {
       "typical" in {
         parse_orgmode("* First\n - first :: one\n - second :: two\n - third :: three\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><dl><dt>first</dt><dd>one</dd><dt>second</dt><dd>two</dd><dt>third</dt><dd>three</dd></dl></section></body></html>")
       }
     }
-    "inline" that {
+    "inline" which {
       "typical" in {
         parse_orgmode("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
       }
     }
-    "inline xml" that {
+    "inline xml" which {
       "typical" in {
         parse_orgmode("* First\n pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
@@ -92,7 +93,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
             """<p><code>(b &gt;= 0).option(b.toString)</code></p>""")
       }      
     }
-    "structure" that {
+    "structure" which {
       "empty" in {
         parse_orgmode("",
             "<!DOCTYPE html><html><head/><body/></html>")
@@ -115,7 +116,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
             "<!DOCTYPE html><html><head><title>Hello</title></head><body><p>SmartDox</p></body></html>")
       }
     }
-    "hyperlink" that {
+    "hyperlink" which {
       "typical" in {
         parse_orgmode("[[http://www.yahoo.com/][Yahoo]]",
             """<!DOCTYPE html><html><head/><body><p><a href="http://www.yahoo.com/">Yahoo</a></p></body></html>""")
@@ -139,7 +140,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
     }
   }
   "Table" should {
-    "table" that {
+    "table" which {
       val tabletypical = """|------
 | one | two | three |
 |----"""
@@ -229,7 +230,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
   }
   val imgdot = "#+begin_dot image/simple.png\nDOT\n#+end_dot\n"
   "Image" should {
-    "img" that {
+    "img" which {
       "typical" in {
         parse_orgmode_simple("[[image/simple.png]]", """<p><img src="image/simple.png"/></p>""")
       }
@@ -244,7 +245,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
             """<section><h2>First</h2><p>1st contents.<img src="image/simple.png"/>1st cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
       }
     }
-    "figure" that {
+    "figure" which {
       val figure = """#+CAPTION: Figure
 #+LABEL: fig
 [[image/simple.png]]"""
@@ -265,7 +266,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
     }
   }
   "Paragraph" should {
-    "prologue" that {
+    "prologue" which {
       "one paragraph" in {
         parse_orgmode_simple("First.\n",
             """<p>First.</p>""")
@@ -279,7 +280,7 @@ class DoxParserSpec extends WordSpec with ShouldMatchers with ScalazMatchers wit
             """<p>First.</p><p>Second.</p><p>Third.</p>""")
       }
     }
-    "inside sections" that {
+    "inside sections" which {
       "first,contents/second,contents" in {
         parse_orgmode_simple("* First\n1st contents.\n\ncont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
             """<section><h2>First</h2><p>1st contents.</p><p>cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
