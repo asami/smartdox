@@ -16,7 +16,8 @@ import scala.xml.{Node => XNode, _}
  *  version Nov. 23, 2012
  *  version Dec. 24, 2012
  *  version Jan. 29, 2014
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Sep.  9, 2014
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -1060,6 +1061,7 @@ case class DitaaImg(src: URI, contents: String, params: List[String] = Nil) exte
 case class Html5(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
   override val elements = contents
   override def showTerm = name
+  override def showParams = attributes
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
