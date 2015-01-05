@@ -17,7 +17,8 @@ import scala.xml.{Node => XNode, _}
  *  version Dec. 24, 2012
  *  version Jan. 29, 2014
  *  version Feb.  5, 2014
- * @version Sep.  9, 2014
+ *  version Sep.  9, 2014
+ * @version Jan.  5, 2015
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -141,7 +142,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     copyV(cs).map(writer(Nil, _))
   }
 
-  protected final def to_failure[T, U](o: T)(implicit s: Show[T]): Failure[NonEmptyList[String], U] = {
+  protected final def to_failure[T, U](o: T)(implicit s: Show[T]): Failure[NonEmptyList[String]] = {
     Failure(NonEmptyList(to_failure_message(o)(s)))
   }
 
@@ -161,7 +162,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   protected final def to_inline(cs: List[Dox]): ValidationNel[String, List[Inline]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[Inline]]) {
       case (i: Inline, Success(a)) => Success(i :: a)
-      case (i: Inline, e: Failure[_, _]) => e
+      case (i: Inline, e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -170,7 +171,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   protected final def to_li(cs: List[Dox]): ValidationNel[String, List[Li]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[Li]]) {
       case (d: Li, Success(a)) => Success(d :: a)
-      case (d: Li, e: Failure[_, _]) => e
+      case (d: Li, e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -179,7 +180,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   protected final def to_tr(cs: List[Dox]): ValidationNel[String, List[TR]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[TR]]) {
       case (d: TR, Success(a)) => Success(d :: a)
-      case (d: TR, e: Failure[_, _]) => e
+      case (d: TR, e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -188,7 +189,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   protected final def to_tfield(cs: List[Dox]): ValidationNel[String, List[TField]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[TField]]) {
       case (d: TField, Success(a)) => Success(d :: a)
-      case (d: TField, e: Failure[_, _]) => e
+      case (d: TField, e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -207,7 +208,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     val xs = cs.sliding(2, 2).toList
     xs.foldRight(Success(Nil): ValidationNel[String, List[(Dt, Dd)]]) {
       case (DtDd(dt, dd), Success(a)) => Success((dt, dd) :: a)
-      case (DtDd(_, _), e: Failure[_, _]) => e
+      case (DtDd(_, _), e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -222,7 +223,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   protected final def to_list_content(cs: List[Dox]): ValidationNel[String, List[ListContent]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[ListContent]]) {
       case (d: ListContent, Success(a)) => Success(d :: a)
-      case (d: ListContent, e: Failure[_, _]) => e
+      case (d: ListContent, e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -232,7 +233,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   protected final def to_listA[A](cs: List[Dox]): ValidationNel[String, List[A]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[A]]) {
       case (d: A, Success(a)) => Success(d :: a)
-      case (d: A, e: Failure[_, _]) => e
+      case (d: A, e: Failure[_]) => e
       case (d, Success(a)) => to_failure(d)
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
@@ -247,7 +248,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
 
   protected final def to_plain_text(cs: List[Dox]): ValidationNel[String, String] = {
     val (ss, es) = cs.partition(_.isInstanceOf[Text])
-    if (es.nonEmpty) "Not text".failNel
+    if (es.nonEmpty) "Not text".failureNel
     else ss.mkString.success
   }
 
@@ -384,7 +385,7 @@ object Dox extends UseDox {
       case Failure(e) => e.list
     }
     if (errors.nonEmpty) {
-      errors.toNel.get.fail
+      errors.toNel.get.failure
     } else {
       val cs = children.collect {
           case Success(d) => d

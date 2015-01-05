@@ -25,7 +25,7 @@ libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.0.3-SNAPSHOT"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "1.0.1"
+libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "1.0.2-SNAPSHOT"
 
 // libraryDependencies += "net.sourceforge.nekohtml" % "nekohtml" % "1.9.15"
 

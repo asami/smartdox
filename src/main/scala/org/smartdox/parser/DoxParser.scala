@@ -19,7 +19,8 @@ import com.asamioffice.goldenport.io.UURL
  *  version Jul. 22, 2012
  *  version Oct. 15, 2012
  *  version Nov. 23, 2012
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Jan.  5, 2015
  * @author  ASAMI, Tomoharu
  */
 object DoxParser extends RegexParsers {
@@ -54,7 +55,7 @@ object DoxParser extends RegexParsers {
   private def _to_validation(result: ParseResult[Dox]): Validation[NonEmptyList[String], Dox] = {
     result match {
       case s: Success[_] => s.get.success[String].toValidationNel
-      case n: NoSuccess => n.msg.fail[Dox].toValidationNel
+      case n: NoSuccess => n.msg.failure[Dox].toValidationNel
     }
   }
 
