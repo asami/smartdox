@@ -14,7 +14,8 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Jul.  1, 2012
  *  version Oct. 10, 2012
  *  version Dec.  6, 2012
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Mar. 10, 2016
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -79,7 +80,7 @@ class DoxParserSpec extends WordSpec with Matchers with ScalazMatchers with UseD
     }
     "inline" which {
       "typical" in {
-        parse_orgmode("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
+        parse_orgmode_full("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
             "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p> pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
       }
     }
@@ -333,6 +334,15 @@ class DoxParserSpec extends WordSpec with Matchers with ScalazMatchers with UseD
     "<span>" in {
       parse_orgmode_simple("""<span>*span*</span>""",
             """<p><span><b>span</b></span></p>""")
+    }
+  }
+  "Terse" should {
+    "typical" which {
+      "underscoe" in {
+        parse_orgmode("register_provisional",
+          "<!DOCTYPE html><html><head/><body><p>register _provisional</p></body></html>"
+        )
+      }
     }
   }
 }

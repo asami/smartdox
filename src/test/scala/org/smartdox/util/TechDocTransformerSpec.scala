@@ -11,7 +11,7 @@ import org.smartdox.Dox
 
 /*
  * @since   Sep.  9, 2014
- * @version Sep.  9, 2014
+ * @version Mar. 10, 2016
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -20,21 +20,21 @@ class TechDocTransformerSpec extends WordSpec with Matchers with ScalazMatchers 
     "top" in {
       val in = "_OK_"
       val out = """<!DOCTYPE html><html><head/><body><h1 class="title"/><p>_OK_</p></body></html>"""
-      val a = parse_document(in)
+      val a = parse_document_full(in)
       val b = TechDocTransformer().transform(a)
       b.toString() should be (out)
     }
     "section" in {
       val in = "* sec\n_OK_\n"
       val out = """<!DOCTYPE html><html><head/><body><h1 class="title"/><section><h2>sec</h2><p>_OK_</p></section></body></html>"""
-      val a = parse_document(in)
+      val a = parse_document_full(in)
       val b = TechDocTransformer().transform(a)
       b.toString() should be (out)
     }
     "li" in {
       val in = "* sec\n- a_OK_b\n- a/OK/b\n"
       val out = """<!DOCTYPE html><html><head/><body><h1 class="title"/><section><h2>sec</h2><ul><li>a_OK_b</li><li>a/OK/b</li></ul></section></body></html>"""
-      val a = parse_document(in)
+      val a = parse_document_full(in)
       val b = TechDocTransformer().transform(a)
       b.toString() should be (out)
     }
@@ -156,7 +156,7 @@ scopeプロパティの情報は、Appidに設定された会社、ブランド�
 | maintenance_message         | string   | メンテナンスメッセージ       |
 """
       val out = """<!DOCTYPE html><html><head/><body><h1 class="title"/><section><h2>sec</h2><ul><li>a_OK_b</li><li>a/OK/b</li></ul></section></body></html>"""
-      val a = parse_document(in)
+      val a = parse_document_full(in)
       val b = TechDocTransformer().transform(a)
 //      println(b.toString())
 //      b.toString() should be (out)

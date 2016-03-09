@@ -20,10 +20,13 @@ import com.asamioffice.goldenport.io.UURL
  *  version Oct. 15, 2012
  *  version Nov. 23, 2012
  *  version Feb.  5, 2014
- * @version Jan.  5, 2015
+ *  version Jan.  5, 2015
+ * @version Mar. 10, 2016
  * @author  ASAMI, Tomoharu
  */
-object DoxParser extends RegexParsers {
+class DoxParser(
+  useUnderline: Boolean = false
+) extends RegexParsers {
   override def skipWhitespace = false
   val newline = """(\r\n|\n|\r)""".r
 
@@ -949,7 +952,12 @@ object DoxParser extends RegexParsers {
     }
   }
 
-  def underline: Parser[InlineContents] = text_markup("_", Underline(_))
+  def underline: Parser[InlineContents] = {
+    if (useUnderline)
+      text_markup("_", Underline(_))
+    else
+      text_markup("_____", Underline(_)) // XXX
+  }
 
   def underline0: Parser[Inline] = {
     "_"~>rep(inline)<~"_" ^^ {
@@ -1227,3 +1235,5 @@ object DoxParser extends RegexParsers {
       isWordSeparateLang(ac) // ensuring{x => println("isWordSeparate(%s, %s) = %s".format(before, after, x));true}
     }
 }
+
+object DoxParser extends DoxParser(true) // false
