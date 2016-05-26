@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.0.0"
+version := "2.0.1"
 
 scalaVersion := "2.11.6"
 
@@ -22,7 +22,7 @@ resolvers += "Asami Maven Repository" at "http://www.asamioffice.com/maven"
 
 resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.0.0"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.0.1"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "2.0.0"
 
