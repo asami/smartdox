@@ -5,11 +5,14 @@ import scalaz._, Scalaz._
 import scala.xml.Elem
 import com.asamioffice.goldenport.xml.XmlUtil
 import org.goldenport.Strings.blankp
+import org.goldenport.collection.VectorMap
+import org.goldenport.parser.ParseResult
 
 /*
  * @since   Dec.  5, 2012
  *  version Jan. 16, 2014
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Dec. 31, 2018
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -50,7 +53,7 @@ trait Doxes {
   protected def dox_program(title: String, xml: Elem, id: String = null): Program = {
     val attrs = List(("title", title).some,
                      Option(id).map(x => ("id", x))).flatten
-    Program(XmlUtil.prettyString(xml.toString), attrs)
+    Program(XmlUtil.prettyString(xml.toString), VectorMap(attrs))
   }
 
   protected def dox_p(s: String, args: Any*): Paragraph = {
@@ -60,7 +63,7 @@ trait Doxes {
   protected def dox_inline(d: Dox): List[Inline] = {
     d match {
       case x: Inline => List(x)
-      case Document(_, body) => dox_inline(body.contents)
+      case Document(_, body, _, _) => dox_inline(body.contents)
     }
   }
 
@@ -79,7 +82,7 @@ trait Doxes {
   protected def dox_block(d: Dox): List[Dox] = {
     d match {
       case x: Inline => List(x)
-      case Document(_, body) => body.contents
+      case Document(_, body, _, _) => body.contents
     }
   }
 
@@ -114,7 +117,7 @@ trait Doxes {
     val sm = toi(summary)
     val c = if (concat) {
       tob(content).toDox match {
-        case Fragment(xs) => Fragment(sm.toParagraph :: xs)
+        case Fragment(xs, _) => Fragment(sm.toParagraph :: xs, sm.location)
         case EmptyDox => sm.toParagraph
         case x => Fragment(List(sm.toParagraph, x))
       } 
@@ -125,11 +128,35 @@ trait Doxes {
       content = c
     )
   }
+
+  protected def to_text(ps: Seq[Dox]): String = Dox.toText(ps)
+
+  protected def parse_dtdd(ps: Seq[Dox]): ParseResult[List[(Dt, Dd)]] = {
+    object DtDd {
+      def unapply(xs: List[_]): Option[(Dt, Dd)] = {
+        xs match {
+          case List(dt: Dt, dd: Dd) => (dt, dd).some
+          case _ => None
+        }
+      }
+    }
+
+    val xs = ps.sliding(2, 2).toList
+    // xs.foldRight(Success(Nil): ValidationNel[String, List[(Dt, Dd)]]) {
+    //   case (DtDd(dt, dd), Success(a)) => Success((dt, dd) :: a)
+    //   case (DtDd(_, _), e: Failure[_]) => e
+    //   case (d, Success(a)) => to_failure(d)
+    //   case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
+    // }
+    ???
+  }
 }
 
 object Doxes extends Doxes
 
 case class Inlines(inlines: List[Inline]) {
+  def location = inlines.headOption.flatMap(_.location)
+
   def toDox = {
     inlines match {
       case Nil => EmptyDox

@@ -10,6 +10,7 @@ import scalaz._, Scalaz._, Validation._, Tree._
 import org.smartdox._
 import Dox._
 import com.asamioffice.goldenport.io.UURL
+import org.goldenport.collection.VectorMap
 
 /**
  * @since   Dec. 24, 2011
@@ -21,7 +22,8 @@ import com.asamioffice.goldenport.io.UURL
  *  version Nov. 23, 2012
  *  version Feb.  5, 2014
  *  version Jan.  5, 2015
- * @version Mar. 10, 2016
+ *  version Mar. 10, 2016
+ * @version Dec. 31, 2018
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -666,7 +668,7 @@ class DoxParser(
         val normalized = normalize(lines)
         val caption = attrs.collectFirst {
           case c: CaptionAttribute => c.value
-        }.map(Caption)
+        }.map(Caption(_))
         val label = attrs.collectFirst {
           case c: LabelAttribute => c.value
         }
@@ -684,7 +686,7 @@ class DoxParser(
       case attrs~img => {
         val caption = attrs.collectFirst {
           case c: CaptionAttribute => c.value
-        }.map(Figcaption) | Figcaption(Nil)
+        }.map(Figcaption(_)) | Figcaption(Nil)
         val label = attrs.collectFirst {
           case c: LabelAttribute => c.value
         }
@@ -751,7 +753,7 @@ class DoxParser(
   def includeprogram: Parser[Program] = {
     starter_colon("include")~"\""~>"""[^"]+""".r~"\""~"[ ]+".r~rep1sep("[^ \n\r]+".r, "[ ]+".r)<~opt(newline) ^^ {
       case filename~_~_~params => {
-        Program("", List("src" -> filename))
+        Program("", VectorMap("src" -> filename))
       }
     }
   }

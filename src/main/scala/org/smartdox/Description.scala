@@ -2,11 +2,13 @@ package org.smartdox
 
 import java.net.URI
 import javax.xml.datatype.XMLGregorianCalendar
+import org.goldenport.extension.IDocument
 
 /*
  * @since   Feb. 17, 2012
  *  version Feb. 29, 2012
- * @version Jan. 20, 2014
+ *  version Jan. 20, 2014
+ * @version Jan.  4, 2019
  * @author  ASAMI, Tomoharu
  */
 case class Description(
@@ -22,7 +24,8 @@ case class Description(
     authors: List[String] = Nil,
     contributors: List[String] = Nil,
     rights: Option[String] = None,
-    source: Option[String] = None) {
+  source: Option[String] = None
+) extends IDocument {
 }
 /*
   var atomId: Option[String] = None

@@ -4,6 +4,10 @@ import scala.language.implicitConversions
 import scalaz._, Scalaz._, WriterT._, Show._, Validation._
 import java.net.URI
 import scala.xml.{Node => XNode, _}
+import org.goldenport.RAISE
+import org.goldenport.collection.VectorMap
+import org.goldenport.parser._
+import org.goldenport.extension.IDocument
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -18,10 +22,14 @@ import scala.xml.{Node => XNode, _}
  *  version Jan. 29, 2014
  *  version Feb.  5, 2014
  *  version Sep.  9, 2014
- * @version Jan.  5, 2015
+ *  version Jan.  5, 2015
+ *  version Nov. 18, 2018
+ *  version Dec. 31, 2018
+ * @version Jan.  4, 2019
  * @author  ASAMI, Tomoharu
  */
-trait Dox extends NotNull { // Use EmptyDox for null object.
+trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
+  def location: Option[ParseLocation]
   val elements: List[Dox] = Nil
   lazy val attributeMap = Map(showParams: _*)
   def attribute(name: String): Option[String] = attributeMap.get(name)
@@ -159,6 +167,12 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     cs.map(Success(_))
   }
 
+  protected final def normalize_fragment(cs: List[Dox]): List[Dox] =
+    cs.flatMap {
+      case m: Fragment => normalize_fragment(m.contents)
+      case m => List(m)
+    }
+
   protected final def to_inline(cs: List[Dox]): ValidationNel[String, List[Inline]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[Inline]]) {
       case (i: Inline, Success(a)) => Success(i :: a)
@@ -252,6 +266,12 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
     else ss.mkString.success
   }
 
+  protected def get_location(p: Option[ParseLocation], ps: Seq[Dox]): Option[ParseLocation] =
+    p orElse get_location(ps)
+
+  protected def get_location(ps: Seq[Dox]): Option[ParseLocation] =
+    ps.toStream.flatMap(_.location).headOption
+
   def find(p: Dox => Boolean): Option[Dox] = {
     if (p(this)) this.some
     else {
@@ -277,7 +297,7 @@ trait Dox extends NotNull { // Use EmptyDox for null object.
   def toVW: Dox.DoxVW = Dox.vw(this)
 }
 
-trait Block extends Dox {
+trait Block extends Dox with ListContent {
 }
 
 trait Inline extends Dox with ListContent {
@@ -301,6 +321,39 @@ trait UseDox {
   implicit def DoxShow: Show[Dox] = shows(_.toShowString)
 }
 
+trait DoxFactory extends Doxes {
+  def label: String
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dox
+
+  def applyOption(label: String, attrs: VectorMap[String, String], body: Seq[Dox]): Option[Dox] =
+    if (label == this.label)
+      Some(apply(attrs, body))
+    else
+      None
+
+  protected final def ensure_inline(ps: Seq[Dox]): List[Inline] =
+    ps.collect {
+      case m: Inline => m
+      case m => RAISE.noReachDefect
+    }.toList
+
+  protected final def ensure_li(ps: Seq[Dox]): List[Li] =
+    ps.collect {
+      case m: Li => m
+      case m => RAISE.noReachDefect
+    }.toList
+
+  protected final def ensure_list_content(ps: Seq[Dox]): List[ListContent] =
+    ps.collect {
+      case m: ListContent => m
+      case m => RAISE.noReachDefect
+    }.toList
+
+  protected final def ensure_dtdd(ps: Seq[Dox]): List[(Dt, Dd)] =
+    ???
+}
+
 object Dox extends UseDox {
   type DoxV = ValidationNel[String, Dox]
   type DoxW = Writer[List[String], Dox]
@@ -310,6 +363,43 @@ object Dox extends UseDox {
   type TreeDoxW = Writer[List[String], Tree[Dox]]
   type TreeDoxVW = ValidationNel[String, Writer[List[String], Tree[Dox]]]
   type TreeDoxWV = Writer[List[String], TreeDoxV]
+
+  val empty = Fragment.empty
+
+  val tags: Vector[DoxFactory] = Vector(
+    Document,
+    Head,
+    Body,
+    Div,
+    Bold,
+    Italic,
+    Underline,
+    Code,
+    Pre,
+    Ul,
+    Ol,
+    Li,
+    Del,
+    Hyperlink,
+    ReferenceImg,
+    Dl,
+    Dt,
+    Dd,
+    Fragment,
+    EmptyDox,
+    Tt,
+    Span
+  )
+
+  def toDox(ps: Seq[Dox]): Dox = ps.filter {
+    case m: Div if m.contents.isEmpty => false
+    case m: Span if m.contents.isEmpty => false
+    case _ => true
+  }.toList match {
+    case Nil => Dox.empty
+    case x :: Nil => x
+    case xs => Fragment(xs)
+  }
 
   def tree(dox: Dox): Tree[Dox] = {
     Tree.node(dox, dox.elements.toStream.map(tree))
@@ -327,28 +417,43 @@ object Dox extends UseDox {
   }
 
   def untreeV(tree: Tree[Dox]): ValidationNel[String, Dox] = {
-//    println("untreeV: " + tree.drawTree)
-    val children = tree.subForest.map(untreeV).toList
-//    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
+    // println(s"untreeV in: ${tree.drawTree}")
+    // println(s"untreeV in XXX: ${_show(tree.subForest)}")
+    // println(s"untreeV in YYY: ${_show_object(tree.subForest)}")
+    val children: List[ValidationNel[String, Dox]] = tree.subForest.map(untreeV).toList
+    // println(s"untreeV in after: ${tree.drawTree}")
+    // println(s"""untreeV children XXX: ${children}""")
+    // println(s"""untreeV children: ${children.map(_show).mkString("\n")}""")
+    // println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
     val errors = children.flatMap {
       case Success(d) => Nil
       case Failure(e) => e.list
     }
-//    if (errors.nonEmpty) {
-//      println("children -> errors: " + children + "," + errors + "/" + tree.subForest.toList)
-//    }
+   // if (errors.nonEmpty) {
+   //   println("children -> errors: " + children + "," + errors + "/" + tree.subForest.toList)
+   // }
     if (errors.nonEmpty) {
       Failure(errors.toNel.get)
     } else {
-//      println("untreeV success = " + tree.drawTree)
+     // println("untreeV success = " + tree.drawTree)
       val cs = children.collect {
           case Success(d) => d
       }
-//      println("untreeV success children = " + cs)
+      // println(s"untreeV success parent = ${tree.rootLabel}")
+      // println("untreeV success children = " + cs)
       val r = tree.rootLabel.copyV(cs)
-//      println("untreeV success result = " + r.either.right.toString)
+      // println("untreeV success result = " + _show(r))
       r
     }
+  }
+
+  private def _show(ps: Stream[Tree[Dox]]) = ps.map(_.drawTree).mkString("\n")
+
+  private def _show_object(ps: Stream[Tree[Dox]]) = ps.toVector.map(_.rootLabel.getClass.getSimpleName).mkString(",")
+
+  private def _show(p: ValidationNel[String, Dox]) = p match {
+    case Success(d) => s"${d.getClass.getSimpleName}: ${d.show}" // d.toString
+    case Failure(e) => e.toString
   }
 
   @deprecated("Use untreeVW", "0.2.4")
@@ -455,9 +560,25 @@ object Dox extends UseDox {
       buf.toString // ensuring {x => println("ESCAPE: " + string + " => " + x);true}
     }
   }
+
+  def create(name: String, attrs: Seq[(String, String)], body: Seq[Dox]): Dox =
+    create(name, VectorMap(attrs), body)
+
+  def create(name: String, attrs: VectorMap[String, String], body: Seq[Dox]): Dox =
+    tags.toStream.flatMap(_.applyOption(name, attrs, body)).headOption.
+      getOrElse {
+        RAISE.notImplementedYetDefect(s"$name")
+      }
+
+  def toText(ps: Seq[Dox]): String = ps.map(_.toText).mkString
 }
 
-case class Document(head: Head, body: Body) extends Dox {
+case class Document(
+  head: Head,
+  body: Body,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Dox {
   override val elements = List(head, body)
   override def showTerm = "html"
   override def showOpenText = "<!DOCTYPE html><html>"
@@ -490,13 +611,27 @@ case class Document(head: Head, body: Body) extends Dox {
     }
   }
 }
+object Document extends DoxFactory {
+  val label = "document"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Document =
+    RAISE.unsupportedOperationFault
+
+  // def unapply(p: (String, VectorMap[String, String], Seq[Dox])): Option[Document] =
+  //   if (p._1 == name)
+  //     Some(apply(p._1, p._2, p._3))
+  //   else
+  //     None
+}
 
 case class Head(
   title: InlineContents = Nil,
   author: InlineContents = Nil,
   date: InlineContents = Nil,
   css: Option[String] = None,
-  csslink: Option[String] = None
+  csslink: Option[String] = None,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
 ) extends Dox {
   override def copyV(cs: List[Dox]) = {
     if (cs.isEmpty) Success(this)
@@ -534,7 +669,12 @@ case class Head(
   override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
 }
 
-object Head {
+object Head extends DoxFactory {
+  val label = "head"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Head =
+    RAISE.unsupportedOperationFault
+
   def builder() = new Builder
 
   class Builder {
@@ -546,19 +686,34 @@ object Head {
   }
 }
 
-case class Body(contents: List[Dox]) extends Dox {
+case class Body(
+  contents: List[Dox],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Dox {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(cs))
+    Success(copy(cs, location = get_location(location, contents)))
   }
 }
 
-object Body {
+object Body extends DoxFactory {
+  val label = "body"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Body =
+    RAISE.unsupportedOperationFault
+
   def apply(element: Dox) = new Body(List(element))
 }
 
-case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) extends Dox {
+case class Section(
+  title: List[Inline],
+  contents: List[Dox],
+  level: Int = 1,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Dox {
   override val elements = contents
   override def show_Open(buf: StringBuilder) {
     val showh = "h" + (level + 1) 
@@ -574,33 +729,50 @@ case class Section(title: List[Inline], contents: List[Dox], level: Int = 1) ext
   override def isOpenClose = false
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(title, cs, level)) // XXX level
+    Success(copy(title, cs, level, location = get_location(location, cs))) // XXX level
   }
 }
 
-case class Div(contents: List[Dox] = Nil) extends Block {
+case class Div(
+  contents: List[Dox] = Nil,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override def showTerm = "div"
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(cs))
+    Success(copy(cs, location = get_location(location, cs)))
   }
 }
 
-object Div extends Div(Nil) {
+object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "div"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Div =
+    Div(body.toList)
+
   def apply(d: Dox) = new Div(List(d))
 }
 
-case class Paragraph(contents: List[Dox]) extends Block {
+case class Paragraph(
+  contents: List[Dox],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
   override def showTerm = "p"
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(cs))
+    Success(copy(cs, location = get_location(location, cs)))
   }
 }
 
-case class Text(contents: String) extends Inline {
+case class Text(
+  contents: String,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  def attributes: VectorMap[String, String] = VectorMap.empty
   override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
@@ -614,26 +786,37 @@ case class Text(contents: String) extends Inline {
     buf.append(contents)
   }
 
-  override def copyV(cs: List[Dox]) = {
-    to_empty(cs).map(_ => this)
-  }
+  override def copyV(cs: List[Dox]) = Success(this)
 }
 
-case class Bold(contents: List[Inline]) extends Inline {
+case class Bold(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
   override def showTerm = "b"
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(x => copy(contents = x, location = get_location(location, cs)))
   }
 }
 
-object Bold extends Bold(Nil) {
+object Bold extends Bold(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "b"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Bold =
+    Bold(body.toList)
+
   def apply(element: Inline) = new Bold(List(element))
 }
 
 // 2011-12-26
-case class Italic(contents: List[Inline]) extends Inline {
+case class Italic(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
   override def showTerm = "i"
 
@@ -646,15 +829,24 @@ case class Italic(contents: List[Inline]) extends Inline {
   }
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(x => copy(contents = x, location = get_location(location, cs)))
   }
 }
 
-object Italic extends Italic(Nil) {
+object Italic extends Italic(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "i"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Italic =
+    Italic(body.toList)
+
   def apply(element: Inline) = new Italic(List(element))
 }
 
-case class Underline(contents: List[Inline]) extends Inline {
+case class Underline(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
   override def showTerm = "u"
 
@@ -667,56 +859,106 @@ case class Underline(contents: List[Inline]) extends Inline {
   }
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(x => copy(x, location = get_location(location, cs)))
   }
 }
 
-object Underline extends Underline(Nil) {
+object Underline extends Underline(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "u"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Underline =
+    Underline(body.toList)
+
   def apply(element: Inline) = new Underline(List(element))
 }
 
-case class Code(contents: List[Inline]) extends Inline {
+case class Code(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-object Code extends Code(Nil) {
+object Code extends Code(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "code"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Code =
+    Code(body.toList)
+
   def apply(element: Inline) = new Code(List(element))
 }
 
-case class Pre(contents: String, attributes: List[(String, String)] = Nil) extends Inline {
+case class Pre(
+  contents: String,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = List(Text(contents))
-  override def showParams = attributes
+  override def showParams = attributes.list
 
   override def copyV(cs: List[Dox]) = {
-    to_plain_text(cs) >| copy(contents, attributes)
+    to_plain_text(cs) >| copy(contents, attributes, get_location(location, cs))
   }
 }
+object Pre extends DoxFactory {
+  val label = "pre"
 
-case class Ul(contents: List[Li]) extends Block with ListContent {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Pre =
+    apply(to_text(body), attrs)
+}
+
+case class Ul(
+  contents: List[Li],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_li(cs).map(copy)
+    to_li(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
+object Ul extends Ul(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "ul"
 
-object Ul {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Ul =
+    Ul(ensure_li(body))
+
+  val empty = Ul(Nil)
+
   def apply(element: Li) = new Ul(List(element))
 }
 
-case class Ol(contents: List[Li]) extends Block with ListContent {
+case class Ol(
+  contents: List[Li],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_li(cs).map(copy)
+    to_li(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
+object Ol extends Ol(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "ol"
 
-case class Li(contents: List[ListContent]) extends Block {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Ol =
+    Ol(ensure_li(body))
+
+  val empty = Ol(Nil)
+}
+
+case class Li(
+  contents: List[ListContent],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Dox {
   override val elements = contents
 
   def :+(elem: ListContent): Li = {
@@ -724,42 +966,82 @@ case class Li(contents: List[ListContent]) extends Block {
   }
 
   override def copyV(cs: List[Dox]) = {
-    to_list_content(cs).map(copy)
+    to_list_content(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-object Li {
+object Li extends DoxFactory {
+  val label = "li"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Li =
+    Li(ensure_list_content(body))
+
+  val empty = Li(Nil)
   def apply(text: String) = new Li(List(Text(text)))
   def apply(element: ListContent) = new Li(List(element))
 }
 
 // 2011-12-30
-case class Del(contents: List[Inline]) extends Inline {
+case class Del(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
+object Del extends Del(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "del"
 
-object Del extends Del(Nil) {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Del =
+    Del(ensure_inline(body))
+
   def apply(element: Inline) = new Del(List(element))
 }
 
-case class Hyperlink(contents: List[Inline], href: URI) extends Inline {
+case class Hyperlink(
+  contents: List[Inline],
+  href: URI,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
   override def showTerm = "a"
   override def showParams = List("href" -> href.toASCIIString())
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy(_, href))
+    to_inline(cs).map(copy(_, href, location = get_location(location, cs)))
   }
 }
+object Hyperlink extends DoxFactory {
+  val label = "a"
 
-case class ReferenceImg(src: URI) extends Img {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Hyperlink =
+    Hyperlink(ensure_inline(body), attrs.applyIgnoreCase("href"))
+
+  def apply(c: Seq[Inline], href: String): Hyperlink =
+    Hyperlink(c.toList, new URI(href))
+}
+
+case class ReferenceImg(
+  src: URI,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Img {
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
+}
+object ReferenceImg extends DoxFactory {
+  val label = "img"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): ReferenceImg =
+    ReferenceImg(attrs.applyIgnoreCase("src"))
+
+  def apply(p: String): ReferenceImg = ReferenceImg(new URI(p))
 }
 
 trait TableBlock extends Block {
@@ -767,14 +1049,22 @@ trait TableBlock extends Block {
   val label: Option[String]
 }
 
-case class Table(head: Option[THead], body: TBody, foot: Option[TFoot], 
-    caption: Option[Caption], label: Option[String]) extends TableBlock {
+case class Table(
+  head: Option[THead],
+  body: TBody,
+  foot: Option[TFoot],
+  caption: Option[Caption],
+  label: Option[String],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TableBlock {
   override val elements = List(caption, head, body.some, foot).flatten
   override def showParams = label.toList.map(x => ("id", x))
 
-  override def copyV(cs: List[Dox]) = {
-    if (cs.isEmpty) to_failure(cs)
-    else {
+  override def copyV(cs: List[Dox]) =
+    if (cs.isEmpty) {
+      Success(this)
+    } else {
       val (c, cs1) = cs match {
         case (c: Caption) :: xs => (Some(c), xs)
         case _ => (None, cs)
@@ -794,10 +1084,9 @@ case class Table(head: Option[THead], body: TBody, foot: Option[TFoot],
       if (b.isEmpty || cs4.nonEmpty) {
         to_failure(cs)
       } else {
-        Success(copy(h, b.get, f, c, label))
+        Success(copy(h, b.get, f, c, label, location = get_location(location, cs)))
       }
     }
-  }
 
   def width: Int = {
     List(head, body.some, foot).flatten.map(_.width).max
@@ -850,29 +1139,44 @@ trait TRecord extends Block {
   def length: Int
 }
 
-case class THead(records: List[TRecord]) extends TableCompartment {
+case class THead(
+  records: List[TRecord],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
-    to_tr(cs).map(copy)
+    to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-case class TBody(records: List[TRecord]) extends TableCompartment {
+case class TBody(
+  records: List[TRecord],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
-    to_tr(cs).map(copy)
+    to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-case class TFoot(records: List[TRecord]) extends TableCompartment {
+case class TFoot(
+  records: List[TRecord],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
-    to_tr(cs).map(copy)
+    to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-case class TR(fields: List[TField]) extends TRecord {
+case class TR(
+  fields: List[TField],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TRecord {
   override val elements = fields
 
   override def copyV(cs: List[Dox]) = {
-    to_tfield(cs).map(copy)
+    to_tfield(cs).map(copy(_, location = get_location(location, cs)))
   }
   def length = fields.length
 }
@@ -882,22 +1186,34 @@ trait TField extends Block {
   override val elements = contents
 }
 
-case class TD(contents: List[Inline]) extends TField {
+case class TD(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TField {
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-case class TH(contents: List[Inline]) extends TField {  
+case class TH(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TField {
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 
-case class TTable(uri: String, params: List[String],
-                  caption: Option[Caption] = None,
-                  label: Option[String] = None
-                ) extends TableBlock with TRecord { // with TField { // 2012-07-04
+case class TTable(
+  uri: String,
+  params: List[String],
+  caption: Option[Caption] = None,
+  label: Option[String] = None,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends TableBlock with TRecord { // with TField { // 2012-07-04
 //  override val contents = Nil
   val contents = Nil
   override val elements = List(caption).flatten
@@ -915,11 +1231,14 @@ case class TTable(uri: String, params: List[String],
 
   override def copyV(cs: List[Dox]) = {
 //    println("TTable copyV = " + cs)
-    Success(this) // XXX
+    Success(this) // currently do nothing
   }
 }
 
-case class Space() extends Inline {
+case class Space(
+  location: Option[ParseLocation] = None
+) extends Inline {
+  def attributes: VectorMap[String, String] = VectorMap.empty
   override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
@@ -935,65 +1254,111 @@ case class Space() extends Inline {
   }
 }
 
-case class Dl(contents: List[(Dt, Dd)]) extends Block {
+case class Dl(
+  contents: List[(Dt, Dd)],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements: List[Dox] = contents flatMap {
     case (dt, dd) => List(dt, dd)
   }
 
   override def copyV(cs: List[Dox]) = {
-    to_dtdd(cs).map(copy)
+    to_dtdd(cs).map(copy(_))
   }
 }
+object Dl extends Dl(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "dl"
 
-case class Dt(contents: String) extends Block {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dl = Dl(ensure_dtdd(body))
+}
+
+case class Dt(
+  contents: String,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = List(Text(contents))
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(_ => this)
   }
 }
+object Dt extends DoxFactory {
+  val label = "dt"
 
-object Dt {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dt = Dt(to_text(body))
+
   def unapply(x: XNode): Option[Dt] = {
     ???
   }
 }
 
-case class Dd(contents: List[Inline]) extends Block {
+case class Dd(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_))
   }
 }
+object Dd extends Dd(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "dd"
 
-object Dd {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dd =
+    Dd(ensure_inline(body))
+
   def unapply(x: XNode): Option[Dd] = {
     ???
   }
 }
 
-case class Fragment(contents: List[Dox]) extends Dox with Block with Inline with ListContent {
+case class Fragment(
+  contents: List[Dox],
+  location: Option[ParseLocation] = None
+) extends Dox with Block with Inline with ListContent {
+  def attributes: VectorMap[String, String] = VectorMap.empty
   override val elements = contents
   override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(cs))
+    Success(copy(contents ::: normalize_fragment(cs)))
   }
 }
+object Fragment extends DoxFactory {
+  val label = "fragment"
 
-case class Caption(contents: List[Inline]) extends Block {
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Fragment =
+    Fragment(body.toList)
+
+  val empty = Fragment(Nil)
+}
+
+case class Caption(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_))
   }
 }
 
 // 2011-12-31
-case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) extends Block {
+case class Figure(
+  img: Img,
+  caption: Figcaption,
+  label: Option[String] = None,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = List(img, caption)
   override def showParams = List("id" -> label).flatMap(_.sequence)
 
@@ -1004,22 +1369,34 @@ case class Figure(img: Img, caption: Figcaption, label: Option[String] = None) e
   }
 }
 
-case class Figcaption(contents: List[Inline]) extends Block {
+case class Figcaption(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_))
   }
 }
 
-case class EmptyLine() extends Block {  
+case class EmptyLine(
+  location: Option[ParseLocation] = None
+) extends Block {
+  def attributes: VectorMap[String, String] = VectorMap.empty
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
 }
 
 // 2011-01-01
-case class Newline() extends Inline {
+case class Newline(
+  location: Option[ParseLocation] = None
+) extends Inline {
+  def attributes: VectorMap[String, String] = VectorMap.empty
+
   override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
@@ -1046,20 +1423,37 @@ trait EmbeddedImg extends Img {
   val params: List[String]
 }
 
-case class DotImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
+case class DotImg(
+  src: URI,
+  contents: String,
+  params: List[String] = Nil,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends EmbeddedImg {
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
 }
 
-case class DitaaImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
+case class DitaaImg(
+  src: URI,
+  contents: String,
+  params: List[String] = Nil,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends EmbeddedImg {
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
 }
 
 // 2011-01-16
-case class Html5(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+case class Html5(
+  name: String,
+  attributes: List[(String, String)],
+  contents: List[Dox],
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
   override def showTerm = name
   override def showParams = attributes
@@ -1070,20 +1464,28 @@ case class Html5(name: String, attributes: List[(String, String)], contents: Lis
 }
 
 // 2011-01-17
-case class Program(contents: String, attributes: List[(String, String)] = Nil) extends Block {
+case class Program(
+  contents: String,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
-  override def showParams = attributes ++ List("class" -> "program")
+  override def showParams = attributes.list ++ List("class" -> "program")
 
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
   }
 }
 
-case class Console(contents: String, attributes: List[(String, String)] = Nil) extends Block {
+case class Console(
+  contents: String,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
-  override def showParams = attributes ++ List("class" -> "console")
+  override def showParams = attributes.list ++ List("class" -> "console")
 
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
@@ -1091,10 +1493,15 @@ case class Console(contents: String, attributes: List[(String, String)] = Nil) e
 }
 
 // 2011-01-18
-case class SmartDoc(name: String, attributes: List[(String, String)], contents: List[Dox]) extends Block {
+case class SmartDoc(
+  name: String,
+  attributes: VectorMap[String, String],
+  contents: List[Dox],
+  location: Option[ParseLocation] = None
+) extends Block {
   override val elements = contents
   override def showTerm = name
-  override def showParams = attributes
+  override def showParams = attributes.list
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
@@ -1102,47 +1509,81 @@ case class SmartDoc(name: String, attributes: List[(String, String)], contents: 
 }
 
 // 2011-01-20
-case class SmCsvImg(src: URI, contents: String, params: List[String] = Nil) extends EmbeddedImg {
+case class SmCsvImg(
+  src: URI,
+  contents: String,
+  params: List[String] = Nil,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends EmbeddedImg {
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
 }
 
 // 2012-02-15
-object EmptyDox extends Dox {
+object EmptyDox extends Dox with DoxFactory {
+  def attributes: VectorMap[String, String] = VectorMap.empty
+  def location: Option[ParseLocation] = None
+
+  val label = "empty"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dox = EmptyDox
+
   override def toString(buf: StringBuilder, maxlength: Option[Int] = None) {
   }
 }
 
 // 2012-04-24
-case class Tt(contents: List[Inline]) extends Inline {
+case class Tt(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_, location = get_location(location, contents)))
   }
 }
 
-object Tt extends Tt(Nil) {
+object Tt extends Tt(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "tt"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Tt =
+    Tt(ensure_inline(body))
+
   def apply(element: Inline) = new Tt(List(element))
 }
 
 // 2012-06-05
-case class Span(contents: List[Inline]) extends Inline {
+case class Span(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
   override val elements = contents
   override def showTerm = "span"
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy)
+    to_inline(cs).map(copy(_, location = get_location(location, contents)))
   }
 }
 
-object Span extends Span(Nil) {
+object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "span"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Span =
+    Span(ensure_inline(body))
+
   def apply(element: Inline) = new Span(List(element))
 }
 
 // 2012-11-23
 case class IncludeDoc(filename: String) extends Block {
+  def attributes: VectorMap[String, String] = VectorMap.empty
+  def location: Option[ParseLocation] = None
+
   override def showParams = List(("filename", filename))
 
   override def copyV(cs: List[Dox]) = {
