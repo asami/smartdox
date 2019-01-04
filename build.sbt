@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "1.2.2"
+version := "1.2.3"
 
 scalaVersion := "2.10.3"
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
@@ -21,11 +21,13 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.0.6"
 
-libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
+// libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.2.2"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.2.31"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "1.1.0"
+
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.2.2" % "provided" exclude("org.scala-stm", "scala-stm_2.10.0")
 
 // libraryDependencies += "net.sourceforge.nekohtml" % "nekohtml" % "1.9.15"
 
