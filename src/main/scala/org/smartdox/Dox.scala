@@ -25,7 +25,8 @@ import org.goldenport.extension.IDocument
  *  version Jan.  5, 2015
  *  version Nov. 18, 2018
  *  version Dec. 31, 2018
- * @version Jan.  4, 2019
+ *  version Jan. 12, 2019
+ * @version Feb.  6, 2019
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -402,7 +403,10 @@ object Dox extends UseDox {
   }
 
   def tree(dox: Dox): Tree[Dox] = {
-    Tree.node(dox, dox.elements.toStream.map(tree))
+    // println(s"Dox#tree in: $dox/${dox.elements}")
+    val r = Tree.node(dox, dox.elements.toStream.map(tree))
+    // println(s"Dox#tree out: $dox => ${r.drawTree}")
+    r
   }
 
   def untreeE(tree: Tree[Dox]): Dox = {
@@ -1522,7 +1526,7 @@ case class SmCsvImg(
 }
 
 // 2012-02-15
-object EmptyDox extends Dox with DoxFactory {
+object EmptyDox extends Dox with DoxFactory with Inline {
   def attributes: VectorMap[String, String] = VectorMap.empty
   def location: Option[ParseLocation] = None
 

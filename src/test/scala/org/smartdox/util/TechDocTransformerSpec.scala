@@ -11,7 +11,8 @@ import org.smartdox.Dox
 
 /*
  * @since   Sep.  9, 2014
- * @version Mar. 10, 2016
+ *  version Mar. 10, 2016
+ * @version Feb.  4, 2019
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -21,7 +22,9 @@ class TechDocTransformerSpec extends WordSpec with Matchers with ScalazMatchers 
       val in = "_OK_"
       val out = """<!DOCTYPE html><html><head/><body><h1 class="title"/><p>_OK_</p></body></html>"""
       val a = parse_document_full(in)
+      println(s"TechDocTransformerSpec: $a")
       val b = TechDocTransformer().transform(a)
+      println(s"TechDocTransformerSpec: $b")
       b.toString() should be (out)
     }
     "section" in {

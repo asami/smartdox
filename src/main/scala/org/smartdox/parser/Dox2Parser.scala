@@ -3,6 +3,7 @@ package org.smartdox.parser
 import scalaz._, Scalaz._, Validation._, Tree._
 import org.goldenport.RAISE
 import org.goldenport.parser._
+import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NElement
 import org.smartdox._
 import Dox._
@@ -12,7 +13,8 @@ import Dox._
  *  version Aug. 28, 2017
  *  version Oct. 14, 2018
  *  version Nov. 17, 2018
- * @version Dec. 24, 2018
+ *  version Dec. 24, 2018
+ * @version Jan. 26, 2019
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -20,7 +22,7 @@ class Dox2Parser(config: Dox2Parser.Config) {
 
   def apply(s: String): ParseResult[Dox] = {
     val ctx = ParseContext(config, 0)
-    val blocks = LogicalBlocks.parse(s)
+    val blocks = LogicalBlocks.parse(config.blocksConfig, s)
     val head = Head()
     val xs = _blocks(ctx, blocks)
     println(s"Dox2Parser#apply ${blocks} => $xs")
@@ -38,6 +40,7 @@ class Dox2Parser(config: Dox2Parser.Config) {
     case EndBlock => Vector.empty
     case m: LogicalSection => Vector(_section(ctx.levelUp, m))
     case m: LogicalParagraph => Vector(_paragraph(ctx, m))
+    case m: LogicalVerbatim => Vector(_vervatim(ctx, m))
   }
 
   private def _section(
@@ -63,19 +66,49 @@ class Dox2Parser(config: Dox2Parser.Config) {
   private def _paragraph(ctx: ParseContext, p: LogicalParagraph): Dox = {
     DoxLinesParser.parse(ctx.config.linesConfig, p)
   }
+
+  private def _vervatim(ctx: ParseContext, p: LogicalVerbatim): Dox = {
+    p.mark match {
+      case m: LogicalBlock.RawBackquoteMark => _program(p)
+      case m: DoxLinesParser.BeginSrcAnnotation => _program(p)
+      case m: DoxLinesParser.BeginExampleAnnotation => _program(p)
+      case m: DoxLinesParser.GenericBeginAnnotation => _program(p)
+      case m => _program(p)
+    }
+  }
+
+  private def _program(p: LogicalVerbatim) = {
+    val cs = p.lines.text
+    val attrs = VectorMap.empty[String, String]
+    Program(cs, attrs, p.location)
+  }
 }
 
 object Dox2Parser {
   type Transition = (ParseMessageSequence, ParseResult[Dox], DoxSectionParseState)
 
   case class Config(
-    isDebug: Boolean = false,
-    linesConfig: DoxLinesParser.Config = DoxLinesParser.Config.default
+    isDebug: Boolean,
+    blocksConfig: LogicalBlocks.Config,
+    linesConfig: DoxLinesParser.Config
   ) extends ParseConfig {
   }
   object Config {
-    val default = Config()
-    val debug = Config(true)
+    import DoxLinesParser.{Config => _, _}
+
+    val verbatims = Vector(
+      BeginSrcAnnotationClass,
+      BeginExampleAnnotationClass,
+      GenericBeginAnnotationClass
+    )
+    val blocksConfig = LogicalBlocks.Config.default.addVerbatims(verbatims)
+
+    val default = Config(
+      false,
+      Config.blocksConfig,
+      DoxLinesParser.Config.default
+    )
+    val debug = default.copy(true)
     val orgmodeInline = default.copy(
       linesConfig = DoxLinesParser.Config.orgmodeFull
     )
@@ -118,12 +151,14 @@ object Dox2Parser {
     private val _empty: (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = (ParseMessageSequence.empty, ParseSuccess(Dox.empty), this)
 
     def result: Dox = Document(head, Body(body.toList))
+
     def apply(config: Config, block: LogicalBlock): (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = {
       block match {
         case StartBlock => _empty
         case EndBlock => _empty
         case m: LogicalSection => _section(config, m)
         case m: LogicalParagraph => _paragraph(config, m)
+        case m: LogicalVerbatim => _verbatim(config, m)
       }
     }
 
@@ -148,6 +183,10 @@ object Dox2Parser {
     private def _paragraph(config: Config, p: LogicalParagraph): (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = {
       val dox = DoxLinesParser.parse(config.linesConfig, p)
       (ParseMessageSequence.empty, ParseSuccess(Dox.empty), copy(body = body :+ dox))
+    }
+
+    private def _verbatim(config: Config, p: LogicalVerbatim): (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = {
+      ???
     }
   }
   object RootState {

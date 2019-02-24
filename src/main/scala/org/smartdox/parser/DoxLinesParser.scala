@@ -4,13 +4,15 @@ import scalaz._, Scalaz._
 import org.goldenport.RAISE
 import org.goldenport.Strings
 import org.goldenport.parser._
-import org.goldenport.collection.NonEmptyVector
+import org.goldenport.parser.LogicalBlock.{VerbatimMarkClass, VerbatimMark}
+import org.goldenport.collection.{NonEmptyVector, VectorMap}
 import org.goldenport.util.VectorUtils
 import org.smartdox._
 
 /*
  * @since   Nov. 12, 2018
- * @version Dec. 31, 2018
+ *  version Dec. 31, 2018
+ * @version Jan. 26, 2019
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -134,7 +136,7 @@ object DoxLinesParser {
 
       private def _inline_list(config: Config, p: String): List[Inline] = {
         println(s"TableRow#_inline_list($p)")
-        val (m, od) = parse_inline(???, p)
+        val (m, od) = parse_inline(config, p)
         println(s"TableRow#_inline_list($od)")
         od.toList.asInstanceOf[List[Inline]] // TODO
       }
@@ -151,61 +153,218 @@ object DoxLinesParser {
   }
 
   sealed trait AnnotationMark {
+    def location: Option[ParseLocation]
   }
-  case class BrokenAnnotation(text: String) extends AnnotationMark {}
+  case class BrokenAnnotation(
+    text: String,
+    location: Option[ParseLocation]
+  ) extends AnnotationMark {
+  }
+  object BrokenAnnotation {
+    def apply(p: LogicalLine): BrokenAnnotation = BrokenAnnotation(
+      p.text,
+      p.location
+    )
+  }
+  case class TitleAnnotation(
+    title: Inline,
+    location: Option[ParseLocation]
+  ) extends AnnotationMark {
+  }
   case class CaptionAnnotation(
-    caption: List[Inline]
+    caption: List[Inline],
+    location: Option[ParseLocation]
   ) extends AnnotationMark {
   }
   case class LabelAnnotation(
-    label: String
+    label: String,
+    location: Option[ParseLocation]
   ) extends AnnotationMark {
   }
   case class AttrHtmlAnnotation(
-    text: String // TODO
+    text: String, // TODO
+    location: Option[ParseLocation]
   ) extends AnnotationMark {
   }
   case class AttrLatexAnnotation(
-    text: String // TODO
+    text: String, // TODO
+    location: Option[ParseLocation]
   ) extends AnnotationMark {
   }
   case class GenericAnnotation(
     key: String,
-    value: String
+    value: String,
+    location: Option[ParseLocation]
+  ) extends AnnotationMark {
+  }
+  sealed trait VerbatimAnnotationMark extends AnnotationMark with VerbatimMark {
+    def name: String
+    lazy val tagName: String = "end_" + name
+
+    def isDone(p: LogicalLine): Boolean = {
+      val r = AnnotationMark.parse(p).map {
+        case (key, params, value) => key == tagName
+      }.getOrElse(false)
+      println(s"${getClass.getSimpleName}($tagName): ${p.text} => $r")
+      r
+    }
+  }
+  object VerbatimAnnotationMark {
+    val elements = Vector(
+      BeginSrcAnnotationClass,
+      BeginExampleAnnotationClass,
+      GenericBeginAnnotationClass
+    )
+  }
+  sealed trait VerbatimAnnotationMarkClass extends VerbatimMarkClass {
+    def name: String
+    lazy val tagName = "begin_" + name
+
+    def get(p: LogicalLine): Option[VerbatimAnnotationMark] =
+      if (p.text.startsWith("#+"))
+        _get(p)
+      else
+        None
+
+    protected def _get(p: LogicalLine): Option[VerbatimAnnotationMark] =
+      AnnotationMark.parse(p).collect {
+        case (key, params, value) if key == tagName => create_Mark(params, value, p.location)
+      }
+
+    protected def create_Mark(params: List[String], value: String, location: Option[ParseLocation]): VerbatimAnnotationMark
+  }
+  case object BeginSrcAnnotationClass extends VerbatimAnnotationMarkClass {
+    val name = "src"
+
+    protected def create_Mark(params: List[String], value: String, location: Option[ParseLocation]): VerbatimAnnotationMark =
+      BeginSrcAnnotation(params, location)
+  }
+  case class BeginSrcAnnotation(
+    parameters: List[String],
+    location: Option[ParseLocation]
+  ) extends VerbatimAnnotationMark {
+    def name = BeginSrcAnnotationClass.name
+  }
+  case class EndSrcAnnotation(
+    location: Option[ParseLocation]
+  ) extends AnnotationMark {
+  }
+  case object BeginExampleAnnotationClass extends VerbatimAnnotationMarkClass {
+    val name = "example"
+
+    protected def create_Mark(params: List[String], value: String, location: Option[ParseLocation]): VerbatimAnnotationMark =
+      BeginExampleAnnotation(params, location)
+  }
+  case class BeginExampleAnnotation(
+    parameters: List[String],
+    location: Option[ParseLocation]
+  ) extends VerbatimAnnotationMark {
+    def name = BeginExampleAnnotationClass.name
+  }
+  case class EndExampleAnnotation(
+    location: Option[ParseLocation]
+  ) extends AnnotationMark {
+  }
+  case object GenericBeginAnnotationClass extends VerbatimMarkClass {
+    def get(p: LogicalLine): Option[VerbatimAnnotationMark] =
+      if (p.text.startsWith("#+"))
+        _get(p)
+      else
+        None
+
+    protected def _get(p: LogicalLine): Option[VerbatimAnnotationMark] =
+      AnnotationMark.parse(p).collect {
+        case (key, params, value) if key.startsWith("begin_") => GenericBeginAnnotation(key.substring("begin_".length), params, p.location)
+      }
+  }
+  case class GenericBeginAnnotation(
+    key: String,
+    parameters: List[String],
+    location: Option[ParseLocation]
+  ) extends VerbatimAnnotationMark {
+    def name = key
+  }
+  case class GenericEndAnnotation(
+    key: String,
+    location: Option[ParseLocation]
   ) extends AnnotationMark {
   }
   object AnnotationMark {
-    private val _regex = "#[+]([^:]+):(.*)".r
+    private val _regex = "#[+]([^:]+)[:]?[ ]*(.*)".r
 
-    def get(p: String): Option[AnnotationMark] = {
-      if (p.startsWith("#+"))
-        Some(_take(p))
+    def get(config: Config, p: LogicalLine): Option[AnnotationMark] = {
+      if (p.text.startsWith("#+"))
+        Some(_take(config, p))
       else
         None
     }
 
-    private def _take(p: String) =
-      _regex.findFirstMatchIn(p).map(x =>
+    def parse(p: LogicalLine): Option[(String, List[String], String)] =
+      _regex.findFirstMatchIn(p.text).flatMap(x =>
         if (x.groupCount == 2) {
-          val key = x.group(1).toLowerCase
-          val value = x.group(2).trim
-          _get(key, value).getOrElse(BrokenAnnotation(p))
-        } else{
-          BrokenAnnotation(p)
+          val a = x.group(1).toLowerCase.trim
+          Strings.totokens(a, " ") match {
+            case Nil => None
+            case key :: params =>
+              val value = x.group(2)
+              Some((key, params, value))
+          }
+        } else {
+          None
         }
-      ).getOrElse(BrokenAnnotation(p))
+      )
 
-    private def _get(key: String, value: String): Option[AnnotationMark] = {
+    private def _take(config: Config, p: LogicalLine): AnnotationMark =
+      parse(p).flatMap {
+        case (key, params, value) => _get(config, key, params, value, p.location)
+      }.getOrElse(BrokenAnnotation(p))
+
+    // private def _take(config: Config, p: LogicalLine) =
+    //   _regex.findFirstMatchIn(p.text).map(x =>
+    //     if (x.groupCount == 2) {
+    //       val a = x.group(1).toLowerCase.trim
+    //       Strings.totokens(a, " ") match {
+    //         case Nil => BrokenAnnotation(p)
+    //         case key :: params =>
+    //           val value = x.group(2)
+    //           _get(config, key, params, value, p.location).getOrElse(BrokenAnnotation(p))
+    //       }
+
+    //     } else{
+    //       BrokenAnnotation(p)
+    //     }
+    //   ).getOrElse(BrokenAnnotation(p))
+
+    private def _get(
+      config: Config,
+      key: String,
+      params: List[String],
+      value: String,
+      location: Option[ParseLocation]
+    ): Option[AnnotationMark] = {
       println(s"key: $key")
       Option(key) collect {
+        case "title" =>
+          val (m, d) = parse_inline(config, value)
+          TitleAnnotation(d.getOrElse(EmptyDox), location)
         case "caption" =>
-          val (m, d) = parse_inline(???, value)
+          val (m, d) = parse_inline(config, value)
           // TODO warn
-          CaptionAnnotation(d.toList)
-        case "label" => LabelAnnotation(value)
-        case "attr_html" => AttrHtmlAnnotation(value)
-        case "attr_latex" => AttrLatexAnnotation(value)
-        case _ => GenericAnnotation(key, value)
+          CaptionAnnotation(d.toList, location)
+        case "label" => LabelAnnotation(value, location)
+        case "attr_html" => AttrHtmlAnnotation(value, location)
+        case "attr_latex" => AttrLatexAnnotation(value, location)
+        case "begin_src" => BeginSrcAnnotation(params, location)
+        case "end_src" => EndSrcAnnotation(location)
+        case "begin_example" => BeginExampleAnnotation(params, location)
+        case "end_example" => EndExampleAnnotation(location)
+        case m =>
+          if (m.startsWith("begin_"))
+            GenericBeginAnnotation(m, params, location)
+          else if (m.startsWith("end_"))
+            GenericEndAnnotation(m, location)
+          else
+            GenericAnnotation(key, value, location)
       }
     }
   }
@@ -226,22 +385,27 @@ object DoxLinesParser {
 
     def returnFrom(dox: Dox): DoxLinesParseState = RAISE.noReachDefect(this, "returnFrom")
 
+    def returnFrom(as: NonEmptyVector[AnnotationMark]): DoxLinesParseState = RAISE.noReachDefect(this, s"returnFrom: $as")
+
     protected def handle_event(config: Config, evt: ParseEvent): Transition =
       evt match {
         case StartEvent => start_transition(config)
         case EndEvent => end_transition(config)
 //        case m: LogicalLineEvent if use_empty && m.line.isEmpty => empty_transition(config, m.line)
-        case m: LogicalLineEvent =>
-          val line = m.line
-          if (use_empty && line.isEmptyLine)
-            empty_transition(config, m)
-          else
-            get_list_transition(config, m) orElse
-              get_table_transition(config, m) orElse
-              get_annotation_transition(config, m) getOrElse
-              text_transition(config, m)
+        case m: LogicalLineEvent => handle_line(config, m)
         case m => RAISE.noReachDefect(this, "handle_event")
       }
+
+    protected def handle_line(config: Config, evt: LogicalLineEvent): Transition = {
+      val line = evt.line
+      if (use_empty && line.isEmptyLine)
+        empty_transition(config, evt)
+      else
+        get_list_transition(config, evt) orElse
+      get_table_transition(config, evt) orElse
+      get_annotation_transition(config, evt) getOrElse
+      text_transition(config, evt)
+    }
 
     protected def start_transition(config: Config): Transition = transit_none
 
@@ -310,6 +474,9 @@ object DoxLinesParser {
 
     private def _show(p: Tree[Dox]): String = p.drawTree
 
+    protected def leave_to(dox: Dox): Transition =
+      _leave_to(ParseMessageSequence.empty, dox)
+
     protected def leave_to(msgs: ParseMessageSequence, doxtrees: Seq[Tree[Dox]]): Transition = {
       val doxes = doxtrees.flatMap(Dox.untreeO)
       println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtrees)} => $doxes")
@@ -330,6 +497,10 @@ object DoxLinesParser {
     private def _leave_to(msgs: ParseMessageSequence, dox: Dox): Transition = {
       (msgs, ParseResult.empty, parent.returnFrom(dox))
     }
+
+    protected def leave_to(annotaions: NonEmptyVector[AnnotationMark]): Transition =
+      (ParseMessageSequence.empty, ParseResult.empty, parent.returnFrom(annotaions))
+
     protected def leave_to_in_end(config: Config, p: (ParseMessageSequence, Tree[Dox])): Transition = {
       val (msgs, doxtree) = p
       leave_to_in_end(config, msgs, doxtree)
@@ -342,13 +513,20 @@ object DoxLinesParser {
       (ms + ms2, ParseSuccess(dox), s2)
     }
 
+    protected def leave_to_in_end(config: Config, annotaions: NonEmptyVector[AnnotationMark]): Transition = {
+      val (ms, r, s) = leave_to(annotaions)
+      val (ms2, r2, s2) = s.apply(config, EndEvent)
+      val dox = Dox.toDox(r.get.toVector ++ r2.get.toVector)
+      (ms + ms2, ParseSuccess(dox), s2)
+    }
+
     protected def leave_none: Transition = transit_next(parent)
 
     protected def leave_to(config: Config, p: ParseEvent): Transition =
       parent.apply(config, p)
 
     protected def leave_to_with_warning(config: Config, p: ParseEvent, warn: String): Transition = 
-      ???
+      RAISE.notImplementedYetDefect(this, s"$p: $warn")
 
     protected def leave_end(config: Config): Transition =
       parent.apply(config, EndEvent)
@@ -364,7 +542,8 @@ object DoxLinesParser {
 
 
   case class NormalState(
-    lines: Vector[Dox]
+    lines: Vector[Dox],
+    title: Option[Dox]
   ) extends DoxLinesParseState {
     // override protected def end_Result(config: Config): ParseResult[Dox] =
     //   ParseSuccess(Paragraph(List(Text(cs.mkString))))
@@ -380,10 +559,17 @@ object DoxLinesParser {
     override def returnFrom(dox: Dox): DoxLinesParseState =
       copy(lines :+ dox)
 
+    override def returnFrom(as: NonEmptyVector[AnnotationMark]): DoxLinesParseState =
+      as.vector.collect {
+        case m: TitleAnnotation => m.title
+      }.headOption.
+        map(x => copy(title = Some(x))).
+        getOrElse(this)
+
     override protected def end_Transition(config: Config): Transition =
       transit_result_next(Dox.toDox(lines), NormalState.init)
 
-    override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = ???
+    override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = transit_none
 
     override protected def get_List_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, NonEmptyVector(x))))
@@ -392,7 +578,11 @@ object DoxLinesParser {
       TableMark.get(evt).map(x => transit_next(TableState(this, x)))
 
     override protected def get_Annotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
-      AnnotationMark.get(evt.text).map(x => transit_next(AnnotationState(this, x)))
+      AnnotationMark.get(config, evt).map {
+        case m: BeginSrcAnnotation => transit_next(SourceCodeState(this, m.parameters))
+        case m: BeginExampleAnnotation => transit_next(SourceCodeState(this, m.parameters)) // TODO
+        case m => transit_next(AnnotationState(this, m))
+      }
 
     override protected def text_Transition(config: Config, evt: LogicalLine): Transition = {
       val (msgs, result, _) = DoxInlineParser.apply(config.inlineConfig, evt.text)
@@ -409,7 +599,7 @@ object DoxLinesParser {
   }
 
   object NormalState {
-    val init = NormalState(Vector.empty)
+    val init = NormalState(Vector.empty, None)
   }
 
   case class ListState(
@@ -578,11 +768,11 @@ object DoxLinesParser {
     protected def close_state(config: Config) = {
       println(s"close_state: $annotation")
       val caption = annotation.collect {
-        case CaptionAnnotation(title) => Caption(title)
+        case CaptionAnnotation(title, _) => Caption(title)
       }.headOption
       println("Caption:" + caption)
       val label = annotation.collect {
-        case LabelAnnotation(label) => label
+        case LabelAnnotation(label, _) => label
       }.headOption
       println("Label:" + label)
       val head = blocks.head(config)
@@ -711,6 +901,9 @@ object DoxLinesParser {
     parent: DoxLinesParseState,
     annotations: NonEmptyVector[AnnotationMark]
   ) extends ChildDoxLinesParseState {
+    override protected def end_Transition(config: Config): Transition =
+      leave_to_in_end(config, annotations)
+
     override protected def get_list_transition(config: Config, evt: LogicalLineEvent): Option[Transition] =
       for {
         s <- evt.getLogicalLineText
@@ -725,16 +918,43 @@ object DoxLinesParser {
       }
 
     override protected def get_Annotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
-      AnnotationMark.get(evt.text).map(x => transit_next(AnnotationState(parent, annotations :+ x)))
+      AnnotationMark.get(config, evt).collect {
+        case m: BeginSrcAnnotation => transit_next(SourceCodeState(parent, m.parameters, annotations.vector))
+        case m => transit_next(AnnotationState(parent, annotations :+ m))
+      }
 
     override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition =
-      leave_to_with_warning(config, evt, "Dangling annotations")
+      leave_to_with_warning(config, evt, s"Dangling annotations: $annotations")
   }
-
   object AnnotationState {
     def apply(
       parent: DoxLinesParseState,
       annotation: AnnotationMark
     ): AnnotationState = AnnotationState(parent, NonEmptyVector(annotation))
+  }
+
+  case class SourceCodeState(
+    parent: DoxLinesParseState,
+    parameters: List[String],
+    annotations: Vector[AnnotationMark] = Vector.empty,
+    code: LogicalLines = LogicalLines.empty
+  ) extends ChildDoxLinesParseState {
+    override protected def end_Transition(config: Config): Transition =
+      // leave_to_in_end(config, annotations)
+      ???
+
+    override protected def handle_line(config: Config, evt: LogicalLineEvent): Transition = {
+      println(s"SourceCodeState#handle_line $evt")
+      AnnotationMark.get(config, evt.line).collect {
+        case m: EndSrcAnnotation => leave_to(_source_code)
+      }.getOrElse(transit_next(copy(code = code :+ evt.line.text)))
+    }
+
+    private def _source_code = {
+      val cs = code.text
+      val attrs = VectorMap.empty[String, String]
+      val loc = annotations.toStream.flatMap(_.location).headOption.orElse(code.lines.toStream.flatMap(_.location).headOption)
+      Program(cs, attrs, loc)
+    }
   }
 }

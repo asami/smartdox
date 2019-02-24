@@ -6,7 +6,8 @@ import org.smartdox._
 
 /*
  * @since   Sep.  9, 2014
- * @version Sep.  9, 2014
+ *  version Sep.  9, 2014
+ * @version Feb.  6, 2019
  * @author  ASAMI, Tomoharu
  */
 case class TechDocTransformer() {
@@ -23,18 +24,19 @@ case class TechDocTransformer() {
     body.copy(contents = t :: c)
   }
 
-  private def _build_contents(xs: List[Dox]) = {
-    val f = Fragment(xs)
-    val r = _build_content(f)
-    r.contents
-  }
+  private def _build_contents(xs: List[Dox]) = xs.flatMap(_build_content)
 
   private def _build_content(dox: Dox): List[Dox] = {
+    // println(s"TechDocTransformer#_build_content in: ${dox}")
     val tree = Dox.tree(dox)
+    // println(s"TechDocTransformer#_build_content after tree: ${tree.drawTree}")
     val r = _transform(tree)
+    // println(s"TechDocTransformer#_build_content after transfrom: ${r.drawTree}")
     Dox.untree(r) match {
-      case f: Fragment => f.contents
-      case x => sys.error("???")
+      case f: Fragment =>
+        // println(s"TechDocTransformer#_build_content after untree transfrom: ${f}")
+        f.contents
+      case x => List(x)
     }
   }
 
