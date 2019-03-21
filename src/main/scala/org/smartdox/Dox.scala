@@ -18,7 +18,8 @@ import scala.xml.{Node => XNode, _}
  *  version Jan. 29, 2014
  *  version Feb.  5, 2014
  *  version Sep.  9, 2014
- * @version Jan.  5, 2015
+ *  version Jan.  5, 2015
+ * @version Oct. 15, 2018
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends NotNull { // Use EmptyDox for null object.
@@ -290,7 +291,7 @@ trait UseDox {
   implicit def toDox(string: String): Dox = {
     parser.DoxParser.parseOrgmodeZ(string) match {
       case Success(s) => s
-      case Failure(ms) => Ul(ms.list.map(Li(_)))
+      case Failure(ms) => Ul(ms.list.toList.map(Li(_)))
     }
   }
 
@@ -318,7 +319,7 @@ object Dox extends UseDox {
   def untreeE(tree: Tree[Dox]): Dox = {
     untreeV(tree) match {
       case Success(d) => d
-      case Failure(e) => throw new IllegalArgumentException(e.list.mkString(";"))
+      case Failure(e) => throw new IllegalArgumentException(e.list.toList.mkString(";"))
     }
   }
 
@@ -332,7 +333,7 @@ object Dox extends UseDox {
 //    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
     val errors = children.flatMap {
       case Success(d) => Nil
-      case Failure(e) => e.list
+      case Failure(e) => e.list.toList
     }
 //    if (errors.nonEmpty) {
 //      println("children -> errors: " + children + "," + errors + "/" + tree.subForest.toList)
@@ -358,7 +359,7 @@ object Dox extends UseDox {
 //    println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
     val errors = children.map(_.value).flatMap {
       case Success(d) => Nil
-      case Failure(e) => e.list
+      case Failure(e) => e.list.toList
     }
     val log = children.flatMap(_.written)
 //    if (errors.nonEmpty) {
@@ -382,7 +383,7 @@ object Dox extends UseDox {
     val children = tree.subForest.map(untreeVW).toList
     val errors = children.flatMap {
       case Success(d) => Nil
-      case Failure(e) => e.list
+      case Failure(e) => e.list.toList
     }
     if (errors.nonEmpty) {
       errors.toNel.get.failure

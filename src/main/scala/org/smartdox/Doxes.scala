@@ -9,7 +9,8 @@ import org.goldenport.Strings.blankp
 /*
  * @since   Dec.  5, 2012
  *  version Jan. 16, 2014
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Oct. 15, 2018
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -88,14 +89,14 @@ trait Doxes {
   protected def dox_inline(s: String): List[Inline] = {
     DoxParser.parseOrgmodeZ(s) match {
       case Success(d) => dox_inline(d)
-      case Failure(msgs) => sys.error(msgs.list.mkString("/"))
+      case Failure(msgs) => sys.error(msgs.list.toList.mkString("/"))
     }
   }
 
   protected def dox_block(s: String): List[Dox] = {
     DoxParser.parseOrgmodeZ(s) match {
       case Success(d) => dox_block(d)
-      case Failure(msgs) => sys.error(msgs.list.mkString("/"))
+      case Failure(msgs) => sys.error(msgs.list.toList.mkString("/"))
     }
   }
 
