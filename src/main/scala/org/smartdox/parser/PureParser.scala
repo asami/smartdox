@@ -4,13 +4,15 @@ import scalaz._, Scalaz._
 import java.io.Reader
 import java.net.URI
 import scala.xml.{Node => XNode, _}
+import org.goldenport.collection.VectorMap
 import org.smartdox._
 import Dox._, Doxes._
 
 /**
  * @since   Dec.  5, 2012
  *  version Jan. 15, 2014
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Dec. 30, 2018
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -181,8 +183,8 @@ object PureParser {
     Pre(elem.text, getAttributes(elem))
   }
 
-  def getAttributes(elem: XNode): List[(String, String)] = {
-    elem.attributes.map(x => (x.key, x.value.text)).toList
+  def getAttributes(elem: XNode): VectorMap[String, String] = {
+    VectorMap(elem.attributes.map(x => (x.key, x.value.text)))
   }
 
   def buildUl(elem: XNode): Ul = {
