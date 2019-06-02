@@ -14,17 +14,27 @@ import Dox._
  *  version Oct. 14, 2018
  *  version Nov. 17, 2018
  *  version Dec. 24, 2018
- * @version Jan. 26, 2019
+ *  version Jan. 26, 2019
+ * @version Apr. 18, 2019
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
   import Dox2Parser._
 
-  def apply(s: String): ParseResult[Dox] = {
-    val ctx = ParseContext(config, 0)
+  def apply(s: String): ParseResult[Document] = {
     val blocks = LogicalBlocks.parse(config.blocksConfig, s)
-    val head = Head()
+    apply(blocks)
+  }
+
+  def apply(in: LogicalBlock): ParseResult[Document] = {
+    val blocks = LogicalBlocks(in)
+    apply(blocks)
+  }
+
+  def apply(blocks: LogicalBlocks): ParseResult[Document] = {
+    val ctx = ParseContext(config, 0)
     val xs = _blocks(ctx, blocks)
+    val head = Head()
     println(s"Dox2Parser#apply ${blocks} => $xs")
     ParseSuccess(Document(head, Body(xs.toList)))
   }
@@ -121,6 +131,16 @@ object Dox2Parser {
   def parse(in: String): Dox = parse(Config.default, in)
 
   def parse(config: Config, in: String): Dox = {
+    val parser = new Dox2Parser(config)
+    val result = parser.apply(in)
+    result match {
+      case ParseSuccess(dox, _) => dox
+      case ParseFailure(_, _) => RAISE.notImplementedYetDefect
+      case EmptyParseResult() => RAISE.notImplementedYetDefect
+    }
+  }
+
+  def parse(config: Config, in: LogicalBlock): Dox = {
     val parser = new Dox2Parser(config)
     val result = parser.apply(in)
     result match {

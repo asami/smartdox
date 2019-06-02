@@ -26,12 +26,15 @@ import org.goldenport.extension.IDocument
  *  version Nov. 18, 2018
  *  version Dec. 31, 2018
  *  version Jan. 12, 2019
- * @version Feb.  6, 2019
+ *  version Feb.  6, 2019
+ * @version Apr. 18, 2019
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   def location: Option[ParseLocation]
   val elements: List[Dox] = Nil
+  def sections: List[Section] = sectionsShallow
+  lazy val sectionsShallow = elements collect { case m: Section => m}
   lazy val attributeMap = Map(showParams: _*)
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
@@ -718,6 +721,7 @@ case class Section(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
+  lazy val titleName = Dox.toText(title)
   override val elements = contents
   override def show_Open(buf: StringBuilder) {
     val showh = "h" + (level + 1) 
@@ -1062,6 +1066,7 @@ case class Table(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TableBlock {
+  def getCaptionName: Option[String] = caption.map(_.toText)
   override val elements = List(caption, head, body.some, foot).flatten
   override def showParams = label.toList.map(x => ("id", x))
 
@@ -1151,6 +1156,8 @@ case class THead(
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
+
+  def columns: List[String] = records.headOption.map(_.fields.map(_.toText)).orZero
 }
 
 case class TBody(
