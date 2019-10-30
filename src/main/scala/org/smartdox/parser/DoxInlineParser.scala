@@ -8,7 +8,8 @@ import org.smartdox._
 /*
  * @since   Oct. 14, 2018
  *  version Nov. 18, 2018
- * @version Dec. 30, 2018
+ *  version Dec. 30, 2018
+ * @version Oct.  2, 2019
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -54,6 +55,7 @@ object DoxInlineParser {
 
   case class Config(
     isDebug: Boolean = false,
+    isLocation: Boolean = true,
     markdown: Config.MarkDown = Config.MarkDown.default,
     orgmode: Config.OrgMode = Config.OrgMode.default
   ) extends ParseConfig {

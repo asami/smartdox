@@ -15,7 +15,8 @@ import Dox._
  *  version Nov. 17, 2018
  *  version Dec. 24, 2018
  *  version Jan. 26, 2019
- * @version Apr. 18, 2019
+ *  version Apr. 18, 2019
+ * @version Oct.  2, 2019
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -99,6 +100,7 @@ object Dox2Parser {
 
   case class Config(
     isDebug: Boolean,
+    isLocation: Boolean,
     blocksConfig: LogicalBlocks.Config,
     linesConfig: DoxLinesParser.Config
   ) extends ParseConfig {
@@ -115,6 +117,7 @@ object Dox2Parser {
 
     val default = Config(
       false,
+      true,
       Config.blocksConfig,
       DoxLinesParser.Config.default
     )

@@ -12,7 +12,8 @@ import org.smartdox._
 /*
  * @since   Nov. 12, 2018
  *  version Dec. 31, 2018
- * @version Jan. 26, 2019
+ *  version Jan. 26, 2019
+ * @version Oct.  2, 2019
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -40,6 +41,7 @@ object DoxLinesParser {
 
   case class Config(
     isDebug: Boolean = false,
+    isLocation: Boolean = true,
     inlineConfig: DoxInlineParser.Config = DoxInlineParser.Config.default
   ) extends ParseConfig {
   }

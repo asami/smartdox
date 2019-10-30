@@ -27,7 +27,8 @@ import org.goldenport.extension.IDocument
  *  version Dec. 31, 2018
  *  version Jan. 12, 2019
  *  version Feb.  6, 2019
- * @version Apr. 18, 2019
+ *  version Apr. 18, 2019
+ * @version Aug.  8, 2019
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -739,6 +740,10 @@ case class Section(
   override def copyV(cs: List[Dox]) = {
     Success(copy(title, cs, level, location = get_location(location, cs))) // XXX level
   }
+
+  def tableList: List[Table] = contents.collect {
+    case m: Table => m
+  }
 }
 
 case class Div(
@@ -1104,6 +1109,8 @@ case class Table(
   def height: Int = {
     List(head, body.some, foot).flatten.map(_.height).sum
   }
+
+  def getKey: Option[String] = caption.map(_.toText.toLowerCase)
 }
 
 trait TableCompartment extends Block {
