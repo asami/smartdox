@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "1.2.5"
+version := "1.2.6"
 
 scalaVersion := "2.10.3"
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
@@ -23,7 +23,7 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.2.39"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.2.50"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "1.1.0"
 
@@ -37,4 +37,12 @@ libraryDependencies += "org.goldenport" %% "goldenport-scalatest-lib" % "1.1.0" 
 
 libraryDependencies += "junit" % "junit" % "4.10" % "test"
 
-publishTo := Some(Resolver.file("asamioffice", file("target/maven-repository")))
+// publishTo := Some(Resolver.file("asamioffice", file("target/maven-repository")))
+
+val mavenrepo = settingKey[String]("mavenrepo")
+
+mavenrepo := sys.env.getOrElse("PUBLISH_MAVEN_REPO", default = "target/maven-repository")
+
+publishTo <<= mavenrepo { v: String =>
+  Some(Resolver.file("file", file(v)))
+}
