@@ -13,7 +13,8 @@ import org.smartdox._
  * @since   Nov. 12, 2018
  *  version Dec. 31, 2018
  *  version Jan. 26, 2019
- * @version Oct.  2, 2019
+ *  version Oct.  2, 2019
+ * @version Nov. 16, 2019
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -26,7 +27,7 @@ object DoxLinesParser {
   // def parse(p: LogicalLines): Dox = parse(Config.default, p)
 
   def parse(config: Config, p: LogicalLines): Dox = {
-    println(s"DoxLinesParser#parse(${config}): $p")
+    // println(s"DoxLinesParser#parse(${config}): $p")
     // DoxInlineParser.toDox(p.lines.map(parse))
     val parser = LogicalLineReaderWriterStateClass(config, NormalState.init)
     val (messages, result, state) = parser.apply(p)
@@ -34,7 +35,7 @@ object DoxLinesParser {
       case ParseSuccess(dox, _) => dox
       case ParseFailure(_, _) => RAISE.notImplementedYetDefect
       case EmptyParseResult() =>
-        println(s"DoxLinesParser#parse[EmptyResult]: $p")
+        // println(s"DoxLinesParser#parse[EmptyResult]: $p")
         RAISE.notImplementedYetDefect
     }
   }
@@ -137,9 +138,9 @@ object DoxLinesParser {
       def tdRecord(config: Config): TRecord = TR(fields.map(x => TD(_inline_list(config, x))))
 
       private def _inline_list(config: Config, p: String): List[Inline] = {
-        println(s"TableRow#_inline_list($p)")
+        // println(s"TableRow#_inline_list($p)")
         val (m, od) = parse_inline(config, p)
-        println(s"TableRow#_inline_list($od)")
+        // println(s"TableRow#_inline_list($od)")
         od.toList.asInstanceOf[List[Inline]] // TODO
       }
     }
@@ -207,7 +208,7 @@ object DoxLinesParser {
       val r = AnnotationMark.parse(p).map {
         case (key, params, value) => key == tagName
       }.getOrElse(false)
-      println(s"${getClass.getSimpleName}($tagName): ${p.text} => $r")
+      // println(s"${getClass.getSimpleName}($tagName): ${p.text} => $r")
       r
     }
   }
@@ -344,7 +345,7 @@ object DoxLinesParser {
       value: String,
       location: Option[ParseLocation]
     ): Option[AnnotationMark] = {
-      println(s"key: $key")
+      // println(s"key: $key")
       Option(key) collect {
         case "title" =>
           val (m, d) = parse_inline(config, value)
@@ -481,7 +482,7 @@ object DoxLinesParser {
 
     protected def leave_to(msgs: ParseMessageSequence, doxtrees: Seq[Tree[Dox]]): Transition = {
       val doxes = doxtrees.flatMap(Dox.untreeO)
-      println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtrees)} => $doxes")
+      // println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtrees)} => $doxes")
       _leave_to(msgs, doxes)
     }
 
@@ -490,9 +491,9 @@ object DoxLinesParser {
     }
 
     protected def leave_to(msgs: ParseMessageSequence, doxtree: Tree[Dox]): Transition = {
-      println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtree)} => ...")
+      // println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtree)} => ...")
       val dox = Dox.untreeE(doxtree)
-      println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtree)} => $dox")
+      // println(s"${getClass.getSimpleName}#leave_to: ${_show(doxtree)} => $dox")
       _leave_to(msgs, dox)
     }
 
@@ -609,7 +610,7 @@ object DoxLinesParser {
     listMarkCandidates: NonEmptyVector[ListMark.Candidate]
   ) extends ChildDoxLinesParseState {
     override protected def end_Transition(config: Config): Transition = {
-      println(s"listMarkCandidates: ${listMarkCandidates}")
+      // println(s"listMarkCandidates: ${listMarkCandidates}")
       val md = close_state(config, listMarkCandidates.head, listMarkCandidates.tail)
       leave_to_in_end(config, md)
     }
@@ -622,8 +623,8 @@ object DoxLinesParser {
         messages: ParseMessageSequence = ParseMessageSequence.empty
       ) {
         def r: (ParseMessageSequence, Tree[Dox]) = {
-          println(s"Z: ${this}")
-          trees.map(x => println(s"Z tree: ${x.drawTree}"))
+          // println(s"Z: ${this}")
+          // trees.map(x => println(s"Z tree: ${x.drawTree}"))
           base.term.map(_to_dl).getOrElse(_to_uol)
         }
 
@@ -671,7 +672,7 @@ object DoxLinesParser {
         }
 
         def +(rhs: ListMark.Candidate) = {
-          println(s"+: $rhs <= $this")
+          // println(s"+: $rhs <= $this")
           val r = if (rhs.rawOffset <= base.rawOffset) {
             val (bmsgs, node) = parse_inline(config, base.text)
             val ms = messages + bmsgs
@@ -684,8 +685,8 @@ object DoxLinesParser {
           } else {
             copy(followers = followers :+ rhs)
           }
-          println(s"+: $rhs => $r")
-          println(s"""+: $rhs => ${r.trees.map(_.drawTree).mkString("\n")}""")
+          // println(s"+: $rhs => $r")
+          // println(s"""+: $rhs => ${r.trees.map(_.drawTree).mkString("\n")}""")
           r
         }
 
@@ -727,7 +728,7 @@ object DoxLinesParser {
     }
 
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = {
-      println(s"listMarkCandidates: ${listMarkCandidates}")
+      // println(s"listMarkCandidates: ${listMarkCandidates}")
       val (m, d) = close_state(config, listMarkCandidates.head, listMarkCandidates.tail)
       leave_to(m, d)
     }
@@ -768,19 +769,19 @@ object DoxLinesParser {
     }
 
     protected def close_state(config: Config) = {
-      println(s"close_state: $annotation")
+      // println(s"close_state: $annotation")
       val caption = annotation.collect {
         case CaptionAnnotation(title, _) => Caption(title)
       }.headOption
-      println("Caption:" + caption)
+      // println("Caption:" + caption)
       val label = annotation.collect {
         case LabelAnnotation(label, _) => label
       }.headOption
-      println("Label:" + label)
+      // println("Label:" + label)
       val head = blocks.head(config)
       val body = blocks.body(config)
       val foot = blocks.foot(config)
-      println(s"TableState#close_state: $blocks")
+      // println(s"TableState#close_state: $blocks")
       val table: Dox = Table(head, body, foot, caption, label)
       (ParseMessageSequence.empty, Tree.leaf(table))
     }
@@ -887,7 +888,7 @@ object DoxLinesParser {
   // }
 
   protected final def parse_inline(c: Config, p: String): (ParseMessageSequence, Option[Inline]) = {
-    println(s"parse_inline: $c, $p")
+    // println(s"parse_inline: $c, $p")
     val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
     result match {
       case EmptyParseResult() => (msgs, None)
@@ -946,7 +947,7 @@ object DoxLinesParser {
       ???
 
     override protected def handle_line(config: Config, evt: LogicalLineEvent): Transition = {
-      println(s"SourceCodeState#handle_line $evt")
+      // println(s"SourceCodeState#handle_line $evt")
       AnnotationMark.get(config, evt.line).collect {
         case m: EndSrcAnnotation => leave_to(_source_code)
       }.getOrElse(transit_next(copy(code = code :+ evt.line.text)))

@@ -16,7 +16,8 @@ import Dox._
  *  version Dec. 24, 2018
  *  version Jan. 26, 2019
  *  version Apr. 18, 2019
- * @version Oct.  2, 2019
+ *  version Oct.  2, 2019
+ * @version Nov. 16, 2019
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -36,7 +37,7 @@ class Dox2Parser(config: Dox2Parser.Config) {
     val ctx = ParseContext(config, 0)
     val xs = _blocks(ctx, blocks)
     val head = Head()
-    println(s"Dox2Parser#apply ${blocks} => $xs")
+    // println(s"Dox2Parser#apply ${blocks} => $xs")
     ParseSuccess(Document(head, Body(xs.toList)))
   }
 
