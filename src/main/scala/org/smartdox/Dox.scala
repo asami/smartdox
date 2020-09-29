@@ -7,7 +7,9 @@ import scala.xml.{Node => XNode, _}
 import org.goldenport.RAISE
 import org.goldenport.collection.VectorMap
 import org.goldenport.parser._
+import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IDocument
+import org.goldenport.util.AnyUtils
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -28,11 +30,15 @@ import org.goldenport.extension.IDocument
  *  version Jan. 12, 2019
  *  version Feb.  6, 2019
  *  version Apr. 18, 2019
- * @version Aug.  8, 2019
+ *  version Aug.  8, 2019
+ *  version Jun.  7, 2020
+ *  version Jul. 26, 2020
+ * @version Sep. 21, 2020
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   def location: Option[ParseLocation]
+  def isEmpty: Boolean = elements.isEmpty
   val elements: List[Dox] = Nil
   def sections: List[Section] = sectionsShallow
   lazy val sectionsShallow = elements collect { case m: Section => m}
@@ -800,6 +806,8 @@ case class Text(
   }
 
   override def copyV(cs: List[Dox]) = Success(this)
+
+  def append(p: String): Text = copy(contents = contents ++ p)
 }
 
 case class Bold(
@@ -1347,14 +1355,27 @@ case class Fragment(
   override def copyV(cs: List[Dox]) = {
     Success(copy(contents ::: normalize_fragment(cs)))
   }
+
+  def append(p: String): Fragment = {
+    contents.lastOption.map {
+      case m: Text => copy(contents = contents.init :+ m.append(p))
+      case m => append(Text(p))
+    }.getOrElse(append(Text(p)))
+  }
+
+  def append(p: Dox): Fragment = copy(contents = contents :+ p)
 }
 object Fragment extends DoxFactory {
   val label = "fragment"
 
+  val empty = Fragment(Nil)
+
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Fragment =
     Fragment(body.toList)
 
-  val empty = Fragment(Nil)
+  def apply(p: Dox, ps: Dox*): Fragment = Fragment((p +: ps).toList)
+
+  def apply(p: String, ps: String*): Fragment = apply(Text((p +: ps).mkString))
 }
 
 case class Caption(
@@ -1386,6 +1407,9 @@ case class Figure(
     }
   }
 }
+object Figure {
+  def apply(img: Img, name: String): Figure = Figure(img, Figcaption(name))
+}
 
 case class Figcaption(
   contents: List[Inline],
@@ -1397,6 +1421,9 @@ case class Figcaption(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_))
   }
+}
+object Figcaption {
+  def apply(name: String): Figcaption = Figcaption(List(Text(name)))
 }
 
 case class EmptyLine(
@@ -1607,5 +1634,32 @@ case class IncludeDoc(filename: String) extends Block {
   override def copyV(cs: List[Dox]) = {
 //    println("IncludeDoc#copyV: " + cs)
     Div(cs).success
+  }
+}
+
+// 2020-09-21
+case class BinaryImg(
+  src: URI,
+  chunk: ChunkBag,
+  location: Option[ParseLocation] = None
+) extends Img {
+}
+object BinaryImg {
+  def apply(p: String, chunk: ChunkBag): BinaryImg = BinaryImg(new URI(p), chunk)
+}
+
+// 2020-09-22
+case class UnresolvedLink(
+  contents: List[Inline],
+  data: Any,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "a"
+  override def showParams = List("href" -> AnyUtils.toString(data))
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy(_, data, attributes, location = get_location(location, cs)))
   }
 }

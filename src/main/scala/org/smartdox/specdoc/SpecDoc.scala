@@ -1,0 +1,73 @@
+package org.smartdox.specdoc
+
+import org.goldenport.RAISE
+import org.goldenport.realm.Realm
+import org.goldenport.values.Designation
+import org.goldenport.bag.ChunkBag
+import org.smartdox._
+
+/*
+ * Derived from SpecDocModel since Feb. 17, 2007
+ *
+ * @since   Sep.  4, 2008
+ *  version Apr. 17, 2011
+ *  version Feb. 22, 2012
+ *  version Jun. 13, 2020
+ *  version Jul. 24, 2020
+ * @version Sep. 21, 2020
+ * @author  ASAMI, Tomoharu
+ */
+case class SpecDoc(title: Dox, root: SDPackage) extends Realm.StringApplicationData {
+  def packages: Seq[SDPackage] = root.children.collect {
+    case m: SDPackage => m
+  }
+
+  def marshall: String = RAISE.notImplementedYetDefect
+}
+
+object SpecDoc {
+  class Builder(
+    root: SDPackage,
+    current: SDPackage.Builder
+  ) {
+    def apply(): Realm = {
+      ???
+    }
+
+    def addUpPackage(name: String): Builder = {
+      println(s"SpecDoc#addPackage $name")
+      new Builder(root, current.addUpPackage(name))
+    }
+
+    def setDescription(p: Description): Builder = {
+      current.setDescription(p)
+      this
+    }
+
+    def setFeatureSet(p: SDFeatureSet): Builder = {
+      current.setFeatureSet(p)
+      this
+    }
+
+    def addCategories(ps: Seq[SDCategory]): Builder = {
+      current.addCategories(ps)
+      this
+    }
+
+    def addEntity(p: SDEntity): Builder = {
+      current.addEntity(p)
+      this
+    }
+
+    def addFigure(binary: ChunkBag, src: String, name: String): Builder = {
+      current.addFigure(binary, src, name)
+      this
+    }
+  }
+  object Builder {
+    def create(): Builder = {
+      val pkg = SDPackage.empty
+      new Builder(pkg, new SDPackage.Builder(pkg))
+    }
+  }
+}

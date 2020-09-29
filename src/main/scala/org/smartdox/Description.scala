@@ -3,29 +3,34 @@ package org.smartdox
 import java.net.URI
 import javax.xml.datatype.XMLGregorianCalendar
 import org.goldenport.extension.IDocument
+import org.goldenport.values.Designation
 
 /*
  * @since   Feb. 17, 2012
  *  version Feb. 29, 2012
  *  version Jan. 20, 2014
- * @version Jan.  4, 2019
+ *  version Jan.  4, 2019
+ *  version Aug. 15, 2020
+ * @version Sep. 29, 2020
  * @author  ASAMI, Tomoharu
  */
 case class Description(
-    name: Option[String] = None,
-    title: Dox = EmptyDox,
-    summary: Dox = EmptyDox,
-    content: Dox = EmptyDox,
-    published: Option[XMLGregorianCalendar] = None,
-    updated: Option[XMLGregorianCalendar] = None,
-    id: Option[String] = None,
-    links: List[URI] = Nil,
-    categories: List[String] = Nil,
-    authors: List[String] = Nil,
-    contributors: List[String] = Nil,
-    rights: Option[String] = None,
+  designation: Option[Designation] = None,
+  title: Dox = EmptyDox,
+  resume: Resume = Resume.empty,
+  content: Dox = EmptyDox,
+  published: Option[XMLGregorianCalendar] = None,
+  updated: Option[XMLGregorianCalendar] = None,
+  id: Option[String] = None,
+  links: List[URI] = Nil,
+  categories: List[String] = Nil,
+  authors: List[String] = Nil,
+  contributors: List[String] = Nil,
+  rights: Option[String] = None,
   source: Option[String] = None
 ) extends IDocument {
+  def name = designation.map(_.name)
+  def summary = resume.summary
 }
 /*
   var atomId: Option[String] = None
@@ -44,4 +49,13 @@ case class Description(
 
 object Description {
   val empty = Description()
+
+  trait Holder extends Resume.Holder {
+  }
+
+  def apply(name: Designation): Description = Description(Some(name))
+
+  def apply(name: String): Description = Description(Some(Designation(name)))
+
+  def apply(p: Dox): Description = Description(content = p)
 }
