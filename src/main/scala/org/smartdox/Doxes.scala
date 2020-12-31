@@ -5,6 +5,7 @@ import scalaz._, Scalaz._
 import scala.xml.Elem
 import com.asamioffice.goldenport.xml.XmlUtil
 import org.goldenport.Strings.blankp
+import org.goldenport.values.Designation
 import org.goldenport.collection.VectorMap
 import org.goldenport.parser.ParseResult
 
@@ -13,7 +14,8 @@ import org.goldenport.parser.ParseResult
  *  version Jan. 16, 2014
  *  version Feb.  5, 2014
  *  version Dec. 31, 2018
- * @version Aug. 13, 2020
+ *  version Aug. 13, 2020
+ * @version Nov. 18, 2020
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -124,7 +126,8 @@ trait Doxes {
       } 
     } else tob(content).toDox
     Description(
-      title = toi(title).toDox,
+      Some(Designation(title)),
+//      title = toi(title).toDox,
       resume = Resume.summary(sm.toDox),
       content = c
     )

@@ -13,13 +13,15 @@ import org.smartdox._
  * @since   Sep.  4, 2008
  *  version Oct. 18, 2008
  *  version Jun. 14, 2020
- * @version Aug. 15, 2020
+ *  version Aug. 15, 2020
+ * @version Dec. 14, 2020
  */
 case class SDFeature(
   designation: Designation,
   value: Dox,
   description: Dox = EmptyDox
 ) {
+  def name: String = designation.name
   def key: Symbol = designation.key
   // final def description_is(aDesc: Dox): SDFeature = {
   //   description = aDesc

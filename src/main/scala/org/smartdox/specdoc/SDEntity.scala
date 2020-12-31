@@ -1,6 +1,7 @@
 package org.smartdox.specdoc
 
 import org.goldenport.values.Designation
+import org.goldenport.extension.IRecord
 import org.smartdox._
 
 /*
@@ -11,46 +12,96 @@ import org.smartdox._
  *  version Jun. 15, 2020
  *  version Jul. 27, 2020
  *  version Aug. 13, 2020
- * @version Sep. 21, 2020
+ *  version Sep. 21, 2020
+ *  version Nov. 21, 2020
+ * @version Dec. 27, 2020
  */
 case class SDEntity(
-  designation: Designation,
+  description: Description,
   categories: List[SDCategory] = Nil,
-  description: Description = Description.empty,
   note: Dox = Dox.empty,
   featureSet: SDFeatureSet = SDFeatureSet.empty,
   subEntityList: Seq[SDEntity] = Nil
 ) extends SDNode {
   def new_Node(name: String): TreeNode_TYPE = ???
 
-  def effectiveSummary: Dox = ???
-  def overview: Dox = ???
+  def summary: Dox = description.summary
+  def brief: Dox = description.brief
 
-  def subEntities(p: SDCategory): Seq[SDEntity] = ???
+//  def overview: Dox = Dox.text("overview") // TODO
 
-  def subEntitiesTable(category: SDCategory): Table = ???
+  override def featureTable: Table = featureSet.toTable
+
+  // override def featureTable: Table = {
+  //   val head = THead.data("A", "B") // TODO
+  //   val data = Vector(
+  //     IRecord.data("A" -> "a", "B" -> "b")
+  //   )
+  //   val body = TBody.create(head, data)
+  //   val foot = None
+  //   val caption = Caption("featureTable SDEntity") // TODO
+  //   val label = None
+  //   Table(Some(head), body, foot, Some(caption), label)
+  // }
+
+  def subEntities(p: SDCategory): Seq[SDEntity] = subEntityList.filter(_.isMatch(p))
+
+  def getSubEntityTable(category: SDCategory): Option[Table] =
+    subEntityTable(category).toOption
+
+  def subEntityTable(category: SDCategory): Table = {
+    val head = THead.data("名前", "説明") // TODO
+    val data = subEntities(category).map(_sub_entity_to_record)
+    val body = TBody.create(head, data)
+    val foot = None
+    val caption = Caption("subEntityTable in SDEntity") // TODO
+    val label = None
+    Table(Some(head), body, foot, Some(caption), label)
+  }
+
+  private def _sub_entity_to_record(p: SDEntity) = {
+    IRecord.data("名前" -> p.name, "説明" -> p.brief) // TODO
+  }
 }
 
 object SDEntity {
-  def apply(name: String): SDEntity = SDEntity(Designation(name))
+  def apply(name: String): SDEntity = SDEntity(Description.name(name))
 
   def apply(
     name: String,
     category: SDCategory,
     entities: Seq[SDEntity]
-  ): SDEntity = SDEntity(Designation(name), List(category), subEntityList = entities)
+  ): SDEntity = SDEntity(Description.name(name), List(category), subEntityList = entities)
 
   def apply(
     designation: Designation,
     category: SDCategory,
     entities: Seq[SDEntity]
-  ): SDEntity = SDEntity(designation, List(category), subEntityList = entities)
+  ): SDEntity = SDEntity(Description(designation), List(category), subEntityList = entities)
 
   def apply(
     name: String,
     category: SDCategory,
     description: Dox
-  ): SDEntity = SDEntity(Designation(name), List(category), Description(description))
+  ): SDEntity = SDEntity(Description.name(name, description), List(category))
+
+  def apply(
+    designation: Designation,
+    category: SDCategory,
+    description: Dox
+  ): SDEntity = SDEntity(
+    Description(designation, description),
+    List(category)
+  )
+
+  def apply(
+    designation: Designation,
+    category: SDCategory,
+    description: Description
+  ): SDEntity = SDEntity(
+    description.withDesignation(designation),
+    List(category)
+  )
 
   def apply(
     designation: Designation,
@@ -58,10 +109,20 @@ object SDEntity {
     features: Seq[SDFeature],
     description: Description
   ): SDEntity = SDEntity(
-    designation,
+    description.withDesignation(designation),
     List(category),
-    description,
     featureSet = SDFeatureSet(features.toList)
+  )
+
+  def apply(
+    designation: Designation,
+    category: SDCategory,
+    description: Description,
+    entities: Seq[SDEntity]
+  ): SDEntity = SDEntity(
+    description.withDesignation(designation),
+    List(category),
+    subEntityList = entities
   )
 }
 

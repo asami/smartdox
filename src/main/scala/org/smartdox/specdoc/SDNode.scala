@@ -6,6 +6,7 @@ import scala.collection.mutable.{Buffer, ArrayBuffer}
 // import org.goldenport.sdoc.inline.{SIAnchor, SElementRef}
 // import org.goldenport.sdoc.parts.SHistory
 // import org.goldenport.entities.specdoc.plain._
+import org.goldenport.RAISE
 import org.goldenport.tree.TreeNodeBase
 import org.goldenport.values.Designation
 import org.smartdox._
@@ -33,11 +34,15 @@ import com.asamioffice.goldenport.text.UJavaString
  *  version Jun. 15, 2020
  *  version Jul. 24, 2020
  *  version Aug. 13, 2020
- * @version Sep. 13, 2020
+ *  version Sep. 13, 2020
+ *  version Oct. 17, 2020
+ *  version Nov.  1, 2020
+ * @version Dec. 27, 2020
  * @author  ASAMI, Tomoharu
  */
 trait SDNode extends TreeNodeBase[SDNode] {
   def description: Description
+  override def name = description.name
   def sdocTitle: Dox = Dox.empty
   def subtitle: Dox = Dox.empty
   def resume: Resume = description.resume
@@ -53,13 +58,21 @@ trait SDNode extends TreeNodeBase[SDNode] {
   final def feature(key: Designation) = featureSet(key.key)
   final def feature(key: GKey) = featureSet(key)
 
-  final def effectiveTitle: Dox = {
-    if (!sdocTitle.isEmpty) sdocTitle
-    else if (title != null) Text(title)
-    else Text(name)
+  final def effectiveTitle: Inline = {
+    if (!sdocTitle.isEmpty)
+      sdocTitle match {
+        case m: Inline => m
+        case m => RAISE.noReachDefect
+      }
+    else if (title != null)
+      Text(title)
+    else
+      Text(name)
   }
 
   def categories: List[SDCategory]
+
+  def isMatch(p: SDCategory): Boolean = categories.contains(p)
 
   final def addFeature(aKey: Designation, aValue: Dox): SDFeature = {
     // require(aKey != null && aValue != null)
@@ -76,9 +89,11 @@ trait SDNode extends TreeNodeBase[SDNode] {
 
   def featureTable: Table = ???
 
-  def specification: Dox = ??? // _specification
+  def getFeatureTable: Option[Table] = featureTable.toOption
 
-  def history: History = ???
+  def specification: Dox = Dox.empty // Dox.text("specification") // TODO // _specification
+
+  def history: History = History.empty // TODO
 
 //   final def featureTable: GTable[Dox] = {
 //     val table = new PlainTable[Dox]

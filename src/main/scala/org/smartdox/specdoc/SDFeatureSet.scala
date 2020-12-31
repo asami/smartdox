@@ -11,7 +11,9 @@ import org.smartdox._
  * @since   Sep. 13, 2008
  *  version Jul. 15, 2010
  *  version Jun. 14, 2020
- * @version Jul. 27, 2020
+ *  version Jul. 27, 2020
+ *  version Oct. 11, 2020
+ * @version Dec. 14, 2020
  * @author  ASAMI, Tomoharu
  */
 case class SDFeatureSet(
@@ -25,7 +27,15 @@ case class SDFeatureSet(
     }
   }
 
-  final def tableHead: List[Dox] = List("項目", "値", "説明")
+  final def tableHead: List[Inline] = Dox.list("項目", "値", "説明")
+
+  def toTable: Table = {
+    val b = Table.Builder.header(tableHead)
+    for (x <- features) {
+      b.append(Dox.text(x.name), x.value, x.description)
+    }
+    b.apply()
+  }
 }
 
 object SDFeatureSet {

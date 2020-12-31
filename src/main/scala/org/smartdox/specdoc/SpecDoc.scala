@@ -14,10 +14,12 @@ import org.smartdox._
  *  version Feb. 22, 2012
  *  version Jun. 13, 2020
  *  version Jul. 24, 2020
- * @version Sep. 21, 2020
+ *  version Sep. 21, 2020
+ *  version Oct. 11, 2020
+ * @version Dec.  7, 2020
  * @author  ASAMI, Tomoharu
  */
-case class SpecDoc(title: Dox, root: SDPackage) extends Realm.StringApplicationData {
+case class SpecDoc(title: Inline, root: SDPackage) extends Realm.StringApplicationData {
   def packages: Seq[SDPackage] = root.children.collect {
     case m: SDPackage => m
   }
@@ -27,16 +29,19 @@ case class SpecDoc(title: Dox, root: SDPackage) extends Realm.StringApplicationD
 
 object SpecDoc {
   class Builder(
-    root: SDPackage,
+//    root: SDPackage,
     current: SDPackage.Builder
   ) {
-    def apply(): Realm = {
-      ???
+    def apply(): SpecDoc = {
+      val a = current.apply()
+      println(s"SpecDoc#Builder#apply: $a")
+      val title = Dox.text("Specification") // TODO
+      SpecDoc(title, a)
     }
 
     def addUpPackage(name: String): Builder = {
-      println(s"SpecDoc#addPackage $name")
-      new Builder(root, current.addUpPackage(name))
+      println(s"SpecDoc#addUpPackage $name")
+      new Builder(/* root, */ current.addUpPackage(name))
     }
 
     def setDescription(p: Description): Builder = {
@@ -65,9 +70,8 @@ object SpecDoc {
     }
   }
   object Builder {
-    def create(): Builder = {
-      val pkg = SDPackage.empty
-      new Builder(pkg, new SDPackage.Builder(pkg))
+    def create(title: String): Builder = {
+      new Builder(new SDPackage.Builder(title))
     }
   }
 }

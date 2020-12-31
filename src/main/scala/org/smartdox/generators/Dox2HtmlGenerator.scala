@@ -1,8 +1,12 @@
 package org.smartdox.generators
 
 import org.goldenport.realm.Realm
+import org.goldenport.realm.Realm.{Data, ObjectData, StringData}
+import org.goldenport.realm.RealmTransformer
+import org.goldenport.tree.TreeNode
 import org.smartdox._
 import org.smartdox.generator._
+import org.smartdox.transformers.Dox2HtmlTransformer
 // import org.simplemodeling.SimpleModeler.Context
 // import org.simplemodeling.SimpleModeler.transformer.maker._
 // import org.simplemodeling.SimpleModeler.generator._
@@ -14,15 +18,72 @@ import org.smartdox.generator._
  *  version Apr. 17, 2011
  *  version Feb. 22, 2012
  *  version Jun. 21, 2020
- * @version Jul.  5, 2020
+ *  version Jul.  5, 2020
+ * @version Nov. 16, 2020
  * @author  ASAMI, Tomoharu
  */
 class Dox2HtmlGenerator(
   val context: Context
 ) extends GeneratorBase {
+  import Dox2HtmlGenerator._
 
-  def generate(realm: Realm): Realm = ???
+  def generate(realm: Realm): Realm = {
+    println(s"Dox2HtmlGenerator#generate: ${realm.show}")
+    val transformer = new HtmlTransformer(context)
+    val x = realm.transform(transformer)
+    val r = Realm.create()
+    r.merge("html.d", x)
+  }
 }
+
+object Dox2HtmlGenerator {
+  import org.goldenport.tree.{Tree, PlainTree}
+
+  class HtmlTransformer(val context: Context) extends RealmTransformer {
+    def treeTransformerContext = RealmTransformer.Context.default
+    def rule = RealmTransformer.Rule.default
+
+    override protected def make_Content(p: Data): Option[Data] = p match {
+      case m: ObjectData => _make_object(m)
+      case _ => println(s"Dox2HtmlGenerator#make_Content other: $p"); None
+    }
+
+    private def _make_object(p: ObjectData) = p.o match {
+      case m: Dox =>
+        val r = for {
+          html <- Dox2HtmlTransformer(context).transform(m)
+        } yield {
+          StringData(html)
+        }
+        println(s"Dox2HtmlGenerator#_make_object $r")
+        r.toOption
+      case _ => None
+    }
+
+    // def realm0 = {
+    //   {
+    //     val doc = ???
+    //     val r = for {
+    //       html <- Dox2HtmlTransformer(context).transform(doc)
+    //     } yield {
+    //       ???
+    //     }
+    //   }
+    //   ???
+    // }
+
+    // def createTree(p: TreeNode[Realm.Data]) = new PlainTree(p)
+
+    // override def start(node: TreeNode[Realm.Data]) {
+
+    // }
+
+    // override def enter(node: TreeNode[Realm.Data]) {
+
+    // }
+  }
+}
+
 // class SmartDocRealm2HtmlRealmGenerator(val sdoc: SmartDocRealmEntity, val name: String, val context: GEntityContext) {
 //   def this(aSdoc: SmartDocRealmEntity, aName: String) = this(aSdoc, aName, aSdoc.entityContext)
 //   def this(aSdoc: SmartDocRealmEntity) = this(aSdoc, null)

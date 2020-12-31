@@ -9,7 +9,9 @@ import org.smartdox._
  * @since   Oct. 14, 2018
  *  version Nov. 18, 2018
  *  version Dec. 30, 2018
- * @version Oct.  2, 2019
+ *  version Oct.  2, 2019
+ *  version Nov. 29, 2020
+ * @version Dec.  5, 2020
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -39,6 +41,8 @@ object DoxInlineParser {
   def apply(config: Config, in: String): (ParseMessageSequence, ParseResult[Vector[Dox]], DoxInlineParseState) = {
     val parser = ParseReaderWriterStateClass[Config, Dox](config, NormalState.init(config))
     val (msgs, result, state) = parser.apply(in)
+    // println(s"DoxInlineParseState#apply $result")
+    assume (result.toOption.map(_.forall(_ != null)).getOrElse(true), s"should not be null: input[$in]")
     val s: DoxInlineParseState = state.asInstanceOf[DoxInlineParseState]
     (msgs, result, s)
   }
@@ -111,12 +115,25 @@ object DoxInlineParser {
 
   trait DoxInlineParseState extends ParseReaderWriterState[Config, Dox] {
     def config: Config
+    protected def is_Debug: Boolean = false
 
     def apply(config: Config, evt: ParseEvent): Transition = {
       //      println(s"in($this): $evt")
+      if (is_Debug)
+        show_Before(config, evt)
       val r = handle_event(evt)
+      if (is_Debug)
+        show_After(config, evt, r)
 //      println(s"out($this): $r")
       r
+    }
+
+    protected def show_Before(config: Config, evt: ParseEvent): Unit = {
+      // println(s"DoxInlineParseState[${getClass.getSimpleName}]#show_Before $evt") // TODO trace
+    }
+
+    protected def show_After(config: Config, evt: ParseEvent, transition: Transition): Unit = {
+      // println(s"DoxInlineParseState[${getClass.getSimpleName}]#show_After $evt, $transition") // TODO trace
     }
 
     def returnEndResult: ParseResult[Dox] = RAISE.noReachDefect(this, "returnEnd")
@@ -180,7 +197,7 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, start_Result(), start_State())
 
     protected def start_Result(): ParseResult[Dox] =
-      ParseSuccess(Dox.empty)
+      EmptyParseResult()
 
     protected def start_State(): DoxInlineParseState = this
 
@@ -466,6 +483,8 @@ object DoxInlineParser {
     cs: Vector[Char] = Vector.empty,
     isInSpace: Boolean = false
   ) extends DoxInlineParseState with InlineFeature {
+    override def is_Debug = true
+
     override def returnEndResult: ParseResult[Dox] =
       ParseSuccess(Text(cs.mkString))
 

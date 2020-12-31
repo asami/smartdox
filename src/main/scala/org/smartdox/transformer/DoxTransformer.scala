@@ -1,18 +1,18 @@
 package org.smartdox.transformer
 
-import scala.util.parsing.combinator.Parsers
-import org.smartdox._
-import scalaz._
-import Scalaz._
+import scalaz._, Scalaz._
 import scala.collection.mutable.ArrayBuffer
-import java.net.URI
-import Dox._
+import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.Reader
+import java.net.URI
+import org.goldenport.parser.{ParseResult => GParseResult}
+import org.smartdox._, Dox._
 
 /*
  * @since   Jan. 11, 2012
  *  version Feb.  5, 2014
- * @version Jan.  5, 2015
+ *  version Jan.  5, 2015
+ * @version Nov.  8, 2020
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
@@ -21,6 +21,11 @@ trait DoxTransformer extends Parsers {
 
   def transform(in: Dox): ParseResult[Out] = {
     document(new DoxReader(in))
+  } 
+
+  def transformG(in: Dox): GParseResult[Out] = transform(in) match {
+    case s: Success[_] => GParseResult.success(s.result)
+    case n: NoSuccess => GParseResult.error(n.msg)
   } 
 
   def transformZ(in: Dox): Validation[NonEmptyList[String], Out] = transform(in) match {

@@ -9,6 +9,7 @@ import org.goldenport.collection.VectorMap
 import org.goldenport.parser._
 import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IDocument
+import org.goldenport.extension.IRecord
 import org.goldenport.util.AnyUtils
 
 /*
@@ -33,7 +34,10 @@ import org.goldenport.util.AnyUtils
  *  version Aug.  8, 2019
  *  version Jun.  7, 2020
  *  version Jul. 26, 2020
- * @version Sep. 21, 2020
+ *  version Sep. 21, 2020
+ *  version Oct. 18, 2020
+ *  version Nov. 29, 2020
+ * @version Dec. 27, 2020
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -42,7 +46,7 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   val elements: List[Dox] = Nil
   def sections: List[Section] = sectionsShallow
   lazy val sectionsShallow = elements collect { case m: Section => m}
-  lazy val attributeMap = Map(showParams: _*)
+  lazy val attributeMap = VectorMap(showParams)
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
   def showTerm = getClass.getSimpleName().toLowerCase()
@@ -61,6 +65,9 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   def showCloseText = "</" + showTerm + ">"
   def showContentsElements = elements
   def isOpenClose = showContentsElements.isEmpty
+
+  def takeHtmlTag: String = getHtmlTag getOrElse RAISE.noReachDefect(s"${this}")
+  def getHtmlTag: Option[String] = Some(showTerm)
 
   def toString(buf: StringBuilder, maxlength: Option[Int] = None) {
     if (maxlength.map(_ <= buf.length) | false) {
@@ -143,12 +150,14 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
 
   def tree: Tree[Dox] = Dox.tree(this)
 
-  // invoke copyWV
-  def copyV(cs: List[Dox]): ValidationNel[String, Dox] = {
-//    copyWV(cs).value
-//    copyVW(cs).map(_.value)
-    sys.error("not implemented yet")
-  }
+  def copyV(cs: List[Dox]): ValidationNel[String, Dox] =
+    if (cs.isEmpty)
+      Success(this)
+    else
+      copy_V(cs: List[Dox])
+
+  protected def copy_V(cs: List[Dox]): ValidationNel[String, Dox] =
+    RAISE.noReachDefect(s"copy_V: not implemented yet($this): $cs")
 
   // invoke copyV
   @deprecated("Use copyVW", "0.2.4")
@@ -318,12 +327,12 @@ trait ListContent extends Dox {
 }
 
 trait UseDox {
-  implicit def toDox(string: String): Dox = {
-    parser.DoxParser.parseOrgmodeZ(string) match {
-      case Success(s) => s
-      case Failure(ms) => Ul(ms.list.map(Li(_)))
-    }
-  }
+  // implicit def toDox(string: String): Dox = {
+  //   parser.DoxParser.parseOrgmodeZ(string) match {
+  //     case Success(s) => s
+  //     case Failure(ms) => Ul(ms.list.map(Li(_)))
+  //   }
+  // }
 
   implicit def toFragment[T <: Dox](contents: List[T]): Fragment = {
     new Fragment(contents)
@@ -362,7 +371,7 @@ trait DoxFactory extends Doxes {
     }.toList
 
   protected final def ensure_dtdd(ps: Seq[Dox]): List[(Dt, Dd)] =
-    ???
+    RAISE.notImplementedYetDefect
 }
 
 object Dox extends UseDox {
@@ -584,7 +593,29 @@ object Dox extends UseDox {
         RAISE.notImplementedYetDefect(s"$name")
       }
 
+  def text(p: String): Text = {
+    require (p != null, "Text should not be null.")
+    Text(p)
+  }
+
+  def list(ps: Seq[String]): List[Inline] = ps.map(text).toList
+
+  def list(p: String, ps: String*): List[Inline] = list(p +: ps)
+
+  def vector(ps: Seq[String]): Vector[Inline] = ps.map(text).toVector
+
+  def vector(p: String, ps: String*): Vector[Inline] = vector(p +: ps)
+
   def toText(ps: Seq[Dox]): String = ps.map(_.toText).mkString
+
+  def addContent(p: Dox, c: Dox): Dox = p match {
+    case m: Fragment => m.append(c)
+    case m: Paragraph => c match {
+      case mm: Inline => m.append(mm)
+      case mm => Fragment(m, mm)
+    }
+    case m => Fragment(m, c)
+  }
 }
 
 case class Document(
@@ -608,22 +639,29 @@ case class Document(
       case 1 => cs.head match {
         case h: Head => s(h, body)
         case b: Body => s(head, b)
-        case d => to_failure(d)
+        case d => _copy_v(cs)
       }
-      case 2 => {
-        val h: ValidationNel[String, Head] = cs(0) match {
-          case h: Head => Success(h)
-          case d => to_failure(d)
+      case 2 =>
+        (cs(0), cs(1)) match {
+          case (h: Head, b: Body) => s(h, b)
+          case _ => _copy_v(cs)
         }
-        val b: ValidationNel[String, Body] = cs(1) match {
-          case b: Body => Success(b)
-          case d => to_failure(d)
-        }
-        (h |@| b) { case (h, b) => copy(h, b) }
-      }
-      case _ => to_failure(cs) 
+        // val h: ValidationNel[String, Head] = cs(0) match {
+        //   case h: Head => Success(h)
+        //   case d => to_failure(cs)
+        // }
+        // val b: ValidationNel[String, Body] = cs(1) match {
+        //   case b: Body => Success(b)
+        //   case d => to_failure(cs)
+        // }
+        // (h |@| b) { case (h, b) => copy(h, b) }
+      case _ => _copy_v(cs)
     }
   }
+
+  private def _copy_v(cs: List[Dox]): ValidationNel[String, Dox] = for {
+    x <- body.copyV(cs)
+  } yield copy(head, x)
 }
 object Document extends DoxFactory {
   val label = "document"
@@ -674,7 +712,7 @@ case class Head(
       buf.append("\n--></style>")
     }
     csslink foreach { x =>
-      buf.append("<link rel=\"stylesheet\" type=\"text/css\" href=\">")
+      buf.append("<link rel=\"stylesheet\" type=\"text/css\" href=\"")
       buf.append(x)
       buf.append("\">")
     }
@@ -715,6 +753,8 @@ case class Body(
 object Body extends DoxFactory {
   val label = "body"
 
+  val empty = Body(Nil)
+
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Body =
     RAISE.unsupportedOperationFault
 
@@ -751,6 +791,13 @@ case class Section(
     case m: Table => m
   }
 }
+object Section {
+  def apply(title: String, p: Dox, ps: Dox*): Section =
+    Section(List(Dox.text(title)), p +: ps.toList)
+
+  def apply(title: String, ps: Seq[Dox]): Section =
+    Section(List(Dox.text(title)), ps.toList)
+}
 
 case class Div(
   contents: List[Dox] = Nil,
@@ -785,6 +832,8 @@ case class Paragraph(
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs, location = get_location(location, cs)))
   }
+
+  def append(p: Dox): Paragraph = copy(contents = contents :+ p)
 }
 
 case class Text(
@@ -804,6 +853,8 @@ case class Text(
   override def to_Data(buf: StringBuilder) {
     buf.append(contents)
   }
+
+  override def getHtmlTag = None
 
   override def copyV(cs: List[Dox]) = Success(this)
 
@@ -1119,13 +1170,97 @@ case class Table(
   }
 
   def getKey: Option[String] = caption.map(_.toText.toLowerCase)
+
+  override def isEmpty: Boolean = body.isEmpty
+  def nonEmpty: Boolean = !isEmpty
+
+  def withCaption(p: String): Table = {
+    val c = Caption(p)
+    copy(caption = Some(c))
+  }
+
+  def toOption: Option[Table] = if (body.isEmpty) None else Some(this)
+}
+object Table {
+  val empty = Table(None, TBody.empty, None, None, None)
+
+  def apply(h: THead, b: TBody): Table = Table(Some(h), b, None, None, None)
+
+  def create(h: Seq[String], data: Seq[IRecord]): Table = {
+    val head = THead.create(h)
+    val body = TBody.create(head, data)
+    Table(head, body)
+  }
+
+  class Builder() {
+    private var _header: Vector[Inline] = Vector.empty
+    private var _data: Vector[Vector[Dox]] = Vector.empty
+    private var _caption: Option[Inline] = None
+    private var _id: Option[String] = None
+
+    def withCaption(p: String) = {
+      _caption = Some(Dox.text(p))
+      this
+    }
+
+    def withHeader(ps: Seq[Inline]) = {
+      _header = ps.toVector
+      this
+    }
+
+    def withHeaderString(p: Seq[String]) = {
+      _header = Dox.vector(p)
+      this
+    }
+
+    def append(p: String, ps: String*): Builder = appendString(p +: ps)
+
+    def append(p: Dox, ps: Dox*): Builder = append(p +: ps)
+
+    def appendString(ps: Seq[String]): Builder = append(Dox.vector(ps))
+
+    def append(ps: Seq[Dox]): Builder = {
+      _data = _data :+ ps.toVector
+      this
+    }
+
+    def apply(): Table = {
+      val h = TR(_header.map(x => TH(x)).toList)
+      val b = for (r <- _data.toList) yield {
+        TR(for (f <- r.toList) yield {
+          TD(f)
+        })
+      }
+      val c = _caption.map(x => Caption(x))
+      val thead = THead(List(h))
+      val tbody = TBody(b)
+      Table(thead.some, tbody, None, c, _id)
+    }
+  }
+  object Builder {
+    def captionHeaderString(caption: String, header: Seq[String]): Builder =
+      headerString(header).withCaption(caption)
+
+    def headerString(p: String, ps: String*): Builder = headerString(p +: ps)
+
+    def headerString(header: Seq[String]): Builder = {
+      new Builder().withHeaderString(header)
+    }
+
+    def header(header: Seq[Inline]): Builder = {
+      new Builder().withHeader(header)
+    }
+  }
 }
 
 trait TableCompartment extends Block {
   val records: List[TRecord]
   override val elements = records
 
-  def width: Int = records.map(_.length).max
+  def width: Int = records.map(_.length) match {
+    case Nil => 0
+    case xs => xs.max
+  }
   def height: Int = records.length
 
   def getText(x: Int, y: Int): String = {
@@ -1149,7 +1284,7 @@ trait TableCompartment extends Block {
     return None
   }
 
-  def getContent(x: Int, y: Int): Option[List[Inline]] = {
+  def getContent(x: Int, y: Int): Option[List[Dox]] = {
     getField(x, y).map(_.contents)
   }
 
@@ -1174,6 +1309,15 @@ case class THead(
 
   def columns: List[String] = records.headOption.map(_.fields.map(_.toText)).orZero
 }
+object THead {
+  def create(names: Seq[String]): THead = {
+    val ths = names.map(TH.apply).toList
+    val tr = TR(ths)
+    THead(List(tr))
+  }
+
+  def data(name: String, names: String*): THead = create(name +: names)
+}
 
 case class TBody(
   records: List[TRecord],
@@ -1182,6 +1326,21 @@ case class TBody(
 ) extends TableCompartment {
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
+  }
+}
+object TBody {
+  val empty = TBody(Nil)
+
+  def create(h: THead, data: Seq[IRecord]): TBody = create(h.columns, data)
+
+  def create(keys: Seq[String], data: Seq[IRecord]): TBody = {
+    val trs = for (row <- data) yield {
+      val tds = for (k <- row.keySymbols) yield {
+        row.get(k).map(x => TD(AnyUtils.toString(x))).getOrElse(TD.empty)
+      }
+      TR(tds)
+    }
+    TBody(trs.toList)
   }
 }
 
@@ -1208,18 +1367,25 @@ case class TR(
 }
 
 trait TField extends Block {
-  val contents: List[Inline]
+  val contents: List[Dox]
   override val elements = contents
 }
 
 case class TD(
-  contents: List[Inline],
+  contents: List[Dox],
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TField {
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
+}
+
+object TD {
+  val empty = TD(Nil)
+
+  def apply(p: Dox): TD = TD(List(p))
+  def apply(p: String): TD = TD(List(Dox.text(p)))
 }
 
 case class TH(
@@ -1230,6 +1396,10 @@ case class TH(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
+}
+object TH {
+  def apply(p: Inline): TH = TH(List(p))
+  def apply(p: String): TH = TH(List(Dox.text(p)))
 }
 
 case class TTable(
@@ -1316,7 +1486,7 @@ object Dt extends DoxFactory {
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dt = Dt(to_text(body))
 
   def unapply(x: XNode): Option[Dt] = {
-    ???
+    RAISE.notImplementedYetDefect
   }
 }
 
@@ -1338,7 +1508,7 @@ object Dd extends Dd(Nil, VectorMap.empty, None) with DoxFactory {
     Dd(ensure_inline(body))
 
   def unapply(x: XNode): Option[Dd] = {
-    ???
+    RAISE.notImplementedYetDefect
   }
 }
 
@@ -1351,6 +1521,11 @@ case class Fragment(
   override def isOpenClose = false
   override def showOpenText = ""
   override def showCloseText = ""
+
+  override protected def show_Contents(buf: StringBuilder) {
+    // println(s"Fragment#show_Contents: ${showContentsElements}")
+    showContentsElements.foreach(_.toString(buf))
+  }
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(contents ::: normalize_fragment(cs)))
@@ -1368,14 +1543,29 @@ case class Fragment(
 object Fragment extends DoxFactory {
   val label = "fragment"
 
-  val empty = Fragment(Nil)
+  val empty = new Fragment(Nil)
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Fragment =
-    Fragment(body.toList)
+    _create(body)
 
-  def apply(p: Dox, ps: Dox*): Fragment = Fragment((p +: ps).toList)
+  def apply(p: Dox, ps: Dox*): Fragment = _create((p +: ps))
 
   def apply(p: String, ps: String*): Fragment = apply(Text((p +: ps).mkString))
+
+  def apply(ps: Seq[Dox]): Fragment = _create(ps)
+
+  private def _create(ps: Seq[Dox]): Fragment = {
+    require (ps.forall(_ != null), "contents should not be null")
+    ps.flatMap(_normalize).toList match {
+      case Nil => empty
+      case xs => new Fragment(xs)
+    }
+  }
+
+  private def _normalize(p: Dox): List[Dox] = p match {
+    case m: Fragment => m.contents.flatMap(_normalize)
+    case m => List(m)
+  }
 }
 
 case class Caption(
@@ -1388,6 +1578,10 @@ case class Caption(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_))
   }
+}
+object Caption {
+  def apply(p: Inline): Caption = Caption(List(p))
+  def apply(p: String): Caption = Caption(List(Dox.text(p)))
 }
 
 // 2011-12-31
@@ -1662,4 +1856,8 @@ case class UnresolvedLink(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, data, attributes, location = get_location(location, cs)))
   }
+}
+object UnresolvedLink {
+  def apply(label: String, data: Any): UnresolvedLink =
+    UnresolvedLink(List(Dox.text(label)), data)
 }

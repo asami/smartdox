@@ -10,7 +10,8 @@ import java.util.Locale
  *  version Jun. 15, 2020
  *  version Jul. 27, 2020
  *  version Aug. 13, 2020
- * @version Sep. 29, 2020
+ *  version Sep. 29, 2020
+ * @version Dec. 27, 2020
  */
 case class Resume(
   captionOption: Option[Dox] = None, // 見出し
@@ -60,6 +61,8 @@ case class Resume(
       case (None, None) => Dox.empty
     }
   }
+
+  def brief: Dox = briefOption orElse captionOption orElse summaryOption getOrElse Dox.empty
 
   // final def copyIn(aSummary: SSummary) {
   //   _caption = aSummary._caption
