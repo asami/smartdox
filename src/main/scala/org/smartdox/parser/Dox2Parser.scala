@@ -17,7 +17,8 @@ import Dox._
  *  version Jan. 26, 2019
  *  version Apr. 18, 2019
  *  version Oct.  2, 2019
- * @version Nov. 16, 2019
+ *  version Nov. 16, 2019
+ * @version Jan.  2, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -114,7 +115,7 @@ object Dox2Parser {
       BeginExampleAnnotationClass,
       GenericBeginAnnotationClass
     )
-    val blocksConfig = LogicalBlocks.Config.default.addVerbatims(verbatims)
+    val blocksConfig = LogicalBlocks.Config.multiline.addVerbatims(verbatims)
 
     val default = Config(
       false,

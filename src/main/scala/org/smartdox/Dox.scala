@@ -37,7 +37,8 @@ import org.goldenport.util.AnyUtils
  *  version Sep. 21, 2020
  *  version Oct. 18, 2020
  *  version Nov. 29, 2020
- * @version Dec. 27, 2020
+(element)) *  version Dec. 27, 2020
+(element)) * @version Jan.  3, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -1004,6 +1005,7 @@ object Ul extends Ul(Nil, VectorMap.empty, None) with DoxFactory {
   val empty = Ul(Nil)
 
   def apply(element: Li) = new Ul(List(element))
+  def apply(lis: Seq[Li]) = new Ul(lis.toList)
 }
 
 case class Ol(

@@ -14,7 +14,8 @@ import org.smartdox._
  *  version Dec. 31, 2018
  *  version Jan. 26, 2019
  *  version Oct.  2, 2019
- * @version Nov. 16, 2019
+ *  version Nov. 16, 2019
+ * @version Jan.  3, 2021
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -65,6 +66,8 @@ object DoxLinesParser {
       lines: LogicalLines = LogicalLines.empty,
       term: Option[String] = None
     ) {
+      def toDox: Dox = Li(text)
+
       def add(p: LogicalLine): Candidate = copy(text = text + " " + p.text)
     }
     case class Ctx(rawOffset: Int = 0) {
@@ -528,6 +531,9 @@ object DoxLinesParser {
     protected def leave_to(config: Config, p: ParseEvent): Transition =
       parent.apply(config, p)
 
+    protected def leave_to(config: Config, dox: Dox, evt: ParseEvent): Transition =
+      parent.returnFrom(dox).apply(config, evt)
+
     protected def leave_to_with_warning(config: Config, p: ParseEvent, warn: String): Transition = 
       RAISE.notImplementedYetDefect(this, s"$p: $warn")
 
@@ -587,8 +593,8 @@ object DoxLinesParser {
         case m => transit_next(AnnotationState(this, m))
       }
 
-    override protected def text_Transition(config: Config, evt: LogicalLine): Transition = {
-      val (msgs, result, _) = DoxInlineParser.apply(config.inlineConfig, evt.text)
+    override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition = {
+      val (msgs, result, _) = DoxInlineParser.apply(config.inlineConfig, evt.line.text)
       result match {
         case EmptyParseResult() => (msgs, ParseResult.empty, this)
         case ParseSuccess(ast, ws) =>
@@ -743,9 +749,24 @@ object DoxLinesParser {
     override protected def get_Annotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       None
 
-    override protected def text_Transition(config: Config, evt: LogicalLine): Transition = {
-      val a = copy(listMarkCandidates = listMarkCandidates.replace(listMarkCandidates.last, listMarkCandidates.last.add(evt)))
+    override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition = {
+      if (_is_append_item(evt))
+        _append_item(config, evt)
+      else
+        _next_text(config, evt)
+    }
+
+    private def _is_append_item(evt: LogicalLineEvent) = false // TODO
+
+    private def _append_item(config: Config, evt: LogicalLineEvent) = {
+      val a = copy(listMarkCandidates = listMarkCandidates.replace(listMarkCandidates.last, listMarkCandidates.last.add(evt.line)))
       transit_next(a)
+    }
+
+    private def _next_text(config: Config, evt: LogicalLineEvent) = {
+      val lis = listMarkCandidates.vector.map(_.toDox).asInstanceOf[Seq[Li]]
+      val dox: Dox = Ul(lis) // TODO
+      parent.returnFrom(dox).apply(config, evt)
     }
 
 //    protected def get_List_Transition(p: LogicalLine): Option[Transition] =

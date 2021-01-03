@@ -11,7 +11,7 @@ import org.smartdox.generators.Dox2HtmlGenerator
 
 /*
  * @since   Dec. 30, 2020
- * @version Dec. 31, 2020
+ * @version Jan.  1, 2021
  * @author  ASAMI, Tomoharu
  */
 case object HtmlOperationClass extends OperationClassWithOperation {
@@ -22,6 +22,7 @@ case object HtmlOperationClass extends OperationClassWithOperation {
   def apply(env: Environment, req: Request): Response = {
     val s = req.arguments(0).toInputText
     val dox = _parse(s)
+    println(s"HtmlOperationClass#apply $dox")
     val r = _generate(env, dox)
     FileRealmResponse(r)
   }

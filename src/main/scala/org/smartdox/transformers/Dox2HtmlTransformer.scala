@@ -15,14 +15,27 @@ import org.smartdox.transformer._
 
 /*
  * @since   Nov.  3, 2020
- * @version Nov.  8, 2020
+ *  version Nov.  8, 2020
+ * @version Jan.  1, 2021
  * @author  ASAMI, Tomoharu
  */
-case class Dox2HtmlTransformer(context: Context) {
+case class Dox2HtmlTransformer(
+  context: Context,
+  isPretty: Boolean = true,
+  isDocument: Boolean = true
+) {
   def transform(in: Dox): ParseResult[String] = {
     for {
       dom <- new Dox2DomHtmlTransformer(context).transformG(in)
-      r <- ParseResult(DomUtils.toText(dom))
+      r <- ParseResult(_print(dom))
     } yield r
   }
+
+  private def _print(dom: Node): String =
+    (isPretty, isDocument) match {
+      case (true, true) => DomUtils.toHtmlPrettyText(dom)
+      case (true, false) => DomUtils.toHtmlFragmentText(dom) // XXX
+      case (false, true) => DomUtils.toHtmlText(dom)
+      case (false, false) => DomUtils.toText(dom) // XXX
+    }
 }

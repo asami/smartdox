@@ -19,7 +19,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Feb. 22, 2012
  *  version Jun. 21, 2020
  *  version Jul.  5, 2020
- * @version Nov. 16, 2020
+ *  version Nov. 16, 2020
+ * @version Jan.  1, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2HtmlGenerator(
@@ -37,11 +38,22 @@ class Dox2HtmlGenerator(
 }
 
 object Dox2HtmlGenerator {
-  import org.goldenport.tree.{Tree, PlainTree}
+  import org.goldenport.tree.{Tree, PlainTree, TreeNode}
+  import org.goldenport.realm.Realm
+
+  object Dox2HtmlRule extends RealmTransformer.Rule {
+    def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
+      p.getNameSuffix.collect {
+        case "org" => s"${p.nameBody}.html"
+      }
+    }
+
+    def mapContent(p: Realm.Data): Realm.Data = p
+  }
 
   class HtmlTransformer(val context: Context) extends RealmTransformer {
     def treeTransformerContext = RealmTransformer.Context.default
-    def rule = RealmTransformer.Rule.default
+    def rule = Dox2HtmlRule
 
     override protected def make_Content(p: Data): Option[Data] = p match {
       case m: ObjectData => _make_object(m)

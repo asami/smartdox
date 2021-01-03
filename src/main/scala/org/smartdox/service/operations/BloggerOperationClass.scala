@@ -11,7 +11,8 @@ import org.smartdox.generators.Dox2HtmlGenerator
 
 /*
  * @since   Dec. 31, 2020
- * @version Dec. 31, 2020
+ *  version Dec. 31, 2020
+ * @version Jan.  3, 2021
  * @author  ASAMI, Tomoharu
  */
 case object BloggerOperationClass extends OperationClassWithOperation {
@@ -20,9 +21,11 @@ case object BloggerOperationClass extends OperationClassWithOperation {
   val specification = spec.Operation("blogger", request, response)
 
   def apply(env: Environment, req: Request): Response = {
-    val s = req.arguments(0).toInputText
+    val arg1 = req.arguments(0)
+    val s = arg1.toInputText
+    val filename = arg1.asString
     val dox = _parse(s)
-    val r = _generate(env, dox)
+    val r = _generate(env, filename, dox)
     FileRealmResponse(r)
   }
 
@@ -31,10 +34,10 @@ case object BloggerOperationClass extends OperationClassWithOperation {
     Dox2Parser.parse(cfg, p)
   }
 
-  private def _generate(env: Environment, p: Dox): Realm = {
+  private def _generate(env: Environment, filename: String, p: Dox): Realm = {
     val ctx = DoxContext.create(env)
     val b = Realm.Builder()
-    b.setObject("x.org", p)
+    b.setObject(filename, p)
     val in = b.build()
     val htmltx = new Dox2HtmlGenerator(ctx)
     htmltx.generate(in)
