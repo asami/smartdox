@@ -15,7 +15,7 @@ import org.smartdox._
  *  version Jan. 26, 2019
  *  version Oct.  2, 2019
  *  version Nov. 16, 2019
- * @version Jan.  3, 2021
+ * @version Jan. 11, 2021
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -552,7 +552,7 @@ object DoxLinesParser {
 
   case class NormalState(
     lines: Vector[Dox],
-    title: Option[Dox]
+    title: Option[Inline]
   ) extends DoxLinesParseState {
     // override protected def end_Result(config: Config): ParseResult[Dox] =
     //   ParseSuccess(Paragraph(List(Text(cs.mkString))))
@@ -576,7 +576,13 @@ object DoxLinesParser {
         getOrElse(this)
 
     override protected def end_Transition(config: Config): Transition =
-      transit_result_next(Dox.toDox(lines), NormalState.init)
+      transit_result_next(Dox.toDox(_get_head.toVector ++: lines), NormalState.init)
+
+    private def _get_head: Option[Head] = {
+      Head(
+        title.toList
+      ).toOption
+    }
 
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = transit_none
 

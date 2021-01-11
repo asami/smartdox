@@ -38,7 +38,7 @@ import org.goldenport.util.AnyUtils
  *  version Oct. 18, 2020
  *  version Nov. 29, 2020
 (element)) *  version Dec. 27, 2020
-(element)) * @version Jan.  3, 2021
+(element)) * @version Jan. 11, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -686,6 +686,11 @@ case class Head(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
+  override def isEmpty = (
+    title.isEmpty && author.isEmpty && date.isEmpty && css.isEmpty && csslink.isEmpty &&
+      attributes.isEmpty && location.isEmpty
+  )
+
   override def copyV(cs: List[Dox]) = {
     if (cs.isEmpty) Success(this)
     else to_failure(cs)
@@ -720,6 +725,22 @@ case class Head(
   }
 
   override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
+
+  def toOption: Option[Head] =
+    if (isEmpty)
+      None
+    else
+      Some(this)
+
+  def merge(p: Head): Head = Head(
+    title ++ p.title,
+    author ++ p.author,
+    date ++ p.date,
+    css |+| p.css,
+    csslink |+| p.csslink,
+    attributes ++ p.attributes,
+    location orElse p.location
+  )
 }
 
 object Head extends DoxFactory {

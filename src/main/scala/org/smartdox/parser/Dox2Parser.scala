@@ -18,7 +18,7 @@ import Dox._
  *  version Apr. 18, 2019
  *  version Oct.  2, 2019
  *  version Nov. 16, 2019
- * @version Jan.  2, 2021
+ * @version Jan. 11, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -37,9 +37,19 @@ class Dox2Parser(config: Dox2Parser.Config) {
   def apply(blocks: LogicalBlocks): ParseResult[Document] = {
     val ctx = ParseContext(config, 0)
     val xs = _blocks(ctx, blocks)
-    val head = Head()
     // println(s"Dox2Parser#apply ${blocks} => $xs")
-    ParseSuccess(Document(head, Body(xs.toList)))
+    case class Z(
+      head: Head = Head(),
+      elements: Vector[Dox] = Vector.empty
+    ) {
+      def r = ParseSuccess(Document(head, Body(elements.toList)))
+
+      def +(rhs: Dox) = rhs match {
+        case m: Head => copy(head = head.merge(m))
+        case m => copy(elements = elements :+ m)
+      }
+    }
+    xs./:(Z())(_+_).r
   }
 
   private def _blocks(ctx: ParseContext, p: LogicalBlocks): Vector[Dox] =
@@ -115,7 +125,7 @@ object Dox2Parser {
       BeginExampleAnnotationClass,
       GenericBeginAnnotationClass
     )
-    val blocksConfig = LogicalBlocks.Config.multiline.addVerbatims(verbatims)
+    val blocksConfig = LogicalBlocks.Config.easyhtml.addVerbatims(verbatims)
 
     val default = Config(
       false,
