@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "1.3.0"
+version := "1.3.1"
 
 scalaVersion := "2.10.3"
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
@@ -15,7 +15,9 @@ scalacOptions += "-feature"
 
 resolvers += "Scalaz Bintray Repo" at "http://dl.bintray.com/scalaz/releases"
 
-resolvers += "GitHab releases" at "https://raw.github.com/asami/maven-repository/2020/releases"
+resolvers += "GitHab releases 2020" at "https://raw.github.com/asami/maven-repository/2020/releases"
+
+resolvers += "GitHab releases" at "https://raw.github.com/asami/maven-repository/2021/releases"
 
 resolvers += "Asami Maven Repository" at "http://www.asamioffice.com/maven"
 
@@ -25,7 +27,7 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.2.74"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.2.75"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "1.1.0"
 
