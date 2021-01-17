@@ -14,8 +14,11 @@ import org.smartdox.generator.Context
 import org.smartdox.transformer._
 
 /*
- * @since   Jan. 11, 2021
- * @version Jan. 11, 2021
+ * Derived from SmartDox2BloggerRealmGenerator.
+ *
+ * @since   Jan. 11, 2012
+ *  version Sep.  8, 2012
+ * @version Jan. 12, 2021
  * @author  ASAMI, Tomoharu
  */
 case class Dox2BloggerTransformer(

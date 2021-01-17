@@ -37,8 +37,8 @@ import org.goldenport.util.AnyUtils
  *  version Sep. 21, 2020
  *  version Oct. 18, 2020
  *  version Nov. 29, 2020
-(element)) *  version Dec. 27, 2020
-(element)) * @version Jan. 11, 2021
+ *  version Dec. 27, 2020
+ * @version Jan. 12, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.

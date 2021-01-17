@@ -12,7 +12,8 @@ import org.smartdox._, Dox._
  * @since   Jan. 11, 2012
  *  version Feb.  5, 2014
  *  version Jan.  5, 2015
- * @version Nov.  8, 2020
+ *  version Nov.  8, 2020
+ * @version Jan. 17, 2021
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
@@ -37,9 +38,18 @@ trait DoxTransformer extends Parsers {
     def apply(in: Input) = {
       in.first match {
         case d: Document => Success(documentOut(d), in.rest)
-        case d => Failure(d.showTerm, in) 
+        case d =>
+          val doc = _to_document(d)
+          Success(documentOut(doc), in.rest)
       }
     }
+  }
+
+  private def _to_document(p: Dox): Document = {
+    val css = org.smartdox.transformers.Dox2DomHtmlTransformer.css
+    val head = Head(css = Some(css)) // TODO (e.g. title)
+    val body = Body(p)
+    Document(head, body)
   }
 
   def documentOut(d: Document): Out

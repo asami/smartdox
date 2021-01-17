@@ -9,11 +9,8 @@ import org.smartdox.generator._
 import org.smartdox.transformers.Dox2BloggerTransformer
 
 /*
- * Derived from SmartDox2BloggerRealmGenerator.
- *
- * @since   Jan. 11, 2012
- *  version Sep.  8, 2012
- * @version Jan. 11, 2021
+ * @since   Jan. 11, 2021
+ * @version Jan. 12, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2BloggerGenerator(

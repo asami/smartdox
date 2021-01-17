@@ -16,7 +16,8 @@ import org.smartdox.transformer._
 /*
  * @since   Nov.  3, 2020
  *  version Nov. 29, 2020
- * @version Dec. 27, 2020
+ *  version Dec. 27, 2020
+ * @version Jan. 17, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
@@ -28,7 +29,7 @@ class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
   private var _section_depth = 0
 
   def documentOut(d: Document) = {
-    println(s"Dox2DomHtmlTransform#documentOut: $d")
+    // println(s"Dox2DomHtmlTransform#documentOut: $d")
     val doc = _factory.document
     val h = headOut(d.head)
     val b = bodyOut(d.body)
@@ -36,7 +37,7 @@ class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
     root.appendChild(h)
     root.appendChild(b)
     doc.appendChild(root)
-    println(s"Dox2DomHtmlTransform#documentOut: ${org.goldenport.xml.dom.DomUtils.toString(doc)}")
+    // println(s"Dox2DomHtmlTransform#documentOut: ${org.goldenport.xml.dom.DomUtils.toString(doc)}")
     doc
   }
 
@@ -261,4 +262,23 @@ class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
     val tag = s"h${level}"
     _factory.element(tag, _inline(p.title))
   }
+}
+
+object Dox2DomHtmlTransformer {
+  val css = """
+h1 { border-bottom: 5px solid black; width: 80%; font-size: 2em }
+h2 { border-bottom: 4.5px solid black; width: 60%; font-size: 1.5em }
+h3 { border-bottom: 4px solid black; width: 40%; font-size: 1.4em }
+h4 { border-bottom: 3.5px solid gray; width: 30%; font-size: 1.3em }
+h5 { border-bottom: 3px solid darkgray; width: 20%; font-size: 1.2em }
+h6 { border-bottom: 2.5px solid lightgray; width: 10%; font-size: 1.1em }
+table { background: black; float: center }
+thead { border: none }
+tbody { border: none }
+th { color: white; background: darkgray }
+td { background: white; border: 1px }
+pre.program { background: lightgray; border: 1px }
+pre.console { color: white; background: black; border: 1px }
+pre { background: lightgray; border: 1px }
+"""
 }
