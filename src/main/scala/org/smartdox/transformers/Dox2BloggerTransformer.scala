@@ -18,25 +18,39 @@ import org.smartdox.transformer._
  *
  * @since   Jan. 11, 2012
  *  version Sep.  8, 2012
- * @version Jan. 12, 2021
+ *  version Jan. 12, 2021
+ * @version Feb.  4, 2021
  * @author  ASAMI, Tomoharu
  */
 case class Dox2BloggerTransformer(
-  context: Context
-) {
+  context: Context,
+  isPretty: Boolean = true
+) extends HtmlTransformerBase {
+  import Dox2DoxTransformer._
+
+  val isDocument: Boolean = false
+
   def transform(in: Dox): ParseResult[String] = {
+    import Dox2DomHtmlTransformer.Rule._
+    val rule = Dox2DomHtmlTransformer.Rule(
+      Tactics(NodeKindGuard(DProgram), ElementAction(HPre, "name" -> "code", "class" -> "java")),
+      Tactics(NodeKindGuard(DConsole), ElementAction(HPre, "name" -> "code", "class" -> "console")),
+      Tactics({
+        case m: Figure => TextAction(s"*** embed manually: ${m.img.src} ***")
+      })
+    )
     for {
       x <- _transform(in)
-      dom <- new Dox2DomHtmlTransformer(context).transformG(x)
-      r <- ParseResult(_print(dom))
+      dom <- new Dox2DomHtmlTransformer(context, rule).transformAsIs(x)
+      r <- ParseResult(to_html(dom))
     } yield r
   }
 
   private def _transform(p: Dox): ParseResult[Dox] = {
-    ???
+    val root = BodyDivRootStrategy
+    val rule = Rule(root)
+    Dox2DoxTransformer.transform(rule, p)
   }
-
-  private def _print(dom: Node): String = ???
 }
 
 /*

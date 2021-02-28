@@ -6,8 +6,11 @@ import scala.util.parsing.input.Reader
 import scala.util.parsing.combinator.Parsers
 import scala.collection.mutable.ArrayBuffer
 import org.w3c.dom.{Node, Element, Comment}
+import org.w3c.dom.{Text => DomText}
 import org.goldenport.RAISE
+import org.goldenport.xml.{XmlAttributes, XmlAttribute}
 import org.goldenport.xml.dom.DomFactory
+import org.goldenport.value._
 import org.smartdox._
 import Dox._
 import org.smartdox.generator.Context
@@ -17,16 +20,27 @@ import org.smartdox.transformer._
  * @since   Nov.  3, 2020
  *  version Nov. 29, 2020
  *  version Dec. 27, 2020
- * @version Jan. 17, 2021
+ *  version Jan. 17, 2021
+ * @version Feb.  8, 2021
  * @author  ASAMI, Tomoharu
  */
-class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
+class Dox2DomHtmlTransformer(
+  context: Context,
+  rule: Dox2DomHtmlTransformer.Rule
+) extends DoxTransformer {
   type Out = Node
 
-  private val _factory = DomFactory.createHtml()
+  private lazy val _rule_context = new Dox2DomHtmlTransformer.Rule.Context(this)
+  private[transformers] val _factory = DomFactory.createHtml()
   private val _newline = "\n" // TODO
-  private val _base_section_header = 2 // H2
+  private val _base_section_header = rule.sectionBaseNumber getOrElse 2 // H2
   private var _section_depth = 0
+
+  def doxOut(p: Dox) = p match {
+    case m: Document => documentOut(m)
+    case m: Div => divOut(m)
+    case m => RAISE.notImplementedYetDefect
+  }
 
   def documentOut(d: Document) = {
     // println(s"Dox2DomHtmlTransform#documentOut: $d")
@@ -61,7 +75,12 @@ class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
     _get_inline(p.date).map(create_element("date", _))
 
   private def _head_css(p: Head): Option[Element] =
-    p.css.map { css =>
+    p.css.orElse {
+      if (p.csslink.isEmpty && rule.isDefaultCssIfRequired)
+        Some(Dox2DomHtmlTransformer.defaultCss)
+      else
+        None
+    }.map { css =>
       val x = s"""${_newline}${css}${_newline}"""
       create_element("style", Map("type" -> "text/css"), create_comment(x))
     }
@@ -146,7 +165,35 @@ class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
     p.elements.map(_dox)
   }
 
-  private def _dox(p: Dox): Node = p match {
+  private def _dox(p: Dox): Node = {
+    import Dox2DomHtmlTransformer.Rule._
+    rule.convert(_rule_context, p).map {
+      case CompleteConversion(r) => r
+      case ElementConversion(e) => _element(p, e)
+      case AttributeOverwriteConversion(attrs) => _attributes_overwrite(p, attrs)
+      case AttributeAppendConversion(attrs) => _attributes_append(p, attrs)
+    }.getOrElse(_dox_node(p))
+  }
+
+  private def _element(p: Dox, elem: Element) = {
+    for (x <- p.elements) {
+      val n = _dox(x)
+      elem.appendChild(n)
+    }
+    elem
+  }
+
+  private def _attributes_overwrite(p: Dox, attrs: XmlAttributes) = {
+    val a = _dox_node(p)
+    _factory.overwriteAttributes(a, attrs)
+  }
+
+  private def _attributes_append(p: Dox, attrs: XmlAttributes) = {
+    val a = _dox_node(p)
+    _factory.appendAttributes(a, attrs)
+  }
+
+  private def _dox_node(p: Dox): Node = p match {
     case EmptyDox => _factory.empty()
     case m: Fragment => _fragment(m)
     case m: Head => _head(m)
@@ -265,7 +312,7 @@ class Dox2DomHtmlTransformer(context: Context) extends DoxTransformer {
 }
 
 object Dox2DomHtmlTransformer {
-  val css = """
+  val defaultCss = """
 h1 { border-bottom: 5px solid black; width: 80%; font-size: 2em }
 h2 { border-bottom: 4.5px solid black; width: 60%; font-size: 1.5em }
 h3 { border-bottom: 4px solid black; width: 40%; font-size: 1.4em }
@@ -281,4 +328,119 @@ pre.program { background: lightgray; border: 1px }
 pre.console { color: white; background: black; border: 1px }
 pre { background: lightgray; border: 1px }
 """
+
+  case class Rule(
+    sectionBaseNumber: Option[Int] = None,
+    tacticses: Vector[Rule.Tactics] = Vector.empty,
+    isDefaultCssIfRequired: Boolean = true
+  ) {
+    def convert(ctx: Rule.Context, p: Dox): Option[Rule.ConversionResult] = tacticses.toStream.flatMap(_.convert(ctx, p)).headOption
+  }
+  object Rule {
+    val empty = Rule()
+
+    class Context(transformer: Dox2DomHtmlTransformer) {
+      private def _factory = transformer._factory
+
+      def element(tag: HtmlTag, attrs: XmlAttributes): Element =
+        _factory.element(tag.name, attrs)
+
+      def text(p: String): DomText = _factory.text(p)
+    }
+
+    sealed trait NodeKind extends NamedValueInstance {
+      def isAccept(p: Dox): Boolean
+    }
+    object NodeKind extends EnumerationClass[NodeKind] {
+      val elements = Vector()
+    }
+    case object DProgram extends NodeKind {
+      val name = "program"
+
+      def isAccept(p: Dox): Boolean = p.isInstanceOf[Program]
+    }
+    case object DConsole extends NodeKind {
+      val name = "console"
+
+      def isAccept(p: Dox): Boolean = p.isInstanceOf[Console]
+    }
+
+    sealed trait HtmlTag extends NamedValueInstance {
+    }
+    object HtmlTag extends EnumerationClass[NodeKind] {
+      val elements = Vector()
+    }
+    case object HPre extends HtmlTag {
+      val name = "pre"
+    }
+
+    sealed trait ConversionResult
+    case class CompleteConversion(result: Node) extends ConversionResult
+    case class ElementConversion(element: Element) extends ConversionResult
+    case class AttributeOverwriteConversion(attributes: XmlAttributes) extends ConversionResult
+    case class AttributeAppendConversion(attributes: XmlAttributes) extends ConversionResult
+
+    trait Tactics {
+      def convert(ctx: Context, p: Dox): Option[ConversionResult]
+    }
+    object Tactics {
+      def apply(g: Guard, a: Action): Tactics = GuardActionTactics(g, a)
+
+      def apply(pf: PartialFunction[Dox, Action]): Tactics = PartialFunctionTactics(pf)
+    }
+
+    case class GuardActionTactics(guard: Guard, action: Action) extends Tactics {
+      def convert(ctx: Context, p: Dox): Option[ConversionResult] =
+        if (guard.isAccept(p))
+          action.convert(ctx, p)
+        else
+          None
+    }
+
+    case class PartialFunctionTactics(pf: PartialFunction[Dox, Action]) extends Tactics {
+      def convert(ctx: Context, p: Dox): Option[ConversionResult] =
+        if (pf.isDefinedAt(p))
+          pf(p).convert(ctx, p)
+        else
+          None
+    }
+
+    trait Guard {
+      def isAccept(p: Dox): Boolean
+    }
+
+    case class NodeKindGuard(kinds: Vector[NodeKind]) extends Guard {
+      def isAccept(p: Dox) = kinds.exists(_.isAccept(p))
+    }
+    object NodeKindGuard {
+      def apply(p: NodeKind, ps: NodeKind*): NodeKindGuard = NodeKindGuard(p +: ps.toVector)
+    }
+
+    trait Action {
+      def convert(ctx: Context, p: Dox): Option[ConversionResult]
+    }
+
+    case class ElementAction(
+      tag: HtmlTag,
+      attributes: XmlAttributes
+    ) extends Action {
+      def convert(ctx: Context, p: Dox): Option[ConversionResult] = {
+        val r = ctx.element(tag, attributes)
+        Some(ElementConversion(r))
+      }
+    }
+    object ElementAction {
+      def apply(tag: HtmlTag, p: Tuple2[String, String], ps: Tuple2[String, String]*): ElementAction =
+        ElementAction(tag, XmlAttributes.create(p +: ps.toVector))
+    }
+
+    case class TextAction(text: String) extends Action {
+      def convert(ctx: Context, p: Dox): Option[ConversionResult] = {
+        val r = ctx.text(text)
+        Some(CompleteConversion(r))
+      }
+    }
+
+    def apply(p: Tactics, ps: Tactics*): Rule = Rule(tacticses = p +: ps.toVector)
+  }
 }

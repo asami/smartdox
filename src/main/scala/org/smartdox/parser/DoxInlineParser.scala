@@ -3,6 +3,7 @@ package org.smartdox.parser
 import java.net.URI
 import org.goldenport.RAISE
 import org.goldenport.parser._
+import org.goldenport.io.MimeType
 import org.smartdox._
 
 /*
@@ -11,7 +12,8 @@ import org.smartdox._
  *  version Dec. 30, 2018
  *  version Oct.  2, 2019
  *  version Nov. 29, 2020
- * @version Dec.  5, 2020
+ *  version Dec.  5, 2020
+ * @version Feb.  8, 2021
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -78,8 +80,8 @@ object DoxInlineParser {
     def useSlash: Boolean = orgmode.isItalic
     def useDallor: Boolean = false
 
-    def isImageFile(uri: URI): Boolean = true // TODO
-    def isImageFile(p: String): Boolean = true // TODO
+    def isImageFile(uri: URI): Boolean = MimeType.isImageFile(uri)
+    def isImageFile(filename: String): Boolean = MimeType.isImageFile(filename)
   }
   object Config {
     val default = Config()
@@ -754,7 +756,7 @@ object DoxInlineParser {
       if (c == startChar)
         leave_none
       else
-        ???
+        RAISE.noReachDefect(this, s"SkipSpaceStartState#character_State($this): $c")
   }
 
   case class SkipOneState(
@@ -842,7 +844,7 @@ object DoxInlineParser {
     override def returnInlineFrom(doxes: Seq[Inline]) = copy(urn = doxes)
 
     override protected def open_Bracket_State(c: Char): DoxInlineParseState =
-      InlineState(OrgModeLinkLabelState(config, parent, urn), ']')
+      InlineState(OrgModeLinkLabelState(config, parent, urn), ']', ']')
 
     override protected def close_Bracket_State(c: Char): DoxInlineParseState = {
       // XXX annotation, block, figure
@@ -863,8 +865,16 @@ object DoxInlineParser {
   case class OrgModeLinkLabelState(
     config: Config,
     parent: DoxInlineParseState,
-    urn: Seq[Dox]
+    urn: Seq[Inline]
   ) extends ChildDoxInlineParseState {
+    override def returnInlineFrom(doxes: Seq[Inline]) = {
+      val location = None // TODO
+      val uri = make_text(urn)
+      if (config.isImageFile(uri))
+        leave_to(ReferenceImg(uri))
+      else
+        leave_to(Hyperlink(doxes, uri, location))
+    }
   }
 
   case class BoldState(

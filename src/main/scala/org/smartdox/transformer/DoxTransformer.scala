@@ -5,6 +5,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.Reader
 import java.net.URI
+import org.goldenport.RAISE
 import org.goldenport.parser.{ParseResult => GParseResult}
 import org.smartdox._, Dox._
 
@@ -13,12 +14,36 @@ import org.smartdox._, Dox._
  *  version Feb.  5, 2014
  *  version Jan.  5, 2015
  *  version Nov.  8, 2020
- * @version Jan. 17, 2021
+ *  version Jan. 17, 2021
+ * @version Feb.  8, 2021
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
   type Elem = Dox
   type Out
+
+  def isDefaultCssIfRequired: Boolean = true // TODO
+
+  def transformDocument(in: Dox): GParseResult[Out] = transformG(in)
+
+  def transformAsIs(in: Dox): GParseResult[Out] = _result(_asis(in))
+
+  private def _asis(in: Dox): ParseResult[Out] = _asis_parser(new DoxReader(in))
+
+  private def _asis_parser: Parser[Out] = new Parser[Out] {
+    def apply(in: Input) = {
+      in.first match {
+        case d: Document => Success(documentOut(d), in.rest)
+        case d: Div => Success(divOut(d), in.rest)
+        case m => RAISE.notImplementedYetDefect
+      }
+    }
+  }
+
+  private def _result(p: ParseResult[Out]): GParseResult[Out] = p match {
+    case s: Success[_] => GParseResult.success(s.result)
+    case n: NoSuccess => GParseResult.error(n.msg)
+  }
 
   def transform(in: Dox): ParseResult[Out] = {
     document(new DoxReader(in))
@@ -46,8 +71,12 @@ trait DoxTransformer extends Parsers {
   }
 
   private def _to_document(p: Dox): Document = {
-    val css = org.smartdox.transformers.Dox2DomHtmlTransformer.css
-    val head = Head(css = Some(css)) // TODO (e.g. title)
+    val css =
+      if (isDefaultCssIfRequired)
+        Some(org.smartdox.transformers.Dox2DomHtmlTransformer.defaultCss)
+      else
+        None
+    val head = Head(css = css) // TODO (e.g. title)
     val body = Body(p)
     Document(head, body)
   }

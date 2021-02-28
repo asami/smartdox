@@ -7,12 +7,12 @@ import org.goldenport.realm.Realm
 import org.smartdox.Dox
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator.{Context => DoxContext}
-import org.smartdox.generators.Dox2HtmlGenerator
+import org.smartdox.generators.Dox2BloggerGenerator
 
 /*
  * @since   Dec. 31, 2020
- *  version Dec. 31, 2020
- * @version Jan.  3, 2021
+ *  version Jan.  3, 2021
+ * @version Feb.  1, 2021
  * @author  ASAMI, Tomoharu
  */
 case object BloggerOperationClass extends OperationClassWithOperation {
@@ -39,7 +39,7 @@ case object BloggerOperationClass extends OperationClassWithOperation {
     val b = Realm.Builder()
     b.setObject(filename, p)
     val in = b.build()
-    val htmltx = new Dox2HtmlGenerator(ctx)
+    val htmltx = new Dox2BloggerGenerator(ctx)
     htmltx.generate(in)
   }
 }

@@ -15,7 +15,8 @@ import org.smartdox._
  *  version Jan. 26, 2019
  *  version Oct.  2, 2019
  *  version Nov. 16, 2019
- * @version Jan. 11, 2021
+ *  version Jan. 11, 2021
+ * @version Feb.  9, 2021
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -207,6 +208,7 @@ object DoxLinesParser {
     def name: String
     lazy val tagName: String = "end_" + name
 
+    def isDone(p: String): Boolean = isDone(LogicalLine(p))
     def isDone(p: LogicalLine): Boolean = {
       val r = AnnotationMark.parse(p).map {
         case (key, params, value) => key == tagName
@@ -225,6 +227,10 @@ object DoxLinesParser {
   sealed trait VerbatimAnnotationMarkClass extends VerbatimMarkClass {
     def name: String
     lazy val tagName = "begin_" + name
+
+    def isMatch(p: String): Boolean = get(p).isDefined
+
+    def get(p: String): Option[VerbatimMark] = get(LogicalLine(p))
 
     def get(p: LogicalLine): Option[VerbatimAnnotationMark] =
       if (p.text.startsWith("#+"))
@@ -272,6 +278,8 @@ object DoxLinesParser {
   ) extends AnnotationMark {
   }
   case object GenericBeginAnnotationClass extends VerbatimMarkClass {
+    def isMatch(p: String): Boolean = get(p).isDefined
+    def get(p: String): Option[VerbatimMark] = get(LogicalLine(p))
     def get(p: LogicalLine): Option[VerbatimAnnotationMark] =
       if (p.text.startsWith("#+"))
         _get(p)
@@ -712,26 +720,37 @@ object DoxLinesParser {
           }
           followers.headOption.map { x =>
             val (cmsgs, children) = close_state(config, x, followers.tail)
-            val a: Tree[Dox] = Tree.node(Li.empty, Stream(Tree.leaf(licontent), children))
+            val a: Tree[Dox] = Tree.node(Li.empty, Stream(licontent.tree, children))
             (cmsgs, Vector(a))
           }.getOrElse {
-            val a: Tree[Dox] = Tree.node(Li.empty, Stream(Tree.leaf(licontent)))
+            val a: Tree[Dox] = Tree.node(Li.empty, Stream(licontent.tree))
             (ParseMessageSequence.empty, Vector(a))
           }
         }
 
         private def _parse_dtdd(term: String, n: Dox): (ParseMessageSequence, Vector[Tree[Dox]]) = {
-          val dt: Tree[Dox] = Tree.leaf(Dt(term))
+          val (tmsgs, t) = parse_inline(config, term)
+          t match {
+            case Some(s) => 
+              val (msgs, r) = _parse_dtdd(s, n)
+              (tmsgs + msgs, r)
+            case None =>
+              (tmsgs, Vector.empty) // TODO DoxError
+          }
+        }
+
+        private def _parse_dtdd(term: Dox, n: Dox): (ParseMessageSequence, Vector[Tree[Dox]]) = {
+          val dt: Tree[Dox] = Tree.node(Dt, Stream(term.tree))
           val licontent = n match {
             case m: ListContent => m
             case _ => RAISE.noReachDefect(this, "_parse_dtdd")
           }
           followers.headOption.map { x =>
             val (cmsgs, children) = close_state(config, x, followers.tail)
-            val dd: Tree[Dox] = Tree.node(Dd, Stream(Tree.leaf(licontent), children))
+            val dd: Tree[Dox] = Tree.node(Dd, Stream(licontent.tree, children))
             (cmsgs, Vector(dt, dd))
           }.getOrElse {
-            val dd: Tree[Dox] = Tree.node(Dd, Stream(Tree.leaf(licontent)))
+            val dd: Tree[Dox] = Tree.node(Dd, Stream(licontent.tree))
             (ParseMessageSequence.empty, Vector(dt, dd))
           }
         }

@@ -10,7 +10,8 @@ import org.smartdox.transformers.Dox2BloggerTransformer
 
 /*
  * @since   Jan. 11, 2021
- * @version Jan. 12, 2021
+ *  version Jan. 12, 2021
+ * @version Feb.  5, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2BloggerGenerator(
@@ -22,7 +23,7 @@ class Dox2BloggerGenerator(
     val transformer = new BloggerTransformer(context)
     val x = realm.transform(transformer)
     val r = Realm.create()
-    r.merge("html.d", x)
+    r.merge("blogger.d", x)
   }
 }
 
@@ -46,7 +47,7 @@ object Dox2BloggerGenerator {
 
     override protected def make_Content(p: Data): Option[Data] = p match {
       case m: ObjectData => _make_object(m)
-      case _ => println(s"Dox2BloggerGenerator#make_Content other: $p"); None
+      case _ => None // println(s"Dox2BloggerGenerator#make_Content other: $p"); None
     }
 
     private def _make_object(p: ObjectData) = p.o match {
@@ -56,7 +57,7 @@ object Dox2BloggerGenerator {
         } yield {
           StringData(html)
         }
-        println(s"Dox2HtmlGenerator#_make_object $r")
+        // println(s"Dox2HtmlGenerator#_make_object $r")
         r.toOption
       case _ => None
     }

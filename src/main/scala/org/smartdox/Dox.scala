@@ -10,6 +10,7 @@ import org.goldenport.parser._
 import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IDocument
 import org.goldenport.extension.IRecord
+import org.goldenport.tree.{Tree => GTree}
 import org.goldenport.util.AnyUtils
 
 /*
@@ -38,7 +39,8 @@ import org.goldenport.util.AnyUtils
  *  version Oct. 18, 2020
  *  version Nov. 29, 2020
  *  version Dec. 27, 2020
- * @version Jan. 12, 2021
+ *  version Jan. 12, 2021
+ * @version Feb. 15, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -148,6 +150,8 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   protected def to_Data_Epilogue(buf: StringBuilder) {
 //    println("Dox#to_Data_Epilogue = " + this)
   }
+
+  def toTree: GTree[Dox] = Dox.toTree(this)
 
   def tree: Tree[Dox] = Dox.tree(this)
 
@@ -420,6 +424,15 @@ object Dox extends UseDox {
     case Nil => Dox.empty
     case x :: Nil => x
     case xs => Fragment(xs)
+  }
+
+  def toTree(p: Dox): GTree[Dox] = {
+    val t = GTree.create[Dox](p)
+    RAISE.notImplementedYetDefect
+  }
+
+  def toDox(p: GTree[Dox]): Dox = {
+    RAISE.notImplementedYetDefect
   }
 
   def tree(dox: Dox): Tree[Dox] = {
@@ -791,6 +804,8 @@ case class Section(
   location: Option[ParseLocation] = None
 ) extends Dox {
   lazy val titleName = Dox.toText(title)
+  lazy val keyForModel: String = titleName.trim.toLowerCase
+  lazy val nameForModel: String = titleName.trim
   override val elements = contents
   override def show_Open(buf: StringBuilder) {
     val showh = "h" + (level + 1) 
@@ -1119,6 +1134,9 @@ object Hyperlink extends DoxFactory {
 
   def apply(c: Seq[Inline], href: String): Hyperlink =
     Hyperlink(c.toList, new URI(href))
+
+  def apply(c: Seq[Inline], href: String, location: Option[ParseLocation]): Hyperlink =
+    Hyperlink(c.toList, new URI(href), VectorMap.empty, location)
 }
 
 case class ReferenceImg(
@@ -1493,20 +1511,20 @@ object Dl extends Dl(Nil, VectorMap.empty, None) with DoxFactory {
 }
 
 case class Dt(
-  contents: String,
+  contents: List[Inline],
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Block {
-  override val elements = List(Text(contents))
+  override val elements = contents
 
-  override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(_ => this)
-  }
+  override def copyV(cs: List[Dox]) = to_inline(cs).map(copy(_))
 }
-object Dt extends DoxFactory {
+object Dt extends Dt(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dt"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dt = Dt(to_text(body))
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dt = Dt(ensure_inline(body))
+
+  def apply(p: String): Dt = Dt(to_text(p))
 
   def unapply(x: XNode): Option[Dt] = {
     RAISE.notImplementedYetDefect
