@@ -14,11 +14,12 @@ import org.goldenport.values.Designation
  *  version Sep. 29, 2020
  *  version Oct. 18, 2020
  *  version Nov. 18, 2020
- * @version Dec. 27, 2020
+ *  version Dec. 27, 2020
+ * @version Mar. 16, 2021
  * @author  ASAMI, Tomoharu
  */
 case class Description(
-  designation: Option[Designation] = None,
+  designation: Designation = Designation.empty,
   titleOption: Option[Dox] = None,
   resume: Resume = Resume.empty,
   content: Dox = EmptyDox,
@@ -31,17 +32,16 @@ case class Description(
   contributors: List[String] = Nil,
   rights: Option[String] = None,
   source: Option[String] = None
-) extends IDocument {
-  def name: String = designation.map(_.name) getOrElse ""
-  def title: Dox = designation.map(_.label).map(Dox.text) getOrElse EmptyDox
+) extends IDocument with Designation.Holder {
+  def title: Dox = titleOption getOrElse Dox.text(designation.label)
   def summary = resume.effectiveSummary
   def effectiveSummary = resume.effectiveSummary
   //  def effectiveBrief = resume.effectiveBrief
   def brief = resume.brief
   def caption = resume.caption
 
-  def withName(p: String) = copy(designation = Some(Designation(p)))
-  def withDesignation(p: Designation) = copy(designation = Some(p))
+  def withName(p: String) = withDesignation(Designation(p))
+  def withDesignation(p: Designation) = copy(designation = p)
 }
 /*
   var atomId: Option[String] = None
@@ -61,16 +61,19 @@ case class Description(
 object Description {
   val empty = Description()
 
-  trait Holder extends Resume.Holder {
+  trait Holder extends Designation.Holder with Resume.Holder {
+    def description: Description
+    def designation = description.designation
+    def resume = description.resume
   }
 
-  def apply(name: Designation): Description = Description(Some(name))
+  def apply(name: Designation): Description = Description(name)
 
-  def apply(name: Designation, p: Dox): Description = Description(Some(name), content = p)
+  def apply(name: Designation, p: Dox): Description = Description(name, content = p)
 
   def apply(p: Dox): Description = Description(content = p)
 
-  def name(name: String): Description = Description(Some(Designation(name)))
+  def name(name: String): Description = Description(Designation(name))
 
-  def name(name: String, p: Dox): Description = Description(Some(Designation(name)), content = p)
+  def name(name: String, p: Dox): Description = Description(Designation(name), content = p)
 }

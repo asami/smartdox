@@ -1,4 +1,4 @@
- package org.smartdox
+package org.smartdox
 
 import java.util.Locale
 
@@ -11,7 +11,8 @@ import java.util.Locale
  *  version Jul. 27, 2020
  *  version Aug. 13, 2020
  *  version Sep. 29, 2020
- * @version Dec. 27, 2020
+ *  version Dec. 27, 2020
+ * @version Mar. 15, 2021
  */
 case class Resume(
   captionOption: Option[Dox] = None, // 見出し
@@ -78,7 +79,7 @@ object Resume {
   val empty = Resume()
 
   trait Holder {
-    protected def resume: Resume
+    def resume: Resume
 
     def getCaption: Option[Dox] = resume.captionOption
     def getBrief: Option[Dox] = resume.briefOption

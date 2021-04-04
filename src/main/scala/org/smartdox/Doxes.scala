@@ -15,7 +15,8 @@ import org.goldenport.parser.ParseResult
  *  version Feb.  5, 2014
  *  version Dec. 31, 2018
  *  version Aug. 13, 2020
- * @version Nov. 18, 2020
+ *  version Nov. 18, 2020
+ * @version Mar. 16, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -126,7 +127,7 @@ trait Doxes {
       } 
     } else tob(content).toDox
     Description(
-      Some(Designation(title)),
+      Designation(title),
 //      title = toi(title).toDox,
       resume = Resume.summary(sm.toDox),
       content = c

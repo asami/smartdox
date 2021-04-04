@@ -40,7 +40,9 @@ import org.goldenport.util.AnyUtils
  *  version Nov. 29, 2020
  *  version Dec. 27, 2020
  *  version Jan. 12, 2021
- * @version Feb. 15, 2021
+ *  version Feb. 15, 2021
+ *  version Mar. 14, 2021
+ * @version Apr.  3, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -48,7 +50,9 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   def isEmpty: Boolean = elements.isEmpty
   val elements: List[Dox] = Nil
   def sections: List[Section] = sectionsShallow
-  lazy val sectionsShallow = elements collect { case m: Section => m}
+  lazy val sectionsShallow = elements collect { case m: Section => m }
+  def tables: List[Table] = tablesShallow
+  lazy val tablesShallow = elements collect { case m: Table => m }
   lazy val attributeMap = VectorMap(showParams)
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
@@ -622,6 +626,11 @@ object Dox extends UseDox {
 
   def toText(ps: Seq[Dox]): String = ps.map(_.toText).mkString
 
+  def findTable(p: Dox): Option[Table] = p match {
+    case m: Table => Some(m)
+    case _ => p.elements.toStream.flatMap(findTable).headOption
+  }
+
   def addContent(p: Dox, c: Dox): Dox = p match {
     case m: Fragment => m.append(c)
     case m: Paragraph => c match {
@@ -824,9 +833,9 @@ case class Section(
     Success(copy(title, cs, level, location = get_location(location, cs))) // XXX level
   }
 
-  def tableList: List[Table] = contents.collect {
-    case m: Table => m
-  }
+  // def tableList: List[Table] = contents.collect {
+  //   case m: Table => m
+  // }
 }
 object Section {
   def apply(title: String, p: Dox, ps: Dox*): Section =
@@ -1221,6 +1230,26 @@ case class Table(
   }
 
   def toOption: Option[Table] = if (body.isEmpty) None else Some(this)
+
+  def toVectorMapStringVector: Vector[VectorMap[String, String]] =
+    head.map(_to_vector_map_string_vector(_)).getOrElse(_to_vector_map_string_vector())
+
+  private def _to_vector_map_string_vector(): Vector[VectorMap[String, String]] = {
+    val w = body.records.map(_.length).max
+    val a = (1 to w).map(_.toString)
+    _to_vector_map_string_vector(a)
+  }
+
+  private def _to_vector_map_string_vector(h: THead): Vector[VectorMap[String, String]] =
+    _to_vector_map_string_vector(h.columns)
+
+  private def _to_vector_map_string_vector(hs: Seq[String]): Vector[VectorMap[String, String]] =
+    body.records.toVector.map(_to_vector_map_string(hs, _))
+
+  private def _to_vector_map_string(hs: Seq[String], p: TRecord): VectorMap[String, String] =
+    hs.zip(p.fields).toVector.foldMap {
+      case (column, field) => VectorMap(column -> field.text)
+    }
 }
 object Table {
   val empty = Table(None, TBody.empty, None, None, None)
@@ -1368,6 +1397,7 @@ case class TBody(
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
+
 }
 object TBody {
   val empty = TBody(Nil)
@@ -1409,6 +1439,7 @@ case class TR(
 
 trait TField extends Block {
   val contents: List[Dox]
+  lazy val text: String = Dox.toText(contents)
   override val elements = contents
 }
 
@@ -1756,6 +1787,13 @@ case class Program(
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
   }
+}
+object Program {
+  def apply(p: String, attr: (String, String), attrs: (String, String)*): Program =
+    Program(p, VectorMap(attr +: attrs))
+
+  def apply(p: Seq[String], attr: (String, String), attrs: (String, String)*): Program =
+    Program(p.mkString("\n"), VectorMap(attr +: attrs))
 }
 
 case class Console(
