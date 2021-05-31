@@ -42,7 +42,8 @@ import org.goldenport.util.AnyUtils
  *  version Jan. 12, 2021
  *  version Feb. 15, 2021
  *  version Mar. 14, 2021
- * @version Apr.  3, 2021
+ *  version Apr.  3, 2021
+ * @version May. 19, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -128,6 +129,17 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
 
   protected def to_Text(buf: StringBuilder) {
     showContentsElements.foreach(_.to_Text(buf))
+  }
+
+  // for Hocon
+  def toPlainText(): String = {
+    val buf = new StringBuilder
+    to_Plain_Text(buf)
+    buf.toString
+  }
+
+  protected def to_Plain_Text(buf: StringBuilder) {
+    showContentsElements.foreach(_.to_Plain_Text(buf))
   }
 
   def toData(): String = {
@@ -877,6 +889,11 @@ case class Paragraph(
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs, location = get_location(location, cs)))
+  }
+
+  override protected def to_Plain_Text(buf: StringBuilder) {
+    to_Text(buf)
+    buf.append("\n")
   }
 
   def append(p: Dox): Paragraph = copy(contents = contents :+ p)
