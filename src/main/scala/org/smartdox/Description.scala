@@ -15,7 +15,8 @@ import org.goldenport.values.Designation
  *  version Oct. 18, 2020
  *  version Nov. 18, 2020
  *  version Dec. 27, 2020
- * @version Mar. 16, 2021
+ *  version Mar. 16, 2021
+ * @version Jun. 28, 2021
  * @author  ASAMI, Tomoharu
  */
 case class Description(
@@ -66,8 +67,6 @@ object Description {
     def designation = description.designation
     def resume = description.resume
   }
-
-  def apply(name: Designation): Description = Description(name)
 
   def apply(name: Designation, p: Dox): Description = Description(name, content = p)
 

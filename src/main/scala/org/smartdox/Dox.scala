@@ -43,7 +43,8 @@ import org.goldenport.util.AnyUtils
  *  version Feb. 15, 2021
  *  version Mar. 14, 2021
  *  version Apr.  3, 2021
- * @version May. 19, 2021
+ *  version May. 19, 2021
+ * @version Jun. 20, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -845,9 +846,9 @@ case class Section(
     Success(copy(title, cs, level, location = get_location(location, cs))) // XXX level
   }
 
-  // def tableList: List[Table] = contents.collect {
-  //   case m: Table => m
-  // }
+  def tableList: List[Table] = contents.collect {
+    case m: Table => m
+  }
 }
 object Section {
   def apply(title: String, p: Dox, ps: Dox*): Section =
