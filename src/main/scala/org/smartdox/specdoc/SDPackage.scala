@@ -2,6 +2,8 @@ package org.smartdox.specdoc
 
 import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IRecord
+import org.goldenport.io.MimeType
+import org.goldenport.util.StringUtils
 import org.smartdox._
 
 /*
@@ -14,7 +16,8 @@ import org.smartdox._
  *  version Sep. 21, 2020
  *  version Oct. 19, 2020
  *  version Nov.  1, 2020
- * @version Dec. 27, 2020
+ *  version Dec. 27, 2020
+ * @version Jul. 12, 2021
  */
 case class SDPackage(
   description: Description,
@@ -120,8 +123,14 @@ object SDPackage {
       this
     }
 
-    def addFigure(binary: ChunkBag, src: String, name: String): SDPackage.Builder = {
-      contents = contents :+ Figure(BinaryImg(src, binary), name)
+    def addFigure(binary: ChunkBag, name: String, title: String): SDPackage.Builder = {
+      val (n, s) = StringUtils.pathnameBodySuffix(name)
+      val mime = s.flatMap(MimeType.getBySuffix) getOrElse MimeType.application_octet_stream
+      addFigure(binary, name, mime, title)
+    }
+
+    def addFigure(binary: ChunkBag, name: String, mime: MimeType, title: String): SDPackage.Builder = {
+      contents = contents :+ Figure(BinaryImg(name, mime, binary), title)
       this
     }
 

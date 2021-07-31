@@ -4,6 +4,7 @@ import org.goldenport.RAISE
 import org.goldenport.realm.Realm
 import org.goldenport.values.Designation
 import org.goldenport.bag.ChunkBag
+import org.goldenport.io.MimeType
 import org.smartdox._
 
 /*
@@ -16,7 +17,8 @@ import org.smartdox._
  *  version Jul. 24, 2020
  *  version Sep. 21, 2020
  *  version Oct. 11, 2020
- * @version Dec.  7, 2020
+ *  version Dec.  7, 2020
+ * @version Jul. 12, 2021
  * @author  ASAMI, Tomoharu
  */
 case class SpecDoc(title: Inline, root: SDPackage) extends Realm.StringApplicationData {
@@ -64,8 +66,13 @@ object SpecDoc {
       this
     }
 
-    def addFigure(binary: ChunkBag, src: String, name: String): Builder = {
-      current.addFigure(binary, src, name)
+    def addFigure(binary: ChunkBag, name: String, title: String): Builder = {
+      current.addFigure(binary, name, title)
+      this
+    }
+
+    def addFigure(binary: ChunkBag, name: String, mime: MimeType, title: String): Builder = {
+      current.addFigure(binary, name, mime, title)
       this
     }
   }

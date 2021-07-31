@@ -7,6 +7,7 @@ import scala.xml.{Node => XNode, _}
 import org.goldenport.RAISE
 import org.goldenport.collection.VectorMap
 import org.goldenport.parser._
+import org.goldenport.io.MimeType
 import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IDocument
 import org.goldenport.extension.IRecord
@@ -44,7 +45,8 @@ import org.goldenport.util.AnyUtils
  *  version Mar. 14, 2021
  *  version Apr.  3, 2021
  *  version May. 19, 2021
- * @version Jun. 20, 2021
+ *  version Jun. 20, 2021
+ * @version Jul. 12, 2021
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -1930,13 +1932,24 @@ case class IncludeDoc(filename: String) extends Block {
 
 // 2020-09-21
 case class BinaryImg(
-  src: URI,
+  name: String,
+  mime: MimeType,
   chunk: ChunkBag,
   location: Option[ParseLocation] = None
 ) extends Img {
+  val src: URI = {
+    import org.apache.commons.codec.binary.Base64
+    val binary = Base64.encodeBase64String(chunk.toByteArray)
+//    val a = s"""data:${name}/${suffix};base64,${binary}"""
+    val a = s"""data:${mime.name};base64,${binary}"""
+    new URI(a)
+  }
 }
 object BinaryImg {
-  def apply(p: String, chunk: ChunkBag): BinaryImg = BinaryImg(new URI(p), chunk)
+//   def apply(name: String, mime: MimeType, chunk: ChunkBag): BinaryImg = {
+// //    val suffix = MimeType.getSuffix(mime).getOrElse(RAISE.invalidArgumentFault(s"Not image: ${mime}"))
+//     BinaryImg(name, mime, chunk)
+//   }
 }
 
 // 2020-09-22
