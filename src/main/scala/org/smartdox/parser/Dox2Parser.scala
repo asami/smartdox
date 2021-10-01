@@ -18,7 +18,8 @@ import Dox._
  *  version Apr. 18, 2019
  *  version Oct.  2, 2019
  *  version Nov. 16, 2019
- * @version Jan. 11, 2021
+ *  version Jan. 11, 2021
+ * @version Sep. 18, 2021
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -160,6 +161,19 @@ object Dox2Parser {
     val result = parser.apply(in)
     result match {
       case ParseSuccess(dox, _) => dox
+      case ParseFailure(_, _) => RAISE.notImplementedYetDefect
+      case EmptyParseResult() => RAISE.notImplementedYetDefect
+    }
+  }
+
+  def parseSection(config: Config, in: LogicalSection): Section = {
+    val parser = new Dox2Parser(config)
+    val result = parser.apply(in)
+    result match {
+      case ParseSuccess(dox, _) => dox.body.elements.headOption.map {
+        case m: Section => m
+        case m => RAISE.notImplementedYetDefect
+      }.getOrElse(RAISE.notImplementedYetDefect)
       case ParseFailure(_, _) => RAISE.notImplementedYetDefect
       case EmptyParseResult() => RAISE.notImplementedYetDefect
     }
