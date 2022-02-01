@@ -46,7 +46,8 @@ import org.goldenport.util.AnyUtils
  *  version Apr.  3, 2021
  *  version May. 19, 2021
  *  version Jun. 20, 2021
- * @version Jul. 12, 2021
+ *  version Jul. 12, 2021
+ * @version Jan. 30, 2022
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -1746,7 +1747,10 @@ trait Img extends Inline {
   val src: URI
   override val elements = Nil
   override def showTerm = "img"
-  override def showParams = List("src" -> src.toASCIIString())  
+  override def showParams = List(
+    "src" -> src.toASCIIString(),
+    "width" -> "640" // TODO
+  )
 }
 
 trait EmbeddedImg extends Img {
