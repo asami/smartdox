@@ -16,7 +16,8 @@ import org.goldenport.values.Designation
  *  version Nov. 18, 2020
  *  version Dec. 27, 2020
  *  version Mar. 16, 2021
- * @version Jun. 28, 2021
+ *  version Jun. 28, 2021
+ * @version Sep. 20, 2023
  * @author  ASAMI, Tomoharu
  */
 case class Description(
@@ -40,6 +41,8 @@ case class Description(
   //  def effectiveBrief = resume.effectiveBrief
   def brief = resume.brief
   def caption = resume.caption
+
+  def print = toString
 
   def withName(p: String) = withDesignation(Designation(p))
   def withDesignation(p: Designation) = copy(designation = p)

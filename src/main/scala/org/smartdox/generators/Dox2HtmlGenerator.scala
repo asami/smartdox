@@ -20,7 +20,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Jun. 21, 2020
  *  version Jul.  5, 2020
  *  version Nov. 16, 2020
- * @version Jan.  1, 2021
+ *  version Jan.  1, 2021
+ * @version Aug.  3, 2023
  * @author  ASAMI, Tomoharu
  */
 class Dox2HtmlGenerator(
@@ -29,7 +30,7 @@ class Dox2HtmlGenerator(
   import Dox2HtmlGenerator._
 
   def generate(realm: Realm): Realm = {
-    println(s"Dox2HtmlGenerator#generate: ${realm.show}")
+    // println(s"Dox2HtmlGenerator#generate: ${realm.show}")
     val transformer = new HtmlTransformer(context)
     val x = realm.transform(transformer)
     val r = Realm.create()
@@ -44,6 +45,7 @@ object Dox2HtmlGenerator {
   object Dox2HtmlRule extends RealmTransformer.Rule {
     def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
       p.getNameSuffix.collect {
+        case "dox" => s"${p.nameBody}.html"
         case "org" => s"${p.nameBody}.html"
       }
     }
@@ -57,7 +59,7 @@ object Dox2HtmlGenerator {
 
     override protected def make_Content(p: Data): Option[Data] = p match {
       case m: ObjectData => _make_object(m)
-      case _ => println(s"Dox2HtmlGenerator#make_Content other: $p"); None
+      case _ => None // println(s"Dox2HtmlGenerator#make_Content other: $p")
     }
 
     private def _make_object(p: ObjectData) = p.o match {
@@ -67,7 +69,7 @@ object Dox2HtmlGenerator {
         } yield {
           StringData(html)
         }
-        println(s"Dox2HtmlGenerator#_make_object $r")
+        // println(s"Dox2HtmlGenerator#_make_object $r")
         r.toOption
       case _ => None
     }

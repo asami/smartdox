@@ -47,7 +47,8 @@ import org.goldenport.util.AnyUtils
  *  version May. 19, 2021
  *  version Jun. 20, 2021
  *  version Jul. 12, 2021
- * @version Jan. 30, 2022
+ *  version Jan. 30, 2022
+ * @version Sep. 20, 2023
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -102,6 +103,8 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
     toString(buf)
     buf.toString()
   }
+
+  def print = toShowString
 
   def toShowString() = {
     val buf = new StringBuilder
