@@ -19,7 +19,8 @@ import Dox._
  *  version Oct.  2, 2019
  *  version Nov. 16, 2019
  *  version Jan. 11, 2021
- * @version Sep. 18, 2021
+ *  version Sep. 18, 2021
+ * @version Oct. 14, 2023
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -157,6 +158,16 @@ object Dox2Parser {
   }
 
   def parse(config: Config, in: LogicalBlock): Dox = {
+    val parser = new Dox2Parser(config)
+    val result = parser.apply(in)
+    result match {
+      case ParseSuccess(dox, _) => dox
+      case ParseFailure(_, _) => RAISE.notImplementedYetDefect
+      case EmptyParseResult() => RAISE.notImplementedYetDefect
+    }
+  }
+
+  def parse(config: Config, in: LogicalBlocks): Dox = {
     val parser = new Dox2Parser(config)
     val result = parser.apply(in)
     result match {
