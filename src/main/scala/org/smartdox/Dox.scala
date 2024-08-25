@@ -48,7 +48,8 @@ import org.goldenport.util.AnyUtils
  *  version Jun. 20, 2021
  *  version Jul. 12, 2021
  *  version Jan. 30, 2022
- * @version Sep. 20, 2023
+ *  version Sep. 20, 2023
+ * @version Jul.  7, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -854,6 +855,17 @@ case class Section(
 
   def tableList: List[Table] = contents.collect {
     case m: Table => m
+  }
+
+  def distillDescription: Description = {
+    val name = titleName
+    val xs = contents.takeWhile(_.isInstanceOf[Section] == false)
+    val dox = xs match {
+      case Nil => EmptyDox
+      case x :: Nil => x
+      case xs => Fragment(xs)
+    }
+    Description.name(name, dox)
   }
 }
 object Section {
