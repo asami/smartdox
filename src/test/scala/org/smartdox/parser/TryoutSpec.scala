@@ -9,13 +9,31 @@ import org.goldenport.scalatest.ScalazMatchers
 
 /*
  * @since   Jan.  6, 2019
- * @version Jan. 26, 2019
+ *  version Jan. 26, 2019
+ *  version May. 31, 2024
+ * @version Jun.  9, 2024
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class TryoutSpec extends WordSpec with Matchers with ScalazMatchers with UseDox2Parser {
   "Dox2Parser" should {
-    "typical" in {
+    "continue 2 xx" in {
+      parse_orgmode_simple_debug("abc\n\n- One\n - Two\n - Three\n\nxyz",
+        """<p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p>""")
+    }
+    "continue 2 x" ignore {
+      parse_orgmode_simple_debug("- One\n - Two\n - Three\n",
+        """<ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul>""")
+    }
+    "continue 2" ignore {
+      parse_orgmode_simple_debug("- One\n - Two\n Two-One\n",
+        """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+    }
+    "tryout" ignore {
+      parse_orgmode_simple_debug("- One\n- Two\n",
+        """<ul><li>One</li><li>Two</li></ul>""")
+    }
+    "typical" ignore {
       val s0 = """
 #+title: アプリケーション・リソース
 

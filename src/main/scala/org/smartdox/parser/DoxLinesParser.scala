@@ -16,7 +16,8 @@ import org.smartdox._
  *  version Oct.  2, 2019
  *  version Nov. 16, 2019
  *  version Jan. 11, 2021
- * @version Feb.  9, 2021
+ *  version Feb.  9, 2021
+ * @version Jun.  6, 2024
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -397,7 +398,7 @@ object DoxLinesParser {
 
     def returnFrom(doxes: Seq[Dox]): DoxLinesParseState = RAISE.noReachDefect(this, "returnFrom")
 
-    def returnFrom(dox: Dox): DoxLinesParseState = RAISE.noReachDefect(this, "returnFrom")
+    def returnFrom(dox: Dox): DoxLinesParseState = returnFrom(Vector(dox))
 
     def returnFrom(as: NonEmptyVector[AnnotationMark]): DoxLinesParseState = RAISE.noReachDefect(this, s"returnFrom: $as")
 
@@ -557,7 +558,6 @@ object DoxLinesParser {
     // protected def return_From(dox: Dox): Transition = RAISE.noReachDefect
   }
 
-
   case class NormalState(
     lines: Vector[Dox],
     title: Option[Inline]
@@ -595,7 +595,8 @@ object DoxLinesParser {
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = transit_none
 
     override protected def get_List_Transition(config: Config, evt: LogicalLine): Option[Transition] =
-      ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, NonEmptyVector(x))))
+      // ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, NonEmptyVector(x))))
+      ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, x)))
 
     override protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       TableMark.get(evt).map(x => transit_next(TableState(this, x)))
@@ -626,6 +627,61 @@ object DoxLinesParser {
   }
 
   case class ListState(
+    parent: DoxLinesParseState,
+    slots: NonEmptyVector[ListState.Slot]
+  ) extends ChildDoxLinesParseState {
+    import ListState._
+
+    override def returnFrom(doxes: Seq[Dox]): DoxLinesParseState = {
+      val xs = doxes.collect {
+        case x: ListContent => x
+      }
+      copy(slots = slots.mapLast(_.addChildren(xs)))
+    }
+
+    private def _result = {
+      val xs = slots.map(_.doxItem)
+      slots.head.doxContainer(xs.vector)
+    }
+
+    override protected def end_Transition(config: Config): Transition =
+      parent.returnFrom(_result).apply(config, EndEvent)
+
+    override protected def handle_line(config: Config, evt: LogicalLineEvent): Transition = {
+      ListMark.getCandidate(evt.line.text) map { x =>
+        if (slots.last.rawOffset == x.rawOffset)
+          transit_next(copy(slots = slots :+ Slot(x)))
+        else if (slots.last.rawOffset < x.rawOffset)
+          transit_next(ListState(this, x))
+        else
+          parent.returnFrom(_result).apply(config, evt)
+      } getOrElse {
+        transit_next(copy(slots = slots.updateLast(slots.last.addLine(evt.line.text))))
+      }
+    }
+  }
+  object ListState {
+    case class Slot(
+      candidate: ListMark.Candidate,
+      lines: Vector[String] = Vector.empty,
+      children: Vector[ListContent] = Vector.empty
+    ) {
+      def rawOffset = candidate.rawOffset
+      def doxItem = {
+        val ts = Text(candidate.text) +: lines.map(Text(_))
+        Li(ts ++ children)
+      }
+      def doxContainer(ps: Seq[Li]) = candidate.listElement match {
+        case m: Ul => Ul(ps)
+      }
+      def addLine(p: String) = copy(lines = lines :+ p)
+      def addChildren(ps: Seq[ListContent]) = copy(children = children ++ ps)
+    }
+
+    def apply(parent: DoxLinesParseState, p: ListMark.Candidate): ListState = ListState(parent, NonEmptyVector(Slot(p)))
+  }
+
+  case class ListStateOld(
     parent: DoxLinesParseState,
     listMarkCandidates: NonEmptyVector[ListMark.Candidate]
   ) extends ChildDoxLinesParseState {
@@ -715,6 +771,7 @@ object DoxLinesParser {
 
         private def _parse_item(n: Dox): (ParseMessageSequence, Vector[Tree[Dox]]) = {
           val licontent = n match {
+            case m: Text => _parse_item_text(m)
             case m: ListContent => m
             case _ => RAISE.noReachDefect(this, "_parse_item")
           }
@@ -727,6 +784,8 @@ object DoxLinesParser {
             (ParseMessageSequence.empty, Vector(a))
           }
         }
+
+        private def _parse_item_text(p: Text): ListContent = ??? // ListContentBuilder(p)
 
         private def _parse_dtdd(term: String, n: Dox): (ParseMessageSequence, Vector[Tree[Dox]]) = {
           val (tmsgs, t) = parse_inline(config, term)
@@ -800,7 +859,7 @@ object DoxLinesParser {
       //   (msgs, ParseResult.empty, ListState(x.toMark, result.ast))
       // }
   }
-  object ListState {
+  object ListStateOld {
   }
 
   case class TableState(
@@ -1006,4 +1065,135 @@ object DoxLinesParser {
       Program(cs, attrs, loc)
     }
   }
+
+  // trait ListContentBuilder {
+  //   def r: ListContent
+  //   def +(rhs: String): ListContentBuilder
+  //   def comeback(ps: Vector[Dox]): ListContentBuilder
+
+  //   protected final def get_mark(p: String): Option[(Int, String, String)] = {
+  //     ???
+  //   }
+
+  //   protected final def make_dox(p: String) = Text(p)
+  // }
+  // object ListContentBuilder {
+  //   case class Plain(xs: Vector[Dox]) extends ListContentBuilder {
+  //     def r = xs match {
+  //       case Vector() => Text("")
+  //       case Vector(x) => x match {
+  //         case m: ListContent => m
+  //         case _ => Fragment(x)
+  //       }
+  //       case _ => Fragment(xs.toList)
+  //     }
+
+  //     def +(rhs: String) = {
+  //       get_mark(rhs) match {
+  //         case Some((i, mark, c)) => mark match {
+  //           case "-" => Ul(this, i, make_dox(c))
+  //           case _ => _content(rhs)
+  //         }
+  //         case None => _content(rhs)
+  //       }
+  //     }
+  //     def comeback(ps: Vector[Dox]) = copy(xs = xs ++ ps)
+
+  //     private def _content(p: String) = copy(xs :+ Text(p))
+  //   }
+
+  //   case class Ul(
+  //     parent: ListContentBuilder,
+  //     indent: Int,
+  //     xs: Vector[Dox] = Vector.empty
+  //   ) extends ListContentBuilder {
+  //     def r = ???
+
+  //     def +(rhs: String) = {
+  //       get_mark(rhs) match {
+  //         case Some((i, mark, c)) => mark match {
+  //           case "-" => Ul(this, i, make_dox(c))
+  //           case _ => _content(rhs)
+  //         }
+  //         case None => _content(rhs)
+  //       }
+  //     }
+
+  //     def comeback(ps: Vector[Dox]) = ???
+
+  //     private def _content(p: String) = ???
+  //   }
+  //   object Ul {
+  //     def apply(
+  //       parent: ListContentBuilder,
+  //       indent: Int,
+  //       content: Dox
+  //     ): Li = Li(Ul(parent, indent), indent, Vector(content))
+  //   }
+
+  //   case class Li(
+  //     parent: ListContentBuilder,
+  //     indent: Int,
+  //     content: Vector[Dox]
+  //   ) extends ListContentBuilder {
+  //     def r = ???
+
+  //     def +(rhs: String) = {
+  //       get_mark(rhs) match {
+  //         case Some((i, mark, c)) => mark match {
+  //           case "-" =>
+  //             if (i == indent)
+  //               Li(this, indent, rhs)
+  //             else if (indent < i)
+  //               ???
+  //             else
+  //               parent.comeback(content) + rhs
+  //           case _ => _content(rhs)
+  //         }
+  //         case None => _content(rhs)
+  //       }
+  //     }
+
+  //     def comeback(ps: Vector[Dox]) = ???
+
+  //     private def _content(p: String) = copy(content = content :+ make_dox(p))
+  //   }
+  //   object Li {
+  //     def apply(
+  //       parent: ListContentBuilder,
+  //       indent: Int,
+  //       content: String
+  //     ): Li = {
+  //       Li(parent, indent, Vector(Text(content)))
+  //     }
+  //   }
+
+  //   case class Ol(indent: Int, xs: Vector[Dox]) extends ListContentBuilder {
+  //     def r = ???
+
+  //     def +(rhs: String) = {
+  //       get_mark(rhs) match {
+  //         case Some((i, mark, c)) => mark match {
+  //           case "-" => ???
+  //           case _ => ???
+  //         }
+  //         case None => ???
+  //       }
+  //     }
+
+  //     def comeback(ps: Vector[Dox]) = ???
+  //   }
+
+  //   def apply(p: Text): ListContent = apply(p.contents)
+  //   def apply(p: String): ListContent = apply(Strings.tolines(p))
+  //   def apply(ps: Vector[String]): ListContent = {
+  //     ps match {
+  //       case Vector() => Text("")
+  //       case Vector(c) => Text(c)
+  //       case c +: xs => xs.foldLeft(_init(c))(_+_).r
+  //     }
+  //   }
+
+  //   private def _init(p: String): ListContentBuilder = Plain(Vector(Text(p)))
+  // }
 }

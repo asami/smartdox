@@ -48,7 +48,8 @@ import org.goldenport.util.AnyUtils
  *  version Jun. 20, 2021
  *  version Jul. 12, 2021
  *  version Jan. 30, 2022
- * @version Sep. 20, 2023
+ *  version Sep. 20, 2023
+ * @version Jun.  6, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -1122,6 +1123,7 @@ object Li extends DoxFactory {
   val empty = Li(Nil)
   def apply(text: String) = new Li(List(Text(text)))
   def apply(element: ListContent) = new Li(List(element))
+  def apply(ps: Seq[ListContent]) = new Li(ps.toList)
 }
 
 // 2011-12-30

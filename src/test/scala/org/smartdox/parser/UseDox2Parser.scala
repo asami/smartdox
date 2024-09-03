@@ -8,7 +8,8 @@ import org.smartdox._
 /*
  * @since   Oct. 14, 2018
  *  version Nov. 11, 2018
- * @version Dec. 24, 2018
+ *  version Dec. 24, 2018
+ * @version May. 31, 2024
  * @author  ASAMI, Tomoharu
  */
 trait UseDox2Parser extends Matchers with ScalazMatchers {
@@ -19,10 +20,26 @@ trait UseDox2Parser extends Matchers with ScalazMatchers {
     )
   }
 
+  protected def parse_orgmode_simple_debug(in: String, out: String): Dox = {
+    parse_orgmode_debug(
+      in,
+      s"""<!DOCTYPE html><html><head/><body>$out</body></html>"""
+    )
+  }
+
   protected def parse_orgmode(in: String, out: String): Dox = {
     val result = Dox2Parser.parse(in)
     // result should be ('successful)
     val dox = result
+    dox.toString() should be (out)
+    dox
+  }
+
+  protected def parse_orgmode_debug(in: String, out: String): Dox = {
+    val result = Dox2Parser.parse(in)
+    // result should be ('successful)
+    val dox = result
+    println(dox.toString)
     dox.toString() should be (out)
     dox
   }
