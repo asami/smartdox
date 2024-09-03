@@ -8,6 +8,8 @@ import org.goldenport.Strings.blankp
 import org.goldenport.values.Designation
 import org.goldenport.collection.VectorMap
 import org.goldenport.parser.ParseResult
+import org.goldenport.parser.LogicalSection
+import org.smartdox.parser.Dox2Parser
 
 /*
  * @since   Dec.  5, 2012
@@ -16,7 +18,8 @@ import org.goldenport.parser.ParseResult
  *  version Dec. 31, 2018
  *  version Aug. 13, 2020
  *  version Nov. 18, 2020
- * @version Mar. 16, 2021
+ *  version Mar. 16, 2021
+ * @version Jul.  8, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -155,6 +158,33 @@ trait Doxes {
     // }
     ???
   }
+
+  protected final def dox_parse(c: Dox2Parser.Config, p: LogicalSection): Dox =
+    Dox2Parser.parse(c, p)
+
+  protected final def make_description(c: Dox2Parser.Config, p: LogicalSection): Description = {
+    val dox = Dox2Parser.parse(c, p)
+    make_description(dox)
+  }
+
+  protected final def make_sections(c: Dox2Parser.Config, p: LogicalSection): List[Section] = {
+    val dox = Dox2Parser.parse(c, p)
+    make_sections(dox)
+  }
+
+  protected final def make_description_sections(c: Dox2Parser.Config, p: LogicalSection): (Description, List[Section]) = {
+    val dox = Dox2Parser.parse(c, p)
+    make_description_sections(dox)
+  }
+
+  protected final def make_description(p: Dox): Description =
+    Description.parse(p)
+
+  protected final def make_sections(p: Dox): List[Section] =
+    p.sections
+
+  protected final def make_description_sections(p: Dox): (Description, List[Section]) =
+    (make_description(p), make_sections(p))
 }
 
 object Doxes extends Doxes

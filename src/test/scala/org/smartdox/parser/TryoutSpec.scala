@@ -11,7 +11,8 @@ import org.goldenport.scalatest.ScalazMatchers
  * @since   Jan.  6, 2019
  *  version Jan. 26, 2019
  *  version May. 31, 2024
- * @version Jun.  9, 2024
+ *  version Jun.  9, 2024
+ * @version May. 10, 2024
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
