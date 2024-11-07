@@ -15,7 +15,8 @@ import scala.util.parsing.input.Reader
 
 /*
  * @since   Jan. 16, 2014
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Sep.  5, 2024
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -24,8 +25,9 @@ class DoxesSpec extends WordSpec with Matchers with ScalazMatchers with Doxes {
     "dox_desc" which {
       "empty" in {
         val desc = dox_desc()
-        println("Doxes#doc_desc = " + desc)
+//        println("Doxes#doc_desc = " + desc)
         desc should not be (null)
+        desc should be (Description.empty)
       }
     }
   }

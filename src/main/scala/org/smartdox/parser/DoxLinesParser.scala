@@ -8,6 +8,7 @@ import org.goldenport.parser.LogicalBlock.{VerbatimMarkClass, VerbatimMark}
 import org.goldenport.collection.{NonEmptyVector, VectorMap}
 import org.goldenport.util.VectorUtils
 import org.smartdox._
+import org.smartdox.util.DoxUtils
 
 /*
  * @since   Nov. 12, 2018
@@ -17,7 +18,10 @@ import org.smartdox._
  *  version Nov. 16, 2019
  *  version Jan. 11, 2021
  *  version Feb.  9, 2021
- * @version Jun.  6, 2024
+ *  version Jun.  6, 2024
+ *  version Sep.  5, 2024
+ *  version Oct. 31, 2024
+ * @version Nov.  2, 2024
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -63,17 +67,17 @@ object DoxLinesParser {
     case class Candidate(
       mark: String,
       listElement: Dox,
-      rawOffset: Int,
+      rowOffset: Int,
       text: String,
       lines: LogicalLines = LogicalLines.empty,
       term: Option[String] = None
     ) {
-      def toDox: Dox = Li(text)
+      def toDox: Dox = Li(text) // ListStateOld
 
       def add(p: LogicalLine): Candidate = copy(text = text + " " + p.text)
     }
-    case class Ctx(rawOffset: Int = 0) {
-      def space = Ctx(rawOffset + 1)
+    case class Ctx(rowOffset: Int = 0) {
+      def space = Ctx(rowOffset + 1)
     }
 
     def getCandidate(p: String): Option[Candidate] =
@@ -96,7 +100,7 @@ object DoxLinesParser {
             if (x == ' ') {
               val c = t.tail.dropWhile(_ == ' ')
               _get_definition_list(c, ctx) orElse {
-                Some(Candidate("-", Ul, ctx.rawOffset, c))
+                Some(Candidate("-", Ul, ctx.rowOffset, c))
               }
             } else {
               None
@@ -113,7 +117,7 @@ object DoxLinesParser {
         case i =>
           val t = p.substring(0, i).trim
           val d = p.substring(i + " :: ".length).trim
-          Some(Candidate("-", Dl, ctx.rawOffset, d, term = Some(t)))
+          Some(Candidate("-", Dl, ctx.rowOffset, d, term = Some(t)))
       }
 
     private def _get_order_list(p: String, ctx: Ctx) = {
@@ -121,7 +125,7 @@ object DoxLinesParser {
       regex.findFirstMatchIn(p).
         map { x =>
           val n = x.group(1)
-          Candidate(n, Ol, ctx.rawOffset, x.group(2))
+          Candidate(n, Ol, ctx.rowOffset, x.group(2))
         }
     }
   }
@@ -130,9 +134,19 @@ object DoxLinesParser {
     def line: LogicalLine
   }
   object TableMark {
-    case class TableSeparator(line: LogicalLine) extends TableMark
+    val topCorner = Vector('┌', '┏', '┐', '┓')
+    val bottomCorner = Vector('└', '┗', '┘', '┛')
+    val rowDelimiters = Vector('|', '│', '┃')
+    val commonSeparatorDelimitters = Vector('-', '─', '━')
+    val topSeparatorDelimiters = Vector('┬', '┯', '┰', '┳') ++ commonSeparatorDelimitters ++ topCorner
+    val middleSeparatorDelimiters = Vector('├', '┝', '┠', '┣', '┤', '┥', '┨', '┫', '┼', '┿', '╂', '╋') ++ commonSeparatorDelimitters
+    val bottomSeparatorDelimiters = Vector('┴', '┷', '┸', '┻') ++ commonSeparatorDelimitters ++ bottomCorner
+
+    case class TableSeparator(line: LogicalLine) extends TableMark {
+    }
+
     case class TableRow(line: LogicalLine) extends TableMark {
-      val a = Strings.totokens(line.text, "|")
+      val a = Strings.totokens(line.text, rowDelimiters)
       val fields: List[String] = a.lastOption.map(x =>
         if (x.forall(Character.isWhitespace))
           a.init
@@ -152,12 +166,18 @@ object DoxLinesParser {
 
     def get(p: LogicalLine): Option[TableMark] =
       p.text.headOption.flatMap {
-        case '|' => p.text.lift(1) map {
-          case '-' => TableSeparator(p)
-          case _ => TableRow(p)
-        }
+        case '|' =>
+          val t = p.text.tail
+          if (t.contains('-') && _only(t))
+            Some(TableSeparator(p))
+          else
+            Some(TableRow(p))
         case _ => None
       }
+
+    private val _only_symbols = Vector('|', '-', ':', ' ')
+
+    private def _only(ps: String) = ps.forall(_only_symbols.contains)
   }
 
   sealed trait AnnotationMark {
@@ -628,7 +648,7 @@ object DoxLinesParser {
 
   case class ListState(
     parent: DoxLinesParseState,
-    slots: NonEmptyVector[ListState.Slot]
+    slots: NonEmptyVector[ListState.SlotGroup]
   ) extends ChildDoxLinesParseState {
     import ListState._
 
@@ -639,9 +659,11 @@ object DoxLinesParser {
       copy(slots = slots.mapLast(_.addChildren(xs)))
     }
 
-    private def _result = {
-      val xs = slots.map(_.doxItem)
-      slots.head.doxContainer(xs.vector)
+    private def _result: Dox = {
+      Dox.toDox(slots.map(_.toDox))
+      // slots.head.listElement
+      // val xs = slots.map(_.doxItem)
+      // slots.head.doxContainer(xs.vector)
     }
 
     override protected def end_Transition(config: Config): Transition =
@@ -649,36 +671,80 @@ object DoxLinesParser {
 
     override protected def handle_line(config: Config, evt: LogicalLineEvent): Transition = {
       ListMark.getCandidate(evt.line.text) map { x =>
-        if (slots.last.rawOffset == x.rawOffset)
-          transit_next(copy(slots = slots :+ Slot(x)))
-        else if (slots.last.rawOffset < x.rawOffset)
+        if (slots.last.rowOffset == x.rowOffset)
+          transit_next(copy(slots = _add_slot(x)))
+        else if (slots.last.rowOffset < x.rowOffset)
           transit_next(ListState(this, x))
         else
           parent.returnFrom(_result).apply(config, evt)
       } getOrElse {
-        transit_next(copy(slots = slots.updateLast(slots.last.addLine(evt.line.text))))
+        val s = evt.line.text.trim
+        transit_next(copy(slots = slots.mapLast(_.addLine(s))))
       }
+    }
+
+    private def _add_slot(p: ListMark.Candidate): NonEmptyVector[SlotGroup] = {
+      val a = slots.last.append(p)
+      slots.initVector ++: a
     }
   }
   object ListState {
+    case class SlotGroup(slots: NonEmptyVector[Slot]) {
+      def listElement = slots.head.listElement
+      def rowOffset = slots.last.rowOffset
+
+      def add(p: Slot) = copy(slots = slots :+ p)
+
+      def addLine(p: String) = copy(slots = slots.mapLast(_.addLine(p)))
+
+      def addChildren(ps: Seq[ListContent]) = copy(slots = slots.mapLast(_.addChildren(ps)))
+
+      def append(p: ListMark.Candidate): NonEmptyVector[SlotGroup] =
+        if (listElement == p.listElement)
+          NonEmptyVector(copy(slots = slots :+ Slot(p)))
+        else
+          NonEmptyVector.create(this, SlotGroup(p))
+
+      def toDox: Dox = listElement match {
+        case m: Ul => Ul(_build_lis)
+        case m: Ol => Ol(_build_lis)
+        case m: Dl => Dl(_build_dtdds)
+      }
+
+      private def _build_lis: Seq[Li] = slots.map(_.toLi).list
+
+      private def _build_dtdds: List[(Dt, Dd)] = slots.map(_.toDtDd).list
+    }
+    object SlotGroup {
+      def apply(p: ListMark.Candidate): SlotGroup = SlotGroup(NonEmptyVector(Slot(p)))
+    }
+
     case class Slot(
       candidate: ListMark.Candidate,
       lines: Vector[String] = Vector.empty,
       children: Vector[ListContent] = Vector.empty
     ) {
-      def rawOffset = candidate.rawOffset
-      def doxItem = {
-        val ts = Text(candidate.text) +: lines.map(Text(_))
-        Li(ts ++ children)
+      def listElement = candidate.listElement
+      def rowOffset = candidate.rowOffset
+      def toLi = {
+        val ts = Text(DoxUtils.concatLines(candidate.text, lines))
+        Li(ts +: children)
       }
-      def doxContainer(ps: Seq[Li]) = candidate.listElement match {
+      def toDtDd: (Dt, Dd) = {
+        val dt = Dt(candidate.term getOrElse candidate.text)
+        val a = Text(DoxUtils.concatLines(candidate.text, lines))
+        val dd = Dd(List(a))
+        (dt, dd)
+      }
+      private def doxContainer(ps: Seq[Li]) = candidate.listElement match {
         case m: Ul => Ul(ps)
+        case m: Ol => Ol(ps)
       }
       def addLine(p: String) = copy(lines = lines :+ p)
       def addChildren(ps: Seq[ListContent]) = copy(children = children ++ ps)
     }
 
-    def apply(parent: DoxLinesParseState, p: ListMark.Candidate): ListState = ListState(parent, NonEmptyVector(Slot(p)))
+    def apply(parent: DoxLinesParseState, p: ListMark.Candidate): ListState = ListState(parent, NonEmptyVector(SlotGroup(p)))
   }
 
   case class ListStateOld(
@@ -687,7 +753,7 @@ object DoxLinesParser {
   ) extends ChildDoxLinesParseState {
     override protected def end_Transition(config: Config): Transition = {
       // println(s"listMarkCandidates: ${listMarkCandidates}")
-      val md = close_state(config, listMarkCandidates.head, listMarkCandidates.tail)
+      val md = close_state(config, listMarkCandidates.head, listMarkCandidates.tailVector)
       leave_to_in_end(config, md)
     }
 
@@ -749,7 +815,7 @@ object DoxLinesParser {
 
         def +(rhs: ListMark.Candidate) = {
           // println(s"+: $rhs <= $this")
-          val r = if (rhs.rawOffset <= base.rawOffset) {
+          val r = if (rhs.rowOffset <= base.rowOffset) {
             val (bmsgs, node) = parse_inline(config, base.text)
             val ms = messages + bmsgs
             node.map { n =>
@@ -819,7 +885,7 @@ object DoxLinesParser {
 
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = {
       // println(s"listMarkCandidates: ${listMarkCandidates}")
-      val (m, d) = close_state(config, listMarkCandidates.head, listMarkCandidates.tail)
+      val (m, d) = close_state(config, listMarkCandidates.head, listMarkCandidates.tailVector)
       leave_to(m, d)
     }
 
@@ -865,6 +931,7 @@ object DoxLinesParser {
   case class TableState(
     parent: DoxLinesParseState,
     blocks: TableState.Blocks,
+    separators: TableState.Separators,
     annotation: Vector[AnnotationMark] = Vector.empty,
     inSeparator: Boolean = false
   ) extends ChildDoxLinesParseState {
@@ -886,10 +953,66 @@ object DoxLinesParser {
       val head = blocks.head(config)
       val body = blocks.body(config)
       val foot = blocks.foot(config)
+      val side = None
+      val cg = _make_colgroup(separators)
       // println(s"TableState#close_state: $blocks")
-      val table: Dox = Table(head, body, foot, caption, label)
+      val table: Dox = Table(head, body, foot, side, cg, caption, label)
       (ParseMessageSequence.empty, Tree.leaf(table))
     }
+
+    private def _make_colgroup(p: TableState.Separators): Option[Colgroup] =
+      p.separators.headOption.flatMap(_make_colgroup)
+
+    private def _make_colgroup(p: TableMark.TableSeparator): Option[Colgroup] = {
+      val normalizedtext = {
+        val a = p.line.text.headOption match {
+          case None => ""
+          case Some(s) =>
+            if (TableMark.rowDelimiters.contains(s))
+              p.line.text.tail
+            else
+              p.line.text
+        }
+        a.lastOption match {
+          case None => ""
+          case Some(s) => 
+            if (TableMark.rowDelimiters.contains(s))
+              a.init
+            else
+              a
+        }
+      }
+      if (normalizedtext.isEmpty) {
+        None
+      } else {
+        val a = Strings.totokens(normalizedtext, TableMark.rowDelimiters)
+        val b = _aligns_(a.map(_.trim))
+        if (b.forall(_.isEmpty))
+          None
+        else
+          Some(
+            Colgroup(b.map {
+              case Some(s) => Col(s)
+              case None => Col()
+            })
+          )
+      }
+    }
+
+    private def _aligns_(p: List[String]): List[Option[Table.Align]] =
+      p.map(_get_align)
+
+    private def _get_align(p: String): Option[Table.Align] =
+      if (p.length < 2) {
+        None
+      } else {
+        (p.head, p.last) match {
+          case (':', ':') => Some(Table.Align.Center)
+          case (':', _) => Some(Table.Align.Left)
+          case (_, ':') => Some(Table.Align.Right)
+          case _ => None
+        }
+      }
 
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = {
       val (m, d) = close_state(config)
@@ -901,7 +1024,7 @@ object DoxLinesParser {
 
     override protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] = {
       val a = TableMark.get(evt).map {
-        case m: TableMark.TableSeparator => copy(inSeparator = true)
+        case m: TableMark.TableSeparator => copy(separators = separators.add(m), inSeparator = true)
         case m: TableMark.TableRow =>
           if (inSeparator)
             copy(blocks = blocks.addNewBlock(m), inSeparator = false)
@@ -920,8 +1043,14 @@ object DoxLinesParser {
   object TableState {
     import TableMark._
 
+    case class Separators(separators: Vector[TableSeparator]) {
+      def add(p: TableSeparator) = copy(separators = separators :+ p)
+    }
+    object Separators {
+      val init = Separators(Vector.empty)
+    }
+
     case class Blocks(blocks: NonEmptyVector[Block]) {
-      def add(p: TableSeparator) = Blocks(blocks :+ Block.empty)
       def add(p: TableRow) = Blocks(blocks.mapLast(_ :+ p))
       def addNewBlock(p: TableRow) = Blocks(blocks :+ Block(p))
       def head(config: Config): Option[THead] = blocks.length match {
@@ -959,14 +1088,14 @@ object DoxLinesParser {
 
     def apply(parent: DoxLinesParseState, p: TableMark): TableState =
       p match {
-        case m: TableSeparator => TableState(parent, Blocks.init)
-        case m: TableRow => TableState(parent, Blocks(m))
+        case m: TableSeparator => TableState(parent, Blocks.init, Separators.init)
+        case m: TableRow => TableState(parent, Blocks(m), Separators.init)
       }
 
     def apply(parent: DoxLinesParseState, p: TableMark, as: Vector[AnnotationMark]): TableState =
       p match {
-        case m: TableSeparator => TableState(parent, Blocks.init, as)
-        case m: TableRow => TableState(parent, Blocks(m), as)
+        case m: TableSeparator => TableState(parent, Blocks.init, Separators.init, as)
+        case m: TableRow => TableState(parent, Blocks(m), Separators.init, as)
       }
   }
 

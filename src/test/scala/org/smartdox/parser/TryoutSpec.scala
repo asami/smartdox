@@ -12,28 +12,73 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Jan. 26, 2019
  *  version May. 31, 2024
  *  version Jun.  9, 2024
- * @version May. 10, 2024
+ *  version May. 10, 2024
+ *  version Sep.  5, 2024
+ * @version Oct. 23, 2024
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class TryoutSpec extends WordSpec with Matchers with ScalazMatchers with UseDox2Parser {
+  "DoxParser" should {
+    val imgdot = "#+begin_dot image/simple.png\nDOT\n#+end_dot\n"
+    "Image" should {
+      "img" which {
+        "typical" ignore {
+          parse_orgmode_simple("[[image/simple.png]]", """<p><img src="image/simple.png"/></p>""")
+        }
+        "embedded dot" ignore {
+          parse_orgmode_simple_debug(imgdot, """<p><img src="image/simple.png"/></p>""")
+        }
+        "embedded ditaa" ignore {
+          parse_orgmode_simple("#+begin_ditaa image/simple.png\nDITAA\n#+end_ditaa\n", """<p><img src="image/simple.png"/></p>""")
+        }
+        "first,contents/second,contents" ignore {
+          parse_orgmode_simple("* First\n1st contents.\n#+begin_dot image/simple.png\nDOT\n#+end_dot\n1st cont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
+            """<section><h2>First</h2><p>1st contents.<img src="image/simple.png"/>1st cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""")
+        }
+      }
+      "figure" which {
+        val figure = """#+CAPTION: Figure
+#+LABEL: fig
+[[image/simple.png]]"""
+        val result = """<figure id="fig"><img src="image/simple.png"/><figcaption>Figure</figcaption></figure>"""
+        "typical" ignore {
+          parse_orgmode_simple(figure, result)
+        }
+        val figuredot = """#+CAPTION: Figure
+#+LABEL: fig
+""" + imgdot
+        "typical dot" ignore {
+          parse_orgmode_simple(figuredot, result)
+        }
+        "first,contents/second,contents" ignore {
+          parse_orgmode_simple("* First\n1st contents.\n#+CAPTION: Figure\n#+LABEL: fig\n#+begin_dot image/simple.png\nDOT\n#+end_dot\n1st cont.\n** Second\n2nd *contents*.\n\ncont.\n* Next First\none\n\ntwo\n",
+            """<section><h2>First</h2><p>1st contents.</p>%s<p>1st cont.</p><section><h3>Second</h3><p>2nd <b>contents</b>.</p><p>cont.</p></section></section><section><h2>Next First</h2><p>one</p><p>two</p></section>""".format(result))
+        }
+      }
+    }
+  }
   "Dox2Parser" should {
-    "continue 2 xx" in {
-      parse_orgmode_simple_debug("abc\n\n- One\n - Two\n - Three\n\nxyz",
-        """<p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p>""")
-    }
-    "continue 2 x" ignore {
-      parse_orgmode_simple_debug("- One\n - Two\n - Three\n",
-        """<ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul>""")
-    }
-    "continue 2" ignore {
-      parse_orgmode_simple_debug("- One\n - Two\n Two-One\n",
-        """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
-    }
-    "tryout" ignore {
-      parse_orgmode_simple_debug("- One\n- Two\n",
-        """<ul><li>One</li><li>Two</li></ul>""")
-    }
+    // "continue" in {
+    //   parse_orgmode_simple_debug("- This is \n a pen.\n",
+    //     """<ul><li>This is a pen.</li></ul>""")
+    // }
+    // "continue 2 xx" in {
+    //   parse_orgmode_simple_debug("abc\n\n- One\n - Two\n - Three\n\nxyz",
+    //     """<p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p>""")
+    // }
+    // "continue 2 x" in {
+    //   parse_orgmode_simple_debug("- One\n - Two\n - Three\n",
+    //     """<ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul>""")
+    // }
+    // "continue 2" in {
+    //   parse_orgmode_simple_debug("- One\n - Two\n Two-One\n",
+    //     """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+    // }
+    // "tryout" in {
+    //   parse_orgmode_simple_debug("- One\n- Two\n",
+    //     """<ul><li>One</li><li>Two</li></ul>""")
+    // }
     "typical" ignore {
       val s0 = """
 #+title: アプリケーション・リソース

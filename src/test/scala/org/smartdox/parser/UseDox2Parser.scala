@@ -9,7 +9,9 @@ import org.smartdox._
  * @since   Oct. 14, 2018
  *  version Nov. 11, 2018
  *  version Dec. 24, 2018
- * @version May. 31, 2024
+ *  version May. 31, 2024
+ *  version Sep.  3, 2024
+ * @version Oct. 26, 2024
  * @author  ASAMI, Tomoharu
  */
 trait UseDox2Parser extends Matchers with ScalazMatchers {
@@ -39,9 +41,15 @@ trait UseDox2Parser extends Matchers with ScalazMatchers {
     val result = Dox2Parser.parse(in)
     // result should be ('successful)
     val dox = result
-    println(dox.toString)
-    dox.toString() should be (out)
-    dox
+    try {
+      dox.toString() should be (out)
+      dox
+    } catch {
+      case e: Throwable =>
+        println(s"  result: ${dox.toString}")
+        println(s"expected: $out")
+        throw e
+    }
   }
 
   protected def parse_orgmode_full(in: String, out: String): Dox = {
@@ -55,4 +63,18 @@ trait UseDox2Parser extends Matchers with ScalazMatchers {
   protected def parse_orgmode_auto_title(in: String, out: String): Dox = {
     ???
   }
+
+  protected final def parse_markdown(in: String, out: String): Dox = {
+    val c = Dox2Parser.Config.markdown
+    val result = Dox2Parser.parse(c, in)
+    val dox = result
+    dox.toString() should be (out)
+    dox
+  }
+
+  protected final def parse_markdown_simple(in: String, out: String): Dox =
+    parse_markdown(
+      in,
+      """<!DOCTYPE html><html><head/><body>%s</body></html>""".format(out)
+    )
 }

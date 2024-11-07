@@ -20,7 +20,8 @@ import Dox._
  *  version Nov. 16, 2019
  *  version Jan. 11, 2021
  *  version Sep. 18, 2021
- * @version Oct. 14, 2023
+ *  version Oct. 14, 2023
+ * @version Oct. 24, 2024
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -137,6 +138,9 @@ object Dox2Parser {
     )
     val debug = default.copy(true)
     val orgmodeInline = default.copy(
+      linesConfig = DoxLinesParser.Config.orgmodeFull
+    )
+    val markdown = default.copy(
       linesConfig = DoxLinesParser.Config.orgmodeFull
     )
   }

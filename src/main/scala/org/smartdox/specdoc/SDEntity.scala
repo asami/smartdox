@@ -14,7 +14,8 @@ import org.smartdox._
  *  version Aug. 13, 2020
  *  version Sep. 21, 2020
  *  version Nov. 21, 2020
- * @version Dec. 27, 2020
+ *  version Dec. 27, 2020
+ * @version Oct. 28, 2024
  */
 case class SDEntity(
   description: Description,
@@ -54,9 +55,11 @@ case class SDEntity(
     val data = subEntities(category).map(_sub_entity_to_record)
     val body = TBody.create(head, data)
     val foot = None
+    val side = None
+    val cg = None
     val caption = Caption("subEntityTable in SDEntity") // TODO
     val label = None
-    Table(Some(head), body, foot, Some(caption), label)
+    Table(Some(head), body, foot, side, cg, Some(caption), label)
   }
 
   private def _sub_entity_to_record(p: SDEntity) = {

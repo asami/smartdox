@@ -5,7 +5,9 @@ import scalaz._, Scalaz._, WriterT._, Show._, Validation._
 import java.net.URI
 import scala.xml.{Node => XNode, _}
 import org.goldenport.RAISE
+import org.goldenport.context.Showable
 import org.goldenport.collection.VectorMap
+import org.goldenport.collection.NonEmptyVector
 import org.goldenport.parser._
 import org.goldenport.io.MimeType
 import org.goldenport.bag.ChunkBag
@@ -13,6 +15,7 @@ import org.goldenport.extension.IDocument
 import org.goldenport.extension.IRecord
 import org.goldenport.tree.{Tree => GTree}
 import org.goldenport.util.AnyUtils
+import org.goldenport.util.ListUtils
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -50,7 +53,10 @@ import org.goldenport.util.AnyUtils
  *  version Jan. 30, 2022
  *  version Sep. 20, 2023
  *  version Jun.  6, 2024
- * @version Jul.  7, 2024
+ *  version Jul.  7, 2024
+ *  version Sep.  5, 2024
+ *  version Oct. 31, 2024
+ * @version Nov.  2, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -451,12 +457,14 @@ object Dox extends UseDox {
     case xs => Fragment(xs)
   }
 
-  def toTree(p: Dox): GTree[Dox] = {
-    val t = GTree.create[Dox](p)
+  def toDox(p: NonEmptyVector[Dox]): Dox = toDox(p.vector)
+
+  def toDox(p: GTree[Dox]): Dox = {
     RAISE.notImplementedYetDefect
   }
 
-  def toDox(p: GTree[Dox]): Dox = {
+  def toTree(p: Dox): GTree[Dox] = {
+    val t = GTree.create[Dox](p)
     RAISE.notImplementedYetDefect
   }
 
@@ -1104,10 +1112,11 @@ case class Ol(
 object Ol extends Ol(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "ol"
 
+  val empty = Ol(Nil)
+
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Ol =
     Ol(ensure_li(body))
-
-  val empty = Ol(Nil)
+  def apply(lis: Seq[Li]) = new Ol(lis.toList)
 }
 
 case class Li(
@@ -1213,13 +1222,15 @@ case class Table(
   head: Option[THead],
   body: TBody,
   foot: Option[TFoot],
+  side: Option[TSide],
+  colgroup: Option[Colgroup],
   caption: Option[Caption],
   label: Option[String],
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TableBlock {
   def getCaptionName: Option[String] = caption.map(_.toText)
-  override val elements = List(caption, head, body.some, foot).flatten
+  override val elements = List(caption, colgroup, head, side, body.some, foot).flatten
   override def showParams = label.toList.map(x => ("id", x))
 
   override def copyV(cs: List[Dox]) =
@@ -1242,10 +1253,18 @@ case class Table(
         case (f: TFoot) :: xs => (Some(f), xs)
         case _ => (None, cs3)
       }
-      if (b.isEmpty || cs4.nonEmpty) {
+      val (s, cs5) = cs4 match {
+        case (s: TSide) :: xs => (Some(s), xs)
+        case _ => (None, cs4)
+      }
+      val (cg, cs6) = cs5 match {
+        case (cg: Colgroup) :: xs => (Some(cg), xs)
+        case _ => (None, cs5)
+      }
+      if (b.isEmpty || cs6.nonEmpty) {
         to_failure(cs)
       } else {
-        Success(copy(h, b.get, f, c, label, location = get_location(location, cs)))
+        Success(copy(h, b.get, f, s, cg, c, label, location = get_location(location, cs)))
       }
     }
 
@@ -1290,9 +1309,22 @@ case class Table(
     }
 }
 object Table {
-  val empty = Table(None, TBody.empty, None, None, None)
+  val empty = Table(None, TBody.empty, None, None, None, None, None)
 
-  def apply(h: THead, b: TBody): Table = Table(Some(h), b, None, None, None)
+  sealed trait Align extends Showable
+  object Align {
+    case object Left extends Align {
+      def print = "left"
+    }
+    case object Center extends Align {
+      def print = "center"
+    }
+    case object Right extends Align {
+      def print = "right"
+    }
+  }
+
+  def apply(h: THead, b: TBody): Table = Table(Some(h), b, None, None, None, None, None)
 
   def create(h: Seq[String], data: Seq[IRecord]): Table = {
     val head = THead.create(h)
@@ -1342,7 +1374,7 @@ object Table {
       val c = _caption.map(x => Caption(x))
       val thead = THead(List(h))
       val tbody = TBody(b)
-      Table(thead.some, tbody, None, c, _id)
+      Table(thead.some, tbody, None, None, None, c, _id)
     }
   }
   object Builder {
@@ -1460,6 +1492,36 @@ case class TFoot(
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
+}
+
+case class TSide(
+  top: Option[TH],
+  columns: List[TH],
+  bottom: Option[TH],
+  location: Option[ParseLocation] = None
+) extends Block {
+  override val elements = List()
+}
+
+case class Colgroup(
+  cols: List[Col],
+  location: Option[ParseLocation] = None
+) extends Block {
+  override val elements = cols
+}
+
+case class Col(
+  span: Option[Int] = None,
+  align: Option[Table.Align] = None,
+  location: Option[ParseLocation] = None
+) extends Block {
+  override def showParams = ListUtils.buildTupleList(
+    "span" -> span.map(AnyUtils.toString),
+    "align" -> align.map(_.print)
+  )
+}
+object Col {
+  def apply(p: Table.Align): Col = Col(align = Some(p))
 }
 
 case class TR(
@@ -1593,7 +1655,9 @@ object Dt extends Dt(Nil, VectorMap.empty, None) with DoxFactory {
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dt = Dt(ensure_inline(body))
 
-  def apply(p: String): Dt = Dt(to_text(p))
+  def apply(p: String): Dt = Dt(Dox.text(p))
+
+  def apply(p: Inline): Dt = Dt(List(p))
 
   def unapply(x: XNode): Option[Dt] = {
     RAISE.notImplementedYetDefect
@@ -1762,12 +1826,16 @@ case class Newline(
 
 trait Img extends Inline {
   val src: URI
+  def attributes: VectorMap[String, String]
   override val elements = Nil
   override def showTerm = "img"
+  // override def showParams = List(
+  //   "src" -> src.toASCIIString(),
+  //   "width" -> "640" // TODO
+  // )
   override def showParams = List(
-    "src" -> src.toASCIIString(),
-    "width" -> "640" // TODO
-  )
+    "src" -> src.toASCIIString()
+  ) ::: attributes.toList
 }
 
 trait EmbeddedImg extends Img {
@@ -1956,6 +2024,7 @@ case class BinaryImg(
   name: String,
   mime: MimeType,
   chunk: ChunkBag,
+  attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Img {
   val src: URI = {

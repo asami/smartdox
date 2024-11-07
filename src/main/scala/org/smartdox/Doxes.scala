@@ -19,7 +19,9 @@ import org.smartdox.parser.Dox2Parser
  *  version Aug. 13, 2020
  *  version Nov. 18, 2020
  *  version Mar. 16, 2021
- * @version Jul.  8, 2024
+ *  version Jul.  8, 2024
+ *  version Sep.  5, 2024
+ * @version Oct. 28, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -41,7 +43,7 @@ trait Doxes {
     val l = Option(id)
     val thead = THead(List(h))
     val tbody = TBody(b)
-    Table(thead.some, tbody, None, c, l)
+    Table(thead.some, tbody, None, None, None, c, l)
   }
 
   protected def dox_table_tuple(header: Product, body: Seq[Product],
@@ -130,7 +132,7 @@ trait Doxes {
       } 
     } else tob(content).toDox
     Description(
-      Designation(title),
+      Designation(Option(title)),
 //      title = toi(title).toDox,
       resume = Resume.summary(sm.toDox),
       content = c

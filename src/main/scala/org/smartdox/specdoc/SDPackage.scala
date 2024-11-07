@@ -17,7 +17,8 @@ import org.smartdox._
  *  version Oct. 19, 2020
  *  version Nov.  1, 2020
  *  version Dec. 27, 2020
- * @version Jul. 12, 2021
+ *  version Jul. 12, 2021
+ * @version Oct. 28, 2024
  */
 case class SDPackage(
   description: Description,
@@ -54,9 +55,11 @@ case class SDPackage(
     val data = entities.filter(_.isMatch(category)).map(_entity_to_record)
     val body = TBody.create(head, data)
     val foot = None
+    val side = None
+    val cg = None
     val caption = Caption("entityTable in SDPackage") // TODO
     val label = None
-    Table(Some(head), body, foot, Some(caption), label)
+    Table(Some(head), body, foot, side, cg, Some(caption), label)
   }
 
   def getEntityTable(category: SDCategory): Option[Table] =
