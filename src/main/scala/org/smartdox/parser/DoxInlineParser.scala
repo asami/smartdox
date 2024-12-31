@@ -13,7 +13,8 @@ import org.smartdox._
  *  version Oct.  2, 2019
  *  version Nov. 29, 2020
  *  version Dec.  5, 2020
- * @version Feb.  8, 2021
+ *  version Feb.  8, 2021
+ * @version Nov. 22, 2024
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -62,8 +63,8 @@ object DoxInlineParser {
   case class Config(
     isDebug: Boolean = false,
     isLocation: Boolean = true,
-    markdown: Config.MarkDown = Config.MarkDown.default,
-    orgmode: Config.OrgMode = Config.OrgMode.default
+    markdown: Config.MarkDown = Config.MarkDown.none,
+    orgmode: Config.OrgMode = Config.OrgMode.none
   ) extends ParseConfig {
     def isSpace(c: Char): Boolean = Character.isWhitespace(c)
 
@@ -86,7 +87,12 @@ object DoxInlineParser {
   object Config {
     val default = Config()
     val debug = Config(true)
-    val orgmodeFull = default.copy(orgmode = Config.OrgMode.full)
+    val orgmode = default.copy(orgmode = Config.OrgMode.full)
+    val markdown = default.copy(markdown = Config.MarkDown.full)
+    val model = default.copy(
+      orgmode = Config.OrgMode.model,
+      markdown = Config.MarkDown.model
+    )
 
     case class MarkDown(
       isBold: Boolean, // *bold*
@@ -98,7 +104,9 @@ object DoxInlineParser {
       isEmoji: Boolean // :emoji:
     )
     object MarkDown {
-      val default = MarkDown(false, false, false, false, false, false, false)
+      val none = MarkDown(false, false, false, false, false, false, false)
+      val full = MarkDown(true, true, true, true, true, true, true)
+      val model = none
     }
 
     case class OrgMode(
@@ -110,8 +118,9 @@ object DoxInlineParser {
       isUnderline: Boolean // _underline_
     )
     object OrgMode {
-      val default = OrgMode(false, false, false, false, false, false)
+      val none = OrgMode(false, false, false, false, false, false)
       val full = OrgMode(true, true, true, true, true, true)
+      val model = none
     }
   }
 

@@ -14,6 +14,7 @@ import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IDocument
 import org.goldenport.extension.IRecord
 import org.goldenport.tree.{Tree => GTree}
+import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 
@@ -56,17 +57,15 @@ import org.goldenport.util.ListUtils
  *  version Jul.  7, 2024
  *  version Sep.  5, 2024
  *  version Oct. 31, 2024
- * @version Nov.  2, 2024
+ *  version Nov. 24, 2024
+ * @version Dec. 22, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   def location: Option[ParseLocation]
   def isEmpty: Boolean = elements.isEmpty
-  val elements: List[Dox] = Nil
-  def sections: List[Section] = sectionsShallow
-  lazy val sectionsShallow = elements collect { case m: Section => m }
-  def tables: List[Table] = tablesShallow
-  lazy val tablesShallow = elements collect { case m: Table => m }
+  def elements: List[Dox] = Nil
+
   lazy val attributeMap = VectorMap(showParams)
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
@@ -111,6 +110,24 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
     toString(buf)
     buf.toString()
   }
+
+  override final def equals(o: Any) = o match {
+    case m: Dox => 
+      val r = equals_Whole(m)
+//    println(s"Eqauls[${this.getClass.getName}]: $this/$o => $r")
+      r
+    case _ => false
+  }
+
+  // override def equals(o: Any) = o match {
+  //   case m: Dox => dox_Equals(m)
+  //   case _ => false
+  // }
+
+  protected def equals_Whole(o: Dox): Boolean =
+    equals_Value(o) && location.equals(o.location)
+
+  protected def equals_Value(o: Dox): Boolean
 
   def print = toShowString
 
@@ -351,6 +368,24 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   }
 
   def toVW: Dox.DoxVW = Dox.vw(this)
+
+  def sections: List[Section] = sectionsShallow
+  lazy val sectionsShallow = elements collect { case m: Section => m }
+  def tables: List[Table] = tablesShallow
+  lazy val tablesShallow = elements collect { case m: Table => m }
+  def dls: List[Dl] = dlShallow
+  lazy val dlShallow = elements collect { case m: Dl => m }
+  def uls: List[Ul] = ulShallow
+  lazy val ulShallow = elements collect { case m: Ul => m }
+  def ols: List[Ol] = olShallow
+  lazy val olShallow = elements collect { case m: Ol => m }
+  def getTextIfOnly: Option[Text] =
+    elements match {
+      case Nil => None
+      case x :: Nil => x.getTextIfOnly
+      case _ => None
+    }
+  def getStringIfOnlyText: Option[String] = getTextIfOnly.map(_.contents)
 }
 
 trait Block extends Dox with ListContent {
@@ -655,6 +690,13 @@ object Dox extends UseDox {
 
   def toText(ps: Seq[Dox]): String = ps.map(_.toText).mkString
 
+  def makeSection(p: Dox): Section = findSection(p).get
+
+  def findSection(p: Dox): Option[Section] = p match {
+    case m: Section => Some(m)
+    case _ => p.elements.toStream.flatMap(findSection).headOption
+  }
+
   def findTable(p: Dox): Option[Table] = p match {
     case m: Table => Some(m)
     case _ => p.elements.toStream.flatMap(findTable).headOption
@@ -680,6 +722,11 @@ case class Document(
   override def showTerm = "html"
   override def showOpenText = "<!DOCTYPE html><html>"
   override def showCloseText = "</html>"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Document => head == m.head && body == m.body && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     def s(h: Head, b: Body): ValidationNel[String, Dox] = {
@@ -741,6 +788,11 @@ case class Head(
     title.isEmpty && author.isEmpty && date.isEmpty && css.isEmpty && csslink.isEmpty &&
       attributes.isEmpty && location.isEmpty
   )
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Head => title == m.title && author == m.author && date == m.date && css == m.css && csslink == m.csslink && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     if (cs.isEmpty) Success(this)
@@ -818,6 +870,11 @@ case class Body(
 ) extends Dox {
   override val elements = contents
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Body => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs, location = get_location(location, contents)))
   }
@@ -858,6 +915,11 @@ case class Section(
   }
   override def isOpenClose = false
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Section => title == m.title && contents == m.contents && level == m.level && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     Success(copy(title, cs, level, location = get_location(location, cs))) // XXX level
   }
@@ -893,6 +955,11 @@ case class Div(
   override def showTerm = "div"
   override val elements = contents
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Div => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs, location = get_location(location, cs)))
   }
@@ -910,10 +977,19 @@ object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
 case class Paragraph(
   contents: List[Dox],
   attributes: VectorMap[String, String] = VectorMap.empty,
+  logicalLine: Option[LogicalLine] = None,
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = contents
   override def showTerm = "p"
+
+  override protected def equals_Value(o: Dox) = o match {
+    case m: Paragraph =>
+      val r = contents.equals(m.contents)
+      println(s"E: ${r}")
+      r
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(cs, location = get_location(location, cs)))
@@ -924,7 +1000,25 @@ case class Paragraph(
     buf.append("\n")
   }
 
+  override protected def to_Data(buf: StringBuilder) {
+    logicalLine match {
+      case Some(s) => for (x <- s.physicalLines) {
+        buf.append(x)
+        buf.append("\n")
+      }
+      case None => to_Plain_Text(buf)
+    }
+  }
+
+  override def getStringIfOnlyText: Option[String] = getTextIfOnly.map(_.contents)
+
   def append(p: Dox): Paragraph = copy(contents = contents :+ p)
+}
+object Paragraph {
+  def apply(p: List[Dox], ll: LogicalLine): Paragraph =
+    Paragraph(p, logicalLine = Some(ll))
+
+  def text(p: String): Paragraph = Paragraph(List(Text(p)))
 }
 
 case class Text(
@@ -947,7 +1041,17 @@ case class Text(
 
   override def getHtmlTag = None
 
+  override protected def equals_Value(o: Dox) = o match {
+    case m: Text =>
+      val r = contents.equals(m.contents)
+      println(s"Text: ${r}")
+      r
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = Success(this)
+
+  override def getTextIfOnly = Some(this)
 
   def append(p: String): Text = copy(contents = contents ++ p)
 }
@@ -959,6 +1063,11 @@ case class Bold(
 ) extends Inline {
   override val elements = contents
   override def showTerm = "b"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Bold => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(x => copy(contents = x, location = get_location(location, cs)))
@@ -991,6 +1100,11 @@ case class Italic(
     buf.append("/")
   }
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Italic => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(x => copy(contents = x, location = get_location(location, cs)))
   }
@@ -1021,6 +1135,11 @@ case class Underline(
     buf.append("_")
   }
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Underline => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(x => copy(x, location = get_location(location, cs)))
   }
@@ -1041,6 +1160,11 @@ case class Code(
   location: Option[ParseLocation] = None
 ) extends Inline {
   override val elements = contents
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Code => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, cs)))
@@ -1064,6 +1188,11 @@ case class Pre(
   override val elements = List(Text(contents))
   override def showParams = attributes.list
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Pre => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs) >| copy(contents, attributes, get_location(location, cs))
   }
@@ -1081,6 +1210,11 @@ case class Ul(
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = contents
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Ul => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_li(cs).map(copy(_, location = get_location(location, cs)))
@@ -1105,6 +1239,11 @@ case class Ol(
 ) extends Block {
   override val elements = contents
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Ol => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_li(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1128,6 +1267,11 @@ case class Li(
 
   def :+(elem: ListContent): Li = {
     Li(contents :+ elem)
+  }
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Li => contents == m.contents && attributes == m.attributes
+    case _ => false
   }
 
   override def copyV(cs: List[Dox]) = {
@@ -1155,6 +1299,11 @@ case class Del(
 ) extends Inline {
   override val elements = contents
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Del => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1178,6 +1327,11 @@ case class Hyperlink(
   override def showTerm = "a"
   override def showParams = List("href" -> href.toASCIIString())
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Hyperlink => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, href, location = get_location(location, cs)))
   }
@@ -1200,6 +1354,11 @@ case class ReferenceImg(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Img {
+  override def equals_Value(o: Dox) = o match {
+    case m: ReferenceImg => src == m.src && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
@@ -1232,6 +1391,11 @@ case class Table(
   def getCaptionName: Option[String] = caption.map(_.toText)
   override val elements = List(caption, colgroup, head, side, body.some, foot).flatten
   override def showParams = label.toList.map(x => ("id", x))
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Table => head == m.head && body == m.body && foot == m.foot && side == m.side && colgroup == m.colgroup && caption == m.caption && label == m.label && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) =
     if (cs.isEmpty) {
@@ -1330,6 +1494,33 @@ object Table {
     val head = THead.create(h)
     val body = TBody.create(head, data)
     Table(head, body)
+  }
+
+  // def create(h: Seq[String], data: VectorMap[String, String]): Table = {
+  //   val head = THead.create(h)
+  //   val body = TBody.create(head, data)
+  //   Table(head, body)
+  // }
+
+  def create(p: LxsvSequence): Table = {
+    case class Z(
+      header: Vector[String] = Vector.empty,
+      data: Vector[VectorMap[String, String]] = Vector.empty
+    ) {
+      def r = create(header, data.map(IRecord.create))
+
+      def +(rhs: Lxsv) = {
+        val h = rhs.keyNames./:(header)((z, x) =>
+          if (z.contains(x))
+            z
+          else
+            z :+ x
+        )
+        val d = data :+ rhs.toStringStringVectorMap
+        Z(h, d)
+      }
+    }
+    p.vector./:(Z())(_+_).r
   }
 
   class Builder() {
@@ -1443,6 +1634,11 @@ case class THead(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TableCompartment {
+  override def equals_Value(o: Dox) = o match {
+    case m: THead => records == m.records && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1464,6 +1660,11 @@ case class TBody(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TableCompartment {
+  override def equals_Value(o: Dox) = o match {
+    case m: TBody => records == m.records && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1483,12 +1684,27 @@ object TBody {
     }
     TBody(trs.toList)
   }
+
+  // def create(keys: Seq[String], data: VectorMap[String, String]): TBody = {
+  //   val trs = for (row <- data.vector) yield {
+  //     val tds = for (k <- row.keySymbols) yield {
+  //       row.get(k).map(x => TD(AnyUtils.toString(x))).getOrElse(TD.empty)
+  //     }
+  //     TR(tds)
+  //   }
+  //   TBody(trs.toList)
+  // }
 }
 
 case class TFoot(
   records: List[TRecord],
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None) extends TableCompartment {
+  override def equals_Value(o: Dox) = o match {
+    case m: TFoot => records == m.records && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_tr(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1501,6 +1717,11 @@ case class TSide(
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = List()
+
+  override def equals_Value(o: Dox) = o match {
+    case m: TSide => top == m.top && columns == m.columns && bottom == m.bottom
+    case _ => false
+  }
 }
 
 case class Colgroup(
@@ -1508,6 +1729,11 @@ case class Colgroup(
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = cols
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Colgroup => cols == m.cols
+    case _ => false
+  }
 }
 
 case class Col(
@@ -1519,6 +1745,11 @@ case class Col(
     "span" -> span.map(AnyUtils.toString),
     "align" -> align.map(_.print)
   )
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Col => span == m.span && align == m.align
+    case _ => false
+  }
 }
 object Col {
   def apply(p: Table.Align): Col = Col(align = Some(p))
@@ -1530,6 +1761,11 @@ case class TR(
   location: Option[ParseLocation] = None
 ) extends TRecord {
   override val elements = fields
+
+  override def equals_Value(o: Dox) = o match {
+    case m: TR => fields == m.fields && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_tfield(cs).map(copy(_, location = get_location(location, cs)))
@@ -1548,6 +1784,11 @@ case class TD(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TField {
+  override def equals_Value(o: Dox) = o match {
+    case m: TD => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1565,6 +1806,11 @@ case class TH(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends TField {
+  override def equals_Value(o: Dox) = o match {
+    case m: TH => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, cs)))
   }
@@ -1597,6 +1843,11 @@ case class TTable(
   val fields = Nil
   def length = 0
 
+  override def equals_Value(o: Dox) = o match {
+    case m: TTable => uri == m.uri && params == m.params && caption == m.caption && label == m.label && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
 //    println("TTable copyV = " + cs)
     Success(this) // currently do nothing
@@ -1617,6 +1868,11 @@ case class Space(
     buf.append(" ")
   }
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Space => true
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
@@ -1631,6 +1887,14 @@ case class Dl(
     case (dt, dd) => List(dt, dd)
   }
 
+  override protected def equals_Value(o: Dox) = o match {
+    case m: Dl =>
+      val r = contents == m.contents && attributes == m.attributes
+      println(s"Dl: ${r}")
+      r
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_dtdd(cs).map(copy(_))
   }
@@ -1639,6 +1903,10 @@ object Dl extends Dl(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dl"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dl = Dl(ensure_dtdd(body))
+
+  def create(p: Seq[(String, String)]): Dl = Dl(p.toList.map {
+    case (t, d) => (Dt(t), Dd(d))
+  })
 }
 
 case class Dt(
@@ -1647,6 +1915,14 @@ case class Dt(
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = contents
+
+  override protected def equals_Value(o: Dox) = o match {
+    case m: Dt =>
+      val r = contents.equals(m.contents) && location == m.location
+      println(s"Dt: ${r}")
+      r
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = to_inline(cs).map(copy(_))
 }
@@ -1670,6 +1946,11 @@ case class Dd(
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = contents
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Dd => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_))
@@ -1699,6 +1980,11 @@ case class Fragment(
   override protected def show_Contents(buf: StringBuilder) {
     // println(s"Fragment#show_Contents: ${showContentsElements}")
     showContentsElements.foreach(_.toString(buf))
+  }
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Fragment => contents == m.contents
+    case _ => false
   }
 
   override def copyV(cs: List[Dox]) = {
@@ -1749,6 +2035,11 @@ case class Caption(
 ) extends Block {
   override val elements = contents
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Caption => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_))
   }
@@ -1769,6 +2060,11 @@ case class Figure(
   override val elements = List(img, caption)
   override def showParams = List("id" -> label).flatMap(_.sequence)
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Figure => img == m.img && caption == m.caption && label == m.label && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_figure(cs).map { case (i, c) =>
       copy(i | img, c | caption, label)
@@ -1786,6 +2082,11 @@ case class Figcaption(
 ) extends Block {
   override val elements = contents
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Figcaption => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_))
   }
@@ -1798,6 +2099,11 @@ case class EmptyLine(
   location: Option[ParseLocation] = None
 ) extends Block {
   def attributes: VectorMap[String, String] = VectorMap.empty
+
+  override def equals_Value(o: Dox) = o match {
+    case m: EmptyLine => true
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
@@ -1819,6 +2125,11 @@ case class Newline(
   override def to_Text(buf: StringBuilder) {
     buf.append("\n")
   }
+  override def equals_Value(o: Dox) = o match {
+    case m: Newline => true
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
@@ -1850,6 +2161,11 @@ case class DotImg(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends EmbeddedImg {
+  override def equals_Value(o: Dox) = o match {
+    case m: DotImg => src == m.src && contents == m.contents && params == m.params && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
@@ -1862,6 +2178,11 @@ case class DitaaImg(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends EmbeddedImg {
+  override def equals_Value(o: Dox) = o match {
+    case m: DitaaImg => src == m.src && contents == m.contents && params == m.params && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
@@ -1878,6 +2199,11 @@ case class Html5(
   override def showTerm = name
   override def showParams = attributes
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Html5 => name == m.name && attributes == m.attributes && contents == m.contents
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
   }
@@ -1892,6 +2218,11 @@ case class Program(
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
   override def showParams = attributes.list ++ List("class" -> "program")
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Program => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
@@ -1914,6 +2245,11 @@ case class Console(
   override def showTerm = "pre"
   override def showParams = attributes.list ++ List("class" -> "console")
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Console => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_plain_text(cs).map(_ => this)
   }
@@ -1930,6 +2266,11 @@ case class SmartDoc(
   override def showTerm = name
   override def showParams = attributes.list
 
+  override def equals_Value(o: Dox) = o match {
+    case m: SmartDoc => name == m.name && attributes == m.attributes && contents == m.contents
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
   }
@@ -1943,6 +2284,11 @@ case class SmCsvImg(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends EmbeddedImg {
+  override def equals_Value(o: Dox) = o match {
+    case m: SmCsvImg => src == m.src && contents == m.contents && params == m.params && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
@@ -1959,6 +2305,8 @@ object EmptyDox extends Dox with DoxFactory with Inline {
 
   override def toString(buf: StringBuilder, maxlength: Option[Int] = None) {
   }
+
+  override def equals_Value(o: Dox) = o eq this
 }
 
 // 2012-04-24
@@ -1968,6 +2316,11 @@ case class Tt(
   location: Option[ParseLocation] = None
 ) extends Inline {
   override val elements = contents
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Tt => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, contents)))
@@ -1992,6 +2345,11 @@ case class Span(
   override val elements = contents
   override def showTerm = "span"
 
+  override def equals_Value(o: Dox) = o match {
+    case m: Span => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, location = get_location(location, contents)))
   }
@@ -2012,6 +2370,11 @@ case class IncludeDoc(filename: String) extends Block {
   def location: Option[ParseLocation] = None
 
   override def showParams = List(("filename", filename))
+
+  override def equals_Value(o: Dox) = o match {
+    case m: IncludeDoc => filename == m.filename
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
 //    println("IncludeDoc#copyV: " + cs)
@@ -2034,6 +2397,11 @@ case class BinaryImg(
     val a = s"""data:${mime.name};base64,${binary}"""
     new URI(a)
   }
+
+  override def equals_Value(o: Dox) = o match {
+    case m: BinaryImg => name == m.name && mime == m.mime && chunk == m.chunk && attributes == m.attributes
+    case _ => false
+  }
 }
 object BinaryImg {
 //   def apply(name: String, mime: MimeType, chunk: ChunkBag): BinaryImg = {
@@ -2052,6 +2420,11 @@ case class UnresolvedLink(
   override val elements = contents
   override def showTerm = "a"
   override def showParams = List("href" -> AnyUtils.toString(data))
+
+  override def equals_Value(o: Dox) = o match {
+    case m: UnresolvedLink => contents == m.contents && data == m.data && attributes == m.attributes
+    case _ => false
+  }
 
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, data, attributes, location = get_location(location, cs)))

@@ -11,7 +11,8 @@ import org.smartdox._
  *  version Dec. 24, 2018
  *  version May. 31, 2024
  *  version Sep.  3, 2024
- * @version Oct. 26, 2024
+ *  version Oct. 26, 2024
+ * @version Nov. 23, 2024
  * @author  ASAMI, Tomoharu
  */
 trait UseDox2Parser extends Matchers with ScalazMatchers {
@@ -64,17 +65,33 @@ trait UseDox2Parser extends Matchers with ScalazMatchers {
     ???
   }
 
-  protected final def parse_markdown(in: String, out: String): Dox = {
-    val c = Dox2Parser.Config.markdown
+  protected final def parse_dox(c: Dox2Parser.Config, in: String): Dox =
+    Dox2Parser.parse(c, in)
+
+  protected final def parse_dox(c: Dox2Parser.Config, in: String, out: String): Dox = {
     val result = Dox2Parser.parse(c, in)
     val dox = result
     dox.toString() should be (out)
     dox
   }
 
+  protected final def parse_dox_simple(c: Dox2Parser.Config, in: String, out: String): Dox = {
+    val s = """<!DOCTYPE html><html><head/><body>%s</body></html>""".format(out)
+    parse_dox(c, in, s)
+  }
+
+  protected final def parse_markdown(in: String): Dox =
+    parse_dox(Dox2Parser.Config.markdown, in)
+
+  protected final def parse_markdown(in: String, out: String): Dox =
+    parse_dox(Dox2Parser.Config.markdown, in, out)
+
   protected final def parse_markdown_simple(in: String, out: String): Dox =
-    parse_markdown(
-      in,
-      """<!DOCTYPE html><html><head/><body>%s</body></html>""".format(out)
-    )
+    parse_dox_simple(Dox2Parser.Config.markdown, in, out)
+
+  protected final def parse_model(in: String): Dox =
+    parse_dox(Dox2Parser.Config.literaturemodel, in)
+
+  protected final def parse_model(in: String, out: String): Dox =
+    parse_dox(Dox2Parser.Config.literaturemodel, in, out)
 }

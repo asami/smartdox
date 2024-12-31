@@ -18,7 +18,8 @@ import org.goldenport.values.Designation
  *  version Mar. 16, 2021
  *  version Jun. 28, 2021
  *  version Sep. 20, 2023
- * @version Jul.  7, 2024
+ *  version Jul.  7, 2024
+ * @version Nov. 13, 2024
  * @author  ASAMI, Tomoharu
  */
 case class Description(
@@ -79,6 +80,8 @@ object Description {
   def name(name: String): Description = Description(Designation(name))
 
   def name(name: String, p: Dox): Description = Description(Designation(name), content = p)
+
+  def nameParagraph(name: String, p: String): Description = Description(Designation(name), Paragraph.text(p))
 
   def parse(p: Dox): Description = p match {
     case m: Section => m.distillDescription

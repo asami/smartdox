@@ -10,6 +10,7 @@ import org.goldenport.collection.VectorMap
 import org.goldenport.parser.ParseResult
 import org.goldenport.parser.LogicalSection
 import org.smartdox.parser.Dox2Parser
+import org.smartdox.structure.Statement
 
 /*
  * @since   Dec.  5, 2012
@@ -21,7 +22,8 @@ import org.smartdox.parser.Dox2Parser
  *  version Mar. 16, 2021
  *  version Jul.  8, 2024
  *  version Sep.  5, 2024
- * @version Oct. 28, 2024
+ *  version Oct. 28, 2024
+ * @version Nov. 21, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -187,6 +189,13 @@ trait Doxes {
 
   protected final def make_description_sections(p: Dox): (Description, List[Section]) =
     (make_description(p), make_sections(p))
+
+  protected final def make_structure_statement(c: Dox2Parser.Config, p: LogicalSection): Statement = {
+    val dox = Dox2Parser.parse(c, p)
+    make_structure_statement(dox)
+  }
+
+  protected final def make_structure_statement(p: Dox): Statement = ???
 }
 
 object Doxes extends Doxes

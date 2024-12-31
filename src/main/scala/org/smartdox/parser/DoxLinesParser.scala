@@ -21,7 +21,7 @@ import org.smartdox.util.DoxUtils
  *  version Jun.  6, 2024
  *  version Sep.  5, 2024
  *  version Oct. 31, 2024
- * @version Nov.  2, 2024
+ * @version Nov. 23, 2024
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -56,8 +56,14 @@ object DoxLinesParser {
   object Config {
     val default = Config()
     val debug = Config(true)
-    val orgmodeFull = default.copy(
-      inlineConfig = DoxInlineParser.Config.orgmodeFull
+    val orgmode = default.copy(
+      inlineConfig = DoxInlineParser.Config.orgmode
+    )
+    val markdown = default.copy(
+      inlineConfig = DoxInlineParser.Config.markdown
+    )
+    val model = default.copy(
+      inlineConfig = DoxInlineParser.Config.model
     )
   }
 
@@ -633,7 +639,7 @@ object DoxLinesParser {
       result match {
         case EmptyParseResult() => (msgs, ParseResult.empty, this)
         case ParseSuccess(ast, ws) =>
-          val p = Paragraph(ast.toList)
+          val p = Paragraph(ast.toList, evt.line)
           (msgs :++ ws, ParseResult.empty, copy(lines = lines :+ p))
         case ParseFailure(es, ws) => (msgs :++ es :++ ws, ParseResult.empty, this)
       }
