@@ -18,10 +18,13 @@ import org.smartdox._
  *  version Sep. 21, 2020
  *  version Oct. 11, 2020
  *  version Dec.  7, 2020
- * @version Jul. 12, 2021
+ *  version Jul. 12, 2021
+ * @version Mar.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 case class SpecDoc(title: Inline, root: SDPackage) extends Realm.StringApplicationData {
+  def print = s"SpecDoc($title)"
+
   def packages: Seq[SDPackage] = root.children.collect {
     case m: SDPackage => m
   }

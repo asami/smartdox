@@ -21,7 +21,8 @@ import org.smartdox.generator.{Context => GContext}
  *  version Jul. 26, 2020
  *  version Oct. 18, 2020
  *  version Nov. 24, 2020
- * @version Dec. 20, 2020
+ *  version Dec. 20, 2020
+ * @version Feb. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxBuilder(val context: DoxBuilder.Context) {
@@ -111,7 +112,7 @@ object DoxBuilder {
       )
       val b = Body.empty
       val d = Document(h, b)
-      c.enter(d)
+      c.enterContent(d)
     }
 
     def enterPage(title: String, subtitle: String): Unit = enterPage(Dox.text(title), subtitle)
@@ -123,7 +124,7 @@ object DoxBuilder {
     def enterDivision(title: Inline, subtitle: String): Unit = {
       val t = List(title) // subtitle
       val s = Section(t, Nil)
-      c.enter(s)
+      c.enterContent(s)
     }
 
     def enterDivision(title: String, subtitle: String): Unit =
@@ -131,7 +132,7 @@ object DoxBuilder {
 
     def enterDivision(title: Inline): Unit = {
       val s = Section(List(title), Nil)
-      c.enter(s)
+      c.enterContent(s)
     }
 
     def enterDivision(title: String): Unit = enterDivision(Dox.text(title))

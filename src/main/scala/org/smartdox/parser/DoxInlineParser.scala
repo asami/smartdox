@@ -14,7 +14,8 @@ import org.smartdox._
  *  version Nov. 29, 2020
  *  version Dec.  5, 2020
  *  version Feb.  8, 2021
- * @version Nov. 22, 2024
+ *  version Nov. 22, 2024
+ * @version Jan.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -87,9 +88,10 @@ object DoxInlineParser {
   object Config {
     val default = Config()
     val debug = Config(true)
+    val smartdox = default
     val orgmode = default.copy(orgmode = Config.OrgMode.full)
     val markdown = default.copy(markdown = Config.MarkDown.full)
-    val model = default.copy(
+    val literateModel = default.copy(
       orgmode = Config.OrgMode.model,
       markdown = Config.MarkDown.model
     )

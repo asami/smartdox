@@ -8,7 +8,8 @@ import org.smartdox.service.operations._
 
 /*
  * @since   Dec. 30, 2020
- * @version Dec. 31, 2020
+ *  version Dec. 31, 2020
+ * @version Feb. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class SmartDoxService(
@@ -32,7 +33,8 @@ object SmartDoxService {
     val defaultOperation = None
     val operations = Operations(
       HtmlOperationClass,
-      BloggerOperationClass
+      BloggerOperationClass,
+      SiteOperationClass
     )
   }
 

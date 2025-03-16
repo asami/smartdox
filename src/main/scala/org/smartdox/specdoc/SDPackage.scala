@@ -18,7 +18,8 @@ import org.smartdox._
  *  version Nov.  1, 2020
  *  version Dec. 27, 2020
  *  version Jul. 12, 2021
- * @version Oct. 28, 2024
+ *  version Oct. 28, 2024
+ * @version Mar.  6, 2025
  */
 case class SDPackage(
   description: Description,
@@ -27,6 +28,9 @@ case class SDPackage(
   categories: List[SDCategory] = Nil
 ) extends SDNode {
   def new_Node(name: String): TreeNode_TYPE = ???
+
+  protected def show_Name: String = s"SDPackage($name)"
+  protected def show_String: String = to_show(description)
 
   def entities: Seq[SDEntity] = children.collect {
     case m: SDEntity => m

@@ -31,7 +31,8 @@ import org.smartdox.builder.DoxRealmBuilder
  *  version Aug. 13, 2020
  *  version Oct. 11, 2020
  *  version Nov. 21, 2020
- * @version Dec. 27, 2020
+ *  version Dec. 27, 2020
+ * @version Feb. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class SpecDoc2DoxGenerator(
@@ -52,7 +53,7 @@ class SpecDoc2DoxGenerator(
 
     private def _generate(n: TreeNode[Realm.Data], p: SpecDoc) {
       val pathname = n.parent.pathname
-      val view = Realm.View(n.parent)
+      val view = Realm.NodeView(n.parent)
       val t = new SpecDoc2Dox(p, view)
       val realm = t.apply()
       result.merge(pathname, realm)
@@ -60,7 +61,7 @@ class SpecDoc2DoxGenerator(
   }
 
   def generate(p: SpecDoc): Realm = {
-    val view = Realm.View.empty
+    val view = Realm.NodeView.empty
     val t = new SpecDoc2Dox(p, view)
     t.apply()
   }
@@ -71,7 +72,7 @@ class SpecDoc2DoxGenerator(
     g.result
   }
 
-  class SpecDoc2Dox(specdoc: SpecDoc, view: Realm.View) {
+  class SpecDoc2Dox(specdoc: SpecDoc, view: Realm.NodeView) {
     val params = DoxBuilder.Parameter(
       csslink = Some("model.css")
     )

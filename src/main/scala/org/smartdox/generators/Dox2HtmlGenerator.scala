@@ -21,7 +21,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Jul.  5, 2020
  *  version Nov. 16, 2020
  *  version Jan.  1, 2021
- * @version Aug.  3, 2023
+ *  version Aug.  3, 2023
+ * @version Mar. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2HtmlGenerator(
@@ -50,19 +51,19 @@ object Dox2HtmlGenerator {
       }
     }
 
-    def mapContent(p: Realm.Data): Realm.Data = p
+    override def makeContent(oldname: String, newname: String, p: Realm.Data): Option[Realm.Data] = Some(p)
   }
 
   class HtmlTransformer(val context: Context) extends RealmTransformer {
-    def treeTransformerContext = RealmTransformer.Context.default
-    def rule = Dox2HtmlRule
+    def realmTransformerContext = RealmTransformer.Context.default
+    override def rule = Dox2HtmlRule
 
-    override protected def make_Content(p: Data): Option[Data] = p match {
-      case m: ObjectData => _make_object(m)
+    override protected def make_Content(oldname: String, newname: String, p: Data): Option[Data] = p match {
+      case m: ObjectData => _make_object(oldname, newname, m)
       case _ => None // println(s"Dox2HtmlGenerator#make_Content other: $p")
     }
 
-    private def _make_object(p: ObjectData) = p.o match {
+    private def _make_object(oldname: String, newname: String, p: ObjectData) = p.o match {
       case m: Dox =>
         val r = for {
           html <- Dox2HtmlTransformer(context).transform(m)

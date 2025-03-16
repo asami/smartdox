@@ -12,7 +12,8 @@ import org.smartdox._
  *  version May. 31, 2024
  *  version Sep.  3, 2024
  *  version Oct. 26, 2024
- * @version Nov. 23, 2024
+ *  version Nov. 23, 2024
+ * @version Jan.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 trait UseDox2Parser extends Matchers with ScalazMatchers {
@@ -90,8 +91,8 @@ trait UseDox2Parser extends Matchers with ScalazMatchers {
     parse_dox_simple(Dox2Parser.Config.markdown, in, out)
 
   protected final def parse_model(in: String): Dox =
-    parse_dox(Dox2Parser.Config.literaturemodel, in)
+    parse_dox(Dox2Parser.Config.literateModel, in)
 
   protected final def parse_model(in: String, out: String): Dox =
-    parse_dox(Dox2Parser.Config.literaturemodel, in, out)
+    parse_dox(Dox2Parser.Config.literateModel, in, out)
 }

@@ -15,7 +15,8 @@ import org.smartdox._
  *  version Sep. 21, 2020
  *  version Nov. 21, 2020
  *  version Dec. 27, 2020
- * @version Oct. 28, 2024
+ *  version Oct. 28, 2024
+ * @version Mar.  6, 2025
  */
 case class SDEntity(
   description: Description,
@@ -25,6 +26,9 @@ case class SDEntity(
   subEntityList: Seq[SDEntity] = Nil
 ) extends SDNode {
   def new_Node(name: String): TreeNode_TYPE = ???
+
+  protected def show_Name: String = s"SDNode($name)"
+  protected def show_String: String = to_show(description)
 
   def summary: Dox = description.summary
   def brief: Dox = description.brief

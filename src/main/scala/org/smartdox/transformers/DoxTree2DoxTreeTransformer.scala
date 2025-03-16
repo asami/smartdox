@@ -7,12 +7,13 @@ import org.smartdox._
 
 /*
  * @since   Feb.  1, 2021
- * @version Feb.  2, 2021
+ *  version Feb.  2, 2021
+ * @version Mar.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxTree2DoxTreeTransformer(
   val treeTransformerContext: TreeTransformer.Context[Dox],
-  val rule: DoxTree2DoxTreeTransformer.Rule
+  override val rule: DoxTree2DoxTreeTransformer.Rule
 ) extends DoxTreeTransformer[Dox] {
 }
 

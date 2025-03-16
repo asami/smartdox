@@ -5,6 +5,7 @@ import org.goldenport.RAISE
 import org.goldenport.parser._
 import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NElement
+import org.goldenport.util.StringUtils
 import org.smartdox._
 import Dox._
 
@@ -22,7 +23,10 @@ import Dox._
  *  version Sep. 18, 2021
  *  version Oct. 14, 2023
  *  version Oct. 24, 2024
- * @version Nov. 23, 2024
+ *  version Nov. 23, 2024
+ *  version Jan.  1, 2025
+ *  version Feb.  7, 2025
+ * @version Mar.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -42,6 +46,10 @@ class Dox2Parser(config: Dox2Parser.Config) {
     val ctx = ParseContext(config, 0)
     val xs = _blocks(ctx, blocks)
     // println(s"Dox2Parser#apply ${blocks} => $xs")
+    _create(xs)
+  }
+
+  private def _create(ps: Vector[Dox]) = {
     case class Z(
       head: Head = Head(),
       elements: Vector[Dox] = Vector.empty
@@ -53,7 +61,7 @@ class Dox2Parser(config: Dox2Parser.Config) {
         case m => copy(elements = elements :+ m)
       }
     }
-    xs./:(Z())(_+_).r
+    ps./:(Z())(_+_).r
   }
 
   private def _blocks(ctx: ParseContext, p: LogicalBlocks): Vector[Dox] =
@@ -65,10 +73,29 @@ class Dox2Parser(config: Dox2Parser.Config) {
   ): Vector[Dox] = p match {
     case StartBlock => Vector.empty
     case EndBlock => Vector.empty
-    case m: LogicalSection => Vector(_section(ctx.levelUp, m))
+    case m: LogicalSection => _sections(ctx.levelUp, m)
     case m: LogicalParagraph => Vector(_paragraph(ctx, m))
     case m: LogicalVerbatim => Vector(_vervatim(ctx, m))
   }
+
+  private def _sections(ctx: ParseContext, p: LogicalSection): Vector[Dox] =
+    config.style match {
+      case Config.DoxStyle.SmartDox => _section_smartdox(ctx, p)
+      case Config.DoxStyle.Markdown => Vector(_section(ctx, p))
+      case Config.DoxStyle.OrgMode => Vector(_section(ctx, p))
+    }
+
+  private def _section_smartdox(
+    ctx: ParseContext,
+    p: LogicalSection
+  ): Vector[Dox] =
+    p.mark match {
+      case Some("=") =>
+        val head = Head(List(_to_dox(p.title)))
+        val xs = _blocks(ctx, p.blocks)
+        head +: xs
+      case _ => Vector(_section(ctx.levelUp, p))
+    }
 
   private def _section(
     ctx: ParseContext,
@@ -118,35 +145,51 @@ object Dox2Parser {
     isDebug: Boolean,
     isLocation: Boolean,
     blocksConfig: LogicalBlocks.Config,
-    linesConfig: DoxLinesParser.Config
+    linesConfig: DoxLinesParser.Config,
+    style: Config.DoxStyle
   ) extends ParseConfig {
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
+
+    sealed trait DoxStyle {
+    }
+    object DoxStyle {
+      case object SmartDox extends DoxStyle
+      case object Markdown extends DoxStyle
+      case object OrgMode extends DoxStyle
+
+      val default = SmartDox
+    }
 
     val verbatims = Vector(
       BeginSrcAnnotationClass,
       BeginExampleAnnotationClass,
       GenericBeginAnnotationClass
     )
-    val blocksConfig = LogicalBlocks.Config.easyhtml.addVerbatims(verbatims)
+    val blocksConfig = LogicalBlocks.Config.easyHtml.addVerbatims(verbatims)
 
     val default = Config(
       false,
       true,
       Config.blocksConfig,
-      DoxLinesParser.Config.default
+      DoxLinesParser.Config.default,
+      DoxStyle.SmartDox
     )
     val debug = default.copy(true)
+    val smartdox = default
     val orgmodeInline = default.copy(
-      linesConfig = DoxLinesParser.Config.orgmode
+      linesConfig = DoxLinesParser.Config.orgmode,
+      style = DoxStyle.OrgMode
     )
+    val orgmode = orgmodeInline
     val markdown = default.copy(
-      linesConfig = DoxLinesParser.Config.markdown
+      linesConfig = DoxLinesParser.Config.markdown,
+      style = DoxStyle.Markdown
     )
-    val literaturemodel = default.copy(
-      blocksConfig = LogicalBlocks.Config.literaturemodel,
-      linesConfig = DoxLinesParser.Config.model
+    val literateModel = default.copy(
+      blocksConfig = LogicalBlocks.Config.literateModel,
+      linesConfig = DoxLinesParser.Config.literateModel
     )
   }
 
@@ -155,6 +198,19 @@ object Dox2Parser {
   }
 
   def parse(in: String): Dox = parse(Config.default, in)
+
+  def parseWithFilename(filename: String, in: String): Dox = {
+    def _default_ = Dox2Parser.Config.default
+
+    val cfg = StringUtils.getSuffix(filename).fold(_default_) {
+      case "dox" => Dox2Parser.Config.smartdox
+      case "org" => Dox2Parser.Config.orgmode
+      case "md" => Dox2Parser.Config.markdown
+      case "markdown" => Dox2Parser.Config.markdown
+      case _ => _default_
+    }
+    parse(cfg, in)
+  }
 
   def parse(config: Config, in: String): Dox = {
     val parser = new Dox2Parser(config)

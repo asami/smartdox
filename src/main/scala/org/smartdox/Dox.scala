@@ -6,6 +6,7 @@ import java.net.URI
 import scala.xml.{Node => XNode, _}
 import org.goldenport.RAISE
 import org.goldenport.context.Showable
+import org.goldenport.context.Conclusion
 import org.goldenport.collection.VectorMap
 import org.goldenport.collection.NonEmptyVector
 import org.goldenport.parser._
@@ -14,6 +15,7 @@ import org.goldenport.bag.ChunkBag
 import org.goldenport.extension.IDocument
 import org.goldenport.extension.IRecord
 import org.goldenport.tree.{Tree => GTree}
+import org.goldenport.tree.TreeNode
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
@@ -58,7 +60,9 @@ import org.goldenport.util.ListUtils
  *  version Sep.  5, 2024
  *  version Oct. 31, 2024
  *  version Nov. 24, 2024
- * @version Dec. 22, 2024
+ *  version Dec. 22, 2024
+ *  version Jan.  1, 2025
+ * @version Mar.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -68,6 +72,8 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
 
   lazy val attributeMap = VectorMap(showParams)
   def attribute(name: String): Option[String] = attributeMap.get(name)
+
+  def getId: Option[Dox.Id] = attributeMap.get("id").map(Dox.Id)
 
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
@@ -241,10 +247,7 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   }
 
   protected final def normalize_fragment(cs: List[Dox]): List[Dox] =
-    cs.flatMap {
-      case m: Fragment => normalize_fragment(m.contents)
-      case m => List(m)
-    }
+    Dox.normalizeFragment(cs)
 
   protected final def to_inline(cs: List[Dox]): ValidationNel[String, List[Inline]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[Inline]]) {
@@ -455,6 +458,8 @@ object Dox extends UseDox {
   type TreeDoxVW = ValidationNel[String, Writer[List[String], Tree[Dox]]]
   type TreeDoxWV = Writer[List[String], TreeDoxV]
 
+  case class Id(id: String) extends AnyVal
+
   val empty = Fragment.empty
 
   val tags: Vector[DoxFactory] = Vector(
@@ -479,7 +484,9 @@ object Dox extends UseDox {
     Fragment,
     EmptyDox,
     Tt,
-    Span
+    Span,
+    Dfn,
+    Abbr
   )
 
   def toDox(ps: Seq[Dox]): Dox = ps.filter {
@@ -494,14 +501,63 @@ object Dox extends UseDox {
 
   def toDox(p: NonEmptyVector[Dox]): Dox = toDox(p.vector)
 
-  def toDox(p: GTree[Dox]): Dox = {
-    RAISE.notImplementedYetDefect
-  }
+  def toDox(p: GTree[Dox]): Dox = untree(p)
 
   def toTree(p: Dox): GTree[Dox] = {
-    val t = GTree.create[Dox](p)
-    RAISE.notImplementedYetDefect
+    val root: TreeNode[Dox] = toTreeNode(p)
+    GTree.create[Dox](root)
   }
+
+  def toTreeNode(p: Dox): TreeNode[Dox] = {
+    val xs = p.elements.map(toTreeNode)
+    TreeNode.createContentNode(p, xs)
+  }
+
+  def untree(p: GTree[Dox]): Dox = _untree(p.root)
+
+  private def _untree(p: TreeNode[Dox]): Dox = {
+    val xs = _untree_children(p)
+    p.getContent.fold(Div(xs): Dox) { x =>
+      x.copyV(xs) match {
+        case Success(s) => s
+        case Failure(e) => Conclusion.noReachDefect(s"""Dox#_untree: ${e.list.mkString(";")}""").RAISE
+      }
+    }
+  }
+
+  private def _untree_children(p: TreeNode[Dox]): List[Dox] = {
+    val xs = p.children
+    val r = xs.map(_untree)
+    normalizeFragment(r)
+  }
+
+  // def untreeV(tree: GTree[Dox]): ValidationNel[String, Dox] = {
+  //   val children: List[ValidationNel[String, Dox]] = tree.children.map(untreeV)
+  //   // println(s"untreeV in after: ${tree.drawTree}")
+  //   // println(s"""untreeV children XXX: ${children}""")
+  //   // println(s"""untreeV children: ${children.map(_show).mkString("\n")}""")
+  //   // println("children -> errors: " + children + " , " + tree.subForest.toList.map(_.rootLabel))
+  //   val errors = children.flatMap {
+  //     case Success(d) => Nil
+  //     case Failure(e) => e.list
+  //   }
+  //  // if (errors.nonEmpty) {
+  //  //   println("children -> errors: " + children + "," + errors + "/" + tree.subForest.toList)
+  //  // }
+  //   if (errors.nonEmpty) {
+  //     Failure(errors.toNel.get)
+  //   } else {
+  //    // println("untreeV success = " + tree.drawTree)
+  //     val cs = children.collect {
+  //         case Success(d) => d
+  //     }
+  //     // println(s"untreeV success parent = ${tree.rootLabel}")
+  //     // println("untreeV success children = " + cs)
+  //     val r = tree.rootLabel.copyV(cs)
+  //     // println("untreeV success result = " + _show(r))
+  //     r
+  //   }
+  // }
 
   def tree(dox: Dox): Tree[Dox] = {
     // println(s"Dox#tree in: $dox/${dox.elements}")
@@ -541,11 +597,12 @@ object Dox extends UseDox {
       Failure(errors.toNel.get)
     } else {
      // println("untreeV success = " + tree.drawTree)
-      val cs = children.collect {
+      val cs0 = children.collect {
           case Success(d) => d
       }
       // println(s"untreeV success parent = ${tree.rootLabel}")
       // println("untreeV success children = " + cs)
+      val cs = normalizeFragment(cs0)
       val r = tree.rootLabel.copyV(cs)
       // println("untreeV success result = " + _show(r))
       r
@@ -710,6 +767,12 @@ object Dox extends UseDox {
     }
     case m => Fragment(m, c)
   }
+
+  def normalizeFragment(cs: Seq[Dox]): List[Dox] =
+    cs.flatMap {
+      case m: Fragment => normalizeFragment(m.contents)
+      case m => List(m)
+    }.toList
 }
 
 case class Document(
@@ -986,13 +1049,15 @@ case class Paragraph(
   override protected def equals_Value(o: Dox) = o match {
     case m: Paragraph =>
       val r = contents.equals(m.contents)
-      println(s"E: ${r}")
+      // println(s"E: ${r}")
       r
     case _ => false
   }
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(cs, location = get_location(location, cs)))
+    val r = copy(cs, location = get_location(location, cs))
+    println(s"Paragraph#copyV: $cs => $r")
+    Success(r)
   }
 
   override protected def to_Plain_Text(buf: StringBuilder) {
@@ -1035,6 +1100,9 @@ case class Text(
   override def to_Text(buf: StringBuilder) {
     buf.append(contents)
   }
+  override def to_Plain_Text(buf: StringBuilder) {
+    buf.append(contents)
+  }
   override def to_Data(buf: StringBuilder) {
     buf.append(contents)
   }
@@ -1044,7 +1112,7 @@ case class Text(
   override protected def equals_Value(o: Dox) = o match {
     case m: Text =>
       val r = contents.equals(m.contents)
-      println(s"Text: ${r}")
+      // println(s"Text: ${r}")
       r
     case _ => false
   }
@@ -1347,6 +1415,9 @@ object Hyperlink extends DoxFactory {
 
   def apply(c: Seq[Inline], href: String, location: Option[ParseLocation]): Hyperlink =
     Hyperlink(c.toList, new URI(href), VectorMap.empty, location)
+
+  def create(body: String, href: URI, alt: String): Hyperlink =
+    Hyperlink(List(Text(body)), href, VectorMap("alt" -> alt))
 }
 
 case class ReferenceImg(
@@ -1890,7 +1961,7 @@ case class Dl(
   override protected def equals_Value(o: Dox) = o match {
     case m: Dl =>
       val r = contents == m.contents && attributes == m.attributes
-      println(s"Dl: ${r}")
+      // println(s"Dl: ${r}")
       r
     case _ => false
   }
@@ -1919,7 +1990,7 @@ case class Dt(
   override protected def equals_Value(o: Dox) = o match {
     case m: Dt =>
       val r = contents.equals(m.contents) && location == m.location
-      println(s"Dt: ${r}")
+      // println(s"Dt: ${r}")
       r
     case _ => false
   }
@@ -1988,7 +2059,8 @@ case class Fragment(
   }
 
   override def copyV(cs: List[Dox]) = {
-    Success(copy(contents ::: normalize_fragment(cs)))
+    Success(copy(normalize_fragment(cs)))
+//    Success(copy(contents ::: normalize_fragment(cs)))
   }
 
   def append(p: String): Fragment = {
@@ -2351,7 +2423,11 @@ case class Span(
   }
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy(_, location = get_location(location, contents)))
+    to_inline(cs).map { x =>
+      val r = copy(x, location = get_location(location, contents))
+      println(s"Span#copyV: $r")
+      r
+    }
   }
 }
 
@@ -2362,6 +2438,63 @@ object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
     Span(ensure_inline(body))
 
   def apply(element: Inline) = new Span(List(element))
+}
+
+// 2025-03-03
+case class Dfn(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "dfn"
+  override def showParams = ListUtils.buildTupleList("id" -> attributes.get("id"))
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Dfn => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy(_, location = get_location(location, contents)))
+  }
+}
+
+object Dfn extends Dfn(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "dfn"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dfn =
+    Dfn(ensure_inline(body))
+
+  def apply(element: Inline) = new Dfn(List(element))
+}
+
+// 2025-03-03
+case class Abbr(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "abbr"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Abbr => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy(_, location = get_location(location, contents)))
+  }
+}
+
+object Abbr extends Abbr(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "abbr"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Abbr =
+    Abbr(ensure_inline(body))
+
+  def apply(element: Inline) = new Abbr(List(element))
 }
 
 // 2012-11-23

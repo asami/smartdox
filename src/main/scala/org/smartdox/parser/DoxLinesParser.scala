@@ -21,7 +21,9 @@ import org.smartdox.util.DoxUtils
  *  version Jun.  6, 2024
  *  version Sep.  5, 2024
  *  version Oct. 31, 2024
- * @version Nov. 23, 2024
+ *  version Nov. 23, 2024
+ *  version Jan.  1, 2025
+ * @version Mar.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -62,8 +64,8 @@ object DoxLinesParser {
     val markdown = default.copy(
       inlineConfig = DoxInlineParser.Config.markdown
     )
-    val model = default.copy(
-      inlineConfig = DoxInlineParser.Config.model
+    val literateModel = default.copy(
+      inlineConfig = DoxInlineParser.Config.literateModel
     )
   }
 
@@ -639,11 +641,17 @@ object DoxLinesParser {
       result match {
         case EmptyParseResult() => (msgs, ParseResult.empty, this)
         case ParseSuccess(ast, ws) =>
-          val p = Paragraph(ast.toList, evt.line)
+          val contents = _normalize(ast)
+          val p = Paragraph(contents, evt.line)
           (msgs :++ ws, ParseResult.empty, copy(lines = lines :+ p))
         case ParseFailure(es, ws) => (msgs :++ es :++ ws, ParseResult.empty, this)
       }
     }
+
+    private def _normalize(p: Seq[Dox]): List[Dox] = p.flatMap {
+      case m: Fragment => _normalize(m.contents)
+      case m => List(m)
+    }.toList
 
     private def _to_paragraph(ps: Seq[Dox]): Paragraph = Paragraph(ps.toList)
   }

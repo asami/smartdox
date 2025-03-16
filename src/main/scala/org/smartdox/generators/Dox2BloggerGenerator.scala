@@ -12,7 +12,9 @@ import org.smartdox.transformers.Dox2BloggerTransformer
  * @since   Jan. 11, 2021
  *  version Jan. 12, 2021
  *  version Feb.  5, 2021
- * @version Aug.  3, 2023
+ *  version Aug.  3, 2023
+ *  version Jan.  1, 2025
+ * @version Mar. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2BloggerGenerator(
@@ -37,22 +39,27 @@ object Dox2BloggerGenerator {
       p.getNameSuffix.collect {
         case "dox" => s"${p.nameBody}.blogger"
         case "org" => s"${p.nameBody}.blogger"
+        case "md" => s"${p.nameBody}.blogger"
+        case "markdown" => s"${p.nameBody}.blogger"
       }
     }
 
-    def mapContent(p: Realm.Data): Realm.Data = p
+    override def makeContent(oldname: String, newname: String, p: Realm.Data): Option[Realm.Data] = Some(p)
   }
 
   class BloggerTransformer(val context: Context) extends RealmTransformer {
-    def treeTransformerContext = RealmTransformer.Context.default
-    def rule = Dox2BloggerRule
+    def realmTransformerContext = RealmTransformer.Context.default
+    override def rule = Dox2BloggerRule
 
-    override protected def make_Content(p: Data): Option[Data] = p match {
-      case m: ObjectData => _make_object(m)
+    override protected def make_Content(oldname: String, newname: String, p: Data): Option[Data] = p match {
+      case m: StringData => _make_object(oldname, newname, m)
+      case m: ObjectData => _make_object(oldname, newname, m)
       case _ => None // println(s"Dox2BloggerGenerator#make_Content other: $p"); None
     }
 
-    private def _make_object(p: ObjectData) = p.o match {
+    private def _make_object(oldname: String, newname: String, p: StringData) = ???
+
+    private def _make_object(oldname: String, newname: String, p: ObjectData) = p.o match {
       case m: Dox =>
         val r = for {
           html <- Dox2BloggerTransformer(context).transform(m)
