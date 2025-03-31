@@ -62,7 +62,7 @@ import org.goldenport.util.ListUtils
  *  version Nov. 24, 2024
  *  version Dec. 22, 2024
  *  version Jan.  1, 2025
- * @version Mar.  9, 2025
+ * @version Mar. 31, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -1056,7 +1056,7 @@ case class Paragraph(
 
   override def copyV(cs: List[Dox]) = {
     val r = copy(cs, location = get_location(location, cs))
-    println(s"Paragraph#copyV: $cs => $r")
+    // println(s"Paragraph#copyV: $cs => $r")
     Success(r)
   }
 

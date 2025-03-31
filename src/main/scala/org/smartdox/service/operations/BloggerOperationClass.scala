@@ -15,12 +15,12 @@ import org.smartdox.generators.Dox2BloggerGenerator
  *  version Jan.  3, 2021
  *  version Feb.  1, 2021
  *  version Jan.  1, 2025
- * @version Mar.  2, 2025
+ * @version Mar. 31, 2025
  * @author  ASAMI, Tomoharu
  */
 case object BloggerOperationClass extends OperationClassWithOperation {
-  val request = spec.Request.empty
-  val response = spec.Response.empty
+  val request = BloggerCommand.specification
+  val response = BloggerResult.specification
   val specification = spec.Operation("blogger", request, response)
 
   def apply(env: Environment, req: Request): Response = {
@@ -55,5 +55,19 @@ case object BloggerOperationClass extends OperationClassWithOperation {
     val in = b.build()
     val htmltx = new Dox2BloggerGenerator(ctx)
     htmltx.generate(in)
+  }
+
+  object BloggerCommand {
+    object params {
+      val in = spec.Parameter.argumentFile("in")
+    }
+
+    def specification: spec.Request = spec.Request(
+      params.in
+    )
+  }
+
+  object BloggerResult {
+    def specification: spec.Response = spec.Response(spec.XRealm)
   }
 }
