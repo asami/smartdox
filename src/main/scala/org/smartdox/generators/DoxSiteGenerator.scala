@@ -13,7 +13,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
 
 /*
  * @since   Feb. 28, 2025
- * @version Mar. 12, 2025
+ *  version Mar. 12, 2025
+ * @version Apr.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteGenerator(
@@ -22,8 +23,8 @@ class DoxSiteGenerator(
   import DoxSiteGenerator._
 
   def generate(realm: Realm): Realm = {
-    val site = DoxSite.create(realm)
-    val out = site.toRealm()
+    val site = DoxSite.create(context, realm)
+    val out = site.toRealm(context)
     val r = Realm.create()
     r.merge("doxsite.d", out)
   }
@@ -53,6 +54,7 @@ object DoxSiteGenerator {
     override def makeContent(oldname: String, newname: String, p: Realm.Data): Option[Realm.Data] = Some(p)
   }
 
+  // Unused
   class DoxSiteTransformer(val context: Context) extends RealmTransformer {
     def realmTransformerContext = RealmTransformer.Context.default
     override def rule = DoxSiteRule
@@ -80,8 +82,9 @@ object DoxSiteGenerator {
     }
 
     private def _make_html(p: Dox): Option[StringData] = {
+      val rule = Dox2HtmlTransformer.Rule.noCss
       val r = for {
-        html <- Dox2HtmlTransformer(context).transform(p)
+        html <- Dox2HtmlTransformer(context, rule).transform(p)
       } yield {
         StringData(html)
       }

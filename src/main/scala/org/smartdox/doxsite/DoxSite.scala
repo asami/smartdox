@@ -3,6 +3,7 @@ package org.smartdox.doxsite
 import scalaz.{Tree => ZTree}
 import java.io.File
 import org.goldenport.RAISE
+import org.goldenport.context.Consequence
 import org.goldenport.tree.Tree
 import org.goldenport.tree.TreeNode
 import org.goldenport.tree.TreeCursor
@@ -13,15 +14,19 @@ import org.goldenport.tree.ControlTreeNode
 import org.goldenport.realm.Realm
 import org.goldenport.realm.RealmTransformer
 import org.goldenport.values.CompactUuid
+import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.Glossary
+import org.smartdox.generator.Context
+import org.smartdox.transformers.Dox2HtmlTransformer
 
 /*
  * @since   Feb. 23, 2025
  *  version Feb. 25, 2025
- * @version Mar.  9, 2025
+ *  version Mar.  9, 2025
+ * @version Apr.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -30,9 +35,9 @@ class DoxSite(
 ) {
   import DoxSite._
 
-  def toRealm(): Realm = {
+  def toRealm(context: Context): Realm = {
     val ctx = TreeTransformer.Context.default[Realm.Data]
-    val a = space.transform(new RealmBuilder(ctx))
+    val a = space.transform(new RealmBuilder(context, ctx))
     Realm(a)
   }
 }
@@ -122,6 +127,7 @@ object DoxSite {
   }
 
   class RealmBuilder(
+    gcontext: Context,
     context: TreeTransformer.Context[Realm.Data]
   ) extends TreeTransformer[Node, Realm.Data] {
     def treeTransformerContext = context
@@ -132,8 +138,17 @@ object DoxSite {
       content: Node
     ): TreeTransformer.Directive[Realm.Data] = {
       content match {
-        case m: Page => TreeTransformer.Directive.Content(m.toRealmData)
+        case m: Page => _to_html(m) // TreeTransformer.Directive.Content(m.toRealmData)
       }
+    }
+
+    private def _to_html(p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
+      val rule = Dox2HtmlTransformer.Rule.noCss
+      val s = Consequence.from(Dox2HtmlTransformer(gcontext, rule).transform(p.dox)).
+        foldConclusion(_.message)
+      val data = Realm.StringData(s)
+      val name = StringUtils.changeSuffix(p.name.name, "html")
+      TreeTransformer.Directive.LeafNode(name, data)
     }
   }
   object RealmBuilder {
@@ -142,12 +157,12 @@ object DoxSite {
     }
   }
 
-  def create(file: File): DoxSite = {
+  def create(context: Context, file: File): DoxSite = {
     val a = Realm.create(file)
-    create(a)
+    create(context, a)
   }
 
-  def create(realm: Realm): DoxSite = {
+  def create(context: Context, realm: Realm): DoxSite = {
     val nodectx = TreeTransformer.Context.default[Node]
     val doxctx = TreeTransformer.Context.default[Dox]
     val ctx = DoxSiteTransformer.Context(nodectx, doxctx)
@@ -161,7 +176,7 @@ object DoxSite {
     val metadata = MetaData(glossary = glossary)
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = b.transform(new LinkEnabler(ctx1))
-    println(s"Z: ${c.print}")
+    // println(s"Z: ${c.print}")
     new DoxSite(c, metadata)
   }
 }

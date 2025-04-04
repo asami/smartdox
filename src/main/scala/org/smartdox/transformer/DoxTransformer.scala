@@ -15,7 +15,8 @@ import org.smartdox._, Dox._
  *  version Jan.  5, 2015
  *  version Nov.  8, 2020
  *  version Jan. 17, 2021
- * @version Feb.  8, 2021
+ *  version Feb.  8, 2021
+ * @version Apr.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
@@ -97,13 +98,13 @@ trait DoxTransformer extends Parsers {
   def body: Parser[Out] = new Parser[Out] {
     def apply(in: Input) = {
       in.first match {
-        case d: Body => Success(bodyOut(d), in.rest)
+        case d: Body => Success(bodyOut(d, None), in.rest)
         case d => Failure(d.showTerm, in) 
       }
     }
   }
 
-  def bodyOut(d: Body): Out
+  def bodyOut(d: Body, title: Option[Out]): Out
 
   def section: Parser[Out] = new Parser[Out] {
     def apply(in: Input) = {

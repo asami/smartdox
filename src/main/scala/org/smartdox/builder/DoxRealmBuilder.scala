@@ -12,7 +12,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Oct. 18, 2020
  *  version Nov. 14, 2020
  *  version Dec. 20, 2020
- * @version Jan. 12, 2021
+ *  version Jan. 12, 2021
+ * @version Apr.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxRealmBuilder(
@@ -99,8 +100,9 @@ object DoxRealmBuilder {
     def build0(): Realm = {
       val name = "model.org" // TODO
       val doc = _dox_builder.build()
+      val rule = Dox2HtmlTransformer.Rule.default
       val r = for {
-        html <- Dox2HtmlTransformer(builder.context).transform(doc)
+        html <- Dox2HtmlTransformer(builder.context, rule).transform(doc)
       } yield {
         val b = Realm.Builder()
         b.set(name, html)

@@ -11,7 +11,8 @@ import scala.util.parsing.input.Reader
 
 /*
  * @since   Sep.  8, 2014
- * @version Sep.  9, 2014
+ *  version Sep.  9, 2014
+ * @version Apr.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class TechDoxTransformer() extends DoxTransformer {
@@ -23,7 +24,7 @@ case class TechDoxTransformer() extends DoxTransformer {
 
   def headOut(d: Head): Out = ???
 
-  def bodyOut(d: Body): Out = ???
+  def bodyOut(d: Body, title: Option[Out]): Out = ???
 
   def sectionOut(d: Section): Out = ???
 

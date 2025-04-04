@@ -21,7 +21,8 @@ import org.smartdox.transformer._
  *  version Nov. 29, 2020
  *  version Dec. 27, 2020
  *  version Jan. 17, 2021
- * @version Feb.  8, 2021
+ *  version Feb.  8, 2021
+ * @version Apr.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -33,7 +34,7 @@ class Dox2DomHtmlTransformer(
   private lazy val _rule_context = new Dox2DomHtmlTransformer.Rule.Context(this)
   private[transformers] val _factory = DomFactory.createHtml()
   private val _newline = "\n" // TODO
-  private val _base_section_header = rule.sectionBaseNumber getOrElse 2 // H2
+  private val _base_section_header = rule.sectionBaseNumber getOrElse 1 // H1
   private var _section_depth = 0
 
   def doxOut(p: Dox) = p match {
@@ -45,8 +46,9 @@ class Dox2DomHtmlTransformer(
   def documentOut(d: Document) = {
     // println(s"Dox2DomHtmlTransform#documentOut: $d")
     val doc = _factory.document
+    val title = _get_inline(d.head.title)
     val h = headOut(d.head)
-    val b = bodyOut(d.body)
+    val b = bodyOut(d.body, title)
     val root = _factory.element("html")
     root.appendChild(h)
     root.appendChild(b)
@@ -90,10 +92,21 @@ class Dox2DomHtmlTransformer(
       create_element("link", Map("rel" -> "stylesheet", "type" -> "text/css", "href" -> style))
     )
 
-  def bodyOut(p: Body): Out = {
+  def bodyOut(p: Body, title: Option[Node]): Out = {
+    val t = title.map { x =>
+      _count_up
+      val level = _calc_h_level
+      val tag = s"h${level}"
+      create_element(tag, x)
+    }
     val attrs = p.attributeMap
     val children = _children(p)
-    create_element("body", attrs, children)
+    val xs = t.toVector ++ children
+    val article = create_element("article", xs)
+    t.foreach { _ =>
+      _count_down
+    }
+    create_element("body", attrs, List(article))
   }
 
   def sectionOut(p: Section): Out = _section(p)
@@ -152,6 +165,9 @@ class Dox2DomHtmlTransformer(
 
   protected final def create_element(name: String, attrs: Map[String, String], child: Node): Element =
     _factory.element(name, attrs, child)
+
+  protected final def create_element(name: String, children: Seq[Node]): Element =
+    _factory.element(name, Map.empty, children)
 
   protected final def create_element(name: String, attrs: Map[String, String], children: Seq[Node]): Element =
     _factory.element(name, attrs, children)
@@ -305,10 +321,12 @@ class Dox2DomHtmlTransformer(
   }
 
   private def _make_h(p: Section): Node = {
-    val level = _section_depth + _base_section_header - 1
+    val level = _calc_h_level
     val tag = s"h${level}"
     _factory.element(tag, _inline(p.title))
   }
+
+  private def _calc_h_level: Int = _section_depth + _base_section_header - 1
 }
 
 object Dox2DomHtmlTransformer {

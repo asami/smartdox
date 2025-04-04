@@ -22,7 +22,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Nov. 16, 2020
  *  version Jan.  1, 2021
  *  version Aug.  3, 2023
- * @version Mar. 12, 2025
+ *  version Mar. 12, 2025
+ * @version Apr.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2HtmlGenerator(
@@ -65,8 +66,9 @@ object Dox2HtmlGenerator {
 
     private def _make_object(oldname: String, newname: String, p: ObjectData) = p.o match {
       case m: Dox =>
+        val rule = Dox2HtmlTransformer.Rule.default
         val r = for {
-          html <- Dox2HtmlTransformer(context).transform(m)
+          html <- Dox2HtmlTransformer(context, rule).transform(m)
         } yield {
           StringData(html)
         }
