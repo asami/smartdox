@@ -2,6 +2,7 @@ package org.smartdox.doxsite
 
 import scalaz.{Tree => ZTree}
 import java.io.File
+import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
 import org.goldenport.tree.Tree
@@ -13,7 +14,8 @@ import org.goldenport.tree.TreeVisitor
 import org.goldenport.tree.ControlTreeNode
 import org.goldenport.realm.Realm
 import org.goldenport.realm.RealmTransformer
-import org.goldenport.values.CompactUuid
+import org.goldenport.value._
+import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
@@ -21,12 +23,14 @@ import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.Glossary
 import org.smartdox.generator.Context
 import org.smartdox.transformers.Dox2HtmlTransformer
+import org.smartdox.transformers.AutoWireTransformer
+import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Feb. 23, 2025
  *  version Feb. 25, 2025
  *  version Mar.  9, 2025
- * @version Apr.  3, 2025
+ * @version Apr.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -36,8 +40,44 @@ class DoxSite(
   import DoxSite._
 
   def toRealm(context: Context): Realm = {
-    val ctx = TreeTransformer.Context.default[Realm.Data]
-    val a = space.transform(new RealmBuilder(context, ctx))
+    val targets = List(LocaleUtils.en, LocaleUtils.ja) // TODO
+    targets match {
+      case Nil => _build_plain(context)
+      case xs => _build_multi(context)
+    }
+  }
+
+  private def _build_plain(
+    context: Context
+  ) = {
+    val rule = RealmBuilder.Rule.default
+    val a = space.transform(new RealmBuilder(context, rule))
+    Realm(a)
+  }
+
+  private def _build_multi(
+    context: Context
+  ) = {
+    val en = _build_en(context)
+    val ja = _build_ja(context)
+    val realm = Realm.create()
+    val a = realm.merge("en", en)
+    a.merge("ja", ja)
+  }
+
+  private def _build_en(
+    context: Context
+  ) = {
+    val rule = RealmBuilder.Rule.en
+    val a = space.transform(new RealmBuilder(context, rule))
+    Realm(a)
+  }
+
+  private def _build_ja(
+    context: Context
+  ) = {
+    val rule = RealmBuilder.Rule.ja
+    val a = space.transform(new RealmBuilder(context, rule))
     Realm(a)
   }
 }
@@ -55,7 +95,7 @@ object DoxSite {
       node: TreeNode[Realm.Data],
       content: Realm.Data
     ): TreeTransformer.Directive[Node] = {
-      println("S: " + content)
+      // println("S: " + content)
       content match {
         case Realm.EmptyData => TreeTransformer.Directive.Default[Node]
         case m: Realm.StringData => _build_file(node, m)
@@ -98,7 +138,7 @@ object DoxSite {
       }
 
     private def _dox_page(name: String, c: String) = {
-      println(s"_dox_page: $c")
+      // println(s"_dox_page: $c")
       val dox = Dox2Parser.parse(c)
       List(Page(name, dox))
     }
@@ -128,10 +168,10 @@ object DoxSite {
 
   class RealmBuilder(
     gcontext: Context,
-    context: TreeTransformer.Context[Realm.Data]
+    rule: RealmBuilder.Rule,
+    context: Option[TreeTransformer.Context[Realm.Data]] = None
   ) extends TreeTransformer[Node, Realm.Data] {
-    def treeTransformerContext = context
-    override def rule = RealmBuilder.Rule
+    def treeTransformerContext = context getOrElse gcontext.realmContext
 
     override protected def make_Node(
       node: TreeNode[Node],
@@ -143,17 +183,28 @@ object DoxSite {
     }
 
     private def _to_html(p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
+      val dox = _filter(p.dox)
       val rule = Dox2HtmlTransformer.Rule.noCss
-      val s = Consequence.from(Dox2HtmlTransformer(gcontext, rule).transform(p.dox)).
+      val s = Consequence.from(Dox2HtmlTransformer(gcontext, rule).transform(dox)).
         foldConclusion(_.message)
       val data = Realm.StringData(s)
       val name = StringUtils.changeSuffix(p.name.name, "html")
       TreeTransformer.Directive.LeafNode(name, data)
     }
+
+    private def _filter(p: Dox) =
+      rule.targetLocale.fold(p)(x => Dox.transform(p, new LanguageFilterTransformer(gcontext.doxContext, x)))
   }
   object RealmBuilder {
-    object Rule extends TreeTransformer.Rule[Node, Realm.Data] {
+    case class Rule(
+      targetLocale: Option[Locale] = None
+    ) extends TreeTransformer.Rule[Node, Realm.Data] {
       def getTargetName(p: TreeNode[Node]): Option[String] = None
+    }
+    object Rule {
+      val default = Rule()
+      val en = Rule(Some(LocaleUtils.en))
+      val ja = Rule(Some(LocaleUtils.ja))
     }
   }
 
@@ -164,10 +215,11 @@ object DoxSite {
 
   def create(context: Context, realm: Realm): DoxSite = {
     val nodectx = TreeTransformer.Context.default[Node]
-    val doxctx = TreeTransformer.Context.default[Dox]
+    val doxctx = context.doxContext
     val ctx = DoxSiteTransformer.Context(nodectx, doxctx)
-    val a: Tree[Node] = realm.transformTree(new DoxSiteBuilder(nodectx))
+    val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(nodectx))
     // println(a.show)
+    val a = a1.transform(new DoxSitePreTransformer(ctx))
     val gb = new GlossaryBuilder(ctx)
     val b: Tree[Node] = a.transform(gb)
 //    val b = a
@@ -177,6 +229,7 @@ object DoxSite {
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = b.transform(new LinkEnabler(ctx1))
     // println(s"Z: ${c.print}")
+    val d = c.transform(new DoxSitePostTransformer(ctx))
     new DoxSite(c, metadata)
   }
 }

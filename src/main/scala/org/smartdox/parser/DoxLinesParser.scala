@@ -23,7 +23,8 @@ import org.smartdox.util.DoxUtils
  *  version Oct. 31, 2024
  *  version Nov. 23, 2024
  *  version Jan.  1, 2025
- * @version Mar.  8, 2025
+ *  version Mar.  8, 2025
+ * @version Apr.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -183,7 +184,7 @@ object DoxLinesParser {
         case _ => None
       }
 
-    private val _only_symbols = Vector('|', '-', ':', ' ')
+    private val _only_symbols = Vector('|', '-', '+', ':', ' ')
 
     private def _only(ps: String) = ps.forall(_only_symbols.contains)
   }
@@ -642,11 +643,24 @@ object DoxLinesParser {
         case EmptyParseResult() => (msgs, ParseResult.empty, this)
         case ParseSuccess(ast, ws) =>
           val contents = _normalize(ast)
-          val p = Paragraph(contents, evt.line)
+          val p = contents match {
+            case Nil => Fragment.empty
+            case x :: Nil =>
+              if (_is_inline(x))
+                Paragraph(List(x), evt.line)
+              else
+                x
+            case xs if _is_inline(xs) => Paragraph(xs, evt.line)
+            case xs => Paragraph(xs, evt.line)
+          }
           (msgs :++ ws, ParseResult.empty, copy(lines = lines :+ p))
         case ParseFailure(es, ws) => (msgs :++ es :++ ws, ParseResult.empty, this)
       }
     }
+
+    private def _is_inline(p: Dox): Boolean = p.isInstanceOf[Inline]
+
+    private def _is_inline(ps: List[Dox]): Boolean = if (ps.isEmpty) false else ps.forall(_is_inline)
 
     private def _normalize(p: Seq[Dox]): List[Dox] = p.flatMap {
       case m: Fragment => _normalize(m.contents)

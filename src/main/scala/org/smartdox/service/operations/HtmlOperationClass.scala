@@ -12,12 +12,13 @@ import org.smartdox.generators.Dox2HtmlGenerator
 /*
  * @since   Dec. 30, 2020
  *  version Jan.  1, 2021
- * @version Feb.  7, 2021
+ *  version Feb.  7, 2021
+ * @version Apr.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 case object HtmlOperationClass extends OperationClassWithOperation {
-  val request = spec.Request.empty
-  val response = spec.Response.empty
+  val request = HtmlCommand.specification
+  val response = HtmlResult.specification
   val specification = spec.Operation("html", request, response)
 
   def apply(env: Environment, req: Request): Response = {
@@ -42,5 +43,19 @@ case object HtmlOperationClass extends OperationClassWithOperation {
     val in = b.build()
     val htmltx = new Dox2HtmlGenerator(ctx)
     htmltx.generate(in)
+  }
+
+  object HtmlCommand {
+    object params {
+      val in = spec.Parameter.argumentFile("in")
+    }
+
+    def specification: spec.Request = spec.Request(
+      params.in
+    )
+  }
+
+  object HtmlResult {
+    def specification: spec.Response = spec.Response(spec.XRealm)
   }
 }

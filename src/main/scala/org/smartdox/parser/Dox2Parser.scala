@@ -26,7 +26,8 @@ import Dox._
  *  version Nov. 23, 2024
  *  version Jan.  1, 2025
  *  version Feb.  7, 2025
- * @version Mar.  2, 2025
+ *  version Mar.  2, 2025
+ * @version Apr.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {

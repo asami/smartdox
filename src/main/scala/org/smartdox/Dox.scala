@@ -3,7 +3,10 @@ package org.smartdox
 import scala.language.implicitConversions
 import scalaz._, Scalaz._, WriterT._, Show._, Validation._
 import java.net.URI
+import java.net.URL
+import java.util.Locale
 import scala.xml.{Node => XNode, _}
+import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
 import org.goldenport.context.Showable
 import org.goldenport.context.Conclusion
@@ -16,7 +19,9 @@ import org.goldenport.extension.IDocument
 import org.goldenport.extension.IRecord
 import org.goldenport.tree.{Tree => GTree}
 import org.goldenport.tree.TreeNode
+import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
+import org.goldenport.hocon.HoconUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 
@@ -62,7 +67,8 @@ import org.goldenport.util.ListUtils
  *  version Nov. 24, 2024
  *  version Dec. 22, 2024
  *  version Jan.  1, 2025
- * @version Mar. 31, 2025
+ *  version Mar. 31, 2025
+ * @version Apr.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -74,6 +80,8 @@ trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
   def getId: Option[Dox.Id] = attributeMap.get("id").map(Dox.Id)
+  def getLanguage: Option[Locale] = attributeMap.get("lang").
+    map(x => Locale.forLanguageTag(x))
 
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
@@ -531,6 +539,12 @@ object Dox extends UseDox {
     normalizeFragment(r)
   }
 
+  def transform(p: Dox, tx: HomoTreeTransformer[Dox]): Dox = {
+    val a = Dox.toTree(p)
+    val b = a.transform(tx)
+    Dox.toDox(b)
+  }
+
   // def untreeV(tree: GTree[Dox]): ValidationNel[String, Dox] = {
   //   val children: List[ValidationNel[String, Dox]] = tree.children.map(untreeV)
   //   // println(s"untreeV in after: ${tree.drawTree}")
@@ -840,20 +854,30 @@ object Document extends DoxFactory {
 
 case class Head(
   title: InlineContents = Nil,
-  author: InlineContents = Nil,
   date: InlineContents = Nil,
   css: Option[String] = None,
   csslink: Option[String] = None,
+  cacheControl: Head.CacheControl = Head.CacheControl.empty,
+  seo: Head.BasicSeo = Head.BasicSeo.empty,
+  openGraphProtocol: Head.OpenGraphProtocol = Head.OpenGraphProtocol.empty,
+  twitterCard: Head.TwitterCard = Head.TwitterCard.empty,
+  properties: Hocon = HoconUtils.empty,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
   override def isEmpty = (
-    title.isEmpty && author.isEmpty && date.isEmpty && css.isEmpty && csslink.isEmpty &&
+    title.isEmpty && date.isEmpty && css.isEmpty && csslink.isEmpty &&
+      cacheControl.isEmpty && seo.isEmpty && openGraphProtocol.isEmpty && twitterCard.isEmpty &&
+      properties.isEmpty &&
       attributes.isEmpty && location.isEmpty
   )
 
   override def equals_Value(o: Dox) = o match {
-    case m: Head => title == m.title && author == m.author && date == m.date && css == m.css && csslink == m.csslink && attributes == m.attributes
+    case m: Head =>
+      title == m.title && date == m.date && css == m.css && csslink == m.csslink &&
+      cacheControl == m.cacheControl && seo == m.seo && openGraphProtocol == m.openGraphProtocol && twitterCard == m.twitterCard &&
+      properties == m.properties &&
+      attributes == m.attributes
     case _ => false
   }
 
@@ -876,7 +900,7 @@ case class Head(
     }
     buf.append(showOpenText)
     showslot("title", title)
-    showslot("author", author)
+    // showslot("author", author)
     showslot("date", date)
     css foreach { x =>
       buf.append("<style type=\"text/css\"><!--\n")
@@ -890,6 +914,8 @@ case class Head(
     }
   }
 
+  def author: InlineContents = seo.author getOrElse Nil
+
   override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
 
   def toOption: Option[Head] =
@@ -900,20 +926,104 @@ case class Head(
 
   def merge(p: Head): Head = Head(
     title ++ p.title,
-    author ++ p.author,
+    // author ++ p.author,
     date ++ p.date,
     css |+| p.css,
     csslink |+| p.csslink,
+    cacheControl + p.cacheControl,
+    seo + p.seo,
+    openGraphProtocol + p.openGraphProtocol,
+    twitterCard + p.twitterCard,
+    properties.withFallback(p.properties),
     attributes ++ p.attributes,
     location orElse p.location
   )
 }
 
 object Head extends DoxFactory {
+  case class CacheControl(
+  ) {
+    def isEmpty = true
+
+    def +(p: CacheControl) = this // TODO
+  }
+  object CacheControl {
+    val empty = CacheControl()
+  }
+
+  case class BasicSeo(
+    description: Option[String] = None,
+    robots: Option[String] = None,
+    canonical: Option[URL] = None,
+    author: Option[InlineContents] = None,
+    keywords: Option[String] = None
+  ) {
+    def isEmpty = true // TODO
+
+    def +(p: BasicSeo) = this // TODO
+  }
+  object BasicSeo {
+    val empty = BasicSeo()
+
+    def author(p: InlineContents) = if (p.isEmpty) empty else empty.copy(author = Some(p))
+  }
+
+  case class OpenGraphProtocol(
+    title: Option[String] = None,
+    description: Option[String] = None,
+    image: Option[URL] = None,
+    url: Option[URL] = None,
+    pageType: Option[String] = None
+  ) {
+    def isEmpty = true // TODO
+
+    def +(p: OpenGraphProtocol) = this // TODO
+
+    def enablePageType = copy(pageType = Some("website"))
+  }
+  object OpenGraphProtocol {
+    val empty = OpenGraphProtocol()
+  }
+
+  case class TwitterCard(
+    card: Option[String] = None,
+    title: Option[String] = None,
+    description: Option[String] = None,
+    image: Option[URL] = None,
+    site: Option[String] = None
+  ) {
+    def isEmpty = true // TODO
+
+    def +(p: TwitterCard) = this // TODO
+  }
+  object TwitterCard {
+    val empty = TwitterCard()
+  }
+
   val label = "head"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Head =
-    RAISE.unsupportedOperationFault
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Head = {
+    case class Z(properties: Hocon = HoconUtils.empty) {
+      def r = Head(properties = properties)
+
+      def +(rhs: Dox) = rhs match {
+        case m: Text =>
+          HoconUtils.parseConfig(m.contents).fold(
+            f => copy(properties = HoconUtils.addProperty(
+              properties,
+              "error",
+              f.message
+            )),
+            s => copy(properties = properties.withFallback(s))
+          )
+        case m => this // TODO
+      }
+    }
+    body./:(Z())(_+_).r
+  }
+
+  def apply(title: InlineContents, author: InlineContents, date: InlineContents): Head =
+    new Head(title, date, seo = BasicSeo.author(author))
 
   def builder() = new Builder
 
@@ -922,7 +1032,7 @@ object Head extends DoxFactory {
     var author: InlineContents = Nil
     var date: InlineContents = Nil
 
-    def build() = new Head(title, author, date)
+    def build() = new Head(title, date, seo = BasicSeo.author(author))
   }
 }
 
@@ -1418,6 +1528,9 @@ object Hyperlink extends DoxFactory {
 
   def create(body: String, href: URI, alt: String): Hyperlink =
     Hyperlink(List(Text(body)), href, VectorMap("alt" -> alt))
+
+  def create(url: String): Hyperlink =
+    Hyperlink(List(Text(url)), new URI(url))
 }
 
 case class ReferenceImg(
@@ -2425,7 +2538,7 @@ case class Span(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map { x =>
       val r = copy(x, location = get_location(location, contents))
-      println(s"Span#copyV: $r")
+      // println(s"Span#copyV: $r")
       r
     }
   }
@@ -2438,6 +2551,11 @@ object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
     Span(ensure_inline(body))
 
   def apply(element: Inline) = new Span(List(element))
+
+  def create(locale: Locale, p: String): Span = Span(
+    List(Text(p)),
+    VectorMap("lang" -> locale.toLanguageTag)
+  )
 }
 
 // 2025-03-03

@@ -10,7 +10,8 @@ import org.goldenport.values.CompactUuid
 
 /*
  * @since   Mar.  7, 2025
- * @version Mar.  9, 2025
+ *  version Mar.  9, 2025
+ * @version Apr.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryBuilder(
@@ -18,7 +19,7 @@ class GlossaryBuilder(
 ) extends DoxSiteTransformer {
   import GlossaryBuilder._
 
-  protected def dox_Transformer(
+  override protected def dox_Transformer(
     ctx: DoxSiteTransformer.Context
   ): HomoTreeTransformer[Dox] = RAISE.unsupportedOperationFault
 

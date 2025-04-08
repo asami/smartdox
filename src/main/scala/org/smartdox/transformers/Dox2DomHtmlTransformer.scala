@@ -11,6 +11,8 @@ import org.goldenport.RAISE
 import org.goldenport.xml.{XmlAttributes, XmlAttribute}
 import org.goldenport.xml.dom.DomFactory
 import org.goldenport.value._
+import org.goldenport.hocon.HoconUtils
+import org.goldenport.util.AnyUtils
 import org.smartdox._
 import Dox._
 import org.smartdox.generator.Context
@@ -22,7 +24,7 @@ import org.smartdox.transformer._
  *  version Dec. 27, 2020
  *  version Jan. 17, 2021
  *  version Feb.  8, 2021
- * @version Apr.  4, 2025
+ * @version Apr.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -58,12 +60,18 @@ class Dox2DomHtmlTransformer(
   }
 
   def headOut(p: Head): Out = {
-    val xs = Vector(
+    val xs1 = Vector(
       _head_title(p),
       _head_author(p),
       _head_date(p),
       _head_css(p)
     ).flatten ++ _head_styles(p)
+    val properties = HoconUtils.toFlattenVector(p.properties).map {
+      case (k, v) =>
+        val attrs = Map("name" -> k, "content" -> AnyUtils.toPrint(v))
+        create_element("meta", attrs)
+    }
+    val xs = xs1 ++ properties
     create_element("head", p.attributes, xs)
   }
 

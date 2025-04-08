@@ -1,5 +1,6 @@
 package org.smartdox.doxsite
 
+import org.goldenport.RAISE
 import org.smartdox._
 import org.smartdox.transformer._
 import org.smartdox.metadata._
@@ -7,7 +8,8 @@ import org.goldenport.tree._
 
 /*
  * @since   Mar.  7, 2025
- * @version Mar.  9, 2025
+ *  version Mar.  9, 2025
+ * @version Apr.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -15,9 +17,13 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
 
   def treeTransformerContext = context.nodeContext
 
+  protected def dox_Transformers(
+    ctx: DoxSiteTransformer.Context
+  ): List[HomoTreeTransformer[Dox]] = List(dox_Transformer(ctx))
+
   protected def dox_Transformer(
     ctx: DoxSiteTransformer.Context
-  ): HomoTreeTransformer[Dox]
+  ): HomoTreeTransformer[Dox] = RAISE.notImplementedYetDefect("DoxSiteTransformer#dox_Transformer")
 
   override protected def make_Node(
     node: TreeNode[Node],
@@ -36,11 +42,14 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
     node: TreeNode[Node],
     p: Page
   ): TreeNode[Node] = {
-    val doxt = dox_Transformer(context.withTreeNode(node))
-    val a = Dox.toTree(p.dox)
-    val b = a.transform(doxt)
-    val c = Dox.toDox(b)
-    TreeNode.create(node.name, Page(node.name, c))
+    dox_Transformers(context.withTreeNode(node)) match {
+      case Nil => TreeNode.create(node.name, Page(node.name, p.dox))
+      case xs => 
+        val a = Dox.toTree(p.dox)
+        val b = xs.foldLeft(a)((z, x) => z.transform(x))
+        val c = Dox.toDox(b)
+        TreeNode.create(node.name, Page(node.name, c))
+    }
   }
 }
 

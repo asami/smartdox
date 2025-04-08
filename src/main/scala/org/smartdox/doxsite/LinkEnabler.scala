@@ -9,14 +9,15 @@ import org.smartdox.metadata._
 
 /*
  * @since   Mar.  7, 2025
- * @version Mar.  9, 2025
+ *  version Mar.  9, 2025
+ * @version Apr.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(val context: DoxSiteTransformer.Context)
     extends DoxSiteTransformer {
   import LinkEnabler._
 
-  protected def dox_Transformer(
+  override protected def dox_Transformer(
     context: DoxSiteTransformer.Context
   ): HomoTreeTransformer[Dox] = new LinkEmbeder(context)
 }
