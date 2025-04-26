@@ -30,7 +30,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  * @since   Feb. 23, 2025
  *  version Feb. 25, 2025
  *  version Mar.  9, 2025
- * @version Apr.  9, 2025
+ * @version Apr. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -80,6 +80,8 @@ class DoxSite(
     val a = space.transform(new RealmBuilder(context, rule))
     Realm(a)
   }
+
+  def traverse(p: TreeVisitor[Node]): Unit = space.traverse(p)
 }
 
 object DoxSite {

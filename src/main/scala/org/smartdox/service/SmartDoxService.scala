@@ -9,7 +9,8 @@ import org.smartdox.service.operations._
 /*
  * @since   Dec. 30, 2020
  *  version Dec. 31, 2020
- * @version Feb. 28, 2025
+ *  version Feb. 28, 2025
+ * @version Apr. 18, 2025
  * @author  ASAMI, Tomoharu
  */
 class SmartDoxService(
@@ -34,7 +35,8 @@ object SmartDoxService {
     val operations = Operations(
       HtmlOperationClass,
       BloggerOperationClass,
-      SiteOperationClass
+      SiteOperationClass,
+      AntoraOperationClass
     )
   }
 

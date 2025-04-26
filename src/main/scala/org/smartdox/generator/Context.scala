@@ -10,7 +10,7 @@ import org.smartdox.Dox
  * @since   Jul.  5, 2020
  *  version Oct. 11, 2020
  *  version Nov. 23, 2020
- * @version Apr.  9, 2025
+ * @version Apr. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class Context(
@@ -22,9 +22,17 @@ class Context(
 
   val realmContext: TreeTransformer.Context[Realm.Data] = TreeTransformer.Context.default[Realm.Data]
   val doxContext: TreeTransformer.Context[Dox] = TreeTransformer.Context.default[Dox]
+  val unitContext: TreeTransformer.Context[Unit] = TreeTransformer.Context.default[Unit]
 }
 
 object Context {
+  trait Holder {
+    def context: Context
+
+    protected final def context_realm = context.realmContext
+    protected final def context_dox = context.doxContext
+  }
+
   def create(): Context = create(Array[String]())
 
   def create(args: Array[String]): Context = create(Environment.create(args))
