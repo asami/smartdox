@@ -68,7 +68,7 @@ import org.goldenport.util.ListUtils
  *  version Dec. 22, 2024
  *  version Jan.  1, 2025
  *  version Mar. 31, 2025
- * @version Apr.  9, 2025
+ * @version Apr. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -787,6 +787,12 @@ object Dox extends UseDox {
       case m: Fragment => normalizeFragment(m.contents)
       case m => List(m)
     }.toList
+
+  def getTitleString(p: Dox): Option[String] = p match {
+    case m: Document => m.head.getTitleString
+    case m: Head => m.getTitleString
+    case _ => None
+  }
 }
 
 case class Document(
@@ -917,6 +923,11 @@ case class Head(
   def author: InlineContents = seo.author getOrElse Nil
 
   override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
+
+  def getTitleString: Option[String] = title match {
+    case Nil => None
+    case xs => Some(Dox.toText(xs))
+  }
 
   def toOption: Option[Head] =
     if (isEmpty)

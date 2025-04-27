@@ -6,7 +6,8 @@ import org.goldenport.values.{PathName => LibPathName}
 
 /*
  * @since   Feb. 25, 2025
- * @version Mar.  9, 2025
+ *  version Mar.  9, 2025
+ * @version Apr. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -27,6 +28,8 @@ case class Page(
   dox: Dox
 ) extends Node {
   def pageId: Page.Id = ???
+
+  lazy val title: String = Dox.getTitleString(dox) getOrElse "Unknown"
 
   def toRealmData: Realm.Data = Realm.StringData(dox.toString)
 }

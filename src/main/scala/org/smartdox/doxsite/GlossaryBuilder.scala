@@ -11,7 +11,7 @@ import org.goldenport.values.CompactUuid
 /*
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
- * @version Apr.  5, 2025
+ * @version Apr. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryBuilder(
@@ -26,30 +26,6 @@ class GlossaryBuilder(
   def glossary: Glossary = _glossaries
   private var _glossaries: Glossary = Glossary.empty
 
-  // override protected def make_Node(
-  //   node: TreeNode[Node],
-  //   content: Node
-  // ): TreeTransformer.Directive[Node] = content match {
-  //   case m: Page => TreeTransformer.Directive.Node(_collect_glossaries(node, m))
-  //   case m => TreeTransformer.Directive.Default[Node]
-  // }
-
-  // private def _collect_glossaries(
-  //   node: TreeNode[Node],
-  //   p: Page
-  // ): TreeNode[Node] = {
-  //   val ctx = TreeTransformer.Context.default[Dox]
-  //   val collector = new GlossaryCollector(ctx)
-  //   val a = Dox.toTree(p.dox)
-  //   println(s"_collect_glossaries a: $a")
-  //   val b = a.transform(collector)
-  //   _glossaries = _glossaries + collector.glossary
-  //   println(s"_collect_glossaries b: ${b.show}")
-  //   val c = Dox.toDox(b)
-  //   println(s"_collect_glossaries c: $c")
-  //   TreeNode.create(node.name, Page(node.name, c))
-  // }
-
   override protected def make_Page(
     node: TreeNode[Node],
     p: Page
@@ -58,12 +34,12 @@ class GlossaryBuilder(
     val path = new URI(node.pathname)
     val collector = new GlossaryCollector(ctx, path)
     val a = Dox.toTree(p.dox)
-    println(s"_collect_glossaries a: $a")
+    // println(s"_collect_glossaries a: $a")
     val b = a.transform(collector)
     _glossaries = _glossaries + collector.glossary
-    println(s"_collect_glossaries b: ${b.show}")
+    // println(s"_collect_glossaries b: ${b.show}")
     val c = Dox.toDox(b)
-    println(s"_collect_glossaries c: $c")
+    // println(s"_collect_glossaries c: $c")
     TreeNode.create(node.name, Page(node.name, c))
   }
 }
@@ -84,10 +60,10 @@ object GlossaryBuilder {
       node: TreeNode[Dox],
       content: Dox
     ): TreeTransformer.Directive[Dox] = {
-      println(s"GlossaryCollector#make_Node: $node, $content")
+      // println(s"GlossaryCollector#make_Node: $node, $content")
       content match {
         case m: Dfn =>
-          println(s"match $m")
+          // println(s"match $m")
           val term = m.toPlainText
           m.attributes.get("id") match {
             case None =>

@@ -11,8 +11,10 @@ import org.goldenport.tree.Tree
 import org.goldenport.tree.TreeNode
 import org.goldenport.tree.TreeVisitor
 import org.goldenport.tree.TreeTransformer
+import org.goldenport.tree.StringBuildVisitor
 import org.goldenport.datatype.{Name, Title}
 import org.goldenport.values.Version
+import org.goldenport.values.PathName
 import org.goldenport.collection.NonEmptyVector
 import org.goldenport.util.StringUtils
 import org.goldenport.util.CircleUtils
@@ -26,7 +28,7 @@ import org.smartdox.transformers.Dox2AsciidocTransformer
 
 /*
  * @since   Apr. 18, 2025
- * @version Apr. 26, 2025
+ * @version Apr. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -40,7 +42,7 @@ class AntoraGenerator(
     site.traverse(builder)
     val antora = builder.build()
     val out = antora.toRealm(context)
-    val r = Realm.create()
+    val r = Realm.create().withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)
   }
 }
@@ -254,6 +256,8 @@ object AntoraGenerator {
       case class ExportFunction(context: Context)
           extends Function1[Realm.Cursor, Unit] with Context.Holder {
 
+        private def _newline = "\n"
+
         def apply(c: Realm.Cursor): Unit = {
           val cc = c.enter(name.name)
           cc.set("antora.yml", _make_meta_yaml)
@@ -263,6 +267,7 @@ object AntoraGenerator {
 
         private def _export(c: Realm.Cursor, p: Module) = {
           val cc = c.enter(p.name.name)
+          cc.set("nav.adoc", _make_nav_adoc(p))
           if (p.isRoot) {
             _export_files(cc, p)
           } else {
@@ -272,13 +277,13 @@ object AntoraGenerator {
 
         private def _export_files(c: Realm.Cursor, p: Module) = {
           p.ingredients.vector foreach {
-            case m: Ingredient.Pages => _export_pages(c, m)
-            case m: Ingredient.Images => _export_images(c, m)
-            case m: Ingredient.Container => _export_container(c, m)
+            case m: Module.Ingredient.Pages => _export_pages(c, m)
+            case m: Module.Ingredient.Images => _export_images(c, m)
+            case m: Module.Ingredient.Container => _export_container(c, m)
           }
         }
 
-        private def _export_pages(c: Realm.Cursor, p: Ingredient.Pages) = {
+        private def _export_pages(c: Realm.Cursor, p: Module.Ingredient.Pages) = {
           val tf = new RealmMaker.Transformer[Page] {
             def treeTransformerContext = context_realm
 
@@ -297,19 +302,78 @@ object AntoraGenerator {
           c.merge(p.name.name, realm)
         }
 
-        private def _export_images(c: Realm.Cursor, p: Ingredient.Images) = {
+        private def _export_images(c: Realm.Cursor, p: Module.Ingredient.Images) = {
           c.merge(p.name.name, p.realm)
         }
 
-        private def _export_container(c: Realm.Cursor, p: Ingredient.Container) =
+        private def _export_container(c: Realm.Cursor, p: Module.Ingredient.Container) =
           c.merge(p.name.name, p.realm)
 
         private def _make_meta_yaml: String =
           CircleUtils.toYamlString(
             "name" -> name.name,
             "title" -> title.map(_.title),
-            "version" -> version.map(_.v).getOrElse(null)
+            "version" -> version.map(_.v).getOrElse(null),
+            "nav" -> _nav
           )
+
+        private def _nav = modules.map(x => s"modules/${x.name}/nav.adoc")
+
+        private def _make_nav_adoc(p: Module): String =
+          if (p.isRoot)
+            _make_nav_adoc_root(p)
+          else
+            _make_nav_adoc_module(p)
+
+        class NavMaker(name: Option[String]) extends StringBuildVisitor[Module.Navigation.Reference] {
+          override def sb_indent_mark = "*"
+          override def sb_indent_post_mark = " "
+          override def sb_indent_size = 1
+
+          name foreach  { x =>
+            sb_enter()
+            sb_println(x)
+          }
+
+          def make(): String = sb_to_string()
+
+          override def enter_Container(
+            node: TreeNode[Module.Navigation.Reference]
+          ) {
+            val title = StringUtils.makeTitleFromPathname(node.pathname)
+            sb_println(title)
+          }
+
+          override def enter_Content(
+            node: TreeNode[Module.Navigation.Reference],
+            content: Module.Navigation.Reference
+          ) {
+            val filepath = StringUtils.changeSuffix(content.pathname.v.dropWhile(_ == '/'), "adoc")
+            val title = content.title
+            val s = s"xref:${filepath}[${title}]"
+            sb_println(s)
+          }
+        }
+
+        private def _make_nav_adoc_root(p: Module): String = {
+          val maker = new NavMaker(None)
+          p.navigation.references.traverse(maker)
+          maker.make()
+        }
+
+        // private def _make_nav_adoc_root_old(p: Module): String = {
+        //   p.navigation.references.map { x =>
+        //     val filepath = StringUtils.changeSuffix(x.path.dropWhile(_ == '/'), "adoc")
+        //     val title = x.title
+        //     s"* xref:${filepath}[${title}]"
+        //   }.mkString("", _newline, _newline)
+        // }
+
+        private def _make_nav_adoc_module(p: Module): String = {
+          val maker = new NavMaker(Some(p.name.name))
+          p.navigation.references.traverse(maker)
+          maker.make()
+        }
       }
     }
     object Component {
@@ -340,18 +404,49 @@ object AntoraGenerator {
 
     case class Module(
       name: Name,
-      ingredients: NonEmptyVector[Ingredient]
+      ingredients: NonEmptyVector[Module.Ingredient],
+      navigation: Module.Navigation
     ) {
       def isRoot = name.name == "ROOT"
     }
     object Module {
+      sealed trait Ingredient {
+        def name: Name
+      }
+      object Ingredient {
+        case class Pages(pages: Tree[Page] = Tree.create()) extends Ingredient {
+          val name = Name("pages")
+
+          def add(page: Page) = {
+            val path = page.name.name
+            pages.setContent(path, page)
+            this
+          }
+        }
+        case class Images(realm: Realm = Realm.create()) extends Ingredient {
+          val name = Name("images")
+        }
+        case class Container(name: Name, realm: Realm = Realm.create()) extends Ingredient {
+        }
+      }
+
+      case class Navigation(
+        references: Tree[Navigation.Reference] = Tree.create()
+      )
+      object Navigation {
+        case class Reference(pathname: PathName, title: String)
+
+        val empty = Navigation()
+      }
+
       class Builder(name: String) {
         private var _name: Name = Name(name)
         private var _nodes: Vector[Node] = Vector.empty
 
         def build(): Module = {
           val xs = _ingredients()
-          Module(_name, xs)
+          val nav = _navigation(xs)
+          Module(_name, xs, nav)
         }
 
         private def _ingredients(): NonEmptyVector[Ingredient] = {
@@ -368,30 +463,44 @@ object AntoraGenerator {
           _nodes./:(Z())(_+_).r
         }
 
+        private def _navigation(ps: NonEmptyVector[Ingredient]): Navigation =
+          ps.vector.collect {
+            case m: Ingredient.Pages => _navigation(m)
+          }.headOption.getOrElse(Navigation.empty)
+
+        private def _navigation(p: Ingredient.Pages): Navigation = {
+          case class Slot(pathname: String, title: String)
+
+          class Collector() extends TreeVisitor[Page] {
+            private var _pages: Vector[Slot] = Vector.empty
+
+            def toNavigation: Navigation = {
+              val tree = Tree.create[Navigation.Reference]()
+              _pages.foreach { x =>
+                tree.setContent(x.pathname, Navigation.Reference(PathName(x.pathname), x.title))
+              }
+              Navigation(tree)
+            }
+
+            override def enter(node: TreeNode[Page]) {
+              for (c <- node.getContent) {
+                val title = Dox.getTitleString(c.dox) getOrElse {
+                  StringUtils.makeTitleFromPathname(c.name.name)
+                }
+                _pages = _pages :+ Slot(node.pathname, title)
+              }
+            }
+          }
+
+          val collector = new Collector()
+          p.pages.traverse(collector)
+          collector.toNavigation
+        }
+
         def addNode(node: Node) = {
           _nodes = _nodes :+ node
           this
         }
-      }
-    }
-
-    sealed trait Ingredient {
-      def name: Name
-    }
-    object Ingredient {
-      case class Pages(pages: Tree[Page] = Tree.create()) extends Ingredient {
-        val name = Name("pages")
-
-        def add(page: Page) = {
-          val path = page.name.name
-          pages.setContent(path, page)
-          this
-        }
-      }
-      case class Images(realm: Realm = Realm.create()) extends Ingredient {
-        val name = Name("images")
-      }
-      case class Container(name: Name, realm: Realm = Realm.create()) extends Ingredient {
       }
     }
 
@@ -422,19 +531,20 @@ object AntoraGenerator {
           Title(title),
           Reference(startpage)
         )
-        val startpath = _components.headOption.map { x =>
-          x.name.name
-        } getOrElse "."
-        val content = Playbook.Content(
-          Playbook.Content.Source(
-            new URI("./docs"),
-            Paths.get(startpath)
-          )
-        )
+        val content = Playbook.Content(_sources)
         val ui = Playbook.Ui.default
         val output = Playbook.Output.default
         Playbook(site, content, ui, output)
       }
+
+      private def _sources: List[Playbook.Content.Source] =
+        _components.toList.map { x =>
+          val startpath = x.name.name
+          Playbook.Content.Source(
+            new URI("./docs"),
+            Paths.get(startpath)
+          )
+        }
 
       def setComponent(name: String) = {
         _current_component.foreach { x =>
