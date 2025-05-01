@@ -12,7 +12,8 @@ import Dox._, Doxes._
  * @since   Dec.  5, 2012
  *  version Jan. 15, 2014
  *  version Feb.  5, 2014
- * @version Dec. 30, 2018
+ *  version Dec. 30, 2018
+ * @version Oct. 28, 2024
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -231,9 +232,11 @@ object PureParser {
     val head = getTHead(elem)
     val body = getTBody(elem)
     val foot = getTFoot(elem)
+    val side = None
+    val cg = None
     val caption = getCaption(elem)
     val label = getLabel(elem)
-    Table(head, body, foot, caption, label)
+    Table(head, body, foot, side, cg, caption, label)
   }
 
   def getTHead(elem: XNode): Option[THead] = {

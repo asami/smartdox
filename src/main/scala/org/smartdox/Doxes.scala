@@ -5,15 +5,26 @@ import scalaz._, Scalaz._
 import scala.xml.Elem
 import com.asamioffice.goldenport.xml.XmlUtil
 import org.goldenport.Strings.blankp
+import org.goldenport.values.Designation
 import org.goldenport.collection.VectorMap
 import org.goldenport.parser.ParseResult
+import org.goldenport.parser.LogicalSection
+import org.smartdox.parser.Dox2Parser
+import org.smartdox.structure.Statement
 
 /*
  * @since   Dec.  5, 2012
  *  version Jan. 16, 2014
  *  version Feb.  5, 2014
  *  version Oct. 15, 2018
- * @version Dec. 31, 2018
+ *  version Dec. 31, 2018
+ *  version Aug. 13, 2020
+ *  version Nov. 18, 2020
+ *  version Mar. 16, 2021
+ *  version Jul.  8, 2024
+ *  version Sep.  5, 2024
+ *  version Oct. 28, 2024
+ * @version Nov. 21, 2024
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -35,7 +46,7 @@ trait Doxes {
     val l = Option(id)
     val thead = THead(List(h))
     val tbody = TBody(b)
-    Table(thead.some, tbody, None, c, l)
+    Table(thead.some, tbody, None, None, None, c, l)
   }
 
   protected def dox_table_tuple(header: Product, body: Seq[Product],
@@ -124,8 +135,9 @@ trait Doxes {
       } 
     } else tob(content).toDox
     Description(
-      title = toi(title).toDox,
-      summary = sm.toDox,
+      Designation(Option(title)),
+//      title = toi(title).toDox,
+      resume = Resume.summary(sm.toDox),
       content = c
     )
   }
@@ -151,6 +163,40 @@ trait Doxes {
     // }
     ???
   }
+
+  protected final def dox_parse(c: Dox2Parser.Config, p: LogicalSection): Dox =
+    Dox2Parser.parse(c, p)
+
+  protected final def make_description(c: Dox2Parser.Config, p: LogicalSection): Description = {
+    val dox = Dox2Parser.parse(c, p)
+    make_description(dox)
+  }
+
+  protected final def make_sections(c: Dox2Parser.Config, p: LogicalSection): List[Section] = {
+    val dox = Dox2Parser.parse(c, p)
+    make_sections(dox)
+  }
+
+  protected final def make_description_sections(c: Dox2Parser.Config, p: LogicalSection): (Description, List[Section]) = {
+    val dox = Dox2Parser.parse(c, p)
+    make_description_sections(dox)
+  }
+
+  protected final def make_description(p: Dox): Description =
+    Description.parse(p)
+
+  protected final def make_sections(p: Dox): List[Section] =
+    p.sections
+
+  protected final def make_description_sections(p: Dox): (Description, List[Section]) =
+    (make_description(p), make_sections(p))
+
+  protected final def make_structure_statement(c: Dox2Parser.Config, p: LogicalSection): Statement = {
+    val dox = Dox2Parser.parse(c, p)
+    make_structure_statement(dox)
+  }
+
+  protected final def make_structure_statement(p: Dox): Statement = ???
 }
 
 object Doxes extends Doxes

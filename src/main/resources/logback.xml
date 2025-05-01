@@ -1,0 +1,16 @@
+<configuration>
+
+  <!-- Console appender -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%highlight([%d{HH:mm:ss.SSS}] [%level] %logger{36} - %msg%n)</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Set the root logger level -->
+  <root level="INFO">
+    <appender-ref ref="CONSOLE" />
+  </root>
+
+</configuration>
+

@@ -10,7 +10,8 @@ import org.goldenport.scalatest.ScalazMatchers
 /*
  * @since   Oct. 14, 2018
  *  version Nov. 12, 2018
- * @version Dec. 31, 2018
+ *  version Dec. 31, 2018
+ * @version Sep.  5, 2024
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -48,13 +49,25 @@ class Dox2ParserSpec extends WordSpec with Matchers with ScalazMatchers with Use
         // parse_orgmode("* First\n - first\n  - first.first\n  - first.second\n - second\n",
         //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ul><li>first<ul><li>first.first</li><li>first.second</li></ul></li><li>second</li></ul></section></body></html>")
       }
+      "typical 2" in {
+        parse_orgmode_simple_debug("- One\n- Two\n",
+          """<ul><li>One</li><li>Two</li></ul>""")
+      }
       "continue" in {
-        parse_orgmode_simple("- This is \n a pen.\n",
+        parse_orgmode_simple_debug("- This is \n a pen.\n",
                              """<ul><li>This is a pen.</li></ul>""")
       }
       "continue 2" in {
         parse_orgmode_simple("- One\n - Two\n Two-One\n",
                              """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+      }
+      "continue 2 xx" in {
+        parse_orgmode_simple_debug("abc\n\n- One\n - Two\n - Three\n\nxyz",
+          """<p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p>""")
+      }
+      "continue 2 x" in {
+        parse_orgmode_simple_debug("- One\n - Two\n - Three\n",
+          """<ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul>""")
       }
     }
     "ol" which {

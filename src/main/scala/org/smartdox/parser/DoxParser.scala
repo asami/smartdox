@@ -23,7 +23,8 @@ import org.goldenport.collection.VectorMap
  *  version Feb.  5, 2014
  *  version Jan.  5, 2015
  *  version Mar. 10, 2016
- * @version Dec. 31, 2018
+ *  version Dec. 31, 2018
+ * @version Oct. 28, 2024
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -674,7 +675,7 @@ class DoxParser(
         }
         build(normalized) match {
           case Right((head, body, foot)) =>
-            Table(head, body, foot, caption, label)
+            Table(head, body, foot, None, None, caption, label)
           case Left(ttable) => ttable.copy(caption = caption, label = label)
         }
       }

@@ -3,12 +3,19 @@ package org.smartdox.parser
 import java.net.URI
 import org.goldenport.RAISE
 import org.goldenport.parser._
+import org.goldenport.io.MimeType
 import org.smartdox._
 
 /*
  * @since   Oct. 14, 2018
  *  version Nov. 18, 2018
- * @version Dec. 30, 2018
+ *  version Dec. 30, 2018
+ *  version Oct.  2, 2019
+ *  version Nov. 29, 2020
+ *  version Dec.  5, 2020
+ *  version Feb.  8, 2021
+ *  version Nov. 22, 2024
+ * @version Jan.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -38,6 +45,8 @@ object DoxInlineParser {
   def apply(config: Config, in: String): (ParseMessageSequence, ParseResult[Vector[Dox]], DoxInlineParseState) = {
     val parser = ParseReaderWriterStateClass[Config, Dox](config, NormalState.init(config))
     val (msgs, result, state) = parser.apply(in)
+    // println(s"DoxInlineParseState#apply $result")
+    assume (result.toOption.map(_.forall(_ != null)).getOrElse(true), s"should not be null: input[$in]")
     val s: DoxInlineParseState = state.asInstanceOf[DoxInlineParseState]
     (msgs, result, s)
   }
@@ -54,8 +63,9 @@ object DoxInlineParser {
 
   case class Config(
     isDebug: Boolean = false,
-    markdown: Config.MarkDown = Config.MarkDown.default,
-    orgmode: Config.OrgMode = Config.OrgMode.default
+    isLocation: Boolean = true,
+    markdown: Config.MarkDown = Config.MarkDown.none,
+    orgmode: Config.OrgMode = Config.OrgMode.none
   ) extends ParseConfig {
     def isSpace(c: Char): Boolean = Character.isWhitespace(c)
 
@@ -72,13 +82,19 @@ object DoxInlineParser {
     def useSlash: Boolean = orgmode.isItalic
     def useDallor: Boolean = false
 
-    def isImageFile(uri: URI): Boolean = true // TODO
-    def isImageFile(p: String): Boolean = true // TODO
+    def isImageFile(uri: URI): Boolean = MimeType.isImageFile(uri)
+    def isImageFile(filename: String): Boolean = MimeType.isImageFile(filename)
   }
   object Config {
     val default = Config()
     val debug = Config(true)
-    val orgmodeFull = default.copy(orgmode = Config.OrgMode.full)
+    val smartdox = default
+    val orgmode = default.copy(orgmode = Config.OrgMode.full)
+    val markdown = default.copy(markdown = Config.MarkDown.full)
+    val literateModel = default.copy(
+      orgmode = Config.OrgMode.model,
+      markdown = Config.MarkDown.model
+    )
 
     case class MarkDown(
       isBold: Boolean, // *bold*
@@ -90,7 +106,9 @@ object DoxInlineParser {
       isEmoji: Boolean // :emoji:
     )
     object MarkDown {
-      val default = MarkDown(false, false, false, false, false, false, false)
+      val none = MarkDown(false, false, false, false, false, false, false)
+      val full = MarkDown(true, true, true, true, true, true, true)
+      val model = none
     }
 
     case class OrgMode(
@@ -102,19 +120,33 @@ object DoxInlineParser {
       isUnderline: Boolean // _underline_
     )
     object OrgMode {
-      val default = OrgMode(false, false, false, false, false, false)
+      val none = OrgMode(false, false, false, false, false, false)
       val full = OrgMode(true, true, true, true, true, true)
+      val model = none
     }
   }
 
   trait DoxInlineParseState extends ParseReaderWriterState[Config, Dox] {
     def config: Config
+    protected def is_Debug: Boolean = false
 
     def apply(config: Config, evt: ParseEvent): Transition = {
       //      println(s"in($this): $evt")
+      if (is_Debug)
+        show_Before(config, evt)
       val r = handle_event(evt)
+      if (is_Debug)
+        show_After(config, evt, r)
 //      println(s"out($this): $r")
       r
+    }
+
+    protected def show_Before(config: Config, evt: ParseEvent): Unit = {
+      // println(s"DoxInlineParseState[${getClass.getSimpleName}]#show_Before $evt") // TODO trace
+    }
+
+    protected def show_After(config: Config, evt: ParseEvent, transition: Transition): Unit = {
+      // println(s"DoxInlineParseState[${getClass.getSimpleName}]#show_After $evt, $transition") // TODO trace
     }
 
     def returnEndResult: ParseResult[Dox] = RAISE.noReachDefect(this, "returnEnd")
@@ -178,7 +210,7 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, start_Result(), start_State())
 
     protected def start_Result(): ParseResult[Dox] =
-      ParseSuccess(Dox.empty)
+      EmptyParseResult()
 
     protected def start_State(): DoxInlineParseState = this
 
@@ -464,6 +496,8 @@ object DoxInlineParser {
     cs: Vector[Char] = Vector.empty,
     isInSpace: Boolean = false
   ) extends DoxInlineParseState with InlineFeature {
+    override def is_Debug = true
+
     override def returnEndResult: ParseResult[Dox] =
       ParseSuccess(Text(cs.mkString))
 
@@ -733,7 +767,7 @@ object DoxInlineParser {
       if (c == startChar)
         leave_none
       else
-        ???
+        RAISE.noReachDefect(this, s"SkipSpaceStartState#character_State($this): $c")
   }
 
   case class SkipOneState(
@@ -821,7 +855,7 @@ object DoxInlineParser {
     override def returnInlineFrom(doxes: Seq[Inline]) = copy(urn = doxes)
 
     override protected def open_Bracket_State(c: Char): DoxInlineParseState =
-      InlineState(OrgModeLinkLabelState(config, parent, urn), ']')
+      InlineState(OrgModeLinkLabelState(config, parent, urn), ']', ']')
 
     override protected def close_Bracket_State(c: Char): DoxInlineParseState = {
       // XXX annotation, block, figure
@@ -842,8 +876,16 @@ object DoxInlineParser {
   case class OrgModeLinkLabelState(
     config: Config,
     parent: DoxInlineParseState,
-    urn: Seq[Dox]
+    urn: Seq[Inline]
   ) extends ChildDoxInlineParseState {
+    override def returnInlineFrom(doxes: Seq[Inline]) = {
+      val location = None // TODO
+      val uri = make_text(urn)
+      if (config.isImageFile(uri))
+        leave_to(ReferenceImg(uri))
+      else
+        leave_to(Hyperlink(doxes, uri, location))
+    }
   }
 
   case class BoldState(
