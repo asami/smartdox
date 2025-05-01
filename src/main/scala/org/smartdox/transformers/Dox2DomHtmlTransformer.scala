@@ -24,7 +24,7 @@ import org.smartdox.transformer._
  *  version Dec. 27, 2020
  *  version Jan. 17, 2021
  *  version Feb.  8, 2021
- * @version Apr.  6, 2025
+ * @version Apr. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -66,7 +66,7 @@ class Dox2DomHtmlTransformer(
       _head_date(p),
       _head_css(p)
     ).flatten ++ _head_styles(p)
-    val properties = HoconUtils.toFlattenVector(p.properties).map {
+    val properties = p.metadata.toFlattenVector.map { // HoconUtils.toFlattenVector(p.properties).map {
       case (k, v) =>
         val attrs = Map("name" -> k, "content" -> AnyUtils.toPrint(v))
         create_element("meta", attrs)

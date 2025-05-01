@@ -10,7 +10,7 @@ import org.smartdox.transformer._
 
 /*
  * @since   Apr. 18, 2025
- * @version Apr. 27, 2025
+ * @version Apr. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocTransformer(
@@ -20,7 +20,7 @@ class Dox2AsciidocTransformer(
 
   private var _section: Int = 0
 
-  override def enter(node: TreeNode[Dox]) = node.getContent foreach {
+  override def enter_Content(node: TreeNode[Dox], content: Dox) = content match {
     case m: Text => sb_print(m.contents)
     case m: Paragraph => // do nothing
     case m: Document => // do nothing
@@ -35,7 +35,7 @@ class Dox2AsciidocTransformer(
       case xs => enter_asciidoc_section(to_text(xs))
     }
 
-  override def leave(node: TreeNode[Dox]) = node.getContent foreach {
+  override def leave_Content(node: TreeNode[Dox], content: Dox) = content match {
     case m: Paragraph => sb_println()
     case _ => // do nothing
   }

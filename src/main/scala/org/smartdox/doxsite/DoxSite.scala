@@ -30,7 +30,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  * @since   Feb. 23, 2025
  *  version Feb. 25, 2025
  *  version Mar.  9, 2025
- * @version Apr. 19, 2025
+ * @version Apr. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -221,13 +221,16 @@ object DoxSite {
     val ctx = DoxSiteTransformer.Context(nodectx, doxctx)
     val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(nodectx))
     // println(a.show)
+    val noticecollector = new NoticeCollector(context)
+    a1.traverse(noticecollector)
     val a = a1.transform(new DoxSitePreTransformer(ctx))
     val gb = new GlossaryBuilder(ctx)
     val b: Tree[Node] = a.transform(gb)
 //    val b = a
+    val notices = noticecollector.notices
     val glossary = gb.glossary
     // println(s"Glossary: $glossary")
-    val metadata = MetaData(glossary = glossary)
+    val metadata = MetaData(glossary = glossary, notices = notices)
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = b.transform(new LinkEnabler(ctx1))
     // println(s"Z: ${c.print}")

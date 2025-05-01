@@ -28,7 +28,8 @@ import org.smartdox.transformers.Dox2AsciidocTransformer
 
 /*
  * @since   Apr. 18, 2025
- * @version Apr. 27, 2025
+ *  version Apr. 28, 2025
+ * @version May.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -38,9 +39,12 @@ class AntoraGenerator(
 
   def generate(realm: Realm): Realm = {
     val site = DoxSite.create(context, realm)
+    // record_message("XXX")
     val builder = new Builder()
+    // record_info("INFO")
     site.traverse(builder)
     val antora = builder.build()
+    // record_message("YYY")
     val out = antora.toRealm(context)
     val r = Realm.create().withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)

@@ -24,6 +24,8 @@ import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.hocon.HoconUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
+import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.generator.Context
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -68,7 +70,7 @@ import org.goldenport.util.ListUtils
  *  version Dec. 22, 2024
  *  version Jan.  1, 2025
  *  version Mar. 31, 2025
- * @version Apr. 26, 2025
+ * @version Apr. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
@@ -864,25 +866,23 @@ case class Head(
   css: Option[String] = None,
   csslink: Option[String] = None,
   cacheControl: Head.CacheControl = Head.CacheControl.empty,
-  seo: Head.BasicSeo = Head.BasicSeo.empty,
-  openGraphProtocol: Head.OpenGraphProtocol = Head.OpenGraphProtocol.empty,
-  twitterCard: Head.TwitterCard = Head.TwitterCard.empty,
-  properties: Hocon = HoconUtils.empty,
+  seo: Head.Seo = Head.Seo.empty,
+  metadata: DocumentMetaData = DocumentMetaData.empty,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
   override def isEmpty = (
     title.isEmpty && date.isEmpty && css.isEmpty && csslink.isEmpty &&
-      cacheControl.isEmpty && seo.isEmpty && openGraphProtocol.isEmpty && twitterCard.isEmpty &&
-      properties.isEmpty &&
+      cacheControl.isEmpty && seo.isEmpty &&
+      metadata.isEmpty &&
       attributes.isEmpty && location.isEmpty
   )
 
   override def equals_Value(o: Dox) = o match {
     case m: Head =>
       title == m.title && date == m.date && css == m.css && csslink == m.csslink &&
-      cacheControl == m.cacheControl && seo == m.seo && openGraphProtocol == m.openGraphProtocol && twitterCard == m.twitterCard &&
-      properties == m.properties &&
+      cacheControl == m.cacheControl && seo == m.seo &&
+      metadata == m.metadata &&
       attributes == m.attributes
     case _ => false
   }
@@ -929,6 +929,9 @@ case class Head(
     case xs => Some(Dox.toText(xs))
   }
 
+  def getMetaData(implicit context: Context) : Option[DocumentMetaData] =
+    metadata.complementTitleDate(title, date).toOption
+
   def toOption: Option[Head] =
     if (isEmpty)
       None
@@ -943,9 +946,7 @@ case class Head(
     csslink |+| p.csslink,
     cacheControl + p.cacheControl,
     seo + p.seo,
-    openGraphProtocol + p.openGraphProtocol,
-    twitterCard + p.twitterCard,
-    properties.withFallback(p.properties),
+    metadata + p.metadata, // properties.withFallback(p.properties),
     attributes ++ p.attributes,
     location orElse p.location
   )
@@ -960,6 +961,27 @@ object Head extends DoxFactory {
   }
   object CacheControl {
     val empty = CacheControl()
+  }
+
+  case class Seo(
+    basic: BasicSeo = BasicSeo.empty,
+    openGraphProtocol: OpenGraphProtocol = OpenGraphProtocol.empty,
+    twitterCard: TwitterCard = TwitterCard.empty
+  ) {
+    def isEmpty = basic.isEmpty && openGraphProtocol.isEmpty && twitterCard.isEmpty
+
+    def +(rhs: Seo) = copy(
+      basic = basic + rhs.basic,
+      openGraphProtocol = openGraphProtocol + rhs.openGraphProtocol,
+      twitterCard = twitterCard + rhs.twitterCard
+    )
+
+    def author = basic.author
+  }
+  object Seo {
+    val empty = Seo()
+
+    def author(p: InlineContents) = empty.copy(basic = BasicSeo.author(p))
   }
 
   case class BasicSeo(
@@ -1015,7 +1037,7 @@ object Head extends DoxFactory {
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Head = {
     case class Z(properties: Hocon = HoconUtils.empty) {
-      def r = Head(properties = properties)
+      def r = Head(metadata = DocumentMetaData.create(properties))
 
       def +(rhs: Dox) = rhs match {
         case m: Text =>
@@ -1034,7 +1056,7 @@ object Head extends DoxFactory {
   }
 
   def apply(title: InlineContents, author: InlineContents, date: InlineContents): Head =
-    new Head(title, date, seo = BasicSeo.author(author))
+    new Head(title, date, seo = Seo.author(author))
 
   def builder() = new Builder
 
@@ -1043,7 +1065,7 @@ object Head extends DoxFactory {
     var author: InlineContents = Nil
     var date: InlineContents = Nil
 
-    def build() = new Head(title, date, seo = BasicSeo.author(author))
+    def build() = new Head(title, date, seo = Seo.author(author))
   }
 }
 
