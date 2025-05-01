@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "1.4.6"
+version := "1.4.7"
 
 scalaVersion := "2.10.3"
 // crossScalaVersions := Seq("2.9.2", "2.9.1")
@@ -34,7 +34,7 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.4.6"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "1.4.7"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "1.1.0"
 
@@ -45,6 +45,8 @@ libraryDependencies += "com.atilika.kuromoji" % "kuromoji-ipadic" % "0.9.0"
 // libraryDependencies += "net.sourceforge.nekohtml" % "nekohtml" % "1.9.15"
 
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.10.0.202012080955-r"
+
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.14"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.0" % "test"
 
