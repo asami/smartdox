@@ -9,12 +9,14 @@ import org.goldenport.realm.Realm
 import org.goldenport.util.StringUtils
 import org.smartdox.Dox
 import org.smartdox.parser.Dox2Parser
-import org.smartdox.generator.{Context => DoxContext}
+import org.smartdox.service.{Context => ServiceContext}
+import org.smartdox.generator.{Context => GeneratorContext}
 import org.smartdox.generators.AntoraGenerator
 
 /*
  * @since   Apr. 18, 2025
- * @version Apr. 18, 2025
+ *  version Apr. 18, 2025
+ * @version May.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 case object AntoraOperationClass extends OperationClassWithOperation {
@@ -30,7 +32,8 @@ case object AntoraOperationClass extends OperationClassWithOperation {
 
   def execute(env: Environment, cmd: AntoraCommand): AntoraResult = {
     val realm = Realm.create(cmd.in)
-    val ctx = DoxContext.create(env)
+    val sctx = env.toAppEnvironment[ServiceContext]
+    val ctx = GeneratorContext.create(sctx)
     val antora = new AntoraGenerator(ctx)
     val out = antora.generate(realm)
     AntoraResult(out)

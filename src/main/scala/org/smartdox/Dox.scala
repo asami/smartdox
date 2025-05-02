@@ -71,10 +71,11 @@ import org.smartdox.generator.Context
  *  version Dec. 22, 2024
  *  version Jan.  1, 2025
  *  version Mar. 31, 2025
- * @version Apr. 30, 2025
+ *  version Apr. 30, 2025
+ * @version May.  2, 2025
  * @author  ASAMI, Tomoharu
  */
-trait Dox extends IDocument with NotNull { // Use EmptyDox for null object.
+trait Dox extends IDocument {
   def location: Option[ParseLocation]
   def isEmpty: Boolean = elements.isEmpty
   def elements: List[Dox] = Nil
@@ -578,7 +579,7 @@ object Dox extends UseDox {
 
   def tree(dox: Dox): Tree[Dox] = {
     // println(s"Dox#tree in: $dox/${dox.elements}")
-    val r = Tree.node(dox, dox.elements.toStream.map(tree))
+    val r = Tree.Node(dox, dox.elements.toStream.map(tree))
     // println(s"Dox#tree out: $dox => ${r.drawTree}")
     r
   }
@@ -1053,7 +1054,7 @@ object Head extends DoxFactory {
         case m => this // TODO
       }
     }
-    body./:(Z())(_+_).r
+    body.foldLeft(Z())(_+_).r
   }
 
   def apply(title: InlineContents, author: InlineContents, date: InlineContents): Head =
@@ -1728,7 +1729,7 @@ object Table {
       def r = create(header, data.map(IRecord.create))
 
       def +(rhs: Lxsv) = {
-        val h = rhs.keyNames./:(header)((z, x) =>
+        val h = rhs.keyNames.foldLeft(header)((z, x) =>
           if (z.contains(x))
             z
           else
@@ -1738,7 +1739,7 @@ object Table {
         Z(h, d)
       }
     }
-    p.vector./:(Z())(_+_).r
+    p.vector.foldLeft(Z())(_+_).r
   }
 
   class Builder() {

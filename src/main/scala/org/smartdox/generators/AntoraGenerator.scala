@@ -17,7 +17,7 @@ import org.goldenport.values.Version
 import org.goldenport.values.PathName
 import org.goldenport.collection.NonEmptyVector
 import org.goldenport.util.StringUtils
-import org.goldenport.util.CircleUtils
+import org.goldenport.util.CirceUtils
 import org.goldenport.util.ListUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
@@ -29,7 +29,7 @@ import org.smartdox.transformers.Dox2AsciidocTransformer
 /*
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
- * @version May.  1, 2025
+ * @version May.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -141,7 +141,7 @@ object AntoraGenerator {
 
     implicit val siteEncoder: Encoder[Playbook.Site] = new Encoder[Playbook.Site] {
       def apply(p: Playbook.Site): Json =
-        CircleUtils.toJson(
+        CirceUtils.toJson(
           "title" -> p.title.title,
           "start_page" -> p.start_page.path,
           "url" -> p.url.map(_.toString)
@@ -150,7 +150,7 @@ object AntoraGenerator {
 
     implicit val sourceEncoder: Encoder[Playbook.Content.Source] = new Encoder[Playbook.Content.Source] {
       def apply(p: Playbook.Content.Source): Json =
-        CircleUtils.toJson(
+        CirceUtils.toJson(
           "url" -> p.url,
           "start_path" -> p.start_path
         )
@@ -158,28 +158,28 @@ object AntoraGenerator {
 
     implicit val contentEncoder: Encoder[Playbook.Content] = new Encoder[Playbook.Content] {
       def apply(p: Playbook.Content): Json =
-        CircleUtils.toJson(
+        CirceUtils.toJson(
           "sources" -> p.sources.map(_.asJson)
         )
     }
 
     implicit val bundleEncoder: Encoder[Playbook.Ui.Bundle] = new Encoder[Playbook.Ui.Bundle] {
       def apply(p: Playbook.Ui.Bundle): Json =
-        CircleUtils.toJson(
+        CirceUtils.toJson(
           "url" -> p.url
         )
     }
 
     implicit val uiEncoder: Encoder[Playbook.Ui] = new Encoder[Playbook.Ui] {
       def apply(p: Playbook.Ui): Json =
-        CircleUtils.toJson(
+        CirceUtils.toJson(
           "bundle" -> p.bundle.asJson
         )
     }
 
     implicit val outputEncoder: Encoder[Playbook.Output] = new Encoder[Playbook.Output] {
       def apply(p: Playbook.Output): Json =
-        CircleUtils.toJson(
+        CirceUtils.toJson(
           "dir" -> p.dir
         )
     }
@@ -201,7 +201,7 @@ object AntoraGenerator {
       ui: Playbook.Ui,
       output: Playbook.Output
     ) {
-      def serialize(): String = CircleUtils.toYamlString(this.asJson)
+      def serialize(): String = CirceUtils.toYamlString(this.asJson)
     }
     object Playbook {
       case class Site(
@@ -314,7 +314,7 @@ object AntoraGenerator {
           c.merge(p.name.name, p.realm)
 
         private def _make_meta_yaml: String =
-          CircleUtils.toYamlString(
+          CirceUtils.toYamlString(
             "name" -> name.name,
             "title" -> title.map(_.title),
             "version" -> version.map(_.v).getOrElse(null),

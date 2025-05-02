@@ -14,7 +14,8 @@ import org.smartdox.generator._
 
 /*
  * @since   Mar.  2, 2025
- * @version Mar. 11, 2025
+ *  version Mar. 11, 2025
+ * @version May.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -23,7 +24,7 @@ class DoxSiteGeneratorSpec extends WordSpec with Matchers with ScalazMatchers wi
     val env = Environment.createJaJp()
     val cliconfig = CliConfig.buildJaJp()
     val config = Config(cliconfig)
-    val ctx = new Context(env, config)
+    val ctx = new Context(env, config, env.contextFoundation)
     "typical" which {
       "mini" ignore {
         val in = Realm.create(new File("src/test/resources/site-mini"))

@@ -7,7 +7,7 @@ import org.goldenport.recorder.{ForwardRecorder, Recorder}
 
 /*
  * @since   Dec. 31, 2020
- * @version Dec. 31, 2020
+ * @version May.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Context(
@@ -18,4 +18,6 @@ case class Context(
 
   def recorder = environment.recorder
   def isPlatformWindows: Boolean = environment.isPlatformWindows
+
+  def contextFoundation = environment.contextFoundation
 }
