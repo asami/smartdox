@@ -39,12 +39,12 @@ class AntoraGenerator(
 
   def generate(realm: Realm): Realm = {
     val site = DoxSite.create(context, realm)
-    // record_message("XXX")
+    record_message("XXX")
     val builder = new Builder()
-    // record_info("INFO")
+    record_info("INFO")
     site.traverse(builder)
     val antora = builder.build()
-    // record_message("YYY")
+    record_message("YYY")
     val out = antora.toRealm(context)
     val r = Realm.create().withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)
@@ -464,7 +464,7 @@ object AntoraGenerator {
               case m: Page => copy(pages = pages add m)
             }
           }
-          _nodes./:(Z())(_+_).r
+          _nodes.foldLeft(Z())(_+_).r
         }
 
         private def _navigation(ps: NonEmptyVector[Ingredient]): Navigation =

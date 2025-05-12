@@ -10,7 +10,8 @@ import org.smartdox.service.operations._
  * @since   Dec. 30, 2020
  *  version Dec. 31, 2020
  *  version Feb. 28, 2025
- * @version Apr. 18, 2025
+ *  version Apr. 18, 2025
+ * @version May.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class SmartDoxService(
@@ -41,10 +42,13 @@ object SmartDoxService {
   }
 
   def main(args: Array[String]) {
-    val env0 = Environment.create(args)
-    val config = Config.create(env0)
-    val context = new Context(env0, config)
-    val env = env0.withAppEnvironment(context)
+    val env = Environment.create(args).
+      setupAppEnvironment { env0 =>
+        val config = Config.create(env0)
+        new Context(env0, config)
+      }
+    val config = env.toAppEnvironment[Context].config
+    env.initialize()
     val services = Services(
       SmartDoxServiceClass
     )

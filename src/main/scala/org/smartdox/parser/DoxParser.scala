@@ -24,7 +24,8 @@ import org.goldenport.collection.VectorMap
  *  version Jan.  5, 2015
  *  version Mar. 10, 2016
  *  version Dec. 31, 2018
- * @version Oct. 28, 2024
+ *  version Oct. 28, 2024
+ * @version May.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -73,7 +74,7 @@ class DoxParser(
 
   private def _resolve_include_tree(base: String, t: Tree[Dox]): Tree[Dox] = {
 //    println("DoxParser#_resolve_include_tree = " + _resolve_include_children(base, t.subForest))
-    node(t.rootLabel, _resolve_include_children(base, t.subForest))
+    Tree.Node(t.rootLabel, _resolve_include_children(base, t.subForest))
   }
 
   private def _resolve_include_children(base: String, xs: Stream[Tree[Dox]]): Stream[Tree[Dox]] = {
@@ -300,7 +301,7 @@ class DoxParser(
     def foldinline(a: List[Dox], r: List[Dox], e: Dox) = (a, r :+ e)
     rep(commentline|embedded|contentsline|emptyline) ^^ {
       case contents => {
-        val (a, r) = contents.flatten.foldLeft(Pair(List.empty[Dox], List.empty[Dox])) {
+        val (a, r) = contents.flatten.foldLeft(Tuple2(List.empty[Dox], List.empty[Dox])) {
           case ((a, r), e) => e match {
             case _: EmptyLine => foldemptyline(a, r, e)
             case _: Inline => foldinline(a, r, e)
