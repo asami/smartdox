@@ -10,7 +10,8 @@ import org.smartdox.metadata._
 /*
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
- * @version Apr.  5, 2025
+ *  version Apr.  5, 2025
+ * @version May. 21, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(val context: DoxSiteTransformer.Context)
@@ -85,9 +86,9 @@ object LinkEnabler {
               }
 
               def +(definition: Glossary.Definition) =
-                Z(definition.terms./:(ZZ(definition, xs))(_+_).r)
+                Z(definition.terms.foldLeft(ZZ(definition, xs))(_+_).r)
             }
-            candidates./:(Z(Vector(m)))(_+_).r
+            candidates.foldLeft(Z(Vector(m)))(_+_).r
           }
         case m: Dfn => directive_node(m)
         case m => TreeTransformer.Directive.Content(m)
@@ -174,6 +175,6 @@ object LinkEnabler {
         }
       }
     }
-    ps./:(Z())(_+_).r
+    ps.foldLeft(Z())(_+_).r
   }
 }

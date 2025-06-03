@@ -7,14 +7,17 @@ import org.goldenport.i18n.I18NString
 import org.goldenport.cli._
 import org.goldenport.realm.Realm
 import org.goldenport.util.StringUtils
+import org.goldenport.tree.TreeTransformer
 import org.smartdox.Dox
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator.{Context => DoxContext}
 import org.smartdox.generators.DoxSiteGenerator
+import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Feb. 28, 2025
- * @version Mar.  2, 2025
+ *  version Mar.  2, 2025
+ * @version Jun.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case object SiteOperationClass extends OperationClassWithOperation {
@@ -31,22 +34,18 @@ case object SiteOperationClass extends OperationClassWithOperation {
   def execute(env: Environment, cmd: SiteCommand): SiteResult = {
     val realm = Realm.create(cmd.in)
     val ctx = DoxContext.create(env)
-    val site = new DoxSiteGenerator(ctx)
+    val config = DoxSite.Config.create(cmd.strategy)
+    val site = new DoxSiteGenerator(ctx, config)
     val out = site.generate(realm)
     SiteResult(out)
   }
 
-  trait Command {
-  }
-
-  trait Result {
-  }
-
-  case class SiteCommand(in: File) extends Command {
+  case class SiteCommand(
+    siteParameters: SiteParameters
+  ) extends Command with SiteParameters.Holder {
   }
   object SiteCommand {
-    object params {
-      val in = spec.Parameter.argumentFile("in")
+    object params extends SiteParameters.Specification {
     }
 
     def create(req: Request): SiteCommand =
@@ -54,14 +53,12 @@ case object SiteOperationClass extends OperationClassWithOperation {
 
     def cCreate(req: Request): Consequence[SiteCommand] =
       for {
-        in <- req.cFile(params.in)
+        sp <- SiteParameters.createC(req)
       } yield {
-        SiteCommand(in)
+        SiteCommand(sp)
       }
 
-    def specification: spec.Request = spec.Request(
-      params.in
-    )
+    def specification: spec.Request = SiteParameters.request
   }
 
   case class SiteResult(

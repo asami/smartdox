@@ -23,7 +23,9 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Jan.  1, 2021
  *  version Aug.  3, 2023
  *  version Mar. 12, 2025
- * @version Apr.  3, 2025
+ *  version Apr.  3, 2025
+ *  version May. 24, 2025
+ * @version Jun.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2HtmlGenerator(
@@ -45,7 +47,8 @@ object Dox2HtmlGenerator {
   import org.goldenport.realm.Realm
 
   object Dox2HtmlRule extends RealmTransformer.Rule {
-    def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
+    def realmConfig = RealmTransformer.Config.empty
+    override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
       p.getNameSuffix.collect {
         case "dox" => s"${p.nameBody}.html"
         case "org" => s"${p.nameBody}.html"

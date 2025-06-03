@@ -14,7 +14,8 @@ import org.smartdox.transformers.Dox2BloggerTransformer
  *  version Feb.  5, 2021
  *  version Aug.  3, 2023
  *  version Jan.  1, 2025
- * @version Mar. 31, 2025
+ *  version Mar. 31, 2025
+ * @version May. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2BloggerGenerator(
@@ -35,6 +36,7 @@ object Dox2BloggerGenerator {
   import org.goldenport.realm.Realm
 
   object Dox2BloggerRule extends RealmTransformer.Rule {
+    def realmConfig = RealmTransformer.Config.empty
     override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
       p.getNameSuffix.collect {
         case "dox" => s"${p.nameBody}.blogger"
@@ -48,6 +50,7 @@ object Dox2BloggerGenerator {
   }
 
   class BloggerTransformer(val context: Context) extends RealmTransformer {
+    def realmConfig = RealmTransformer.Config.empty
     def realmTransformerContext = RealmTransformer.Context.default
     override def rule = Dox2BloggerRule
 

@@ -8,7 +8,9 @@ import org.smartdox._
 /*
  * @since   Feb.  1, 2021
  *  version Feb.  2, 2021
- * @version Mar.  5, 2025
+ *  version Mar.  5, 2025
+ *  version May. 31, 2025
+ * @version Jun.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxTree2DoxTreeTransformer(

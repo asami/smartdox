@@ -14,16 +14,19 @@ import org.smartdox.transformers.Dox2HtmlTransformer
 /*
  * @since   Feb. 28, 2025
  *  version Mar. 12, 2025
- * @version Apr.  3, 2025
+ *  version Apr.  3, 2025
+ *  version May. 24, 2025
+ * @version Jun.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteGenerator(
-  val context: Context
+  val context: Context,
+  val config: DoxSite.Config
 ) extends GeneratorBase {
   import DoxSiteGenerator._
 
   def generate(realm: Realm): Realm = {
-    val site = DoxSite.create(context, realm)
+    val site = DoxSite.create(context, realm, "site", config)
     val out = site.toRealm(context)
     val r = Realm.create()
     r.merge("doxsite.d", out)
@@ -42,7 +45,8 @@ object DoxSiteGenerator {
   import org.goldenport.realm.Realm
 
   object DoxSiteRule extends RealmTransformer.Rule {
-    def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
+    def realmConfig = RealmTransformer.Config.empty
+    override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
       p.getNameSuffix.collect {
         case "dox" => s"${p.nameBody}.html"
         case "org" => s"${p.nameBody}.html"

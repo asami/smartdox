@@ -1,5 +1,7 @@
 package org.smartdox.doxsite
 
+import scala.util.control.NonFatal
+import scala.util.matching.Regex
 import org.goldenport.RAISE
 import org.smartdox._
 import org.smartdox.transformer._
@@ -9,7 +11,9 @@ import org.goldenport.tree._
 /*
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
- * @version Apr.  5, 2025
+ *  version Apr.  5, 2025
+ *  version May. 31, 2025
+ * @version Jun.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -54,7 +58,76 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
 }
 
 object DoxSiteTransformer {
+  import io.circe._
+  import io.circe.generic.extras._
+  import io.circe.generic.extras.semiauto._
+
+  case class Config(
+    doxsiteConfig: Option[DoxSite.Config] = None
+  ) {
+    def treeConfig: Option[TreeTransformer.Config] = doxsiteConfig.flatMap(_.transformTreeTransformerConfig)
+  }
+  object Config {
+    val default = Config()
+
+    implicit val circeconf = Configuration.default.
+      withDefaults.withSnakeCaseMemberNames
+
+    implicit val configdecoder: Decoder[Config] = deriveConfiguredDecoder
+    implicit val configencoder: Encoder[Config] = deriveConfiguredEncoder
+  }
+
+  // case class Config(
+  //   scope: Config.Scope = Config.Scope.All,
+  //   includes: List[Regex] = Nil,
+  //   excludes: List[Regex] = Nil
+  // )
+  // object Config {
+  //   val empty = Config()
+
+  //   implicit val circeconf = Configuration.default.
+  //     withDefaults.withSnakeCaseMemberNames
+
+  //   implicit val regexDecoder: Decoder[Regex] = Decoder.decodeString.emap { str =>
+  //     try {
+  //       Right(str.r)
+  //     } catch {
+  //       case NonFatal(e) => Left(s"Invalid regex: ${e.getMessage}")
+  //     }
+  //   }
+  //   implicit val regexEncoder: Encoder[Regex] = Encoder.encodeString.contramap(_.regex)
+
+  //   implicit val configdecoder: Decoder[Config] = deriveConfiguredDecoder
+  //   implicit val configencoder: Encoder[Config] = deriveConfiguredEncoder
+
+  //   sealed trait Scope {
+  //     def name: String
+  //   }
+  //   object Scope {
+  //     val elements = Vector(All, HomeOnly, ExcludeHome)
+
+  //     case object All extends Scope {
+  //       def name = "all"
+  //     }
+  //     case object HomeOnly extends Scope {
+  //       def name = "home_only"
+  //     }
+  //     case object ExcludeHome extends Scope {
+  //       def name = "exclude_home"
+  //     }
+
+  //     def create(p: String): Either[String, Scope] =
+  //       elements.find(_.name == p).map(Right(_)) getOrElse {
+  //         Left(s"Unknown Scope: $p")
+  //       }
+
+  //     implicit val scopeDecoder: Decoder[Scope] = Decoder.decodeString.emap(create)
+  //     implicit val scopeEncoder: Encoder[Scope] = Encoder.encodeString.contramap(_.name)
+  //   }
+  // }
+
   case class Context(
+    config: Config,
     nodeContext: TreeTransformer.Context[Node],
     doxContext: TreeTransformer.Context[Dox],
     metadata: MetaData = MetaData.empty,

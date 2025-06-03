@@ -8,7 +8,7 @@ import org.smartdox.transformer._
 
 /*
  * @since   Apr.  7, 2025
- * @version Apr.  7, 2025
+ * @version May. 21, 2025
  * @author  ASAMI, Tomoharu
  */
 class AutoI18nTransformer(
@@ -37,7 +37,7 @@ class AutoI18nTransformer(
       def +(rhs: (Locale, String)) =
         copy(xs = xs :+ Span.create(rhs._1, rhs._2))
     }
-    languages.zip(ps)./:(Z())(_+_).r
+    languages.zip(ps).foldLeft(Z())(_+_).r
   }
 }
 

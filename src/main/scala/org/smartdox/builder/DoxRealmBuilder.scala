@@ -13,7 +13,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Nov. 14, 2020
  *  version Dec. 20, 2020
  *  version Jan. 12, 2021
- * @version Apr.  3, 2025
+ *  version Apr.  3, 2025
+ * @version May. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxRealmBuilder(
@@ -30,7 +31,7 @@ class DoxRealmBuilder(
     r
   }
 
-  def build(): Realm = _cursors./:(Realm.create)((z, x) => z + x.build)
+  def build(): Realm = _cursors.foldLeft(Realm.create)((z, x) => z + x.build)
 }
 
 object DoxRealmBuilder {

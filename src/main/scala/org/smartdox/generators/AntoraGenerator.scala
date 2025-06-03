@@ -16,6 +16,7 @@ import org.goldenport.datatype.{Name, Title}
 import org.goldenport.values.Version
 import org.goldenport.values.PathName
 import org.goldenport.collection.NonEmptyVector
+import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.StringUtils
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.ListUtils
@@ -25,28 +26,31 @@ import org.smartdox.generator._
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page}
 import org.smartdox.transformers.Dox2AsciidocTransformer
+import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
 
 /*
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
- * @version May.  2, 2025
+ *  version May. 23, 2025
+ * @version Jun.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
-  val context: Context
+  val context: Context,
+  val config: DoxSite.Config
 ) extends GeneratorBase {
   import AntoraGenerator._
 
   def generate(realm: Realm): Realm = {
-    val site = DoxSite.create(context, realm)
-    record_message("XXX")
+    val site = DoxSite.create(context, realm, "antora", config)
+    // record_message("XXX")
     val builder = new Builder()
-    record_info("INFO")
+    // record_info("INFO")
     site.traverse(builder)
     val antora = builder.build()
-    record_message("YYY")
+    // record_message("YYY")
     val out = antora.toRealm(context)
-    val r = Realm.create().withGitInitAndCommit("antora.d/docs")
+    val r = Realm.create() // .withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)
   }
 }
@@ -57,6 +61,14 @@ object AntoraGenerator {
     components: List[Antora.Component]
   ) {
     def toRealm(implicit context: Context): Realm = {
+      val targets = List(LocaleUtils.en, LocaleUtils.ja) // TODO
+      targets match {
+        case Nil => _build_plain(context)
+        case xs => _build_multi(context)
+      }
+    }
+
+    private def _build_plain(implicit context: Context): Realm = {
       val realm = Realm.create()
       realm.setContent("antora-playbook.yml", playbook.serialize())
       realm.setNode("docs")
@@ -64,7 +76,43 @@ object AntoraGenerator {
       for (c <- components) {
         c.export(cursor)
       }
-      realm
+      realm.withGitInitAndCommit("docs")
+    }
+
+    private def _build_multi(
+      context: Context
+    ) = {
+      val en = _build_en(context)
+      val ja = _build_ja(context)
+      val realm = Realm.create()
+      val a = realm.merge("en", en)
+      a.merge("ja", ja)
+    }
+
+    private def _build_en(
+      implicit context: Context
+    ) = {
+      val realm = Realm.create()
+      realm.setContent("antora-playbook.yml", playbook.serialize())
+      realm.setNode("docs")
+      val cursor = realm.takeCursor("docs")
+      for (c <- components) {
+        c.export(cursor)
+      }
+      realm.withGitInitAndCommit("docs")
+    }
+
+    private def _build_ja(
+      implicit context: Context
+    ) = {
+      val realm = Realm.create()
+      realm.setContent("antora-playbook.yml", playbook.serialize())
+      realm.setNode("docs")
+      val cursor = realm.takeCursor("docs")
+      for (c <- components) {
+        c.export(cursor)
+      }
+      realm.withGitInitAndCommit("docs")
     }
   }
   object Antora {
@@ -112,7 +160,7 @@ object AntoraGenerator {
       def apply(c: HCursor): Decoder.Result[Playbook.Ui.Bundle] =
         for {
           url <- c.downField("url").as[String]
-        } yield Playbook.Ui.Bundle(new URL(url))
+        } yield Playbook.Ui.Bundle(new URI(url).toURL)
     }
 
     implicit val uiDecoder: Decoder[Playbook.Ui] = new Decoder[Playbook.Ui] {
@@ -230,7 +278,7 @@ object AntoraGenerator {
         bundle: Ui.Bundle
       )
       object Ui {
-        val default = Ui(Bundle(new URL("https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable")))
+        val default = Ui(Bundle(new URI("https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable").toURL))
 
         case class Bundle(
           url: URL
@@ -595,7 +643,22 @@ object AntoraGenerator {
     }
   }
 
+  // case class Config(
+  //   component: Component = Component.empty
+  // )
+  // object Config {
+  //   val empty = Config()
+
+  //   case class Component(
+  //     includes: List[String] = Nil
+  //   )
+  //   object Component {
+  //     val empty = Component()
+  //   }
+  // }
+
   class Builder(
+//    config: Config
   ) extends TreeVisitor[Node] {
     private var _depth: Int = 0
     private val _antora = new Antora.Builder()

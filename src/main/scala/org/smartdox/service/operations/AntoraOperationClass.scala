@@ -1,6 +1,5 @@
 package org.smartdox.service.operations
 
-import java.io.File
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
 import org.goldenport.i18n.I18NString
@@ -12,11 +11,13 @@ import org.smartdox.parser.Dox2Parser
 import org.smartdox.service.{Context => ServiceContext}
 import org.smartdox.generator.{Context => GeneratorContext}
 import org.smartdox.generators.AntoraGenerator
+import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Apr. 18, 2025
  *  version Apr. 18, 2025
- * @version May.  2, 2025
+ *  version May.  2, 2025
+ * @version Jun.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case object AntoraOperationClass extends OperationClassWithOperation {
@@ -34,22 +35,18 @@ case object AntoraOperationClass extends OperationClassWithOperation {
     val realm = Realm.create(cmd.in)
     val sctx = env.toAppEnvironment[ServiceContext]
     val ctx = GeneratorContext.create(sctx)
-    val antora = new AntoraGenerator(ctx)
+    val config = DoxSite.Config.create(cmd.strategy)
+    val antora = new AntoraGenerator(ctx, config)
     val out = antora.generate(realm)
     AntoraResult(out)
   }
 
-  trait Command {
-  }
-
-  trait Result {
-  }
-
-  case class AntoraCommand(in: File) extends Command {
+  case class AntoraCommand(
+    siteParameters: SiteParameters
+  ) extends Command with SiteParameters.Holder {
   }
   object AntoraCommand {
-    object params {
-      val in = spec.Parameter.argumentFile("in")
+    object params extends SiteParameters.Specification {
     }
 
     def create(req: Request): AntoraCommand =
@@ -57,14 +54,12 @@ case object AntoraOperationClass extends OperationClassWithOperation {
 
     def cCreate(req: Request): Consequence[AntoraCommand] =
       for {
-        in <- req.cFile(params.in)
+        sp <- SiteParameters.createC(req)
       } yield {
-        AntoraCommand(in)
+        AntoraCommand(sp)
       }
 
-    def specification: spec.Request = spec.Request(
-      params.in
-    )
+    def specification: spec.Request = SiteParameters.request
   }
 
   case class AntoraResult(

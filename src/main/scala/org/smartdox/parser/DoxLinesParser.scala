@@ -24,7 +24,8 @@ import org.smartdox.util.DoxUtils
  *  version Nov. 23, 2024
  *  version Jan.  1, 2025
  *  version Mar.  8, 2025
- * @version Apr.  6, 2025
+ *  version Apr.  6, 2025
+ * @version May. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -821,9 +822,9 @@ object DoxLinesParser {
             // }
             val (cmsgs, x) = _parse_item(n)
             val a = trees ++ x
-            (ms + cmsgs, Tree.node(uol, a.toStream))
+            (ms + cmsgs, Tree.Node(uol, a.toStream))
           }.getOrElse(
-            (ms, Tree.node(uol, trees.toStream))
+            (ms, Tree.Node(uol, trees.toStream))
           )
         }
 
@@ -835,9 +836,9 @@ object DoxLinesParser {
             val (cmsgs, x) = _parse_dtdd(term, n)
             val a = trees ++ x
             // println(s"_to_dl: ${a.map(_.drawTree)}")
-            (ms + cmsgs, Tree.node(uol, a.toStream))
+            (ms + cmsgs, Tree.Node(uol, a.toStream))
           }.getOrElse(
-            (ms, Tree.node(uol, trees.toStream))
+            (ms, Tree.Node(uol, trees.toStream))
           )
         }
 
@@ -871,10 +872,10 @@ object DoxLinesParser {
           }
           followers.headOption.map { x =>
             val (cmsgs, children) = close_state(config, x, followers.tail)
-            val a: Tree[Dox] = Tree.node(Li.empty, Stream(licontent.tree, children))
+            val a: Tree[Dox] = Tree.Node(Li.empty, Stream(licontent.tree, children))
             (cmsgs, Vector(a))
           }.getOrElse {
-            val a: Tree[Dox] = Tree.node(Li.empty, Stream(licontent.tree))
+            val a: Tree[Dox] = Tree.Node(Li.empty, Stream(licontent.tree))
             (ParseMessageSequence.empty, Vector(a))
           }
         }
@@ -893,22 +894,22 @@ object DoxLinesParser {
         }
 
         private def _parse_dtdd(term: Dox, n: Dox): (ParseMessageSequence, Vector[Tree[Dox]]) = {
-          val dt: Tree[Dox] = Tree.node(Dt, Stream(term.tree))
+          val dt: Tree[Dox] = Tree.Node(Dt, Stream(term.tree))
           val licontent = n match {
             case m: ListContent => m
             case _ => RAISE.noReachDefect(this, "_parse_dtdd")
           }
           followers.headOption.map { x =>
             val (cmsgs, children) = close_state(config, x, followers.tail)
-            val dd: Tree[Dox] = Tree.node(Dd, Stream(licontent.tree, children))
+            val dd: Tree[Dox] = Tree.Node(Dd, Stream(licontent.tree, children))
             (cmsgs, Vector(dt, dd))
           }.getOrElse {
-            val dd: Tree[Dox] = Tree.node(Dd, Stream(licontent.tree))
+            val dd: Tree[Dox] = Tree.Node(Dd, Stream(licontent.tree))
             (ParseMessageSequence.empty, Vector(dt, dd))
           }
         }
       }
-      ps./:(Z(p))(_+_).r
+      ps.foldLeft(Z(p))(_+_).r
     }
 
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = {
@@ -985,7 +986,7 @@ object DoxLinesParser {
       val cg = _make_colgroup(separators)
       // println(s"TableState#close_state: $blocks")
       val table: Dox = Table(head, body, foot, side, cg, caption, label)
-      (ParseMessageSequence.empty, Tree.leaf(table))
+      (ParseMessageSequence.empty, Tree.Leaf(table))
     }
 
     private def _make_colgroup(p: TableState.Separators): Option[Colgroup] =

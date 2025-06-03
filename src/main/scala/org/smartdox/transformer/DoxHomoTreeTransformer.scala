@@ -5,7 +5,8 @@ import org.goldenport.tree._
 
 /*
  * @since   Apr.  5, 2025
- * @version Apr. 25, 2025
+ *  version Apr. 25, 2025
+ * @version May. 21, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxHomoTreeTransformer extends HomoTreeTransformer[Dox] {
@@ -20,4 +21,7 @@ trait DoxHomoTreeTransformer extends HomoTreeTransformer[Dox] {
 
   protected final def directive_nodes(ps: Seq[Dox]): TreeTransformer.Directive[Dox] =
     TreeTransformer.Directive.Nodes(ps.map(Dox.toTreeNode(_)).toList)
+
+  protected final def directive_nodes(p: Dox, ps: Dox*): TreeTransformer.Directive[Dox] =
+    directive_nodes(p +: ps)
 }

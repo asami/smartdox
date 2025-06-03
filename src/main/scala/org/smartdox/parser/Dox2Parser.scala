@@ -27,7 +27,8 @@ import Dox._
  *  version Jan.  1, 2025
  *  version Feb.  7, 2025
  *  version Mar.  2, 2025
- * @version Apr.  6, 2025
+ *  version Apr.  6, 2025
+ * @version May. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(config: Dox2Parser.Config) {
@@ -62,7 +63,7 @@ class Dox2Parser(config: Dox2Parser.Config) {
         case m => copy(elements = elements :+ m)
       }
     }
-    ps./:(Z())(_+_).r
+    ps.foldLeft(Z())(_+_).r
   }
 
   private def _blocks(ctx: ParseContext, p: LogicalBlocks): Vector[Dox] =

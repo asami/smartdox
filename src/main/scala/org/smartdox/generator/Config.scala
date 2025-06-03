@@ -8,12 +8,14 @@ import org.smartdox.service
 
 /*
  * @since   Jul.  5, 2020
- * @version May.  2, 2025
+ *  version May.  2, 2025
+ * @version Jun.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Config(
   cliConfig: CliConfig
 ) {
+  def i18nContext = cliConfig.i18n
 }
 
 object Config {
