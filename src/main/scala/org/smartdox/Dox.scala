@@ -72,7 +72,8 @@ import org.smartdox.generator.Context
  *  version Jan.  1, 2025
  *  version Mar. 31, 2025
  *  version Apr. 30, 2025
- * @version May.  2, 2025
+ *  version May.  2, 2025
+ * @version Jun.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -80,7 +81,8 @@ trait Dox extends IDocument {
   def isEmpty: Boolean = elements.isEmpty
   def elements: List[Dox] = Nil
 
-  lazy val attributeMap = VectorMap(showParams)
+  def attributes: VectorMap[String, String]
+  def attributeMap = attributes // for element specific attributes
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
   def getId: Option[Dox.Id] = attributeMap.get("id").map(Dox.Id)
@@ -709,7 +711,7 @@ object Dox extends UseDox {
 */
 
   def html5(name: String, children: List[Dox]) = {
-    Html5(name, Nil, children)
+    Html5(name, VectorMap.empty, children)
   }
 
   def vw(d: Dox): DoxVW = {
@@ -939,6 +941,8 @@ case class Head(
       None
     else
       Some(this)
+
+  def withTitle(ps: InlineContents) = copy(title = ps)
 
   def merge(p: Head): Head = Head(
     title ++ p.title,
@@ -1935,6 +1939,7 @@ case class TSide(
   bottom: Option[TH],
   location: Option[ParseLocation] = None
 ) extends Block {
+  override val attributes = VectorMap.empty
   override val elements = List()
 
   override def equals_Value(o: Dox) = o match {
@@ -1947,6 +1952,7 @@ case class Colgroup(
   cols: List[Col],
   location: Option[ParseLocation] = None
 ) extends Block {
+  override val attributes = VectorMap.empty
   override val elements = cols
 
   override def equals_Value(o: Dox) = o match {
@@ -1960,6 +1966,8 @@ case class Col(
   align: Option[Table.Align] = None,
   location: Option[ParseLocation] = None
 ) extends Block {
+  override val attributes = VectorMap.empty
+
   override def showParams = ListUtils.buildTupleList(
     "span" -> span.map(AnyUtils.toString),
     "align" -> align.map(_.print)
@@ -2411,13 +2419,13 @@ case class DitaaImg(
 // 2011-01-16
 case class Html5(
   name: String,
-  attributes: List[(String, String)],
+  attributes: VectorMap[String, String],
   contents: List[Dox],
   location: Option[ParseLocation] = None
 ) extends Block {
   override val elements = contents
   override def showTerm = name
-  override def showParams = attributes
+  override def showParams = attributes.toList
 
   override def equals_Value(o: Dox) = o match {
     case m: Html5 => name == m.name && attributes == m.attributes && contents == m.contents
@@ -2583,7 +2591,7 @@ object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "span"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Span =
-    Span(ensure_inline(body))
+    Span(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Span(List(element))
 

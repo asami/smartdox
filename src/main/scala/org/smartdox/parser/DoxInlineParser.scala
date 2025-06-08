@@ -15,7 +15,8 @@ import org.smartdox._
  *  version Dec.  5, 2020
  *  version Feb.  8, 2021
  *  version Nov. 22, 2024
- * @version Jan.  1, 2025
+ *  version Jan.  1, 2025
+ * @version Jun.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -964,6 +965,9 @@ object DoxInlineParser {
     parent: OpenTagState,
     attrs: Vector[(String, String)] = Vector.empty
   ) extends ChildDoxInlineParseState with RawFeature {
+    override def returnFrom(c: Char): DoxInlineParseState =
+      TagAttributeState(config, this, Vector(c))
+
     def resultFrom(key: String, value: String) = copy(attrs = attrs :+ (key, value))
 
     override protected def character_State(evt: CharEvent): DoxInlineParseState =

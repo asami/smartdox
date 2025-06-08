@@ -1,6 +1,7 @@
 package org.smartdox.generators
 
 import scala.util.{Try, Success, Failure}
+import java.util.Locale
 import java.net.{URL, URI}
 import java.nio.file.{Paths, Path}
 import org.goldenport.RAISE
@@ -11,6 +12,7 @@ import org.goldenport.tree.Tree
 import org.goldenport.tree.TreeNode
 import org.goldenport.tree.TreeVisitor
 import org.goldenport.tree.TreeTransformer
+import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.tree.StringBuildVisitor
 import org.goldenport.datatype.{Name, Title}
 import org.goldenport.values.Version
@@ -26,13 +28,14 @@ import org.smartdox.generator._
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page}
 import org.smartdox.transformers.Dox2AsciidocTransformer
+import org.smartdox.transformers.LanguageFilterTransformer
 import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
 
 /*
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
  *  version May. 23, 2025
- * @version Jun.  4, 2025
+ * @version Jun.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -82,11 +85,25 @@ object AntoraGenerator {
     private def _build_multi(
       context: Context
     ) = {
-      val en = _build_en(context)
-      val ja = _build_ja(context)
+      val en = _build_locale(context.withTargetI18NContext(LocaleUtils.en))
+      val ja = _build_locale(context.withTargetI18NContext(LocaleUtils.ja))
       val realm = Realm.create()
       val a = realm.merge("en", en)
       a.merge("ja", ja)
+    }
+
+    private def _build_locale(
+      implicit context: Context
+    ) = {
+      val realm = Realm.create()
+      realm.setContent("antora-playbook.yml", playbook.serialize())
+      realm.setNode("docs")
+      val xs = components.map(_.canonize(context))
+      val cursor = realm.takeCursor("docs")
+      for (c <- xs) {
+        c.export(cursor)
+      }
+      realm.withGitInitAndCommit("docs")
     }
 
     private def _build_en(
@@ -301,6 +318,9 @@ object AntoraGenerator {
     ) {
       def homePage: Name = Name("index.adoc")
 
+      def canonize(ctx: Context): Component =
+        copy(modules = modules.map(_.canonize(ctx)))
+
       def export(
         c: Realm.Cursor
       )(implicit context: Context): Unit = ExportFunction(context).apply(c)
@@ -460,10 +480,14 @@ object AntoraGenerator {
       navigation: Module.Navigation
     ) {
       def isRoot = name.name == "ROOT"
+
+      def canonize(ctx: Context) = copy(ingredients = ingredients.map(_.canonize(ctx)))
     }
     object Module {
       sealed trait Ingredient {
         def name: Name
+
+        def canonize(ctx: Context): Ingredient
       }
       object Ingredient {
         case class Pages(pages: Tree[Page] = Tree.create()) extends Ingredient {
@@ -474,11 +498,34 @@ object AntoraGenerator {
             pages.setContent(path, page)
             this
           }
+
+          case class PagesCanonizeTransformer(
+            ctx: Context
+          ) extends HomoTreeTransformer[Page] {
+            def treeTransformerContext = ctx.doxContext.toContext[Page]
+            private val _context = ctx.doxContext
+
+            override def make_Node(node: TreeNode[Page], content: Page): TreeTransformer.Directive[Page] = {
+              val t = new LanguageFilterTransformer(_context)
+              val a = Dox.toTree(content.dox)
+              val b = a.transform(t)
+              val c = Dox.toDox(b)
+              TreeTransformer.Directive.Content(content.copy(dox = c))
+            }
+          }
+
+          def canonize(ctx: Context) = {
+            val a = pages.transform(PagesCanonizeTransformer(ctx))
+            copy(pages = a)
+          }
         }
         case class Images(realm: Realm = Realm.create()) extends Ingredient {
           val name = Name("images")
+
+          def canonize(ctx: Context) = this
         }
         case class Container(name: Name, realm: Realm = Realm.create()) extends Ingredient {
+          def canonize(ctx: Context) = this
         }
       }
 

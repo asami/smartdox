@@ -1,6 +1,7 @@
 package org.smartdox.doxsite
 
 import scalaz.{Tree => ZTree, _}, Scalaz._
+import scala.util.matching.Regex
 import java.io.File
 import java.util.Locale
 import org.goldenport.RAISE
@@ -17,6 +18,7 @@ import org.goldenport.tree.ControlTreeNode
 import org.goldenport.realm.Realm
 import org.goldenport.realm.RealmTransformer
 import org.goldenport.value._
+import org.goldenport.collection.NonEmptyVector
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.StringUtils
 import org.goldenport.util.OptionUtils.lastMonoid
@@ -26,6 +28,7 @@ import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.Glossary
 import org.smartdox.metadata.Notices
 import org.smartdox.generator.Context
+import org.smartdox.service.operations.SiteParameters
 import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.transformers.AutoWireTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
@@ -36,7 +39,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Mar.  9, 2025
  *  version Apr. 29, 2025
  *  version May. 31, 2025
- * @version Jun.  4, 2025
+ * @version Jun.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -124,7 +127,26 @@ object DoxSite {
     implicit val configDecoder: Decoder[Config] = deriveConfiguredDecoder
     implicit val configEncoder: Encoder[Config] = deriveConfiguredEncoder
 
-    def create(p: Option[Strategy]): Config = default.copy(strategy = p)
+    // def create(p: Option[Strategy]): Config = default.copy(strategy = p)
+    def create(p: SiteParameters.Holder): Config = {
+      val inconfig = p.target match {
+        case Some(s) if s.nonEmpty =>
+          Some(_tree_transformer_config(s))
+        case _ => None
+      }
+      default.copy(
+        inputTreeTransformerConfig = inconfig,
+        strategy = p.strategy
+      )
+    }
+
+    private def _tree_transformer_config(ps: List[Regex]) = {
+      val scope = TreeTransformer.Config.Scope(
+        TreeTransformer.Config.Scope.Policy.Target,
+        ps
+      )
+      TreeTransformer.Config(scope)
+    }
   }
 
   sealed trait Strategy extends NamedValueInstance {
@@ -163,6 +185,7 @@ object DoxSite {
     override val rule: DoxSiteBuilder.Rule,
     context: TreeTransformer.Context[Node]
   ) extends TreeTransformer[Realm.Data, Node] {
+    override def isCleanEmptyChildren = true
     def treeTransformerContext = context
 
     override protected def make_Node(
@@ -233,7 +256,7 @@ object DoxSite {
     case class Rule(
       doxSiteConfig: Config = Config.default
     ) extends TreeTransformer.Rule[Realm.Data, Node] {
-      override def config = doxSiteConfig.outputTreeTransformerConfig
+      override def config = doxSiteConfig.inputTreeTransformerConfig
       override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
         p.getNameSuffix.collect {
           case "dox" => s"${p.nameBody}.dox"
@@ -255,6 +278,8 @@ object DoxSite {
   ) extends TreeTransformer[Node, Realm.Data] {
     def treeTransformerContext = context getOrElse gcontext.realmContext
 
+    private def _i18n_context = context.flatMap(_.i18NContextOption) getOrElse gcontext.i18NContext
+
     override protected def make_Node(
       node: TreeNode[Node],
       content: Node
@@ -275,7 +300,11 @@ object DoxSite {
     }
 
     private def _filter(p: Dox) =
-      rule.targetLocale.fold(p)(x => Dox.transform(p, new LanguageFilterTransformer(gcontext.doxContext, x)))
+      rule.targetLocale.fold(p) { x =>
+        val c = _i18n_context.withLocale(x)
+        val ctx = gcontext.doxContext.withI18NContext(c)
+        Dox.transform(p, new LanguageFilterTransformer(ctx))
+      }
   }
   object RealmBuilder {
     case class Rule(
@@ -315,7 +344,7 @@ object DoxSite {
     configname: Option[String],
     inconfig: DoxSite.Config
   ): DoxSite = {
-    val config = _config(inconfig, realm, configname)(context.i18nContext)
+    val config = _config(inconfig, realm, configname)(context.i18NContext)
     val nodectx = TreeTransformer.Context.default[Node]
     val doxctx = context.doxContext
     val ctx = DoxSiteTransformer.Context(DoxSiteTransformer.Config(Some(config)), nodectx, doxctx)

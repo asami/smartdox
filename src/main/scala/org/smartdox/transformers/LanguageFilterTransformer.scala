@@ -11,55 +11,67 @@ import org.smartdox.transformer._
 /*
  * @since   Apr.  7, 2025
  *  version Apr.  9, 2025
- * @version May. 21, 2025
+ *  version May. 21, 2025
+ * @version Jun.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 class LanguageFilterTransformer(
-  val treeTransformerContext: TreeTransformer.Context[Dox],
-  val locale: Locale
+  val treeTransformerContext: TreeTransformer.Context[Dox]
 ) extends DoxHomoTreeTransformer {
   import LanguageFilterTransformer._
+
+  private val _locale_option = treeTransformerContext.i18NContextOption.map(_.locale)
 
   override protected def make_Node(
     node: TreeNode[Dox],
     content: Dox
-  ): TreeTransformer.Directive[Dox] = content.getLanguage match {
-    case Some(s) => if (_is_accept(s))
-      directive_default
-    else
-      directive_empty
-    case None => content match {
-      case m: Paragraph => _divide_languages(m.contents) { (ja, en) =>
-        (
-          Paragraph(List(ja), VectorMap("lang" -> "ja")),
-          Paragraph(List(en), VectorMap("lang" -> "en"))
-        )
-      }
-      case m: Div => _divide_languages(m.contents) { (ja, en) =>
-        (
-          Div(List(ja), VectorMap("lang" -> "ja")),
-          Div(List(en), VectorMap("lang" -> "en"))
-        )
-      }
-       case m: Span => _divide_languages(m.contents) { (ja, en) =>
-        (
-          Span(List(ja), VectorMap("lang" -> "ja")),
-          Span(List(en), VectorMap("lang" -> "en"))
-        )
-       }
-      case m: Text => _divide_languages(m.contents) { (ja, en) =>
-        (
-          Span(List(ja), VectorMap("lang" -> "ja")),
-          Span(List(en), VectorMap("lang" -> "en"))
-        )
-      }
-      case _ => directive_default
+  ): TreeTransformer.Directive[Dox] = content match {
+    case m: Head =>
+      val a = _filter_inlines(m.title)
+      directive_node(m.withTitle(a))
+    case m =>
+      if (_is_accept(m))
+        directive_default
+      else
+        directive_empty
+  }
+
+  private def _filter_inlines(ps: List[Inline]) =
+    ps.filter(_is_accept)
+
+  private def _is_accept(p: Dox): Boolean =
+    p.getLanguage.fold(true)(_is_accept)
+
+  private def _mark(content: Dox) = content match {
+    case m: Paragraph => _divide_languages(m.contents) { (ja, en) =>
+      (
+        Paragraph(List(ja), VectorMap("lang" -> "ja")),
+        Paragraph(List(en), VectorMap("lang" -> "en"))
+      )
     }
+    case m: Div => _divide_languages(m.contents) { (ja, en) =>
+      (
+        Div(List(ja), VectorMap("lang" -> "ja")),
+        Div(List(en), VectorMap("lang" -> "en"))
+      )
+    }
+    case m: Span => _divide_languages(m.contents) { (ja, en) =>
+      (
+        Span(List(ja), VectorMap("lang" -> "ja")),
+        Span(List(en), VectorMap("lang" -> "en"))
+      )
+    }
+    case m: Text => _divide_languages(m.contents) { (ja, en) =>
+      (
+        Span(List(ja), VectorMap("lang" -> "ja")),
+        Span(List(en), VectorMap("lang" -> "en"))
+      )
+    }
+    case _ => directive_default
   }
 
   private def _is_accept(p: Locale): Boolean =
-    LocaleUtils.isInclude(locale, p)
-
+    _locale_option.fold(true)(LocaleUtils.isInclude(_, p))
 
   private def _divide_languages(
     ps: List[Dox]
@@ -87,6 +99,6 @@ class LanguageFilterTransformer(
 }
 
 object LanguageFilterTransformer {
-  val delimiter = "｜"
-  val languages = List(LocaleUtils.ja, LocaleUtils.en)
+  // val delimiter = "｜"
+  // val languages = List(LocaleUtils.ja, LocaleUtils.en)
 }

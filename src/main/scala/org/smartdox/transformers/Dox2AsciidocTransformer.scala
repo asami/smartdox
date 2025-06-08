@@ -10,7 +10,8 @@ import org.smartdox.transformer._
 
 /*
  * @since   Apr. 18, 2025
- * @version Apr. 29, 2025
+ *  version Apr. 29, 2025
+ * @version Jun.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocTransformer(
@@ -23,6 +24,8 @@ class Dox2AsciidocTransformer(
   override def enter_Content(node: TreeNode[Dox], content: Dox) = content match {
     case m: Text => sb_print(m.contents)
     case m: Paragraph => // do nothing
+    case m: Div => // do nothing
+    case m: Span => // do nothing
     case m: Document => // do nothing
     case m: Head => enter_head(m)
     case m: Body => // do nothing

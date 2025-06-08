@@ -17,7 +17,7 @@ import org.smartdox.doxsite.DoxSite
 /*
  * @since   Feb. 28, 2025
  *  version Mar.  2, 2025
- * @version Jun.  3, 2025
+ * @version Jun.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 case object SiteOperationClass extends OperationClassWithOperation {
@@ -34,7 +34,7 @@ case object SiteOperationClass extends OperationClassWithOperation {
   def execute(env: Environment, cmd: SiteCommand): SiteResult = {
     val realm = Realm.create(cmd.in)
     val ctx = DoxContext.create(env)
-    val config = DoxSite.Config.create(cmd.strategy)
+    val config = DoxSite.Config.create(cmd)
     val site = new DoxSiteGenerator(ctx, config)
     val out = site.generate(realm)
     SiteResult(out)

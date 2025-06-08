@@ -2,12 +2,14 @@ package org.smartdox.util
 
 import scalaz._, Scalaz._, Tree._
 import org.goldenport.Z
+import org.goldenport.collection.VectorMap
 import org.smartdox._
 
 /*
  * @since   Sep.  9, 2014
  *  version Sep.  9, 2014
- * @version Feb.  6, 2019
+ *  version Feb.  6, 2019
+ * @version Jun.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 case class TechDocTransformer() {
@@ -19,7 +21,7 @@ case class TechDocTransformer() {
   }
 
   private def _build_doc(body: Body, title: InlineContents) = {
-    val t = Html5("h1", List("class" -> "title"), title)
+    val t = Html5("h1", VectorMap("class" -> "title"), title)
     val c = _build_contents(body.contents)
     body.copy(contents = t :: c)
   }

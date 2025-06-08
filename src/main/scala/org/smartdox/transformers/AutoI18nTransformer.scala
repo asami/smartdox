@@ -8,7 +8,8 @@ import org.smartdox.transformer._
 
 /*
  * @since   Apr.  7, 2025
- * @version May. 21, 2025
+ *  version May. 21, 2025
+ * @version Jun.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class AutoI18nTransformer(
@@ -25,14 +26,30 @@ class AutoI18nTransformer(
       a match {
         case Nil => directive_node(m)
         case x :: Nil => directive_node(m)
-        case xs => _make_spans(xs)
+        case xs => directive_nodes(_make_spans(xs))
       }
+    case m: Head => directive_node(m.copy(title = _inline_contents(m.title)))
     case _ => directive_default
+  }
+
+  private def _inline_contents(ps: InlineContents): InlineContents =
+    ps.flatMap {
+      case m: Text => _text_i18n(m)
+      case m => List(m)
+    }
+
+  private def _text_i18n(p: Text): List[Inline] = {
+    val a = p.contents.split(delimiter).toList
+    a match {
+      case Nil => List(p)
+      case x :: Nil => List(p)
+      case xs => _make_spans(xs)
+    }
   }
 
   private def _make_spans(ps: List[String]) = {
     case class Z(xs: Vector[Span] = Vector.empty) {
-      def r = directive_nodes(xs)
+      def r = xs.toList
 
       def +(rhs: (Locale, String)) =
         copy(xs = xs :+ Span.create(rhs._1, rhs._2))
