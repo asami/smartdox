@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.2.4"
+version := "2.2.5"
 
 scalaVersion := "2.12.18"
 
@@ -45,11 +45,11 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.2.4"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.2.5"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "2.0.0"
 
-libraryDependencies += "io.circe" %% "circe-generic-extras" % "0.14.3"
+// libraryDependencies += "io.circe" %% "circe-generic-extras" % "0.14.3"
 
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4" exclude("org.scala-stm", "scala-stm_2.10.0")
 
