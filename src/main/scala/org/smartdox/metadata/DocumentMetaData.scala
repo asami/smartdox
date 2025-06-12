@@ -3,7 +3,10 @@ package org.smartdox.metadata
 import scala.util.Try
 import org.joda.time.DateTime
 import com.typesafe.config.{Config => Hocon}
+import org.goldenport.context.Consequence
+import org.goldenport.context.DateTimeContext
 import org.goldenport.i18n.I18NString
+import org.goldenport.hocon.RichConfig.Implicits._
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.AnyUtils
 import org.smartdox._
@@ -11,11 +14,12 @@ import org.smartdox.generator.Context
 
 /*
  * @since   Apr. 29, 2025
- * @version Apr. 30, 2025
+ *  version Apr. 30, 2025
+ * @version Jun. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
-  title: Option[String] = None,
+  title: Option[InlineContents] = None,
   description: Option[String] = None,
   author: Option[String] = None,
   keywords: List[String] = Nil,
@@ -28,11 +32,17 @@ case class DocumentMetaData(
 
   def toOption = if (isEmpty) None else Some(this)
 
+  def getTitleString: Option[String] = title.flatMap(_to_text)
+
+  def titleString: String = getTitleString getOrElse ""
+
+  def withTitle(p: InlineContents) = copy(title = Some(p))
+
   def complementTitleDate(
     ptitle: InlineContents,
     pdate: InlineContents
   )(implicit context: Context) = {
-    val t = title orElse _to_text(ptitle)
+    val t = title orElse _to_title(ptitle)
     val d = _to_date(pdate)
     val (dp, dm) = (datePublished, dateModefied) match {
       case (Some(p), Some(m)) => (Some(p), Some(m))
@@ -47,6 +57,11 @@ case class DocumentMetaData(
     )
   }
 
+  private def _to_title(p: InlineContents) = p match {
+    case Nil => None
+    case xs => Some(xs)
+  }
+
   private def _to_text(p: InlineContents): Option[String] = p match {
     case Nil => None
     case xs => Some(Dox.toText(xs))
@@ -56,7 +71,6 @@ case class DocumentMetaData(
     p: InlineContents
   )(implicit context: Context): Option[DateTime] =
     _to_text(p).flatMap(x => Try {
-
       ???
     }.toOption)
 
@@ -72,7 +86,7 @@ case class DocumentMetaData(
 
   def toFlattenVector: Vector[(String, String)] =
     VectorUtils.buildTupleVector(
-      PROP_TITLE -> title,
+      PROP_TITLE -> getTitleString,
       PROP_DESCRIPTION -> description,
       PROP_AUTHOR -> author,
       PROP_KEYWORDS -> _keywords_string,
@@ -100,7 +114,27 @@ object DocumentMetaData {
 
   val empty = DocumentMetaData()
 
-  def create(hocon: Hocon): DocumentMetaData = {
-    ???
+  def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
+    createC(hocon).take
+
+  def createC(hocon: Hocon)(implicit ctx: DateTimeContext): Consequence[DocumentMetaData] = {
+    for {
+      title <- hocon.cStringOption(PROP_TITLE)
+      desc <- hocon.cStringOption(PROP_DESCRIPTION)
+      auth <- hocon.cStringOption(PROP_AUTHOR)
+      keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
+      published <- hocon.cDateTimeOption(PROP_DATE_PUBLISHED)
+      modified <- hocon.cDateTimeOption(PROP_DATE_MODIFIED)
+    } yield {
+      val inlinetitle = title.map(x => List(Text(x)))
+      DocumentMetaData(
+        inlinetitle,
+        desc,
+        auth,
+        keywords,
+        published,
+        modified
+      )
+    }
   }
 }

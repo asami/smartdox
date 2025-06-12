@@ -6,7 +6,8 @@ import org.smartdox.metadata.Notices
 
 /*
  * @since   Apr. 29, 2025
- * @version Apr. 30, 2025
+ *  version Apr. 30, 2025
+ * @version Jun.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -22,7 +23,7 @@ class NoticeCollector(
     content match {
       case m: Page => for {
         md <- m.getMetadata(context)
-        title <- md.title
+        title <- md.getTitleString
         date <- md.datePublished
       } yield {
         val notice = Notices.Notice(title, date)

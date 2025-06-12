@@ -10,6 +10,7 @@ import org.goldenport.collection.VectorMap
 import org.goldenport.parser.ParseResult
 import org.goldenport.parser.LogicalSection
 import org.smartdox.parser.Dox2Parser
+import org.smartdox.parser.Dox2Parser.ParseContext
 import org.smartdox.structure.Statement
 
 /*
@@ -24,7 +25,8 @@ import org.smartdox.structure.Statement
  *  version Jul.  8, 2024
  *  version Sep.  5, 2024
  *  version Oct. 28, 2024
- * @version Nov. 21, 2024
+ *  version Nov. 21, 2024
+ * @version Jun.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -164,21 +166,21 @@ trait Doxes {
     ???
   }
 
-  protected final def dox_parse(c: Dox2Parser.Config, p: LogicalSection): Dox =
-    Dox2Parser.parse(c, p)
+  // protected final def dox_parse(c: Dox2Parser.Config, p: LogicalSection): Dox =
+  //   Dox2Parser.parse(c, p)
 
-  protected final def make_description(c: Dox2Parser.Config, p: LogicalSection): Description = {
-    val dox = Dox2Parser.parse(c, p)
+  protected final def make_description(ctx: ParseContext, p: LogicalSection): Description = {
+    val dox = Dox2Parser.parse(ctx, p)
     make_description(dox)
   }
 
-  protected final def make_sections(c: Dox2Parser.Config, p: LogicalSection): List[Section] = {
-    val dox = Dox2Parser.parse(c, p)
+  protected final def make_sections(ctx: ParseContext, p: LogicalSection): List[Section] = {
+    val dox = Dox2Parser.parse(ctx, p)
     make_sections(dox)
   }
 
-  protected final def make_description_sections(c: Dox2Parser.Config, p: LogicalSection): (Description, List[Section]) = {
-    val dox = Dox2Parser.parse(c, p)
+  protected final def make_description_sections(ctx: ParseContext, p: LogicalSection): (Description, List[Section]) = {
+    val dox = Dox2Parser.parse(ctx, p)
     make_description_sections(dox)
   }
 

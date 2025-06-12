@@ -16,7 +16,7 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Mar. 12, 2025
  *  version Apr.  3, 2025
  *  version May. 24, 2025
- * @version Jun.  2, 2025
+ * @version Jun.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteGenerator(
@@ -32,12 +32,12 @@ class DoxSiteGenerator(
     r.merge("doxsite.d", out)
   }
 
-  def generate0(realm: Realm): Realm = {
-    val transformer = new DoxSiteTransformer(context)
-    val x = realm.transform(transformer)
-    val r = Realm.create()
-    r.merge("doxsite.d", x)
-  }
+  // def generate0(realm: Realm): Realm = {
+  //   val transformer = new DoxSiteTransformer(context)
+  //   val x = realm.transform(transformer)
+  //   val r = Realm.create()
+  //   r.merge("doxsite.d", x)
+  // }
 }
 
 object DoxSiteGenerator {
@@ -59,41 +59,41 @@ object DoxSiteGenerator {
   }
 
   // Unused
-  class DoxSiteTransformer(val context: Context) extends RealmTransformer {
-    def realmTransformerContext = RealmTransformer.Context.default
-    override def rule = DoxSiteRule
+  // class DoxSiteTransformer(val context: Context) extends RealmTransformer {
+  //   def realmTransformerContext = RealmTransformer.Context.default
+  //   override def rule = DoxSiteRule
 
-    override protected def make_Content(oldname: String, newname: String, p: Data): Option[Data] = p match {
-      case m: StringData => _make_string(oldname, newname, m)
-      case m: ObjectData => _make_object(m)
-      case _ => None // println(s"DoxSiteGenerator#make_Content other: $p"); None
-    }
+  //   override protected def make_Content(oldname: String, newname: String, p: Data): Option[Data] = p match {
+  //     case m: StringData => _make_string(oldname, newname, m)
+  //     case m: ObjectData => _make_object(m)
+  //     case _ => None // println(s"DoxSiteGenerator#make_Content other: $p"); None
+  //   }
 
-    private def _make_string(oldname: String, newname: String, p: StringData) =
-      StringUtils.getSuffixLowerCase(newname).flatMap {
-        case "html" => _to_html(oldname, p)
-        case _ => None
-      }
+  //   private def _make_string(oldname: String, newname: String, p: StringData) =
+  //     StringUtils.getSuffixLowerCase(newname).flatMap {
+  //       case "html" => _to_html(oldname, p)
+  //       case _ => None
+  //     }
 
-    private def _to_html(oldname: String, p: StringData): Option[StringData] = {
-      val dox = Dox2Parser.parseWithFilename(oldname, p.string)
-      _make_html(dox)
-    }
+  //   private def _to_html(oldname: String, p: StringData): Option[StringData] = {
+  //     val dox = Dox2Parser.parseWithFilename(oldname, p.string)
+  //     _make_html(dox)
+  //   }
 
-    private def _make_object(p: ObjectData) = p.o match {
-      case m: Dox => _make_html(m)
-      case _ => None
-    }
+  //   private def _make_object(p: ObjectData) = p.o match {
+  //     case m: Dox => _make_html(m)
+  //     case _ => None
+  //   }
 
-    private def _make_html(p: Dox): Option[StringData] = {
-      val rule = Dox2HtmlTransformer.Rule.noCss
-      val r = for {
-        html <- Dox2HtmlTransformer(context, rule).transform(p)
-      } yield {
-        StringData(html)
-      }
-      // println(s"Dox2HtmlGenerator#_make_object $r")
-      r.toOption
-    }
-  }
+  //   private def _make_html(p: Dox): Option[StringData] = {
+  //     val rule = Dox2HtmlTransformer.Rule.noCss
+  //     val r = for {
+  //       html <- Dox2HtmlTransformer(context, rule).transform(p)
+  //     } yield {
+  //       StringData(html)
+  //     }
+  //     // println(s"Dox2HtmlGenerator#_make_object $r")
+  //     r.toOption
+  //   }
+  // }
 }

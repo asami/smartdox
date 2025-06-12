@@ -11,7 +11,8 @@ import org.goldenport.values.CompactUuid
 /*
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
- * @version Apr. 28, 2025
+ *  version Apr. 28, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryBuilder(
@@ -71,11 +72,11 @@ object GlossaryBuilder {
               val r = m.copy(attributes = m.attributes + ("id" -> id.id))
               val d = _make_description(node)
               _glossaries.add(term, location, id, d)
-              TreeTransformer.Directive.Content(r)
+              TreeTransformer.Directive.ContainerContent(r)
             case Some(id) =>
               val d = _make_description(node)
               _glossaries.add(term, location, Dox.Id(id), d)
-              TreeTransformer.Directive.Content(m)
+              TreeTransformer.Directive.ContainerContent(m)
           }
         case _ => TreeTransformer.Directive.Default[Dox]
       }

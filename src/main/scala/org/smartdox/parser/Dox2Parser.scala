@@ -1,12 +1,17 @@
 package org.smartdox.parser
 
 import scalaz._, Scalaz._, Validation._, Tree._
+import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
+import org.goldenport.context._
 import org.goldenport.parser._
+import org.goldenport.config.ConfigLoader
 import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NElement
+import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
 import org.smartdox._
+import org.smartdox.metadata.DocumentMetaData
 import Dox._
 
 /*
@@ -28,11 +33,15 @@ import Dox._
  *  version Feb.  7, 2025
  *  version Mar.  2, 2025
  *  version Apr.  6, 2025
- * @version May. 24, 2025
+ *  version May. 24, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
-class Dox2Parser(config: Dox2Parser.Config) {
+class Dox2Parser(context: Dox2Parser.ParseContext) {
   import Dox2Parser._
+
+  def config = context.config
+  implicit def dateTimeContext = context.dateTimeContext
 
   def apply(s: String): ParseResult[Document] = {
     val blocks = LogicalBlocks.parse(config.blocksConfig, s)
@@ -45,8 +54,7 @@ class Dox2Parser(config: Dox2Parser.Config) {
   }
 
   def apply(blocks: LogicalBlocks): ParseResult[Document] = {
-    val ctx = ParseContext(config, 0)
-    val xs = _blocks(ctx, blocks)
+    val xs = _blocks(context, blocks)
     // println(s"Dox2Parser#apply ${blocks} => $xs")
     _create(xs)
   }
@@ -93,10 +101,42 @@ class Dox2Parser(config: Dox2Parser.Config) {
   ): Vector[Dox] =
     p.mark match {
       case Some("=") =>
-        val head = Head(List(_to_dox(p.title)))
         val xs = _blocks(ctx, p.blocks)
-        head +: xs
+        val (xs1, meta) = _section_head(p, xs)
+        // val head = Head(List(_to_dox(p.title)))
+        val title = meta.title getOrElse Nil
+        val head = Head(title = title, metadata = meta)
+        head +: xs1
       case _ => Vector(_section(ctx.levelUp, p))
+    }
+
+  private def _section_head(
+    p: LogicalSection,
+    xs: Vector[Dox]
+  ): (Vector[Dox], DocumentMetaData) = {
+    val title = List(_to_dox(p.title))
+    val (xs1, props) = _distill_props(xs)
+    val meta0 = props.fold(DocumentMetaData.empty)(DocumentMetaData.create(_))
+    val meta = meta0.withTitle(title)
+    (xs1, meta)
+  }
+
+  private def _distill_props(ps: Vector[Dox]): (Vector[Dox], Option[Hocon]) =
+    ps match {
+      case Vector() => (ps, None)
+      case Vector(x, xs @ _*) =>
+        _parse_properties(x).toOption match {
+          case Some(s) => (xs.toVector, Some(s))
+          case None => (ps, None)
+        }
+    }
+
+  private def _parse_properties(p: Dox): Option[Hocon] =
+    p match {
+      case m: Paragraph => 
+        val in = InputSource(m.toData)
+        ConfigLoader.loadConfigHocon(in).toOption
+      case _ => None
     }
 
   private def _section(
@@ -195,8 +235,20 @@ object Dox2Parser {
     )
   }
 
-  case class ParseContext(config: Config, level: Int) {
+  case class ParseContext(
+    config: Config,
+    dateTimeContext: DateTimeContext,
+    level: Int = 0
+  ) {
     def levelUp = copy(level = level + 1)
+  }
+  object ParseContext {
+    def now(): ParseContext = now(Config.default)
+
+    def now(c: Config): ParseContext = ParseContext(
+      c,
+      DateTimeContext.now()
+    )
   }
 
   def parse(in: String): Dox = parse(Config.default, in)
@@ -215,7 +267,8 @@ object Dox2Parser {
   }
 
   def parse(config: Config, in: String): Dox = {
-    val parser = new Dox2Parser(config)
+    val ctx = ParseContext.now(config)
+    val parser = new Dox2Parser(ctx)
     val result = parser.apply(in)
     result match {
       case ParseSuccess(dox, _) => dox
@@ -225,7 +278,12 @@ object Dox2Parser {
   }
 
   def parse(config: Config, in: LogicalBlock): Dox = {
-    val parser = new Dox2Parser(config)
+    val ctx = ParseContext.now(config)
+    parse(ctx, in)
+  }
+
+  def parse(ctx: ParseContext, in: LogicalBlock): Dox = {
+    val parser = new Dox2Parser(ctx)
     val result = parser.apply(in)
     result match {
       case ParseSuccess(dox, _) => dox
@@ -234,8 +292,39 @@ object Dox2Parser {
     }
   }
 
-  def parse(config: Config, in: LogicalBlocks): Dox = {
-    val parser = new Dox2Parser(config)
+  def parseOne(in: String): Dox = parseOne(Config.default, in)
+
+  def parseOne(config: Config, in: String): Dox = {
+    val ctx = ParseContext.now(config)
+    val parser = new Dox2Parser(ctx)
+    val result = parser.apply(in)
+    result match {
+      case ParseSuccess(dox, _) => dox.body.elements match {
+        case Nil => EmptyDox
+        case x :: Nil => x
+        case xs => SyntaxErrorFault("${xs.mkstring}").RAISE
+      }
+      case ParseFailure(_, _) => RAISE.notImplementedYetDefect
+      case EmptyParseResult() => RAISE.notImplementedYetDefect
+    }
+  }
+
+  def parseFragment(config: Config, in: String): Fragment = {
+    val ctx = ParseContext.now(config)
+    val parser = new Dox2Parser(ctx)
+    val result = parser.apply(in)
+    result match {
+      case ParseSuccess(dox, _) => Fragment(dox.body.elements)
+      case ParseFailure(_, _) => RAISE.notImplementedYetDefect
+      case EmptyParseResult() => RAISE.notImplementedYetDefect
+    }
+  }
+
+  def parse(config: Config, in: LogicalBlocks): Dox =
+    parse(ParseContext.now(config), in)
+
+  def parse(ctx: ParseContext, in: LogicalBlocks): Dox = {
+    val parser = new Dox2Parser(ctx)
     val result = parser.apply(in)
     result match {
       case ParseSuccess(dox, _) => dox
@@ -244,8 +333,11 @@ object Dox2Parser {
     }
   }
 
-  def parseSection(config: Config, in: LogicalSection): Section = {
-    val parser = new Dox2Parser(config)
+  def parseSection(config: Config, in: LogicalSection): Section =
+    parseSection(ParseContext.now(config), in)
+
+  def parseSection(ctx: ParseContext, in: LogicalSection): Section = {
+    val parser = new Dox2Parser(ctx)
     val result = parser.apply(in)
     result match {
       case ParseSuccess(dox, _) => dox.body.elements.headOption.map {

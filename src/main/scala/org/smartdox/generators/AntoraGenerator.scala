@@ -29,13 +29,14 @@ import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page}
 import org.smartdox.transformers.Dox2AsciidocTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
+import org.smartdox.transformers.DoxTreeNormalizationTransformer
 import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
 
 /*
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
  *  version May. 23, 2025
- * @version Jun.  7, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -507,10 +508,12 @@ object AntoraGenerator {
 
             override def make_Node(node: TreeNode[Page], content: Page): TreeTransformer.Directive[Page] = {
               val t = new LanguageFilterTransformer(_context)
+//              val nt = new DoxTreeNormalizationTransformer(_context)
               val a = Dox.toTree(content.dox)
               val b = a.transform(t)
+//              val b0 = b.transform(nt)
               val c = Dox.toDox(b)
-              TreeTransformer.Directive.Content(content.copy(dox = c))
+              directive_leaf(content.copy(dox = c))
             }
           }
 

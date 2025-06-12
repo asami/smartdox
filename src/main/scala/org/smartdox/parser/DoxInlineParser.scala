@@ -16,7 +16,7 @@ import org.smartdox._
  *  version Feb.  8, 2021
  *  version Nov. 22, 2024
  *  version Jan.  1, 2025
- * @version Jun.  7, 2025
+ * @version Jun. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -1025,6 +1025,9 @@ object DoxInlineParser {
     dox: Vector[Dox] = Vector.empty,
     closeName: Vector[Char] = Vector.empty
   ) extends ChildDoxInlineParseState with RawFeature {
+    private val _ctx = Dox2Parser.ParseContext.now() // TODO
+    implicit def dtctx = _ctx.dateTimeContext
+
     override def returnFrom(ps: Seq[Dox]): DoxInlineParseState = copy(dox = ps.toVector)
 
     override protected def character_State(evt: CharEvent): DoxInlineParseState =

@@ -6,6 +6,7 @@ import java.io.File
 import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
+import org.goldenport.context.DateTimeContext
 import org.goldenport.i18n.I18NContext
 import org.goldenport.config.ConfigLoader
 import org.goldenport.tree.Tree
@@ -39,7 +40,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Mar.  9, 2025
  *  version Apr. 29, 2025
  *  version May. 31, 2025
- * @version Jun.  8, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -184,7 +185,7 @@ object DoxSite {
   class DoxSiteBuilder(
     override val rule: DoxSiteBuilder.Rule,
     context: TreeTransformer.Context[Node]
-  ) extends TreeTransformer[Realm.Data, Node] {
+  )(implicit val ctx: DateTimeContext) extends TreeTransformer[Realm.Data, Node] {
     override def isCleanEmptyChildren = true
     def treeTransformerContext = context
 
@@ -276,7 +277,10 @@ object DoxSite {
     rule: RealmBuilder.Rule,
     context: Option[TreeTransformer.Context[Realm.Data]] = None
   ) extends TreeTransformer[Node, Realm.Data] {
-    def treeTransformerContext = context getOrElse gcontext.realmContext
+    def treeTransformerContext = {
+      val c = context getOrElse gcontext.realmContext
+      rule.config.fold(c)(c.withConfig)
+    }
 
     private def _i18n_context = context.flatMap(_.i18NContextOption) getOrElse gcontext.i18NContext
 
@@ -322,10 +326,15 @@ object DoxSite {
 
   def create(
     context: Context,
+    file: File
+  )(implicit ctx: DateTimeContext): DoxSite = create(context, file, None, DoxSite.Config.default)
+
+  def create(
+    context: Context,
     file: File,
     configname: Option[String],
     inconfig: DoxSite.Config
-  ): DoxSite = {
+  )(implicit ctx: DateTimeContext): DoxSite = {
     val a = Realm.create(file)
     create(context, a, configname, inconfig)
   }
@@ -335,7 +344,7 @@ object DoxSite {
     realm: Realm,
     configname: String,
     inconfig: DoxSite.Config
-  ): DoxSite =
+  )(implicit ctx: DateTimeContext): DoxSite =
     create(context, realm, Some(configname), inconfig)
 
   def create(
@@ -343,7 +352,7 @@ object DoxSite {
     realm: Realm,
     configname: Option[String],
     inconfig: DoxSite.Config
-  ): DoxSite = {
+  )(implicit dctx: DateTimeContext): DoxSite = {
     val config = _config(inconfig, realm, configname)(context.i18NContext)
     val nodectx = TreeTransformer.Context.default[Node]
     val doxctx = context.doxContext

@@ -10,6 +10,7 @@ import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
 import org.goldenport.context.Showable
 import org.goldenport.context.Conclusion
+import org.goldenport.context.DateTimeContext
 import org.goldenport.collection.VectorMap
 import org.goldenport.collection.NonEmptyVector
 import org.goldenport.parser._
@@ -73,7 +74,7 @@ import org.smartdox.generator.Context
  *  version Mar. 31, 2025
  *  version Apr. 30, 2025
  *  version May.  2, 2025
- * @version Jun.  7, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -183,7 +184,6 @@ trait Dox extends IDocument {
     showContentsElements.foreach(_.to_Text(buf))
   }
 
-  // for Hocon
   def toPlainText(): String = {
     val buf = new StringBuilder
     to_Plain_Text(buf)
@@ -194,6 +194,7 @@ trait Dox extends IDocument {
     showContentsElements.foreach(_.to_Plain_Text(buf))
   }
 
+  // for Hocon
   def toData(): String = {
     val buf = new StringBuilder
     to_data(buf)
@@ -432,9 +433,16 @@ trait UseDox {
 trait DoxFactory extends Doxes {
   def label: String
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dox
+  def apply(
+    attrs: VectorMap[String, String],
+    body: Seq[Dox]
+  )(implicit ctx: DateTimeContext): Dox
 
-  def applyOption(label: String, attrs: VectorMap[String, String], body: Seq[Dox]): Option[Dox] =
+  def applyOption(
+    label: String,
+    attrs: VectorMap[String, String],
+    body: Seq[Dox]
+  )(implicit ctx: DateTimeContext): Option[Dox] =
     if (label == this.label)
       Some(apply(attrs, body))
     else
@@ -743,10 +751,10 @@ object Dox extends UseDox {
     }
   }
 
-  def create(name: String, attrs: Seq[(String, String)], body: Seq[Dox]): Dox =
+  def create(name: String, attrs: Seq[(String, String)], body: Seq[Dox])(implicit ctx: DateTimeContext): Dox =
     create(name, VectorMap(attrs), body)
 
-  def create(name: String, attrs: VectorMap[String, String], body: Seq[Dox]): Dox =
+  def create(name: String, attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dox =
     tags.toStream.flatMap(_.applyOption(name, attrs, body)).headOption.
       getOrElse {
         RAISE.notImplementedYetDefect(s"$name")
@@ -854,7 +862,7 @@ case class Document(
 object Document extends DoxFactory {
   val label = "document"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Document =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Document =
     RAISE.unsupportedOperationFault
 
   // def unapply(p: (String, VectorMap[String, String], Seq[Dox])): Option[Document] =
@@ -1041,7 +1049,10 @@ object Head extends DoxFactory {
 
   val label = "head"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Head = {
+  def apply(
+    attrs: VectorMap[String, String],
+    body: Seq[Dox]
+  )(implicit ctx: DateTimeContext): Head = {
     case class Z(properties: Hocon = HoconUtils.empty) {
       def r = Head(metadata = DocumentMetaData.create(properties))
 
@@ -1097,7 +1108,7 @@ object Body extends DoxFactory {
 
   val empty = Body(Nil)
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Body =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Body =
     RAISE.unsupportedOperationFault
 
   def apply(element: Dox) = new Body(List(element))
@@ -1135,6 +1146,8 @@ case class Section(
   override def copyV(cs: List[Dox]) = {
     Success(copy(title, cs, level, location = get_location(location, cs))) // XXX level
   }
+
+  def withTitle(p: InlineContents): Section = copy(title = p)
 
   def tableList: List[Table] = contents.collect {
     case m: Table => m
@@ -1180,7 +1193,7 @@ case class Div(
 object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "div"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Div =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Div =
     Div(body.toList)
 
   def apply(d: Dox) = new Div(List(d))
@@ -1294,7 +1307,7 @@ case class Bold(
 object Bold extends Bold(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "b"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Bold =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Bold =
     Bold(body.toList)
 
   def apply(element: Inline) = new Bold(List(element))
@@ -1330,7 +1343,7 @@ case class Italic(
 object Italic extends Italic(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "i"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Italic =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Italic =
     Italic(body.toList)
 
   def apply(element: Inline) = new Italic(List(element))
@@ -1365,7 +1378,7 @@ case class Underline(
 object Underline extends Underline(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "u"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Underline =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Underline =
     Underline(body.toList)
 
   def apply(element: Inline) = new Underline(List(element))
@@ -1391,7 +1404,7 @@ case class Code(
 object Code extends Code(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "code"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Code =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Code =
     Code(body.toList)
 
   def apply(element: Inline) = new Code(List(element))
@@ -1417,7 +1430,7 @@ case class Pre(
 object Pre extends DoxFactory {
   val label = "pre"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Pre =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Pre =
     apply(to_text(body), attrs)
 }
 
@@ -1440,7 +1453,7 @@ case class Ul(
 object Ul extends Ul(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "ul"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Ul =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Ul =
     Ul(ensure_li(body))
 
   val empty = Ul(Nil)
@@ -1470,7 +1483,7 @@ object Ol extends Ol(Nil, VectorMap.empty, None) with DoxFactory {
 
   val empty = Ol(Nil)
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Ol =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Ol =
     Ol(ensure_li(body))
   def apply(lis: Seq[Li]) = new Ol(lis.toList)
 }
@@ -1499,7 +1512,7 @@ case class Li(
 object Li extends DoxFactory {
   val label = "li"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Li =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Li =
     Li(ensure_list_content(body))
 
   val empty = Li(Nil)
@@ -1528,7 +1541,7 @@ case class Del(
 object Del extends Del(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "del"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Del =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Del =
     Del(ensure_inline(body))
 
   def apply(element: Inline) = new Del(List(element))
@@ -1556,7 +1569,7 @@ case class Hyperlink(
 object Hyperlink extends DoxFactory {
   val label = "a"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Hyperlink =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Hyperlink =
     Hyperlink(ensure_inline(body), attrs.applyIgnoreCase("href"))
 
   def apply(c: Seq[Inline], href: String): Hyperlink =
@@ -1589,7 +1602,7 @@ case class ReferenceImg(
 object ReferenceImg extends DoxFactory {
   val label = "img"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): ReferenceImg =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): ReferenceImg =
     ReferenceImg(attrs.applyIgnoreCase("src"))
 
   def apply(p: String): ReferenceImg = ReferenceImg(new URI(p))
@@ -2129,7 +2142,7 @@ case class Dl(
 object Dl extends Dl(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dl"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dl = Dl(ensure_dtdd(body))
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dl = Dl(ensure_dtdd(body))
 
   def create(p: Seq[(String, String)]): Dl = Dl(p.toList.map {
     case (t, d) => (Dt(t), Dd(d))
@@ -2156,7 +2169,7 @@ case class Dt(
 object Dt extends Dt(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dt"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dt = Dt(ensure_inline(body))
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dt = Dt(ensure_inline(body))
 
   def apply(p: String): Dt = Dt(Dox.text(p))
 
@@ -2186,7 +2199,7 @@ case class Dd(
 object Dd extends Dd(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dd"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dd =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dd =
     Dd(ensure_inline(body))
 
   def unapply(x: XNode): Option[Dd] = {
@@ -2233,7 +2246,7 @@ object Fragment extends DoxFactory {
 
   val empty = new Fragment(Nil)
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Fragment =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Fragment =
     _create(body)
 
   def apply(p: Dox, ps: Dox*): Fragment = _create((p +: ps))
@@ -2529,7 +2542,7 @@ object EmptyDox extends Dox with DoxFactory with Inline {
 
   val label = "empty"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dox = EmptyDox
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dox = EmptyDox
 
   override def toString(buf: StringBuilder, maxlength: Option[Int] = None) {
   }
@@ -2558,7 +2571,7 @@ case class Tt(
 object Tt extends Tt(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "tt"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Tt =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Tt =
     Tt(ensure_inline(body))
 
   def apply(element: Inline) = new Tt(List(element))
@@ -2590,7 +2603,7 @@ case class Span(
 object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "span"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Span =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Span =
     Span(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Span(List(element))
@@ -2624,7 +2637,7 @@ case class Dfn(
 object Dfn extends Dfn(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dfn"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Dfn =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dfn =
     Dfn(ensure_inline(body))
 
   def apply(element: Inline) = new Dfn(List(element))
@@ -2652,7 +2665,7 @@ case class Abbr(
 object Abbr extends Abbr(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "abbr"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox]): Abbr =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Abbr =
     Abbr(ensure_inline(body))
 
   def apply(element: Inline) = new Abbr(List(element))

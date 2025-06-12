@@ -10,12 +10,14 @@ import org.goldenport.scalatest.ScalazMatchers
 import org.goldenport.cli.{Environment, Config => CliConfig}
 import org.goldenport.realm.Realm
 import org.smartdox.parser.UseDoxParser
+import org.smartdox.doxsite.DoxSite
 import org.smartdox.generator._
 
 /*
  * @since   Mar.  2, 2025
  *  version Mar. 11, 2025
- * @version May.  2, 2025
+ *  version May.  2, 2025
+ * @version Jun.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -28,19 +30,19 @@ class DoxSiteGeneratorSpec extends WordSpec with Matchers with ScalazMatchers wi
     "typical" which {
       "mini" ignore {
         val in = Realm.create(new File("src/test/resources/site-mini"))
-        val g = new DoxSiteGenerator(ctx)
+        val g = new DoxSiteGenerator(ctx, DoxSite.Config.default)
         val r = g.generate(in)
         println(r.print)
       }
       "plain" ignore {
         val in = Realm.create(new File("src/test/resources/site1"))
-        val g = new DoxSiteGenerator(ctx)
+        val g = new DoxSiteGenerator(ctx, DoxSite.Config.default)
         val r = g.generate(in)
         println(r.print)
       }
       "dfn" ignore {
         val in = Realm.create(new File("src/test/resources/site-dfn"))
-        val g = new DoxSiteGenerator(ctx)
+        val g = new DoxSiteGenerator(ctx, DoxSite.Config.default)
         val r = g.generate(in)
         println(r.print)
       }

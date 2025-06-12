@@ -11,15 +11,23 @@ import Dox._
 
 /*
  * @since   Jan. 12, 2012
- * @version Apr. 27, 2025
+ *  version Apr. 27, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringTransformer extends DoxTreeVisitor with StringBuildFeature {
+  protected final def sb_section_title(mark: String, title: String): Unit = {
+    sb_println(s"${section_bar(mark)} $title")
+    sb_println()
+  }
+
   def transform(dox: Dox): Consequence[String] = Consequence {
     val tree = Dox.toTree(dox)
     tree.traverse(this)
     sb_to_string()
   }
 
-  protected def to_text(ps: Seq[Dox]): String = Dox.toText(ps)
+  override protected def enter_Text(p: Text): Unit = {
+    sb_print(p.contents)
+  }
 }

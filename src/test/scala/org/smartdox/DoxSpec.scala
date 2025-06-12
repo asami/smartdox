@@ -14,7 +14,8 @@ import scala.util.parsing.input.Reader
 
 /*
  * @since   Jan. 12, 2012
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Jun.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -37,7 +38,7 @@ class DoxSpec extends WordSpec with Matchers with ScalazMatchers {
         val t = Dox.tree(d.get)
         println("tree = " + t.drawTree(showA))
         val t2 = replaceShallow(t) {
-          case (t: Text, _) => (Bold, Stream(leaf(t)))
+          case (t: Text, _) => (Bold, Stream(Leaf(t)))
         }
         println("tree2 = " + t2.drawTree(showA))
         val d2 = Dox.untree(t2)

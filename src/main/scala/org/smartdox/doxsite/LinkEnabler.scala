@@ -11,7 +11,8 @@ import org.smartdox.metadata._
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
  *  version Apr.  5, 2025
- * @version May. 21, 2025
+ *  version May. 21, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(val context: DoxSiteTransformer.Context)
@@ -49,7 +50,7 @@ object LinkEnabler {
           val tokens = Glossary.Term.Tokens(tokens0.map(_.text))
           val candidates = context.metadata.glossary.candidates(tokens)
           if (candidates.isEmpty) {
-            TreeTransformer.Directive.Content(m)
+            directive_container_content(m)
           } else {
             case class ZZ(definition: Glossary.Definition, xs: Vector[Dox]) {
               def r = xs
@@ -91,7 +92,7 @@ object LinkEnabler {
             candidates.foldLeft(Z(Vector(m)))(_+_).r
           }
         case m: Dfn => directive_node(m)
-        case m => TreeTransformer.Directive.Content(m)
+        case m => directive_container_content(m)
       }
     }
   }

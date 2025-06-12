@@ -12,7 +12,7 @@ import org.smartdox.transformer._
  * @since   Apr.  7, 2025
  *  version Apr.  9, 2025
  *  version May. 21, 2025
- * @version Jun.  7, 2025
+ * @version Jun. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 class LanguageFilterTransformer(
@@ -26,6 +26,9 @@ class LanguageFilterTransformer(
     node: TreeNode[Dox],
     content: Dox
   ): TreeTransformer.Directive[Dox] = content match {
+    case m: Section =>
+      val a = _filter_inlines(m.title)
+      directive_container_content(m.withTitle(a))
     case m: Head =>
       val a = _filter_inlines(m.title)
       directive_node(m.withTitle(a))
@@ -41,6 +44,39 @@ class LanguageFilterTransformer(
 
   private def _is_accept(p: Dox): Boolean =
     p.getLanguage.fold(true)(_is_accept)
+
+  override protected def mutation_Normalize_Node(p: TreeNode[Dox]): TreeNode[Dox] = {
+    def _to_vector_(x: TreeNode[Dox]): Vector[TreeNode[Dox]] =
+      if (_is_blank(x))
+        Vector.empty
+      else
+        Vector(x)
+
+    val cs = p.children.toList
+    cs match {
+      case Nil => p
+      case x :: Nil =>
+        if (_is_blank(x)) {
+          p.clear()
+          p
+        } else {
+          p
+        }
+      // case x :: x1 :: Nil =>
+      //   val a = (_to_vector_(x) +++ _to_vector_(xs)).flatten
+      //   p.setChild(a)
+      case x :: xs =>
+        val a = _to_vector_(x) ++ xs.init ++ _to_vector_(xs.last)
+        p.setChildren(a)
+        p
+    }
+  }
+
+  private def _is_blank(p: TreeNode[Dox]): Boolean =
+    p.content match {
+      case m: Text => Strings.blankp(m.contents)
+      case _ => false
+    }
 
   private def _mark(content: Dox) = content match {
     case m: Paragraph => _divide_languages(m.contents) { (ja, en) =>
