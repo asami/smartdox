@@ -22,7 +22,8 @@ import org.smartdox.generator.{Context => GContext}
  *  version Oct. 18, 2020
  *  version Nov. 24, 2020
  *  version Dec. 20, 2020
- * @version Feb. 23, 2025
+ *  version Feb. 23, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxBuilder(val context: DoxBuilder.Context) {
@@ -105,11 +106,7 @@ object DoxBuilder {
     // def enterTopic(title: String, subtitle: String): Unit = enterTopic(Dox.text(title), subtitle)
     // def leaveTopic(): Unit = ???
     def enterPage(title: Inline, subtitle: String): Unit = {
-      val h = Head(
-        List(title),
-        css = context.css,
-        csslink = context.csslink
-      )
+      val h = Head(title, subtitle, context.css, context.csslink)
       val b = Body.empty
       val d = Document(h, b)
       c.enterContent(d)

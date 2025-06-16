@@ -4,6 +4,7 @@ import scalaz._, Scalaz._
 import java.io.Reader
 import java.net.URI
 import scala.xml.{Node => XNode, _}
+import org.goldenport.context.DateTimeContext
 import org.goldenport.collection.VectorMap
 import org.smartdox._
 import Dox._, Doxes._
@@ -13,10 +14,13 @@ import Dox._, Doxes._
  *  version Jan. 15, 2014
  *  version Feb.  5, 2014
  *  version Dec. 30, 2018
- * @version Oct. 28, 2024
+ *  version Oct. 28, 2024
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
+  implicit val datetimeContext = DateTimeContext.now() // WORKAROUND
+
   def parse(reader: Reader): Validation[NonEmptyList[String], Dox] = {
     val elem = XML.load(reader)
 //    println("PureParser#parse = " + elem)
@@ -83,7 +87,7 @@ object PureParser {
   }
 
   def buildHead(elem: XNode): Head = {
-    Head(getTitle(elem), getAuthor(elem), getDate(elem))
+    Head.create(getTitle(elem), getAuthor(elem), getDate(elem))
   }
 
   def getTitle(elem: XNode): InlineContents = {

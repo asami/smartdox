@@ -10,7 +10,7 @@ import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Jun.  3, 2025
- * @version Jun.  5, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 
@@ -24,7 +24,7 @@ package object operations {
   case class SiteParameters(
     in: File,
     strategy: Option[DoxSite.Strategy],
-    outputScopePolicy: Option[TreeTransformer.Config.Scope],
+    outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy],
     target: Option[List[Regex]]
   )
   object SiteParameters {
@@ -33,7 +33,7 @@ package object operations {
 
       def in: File = siteParameters.in
       def strategy: Option[DoxSite.Strategy] = siteParameters.strategy
-      def outputScopePolicy: Option[TreeTransformer.Config.Scope] = siteParameters.outputScopePolicy
+      def outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy] = siteParameters.outputScopePolicy
       def target: Option[List[Regex]] = siteParameters.target
     }
 

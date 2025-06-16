@@ -26,6 +26,7 @@ import org.goldenport.util.OptionUtils.lastMonoid
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
+import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Glossary
 import org.smartdox.metadata.Notices
 import org.smartdox.generator.Context
@@ -40,7 +41,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Mar.  9, 2025
  *  version Apr. 29, 2025
  *  version May. 31, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -69,11 +70,19 @@ class DoxSite(
   private def _build_multi(
     context: Context
   ) = {
-    val en = _build_en(context)
-    val ja = _build_ja(context)
+    val en = _build_locale(context, RealmBuilder.Rule.en.withConfig(config.outputTreeTransformerConfig))
+    val ja = _build_locale(context, RealmBuilder.Rule.ja.withConfig(config.outputTreeTransformerConfig))
     val realm = Realm.create()
     val a = realm.merge("en", en)
     a.merge("ja", ja)
+  }
+
+  private def _build_locale(
+    context: Context,
+    rule: RealmBuilder.Rule
+  ) = {
+    val a = space.transform(new RealmBuilder(context, rule))
+    Realm(a)
   }
 
   private def _build_en(
@@ -93,6 +102,16 @@ class DoxSite(
   }
 
   def traverse(p: TreeVisitor[Node]): Unit = space.traverse(p)
+
+  private def _build_notices(p: Realm): Realm = {
+    val xs = metadata.notices.take(5)
+    for ((x, i) <- xs.zipWithIndex) {
+      val c = x.yamlString
+      val path = f"MET-INF/data/notice${i + 1}%02d.yaml"
+      p.setContent(path, c)
+    }
+    p
+  }
 }
 
 object DoxSite {
@@ -107,19 +126,20 @@ object DoxSite {
     inputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     transformTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     outputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
-    strategy: Option[Strategy] = None
+    strategy: Strategy = Strategy.Overview
   ) {
-    def isAutoWire: Boolean = strategy.fold(true)(_.isAutoWire)
-    def isAutoI18n: Boolean = strategy.fold(true)(_.isAutoI18n)
-    def isNotice: Boolean = strategy.fold(true)(_.isNotice)
-    def isGlossary: Boolean = strategy.fold(true)(_.isGlossary)
-    def isLinkEnable: Boolean = strategy.fold(true)(_.isLinkEnable)
+    def isAutoWire(p: Page): Boolean = strategy.isAutoWire(p)
+    def isAutoI18n(p: Page): Boolean = strategy.isAutoI18n(p)
+    def isNotice: Boolean = strategy.isNotice
+    def isGlossary: Boolean = strategy.isGlossary
+    def isLinkEnable: Boolean = strategy.isLinkEnable
+    def isLinkEnable(p: Page): Boolean = strategy.isLinkEnable(p)
 
     def +(rhs: Config): Config = Config(
       lastMonoid(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
       lastMonoid(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
       lastMonoid(outputTreeTransformerConfig, rhs.outputTreeTransformerConfig),
-      lastMonoid(strategy, rhs.strategy)
+      rhs.strategy
     )
   }
   object Config {
@@ -135,9 +155,17 @@ object DoxSite {
           Some(_tree_transformer_config(s))
         case _ => None
       }
+      val outconfig = p.outputScopePolicy match {
+        case Some(policy) =>
+          val scope = TreeTransformer.Config.Scope(policy)
+          val c = TreeTransformer.Config(scope)
+          Some(c)
+        case _ => None
+      }
       default.copy(
         inputTreeTransformerConfig = inconfig,
-        strategy = p.strategy
+        outputTreeTransformerConfig = outconfig,
+        strategy = p.strategy getOrElse default.strategy
       )
     }
 
@@ -151,35 +179,148 @@ object DoxSite {
   }
 
   sealed trait Strategy extends NamedValueInstance {
+    def isAutoWire(p: Page): Boolean = documentStrategy(p).isAutoWire
+    def isAutoI18n(p: Page): Boolean = documentStrategy(p).isAutoI18n
+    def isNotice: Boolean = true
+    def isGlossary: Boolean = true
+    def isLinkEnable: Boolean = true
+    def isLinkEnable(p: Page): Boolean = documentStrategy(p).isLinkEnable
+    def isActive(p: Dox): Boolean =
+      documentStrategy(p).isActive
+    def documentStrategy(p: Page): DocumentStrategy =
+      documentStrategy(p.dox)
+    def documentStrategy(p: Dox): DocumentStrategy =
+      documentStrategy(_metadata(p))
+    def documentStrategy(p: DocumentMetaData): DocumentStrategy
+
+    private def _metadata(p: Dox) = Dox.getMetadata(p) getOrElse DocumentMetaData.empty
+  }
+  object Strategy extends EnumerationClass[Strategy] {
+    import DocumentMetaData._
+
+    val elements = Vector(Production, Full, WowkInProgress, Draft, Preparetion, Overview)
+
+    case object Production extends Strategy {
+      val name = "production"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Published => DocumentStrategy.Full
+          case _ => DocumentStrategy.Skip
+        }
+    }
+    case object Full extends Strategy {
+      val name = "full"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Inactive => DocumentStrategy.Skip
+          case _ => DocumentStrategy.Full
+        }
+    }
+    case object WowkInProgress extends Strategy {
+      val name ="work-in-progress"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Published => DocumentStrategy.Skip
+          case Status.WorkInProgress => DocumentStrategy.Full
+          case Status.Draft => DocumentStrategy.Draft
+          case Status.InPreparetion => DocumentStrategy.Skip
+          case Status.Inactive => DocumentStrategy.Skip
+        }
+    }
+    case object Draft extends Strategy {
+      val name ="draft"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Published => DocumentStrategy.Skip
+          case Status.WorkInProgress => DocumentStrategy.Draft
+          case Status.Draft => DocumentStrategy.Draft
+          case Status.InPreparetion => DocumentStrategy.Skip
+          case Status.Inactive => DocumentStrategy.Skip
+        }
+    }
+    case object Preparetion extends Strategy {
+      val name ="preparation"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.InPreparetion => DocumentStrategy.Draft
+          case _ => DocumentStrategy.Skip
+        }
+    }
+    case object Overview extends Strategy {
+      val name ="overview"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Published => DocumentStrategy.Draft
+          case Status.WorkInProgress => DocumentStrategy.Draft
+          case Status.Draft => DocumentStrategy.Draft
+          case Status.InPreparetion => DocumentStrategy.Draft
+          case Status.Inactive => DocumentStrategy.Skip
+        }
+    }
+
+    implicit val strategyDecoder: Decoder[Strategy] = Decoder.decodeString.emap(_create)
+
+    implicit val strategyEncoder: Encoder[Strategy] = Encoder.encodeString.contramap(_.name)
+
+    private def _create(p: String): Either[String, Strategy] =
+      get(p).toRight(s"Unknown strategy: $p")
+  }
+
+  sealed trait DocumentStrategy extends NamedValueInstance {
+    def isActive: Boolean = true
     def isAutoWire: Boolean = true
     def isAutoI18n: Boolean = true
     def isNotice: Boolean = true
     def isGlossary: Boolean = true
     def isLinkEnable: Boolean = true
+//    def targetStatus: List[DocumentMetaData.Status]
   }
-  object Strategy extends EnumerationClass[Strategy] {
-    val elements = Vector(Production, Full, Draft)
+  object DocumentStrategy extends EnumerationClass[DocumentStrategy] {
+    import DocumentMetaData.Status
 
-    case object Production extends Strategy {
-      def name = "production"
+    val elements = Vector(Production, Full, WorkInProgress, Draft, Skip)
+
+    case object Production extends DocumentStrategy {
+      val name = "production"
+//      def targetStatus = List(Status.Published)
     }
-    case object Full extends Strategy {
-      def name = "full"
+    case object Full extends DocumentStrategy {
+      val name = "full"
+      // def targetStatus = List(
+      //   Status.Published,
+      //   Status.WorkInProgress,
+      //   Status.Draft,
+      //   Status.InPreparetion
+      // )
     }
-    case object Draft extends Strategy {
-      def name ="draft"
+    case object WorkInProgress extends DocumentStrategy {
+      val name ="work-in-progress"
+//      def targetStatus = List(Status.WorkInProgress)
+    }
+    case object Draft extends DocumentStrategy {
+      val name ="draft"
       override def isAutoWire: Boolean = false
+      override def isGlossary: Boolean = false
+      override def isLinkEnable: Boolean = false
+//      def targetStatus = List(Status.Draft, Status.WorkInProgress)
+    }
+
+    case object Skip extends DocumentStrategy {
+      val name ="skip"
+      override def isActive: Boolean = false
+      override def isAutoWire: Boolean = false
+      override def isAutoI18n: Boolean = false
       override def isNotice: Boolean = false
       override def isGlossary: Boolean = false
       override def isLinkEnable: Boolean = false
     }
 
-    implicit val strategyDecoder: Decoder[Strategy] = Decoder.decodeString.emap(create)
+    implicit val strategyDecoder: Decoder[DocumentStrategy] = Decoder.decodeString.emap(_create)
 
-    implicit val strategyEncoder: Encoder[Strategy] = Encoder.encodeString.contramap(_.name)
+    implicit val strategyEncoder: Encoder[DocumentStrategy] = Encoder.encodeString.contramap(_.name)
 
-    def create(p: String): Either[String, Strategy] =
-      get(p).toRight(s"Unknown strategy: $p")
+    private def _create(p: String): Either[String, DocumentStrategy] =
+      get(p).toRight(s"Unknown document strategy: $p")
   }
 
   class DoxSiteBuilder(
@@ -240,23 +381,34 @@ object DoxSite {
     private def _dox_page(name: String, c: String) = {
       // println(s"_dox_page: $c")
       val dox = Dox2Parser.parse(c)
-      List(Page(name, dox))
+      _create_dox(name, dox)
     }
 
     private def _org_page(name: String, c: String) = {
       val dox = Dox2Parser.parse(c)
-      List(Page(name, dox))
+      _create_dox(name, dox)
     }
 
     private def _markdown_page(name: String, c: String) = {
       val dox = Dox2Parser.parse(c)
-      List(Page(name, dox))
+      _create_dox(name, dox)
     }
+
+    private def _create_dox(name: String, dox: Dox) =
+      if (rule.strategy.isActive(dox))
+        _create_page(name, dox)
+      else
+        Nil
+
+    private def _create_page(name: String, dox: Dox) =
+      List(Page(name, dox))
   }
   object DoxSiteBuilder {
     case class Rule(
       doxSiteConfig: Config = Config.default
     ) extends TreeTransformer.Rule[Realm.Data, Node] {
+      def strategy = doxSiteConfig.strategy
+
       override def config = doxSiteConfig.inputTreeTransformerConfig
       override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
         p.getNameSuffix.collect {
@@ -422,8 +574,7 @@ object DoxSite {
         json <- ConfigLoader.loadConfigJson(realm, n)
         output <- _tree_transformer_config(json.hcursor.downField("output").focus)
       } yield {
-        val strategy = None
-        Config(None, None, output, strategy)
+        Config(None, None, output)
       }
       c.take
     }

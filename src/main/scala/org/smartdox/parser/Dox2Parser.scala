@@ -34,7 +34,7 @@ import Dox._
  *  version Mar.  2, 2025
  *  version Apr.  6, 2025
  *  version May. 24, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -103,9 +103,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       case Some("=") =>
         val xs = _blocks(ctx, p.blocks)
         val (xs1, meta) = _section_head(p, xs)
-        // val head = Head(List(_to_dox(p.title)))
-        val title = meta.title getOrElse Nil
-        val head = Head(title = title, metadata = meta)
+        val head = Head(metadata = meta)
         head +: xs1
       case _ => Vector(_section(ctx.levelUp, p))
     }

@@ -1,36 +1,53 @@
 package org.smartdox.metadata
 
 import scala.util.Try
+import java.net.URI
 import org.joda.time.DateTime
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.context.Consequence
 import org.goldenport.context.DateTimeContext
 import org.goldenport.i18n.I18NString
 import org.goldenport.hocon.RichConfig.Implicits._
+import org.goldenport.value._
+import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.AnyUtils
+import org.goldenport.util.OptionUtils.lastMonoid
 import org.smartdox._
 import org.smartdox.generator.Context
 
 /*
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
- * @version Jun. 10, 2025
+ * @version Jun. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
   title: Option[InlineContents] = None,
+  titleImage: Option[URI] = None,
+  category: Option[String] = None,
   description: Option[String] = None,
   author: Option[String] = None,
   keywords: List[String] = Nil,
-  datePublished: Option[DateTime] = None,
-  dateModefied: Option[DateTime] = None
+  datePublished: Option[LocalDateOrDateTime] = None,
+  dateModified: Option[LocalDateOrDateTime] = None,
+  kindOption: Option[DocumentMetaData.Kind] = None,
+  statusOption: Option[DocumentMetaData.Status] = None
 ) {
   import DocumentMetaData._
 
-  def isEmpty = title.isEmpty && description.isEmpty && author.isEmpty && keywords.isEmpty && dateModefied.isEmpty && dateModefied.isEmpty
+  def isEmpty = title.isEmpty && description.isEmpty && author.isEmpty && keywords.isEmpty && datePublished.isEmpty && dateModified.isEmpty
 
   def toOption = if (isEmpty) None else Some(this)
+
+  def kind: DocumentMetaData.Kind = kindOption getOrElse DocumentMetaData.Kind.Article
+
+  def status: DocumentMetaData.Status = statusOption getOrElse {
+    if (datePublished.nonEmpty)
+      DocumentMetaData.Status.Published
+    else
+      DocumentMetaData.Status.InPreparetion
+  }
 
   def getTitleString: Option[String] = title.flatMap(_to_text)
 
@@ -44,7 +61,7 @@ case class DocumentMetaData(
   )(implicit context: Context) = {
     val t = title orElse _to_title(ptitle)
     val d = _to_date(pdate)
-    val (dp, dm) = (datePublished, dateModefied) match {
+    val (dp, dm) = (datePublished, dateModified) match {
       case (Some(p), Some(m)) => (Some(p), Some(m))
       case (Some(p), None) => (Some(p), d)
       case (None, Some(m)) => (d, Some(m))
@@ -53,7 +70,7 @@ case class DocumentMetaData(
     copy(
       title = title orElse t,
       datePublished = dp,
-      dateModefied = dm
+      dateModified = dm
     )
   }
 
@@ -69,29 +86,35 @@ case class DocumentMetaData(
 
   private def _to_date(
     p: InlineContents
-  )(implicit context: Context): Option[DateTime] =
-    _to_text(p).flatMap(x => Try {
-      ???
-    }.toOption)
+  )(implicit context: Context): Option[LocalDateOrDateTime] =
+    _to_text(p).flatMap(LocalDateOrDateTime.parse(_)(context.dateTimeContext).toOption)
 
   def +(rhs: DocumentMetaData): DocumentMetaData =
     DocumentMetaData(
       title orElse rhs.title,
+      titleImage orElse rhs.titleImage,
+      category orElse rhs.category,
       description orElse rhs.description,
       author orElse rhs.author,
       (keywords ::: rhs.keywords).distinct,
       datePublished orElse rhs.datePublished,
-      dateModefied orElse rhs.dateModefied
+      dateModified orElse rhs.dateModified,
+      lastMonoid(kindOption, rhs.kindOption),
+      lastMonoid(statusOption, rhs.statusOption)
     )
 
   def toFlattenVector: Vector[(String, String)] =
     VectorUtils.buildTupleVector(
       PROP_TITLE -> getTitleString,
+      PROP_TITLE_IMAGE -> titleImage.map(_.toString),
+      PROP_CATEGORY -> category,
       PROP_DESCRIPTION -> description,
       PROP_AUTHOR -> author,
       PROP_KEYWORDS -> _keywords_string,
       PROP_DATE_PUBLISHED -> datePublished.map(_to_string),
-      PROP_DATE_MODIFIED -> dateModefied.map(_to_string)
+      PROP_DATE_MODIFIED -> dateModified.map(_to_string),
+      PROP_KIND -> Some(kind.name),
+      PROP_STATUS -> Some(status.name)
     )
 
   private def _keywords_string: Option[String] =
@@ -100,19 +123,63 @@ case class DocumentMetaData(
       case xs => Some(xs.mkString(","))
     }
 
-  private def _to_string(p: DateTime) =
-    AnyUtils.toString(p)
+  private def _to_string(p: LocalDateOrDateTime) = p.print
 }
 
 object DocumentMetaData {
   final val PROP_TITLE = "title"
+  final val PROP_TITLE_IMAGE = "titleImage"
+  final val PROP_CATEGORY = "category"
   final val PROP_DESCRIPTION = "description"
   final val PROP_AUTHOR = "author"
   final val PROP_KEYWORDS = "keywords"
   final val PROP_DATE_PUBLISHED = "datePublished"
   final val PROP_DATE_MODIFIED = "dateModified"
+  final val PROP_KIND = "kind"
+  final val PROP_STATUS = "status"
 
   val empty = DocumentMetaData()
+
+  sealed trait Kind extends NamedValueInstance
+  object Kind extends EnumerationClass[Kind] {
+    trait Post { Kind => }
+
+    val elements = Vector(Article, News, Blog, Glossary)
+
+    case object Article extends Kind with Post {
+      val name = "article"
+    }
+    case object News extends Kind with Post {
+      val name = "news"
+    }
+    case object Blog extends Kind with Post{
+      val name = "blog"
+    }
+    case object Glossary extends Kind {
+      val name = "glossary"
+    }
+  }
+
+  sealed trait Status extends NamedValueInstance
+  object Status extends EnumerationClass[Status] {
+    val elements = Vector(Published, WorkInProgress, Draft, InPreparetion, Inactive)
+
+    case object Published extends Status {
+      val name = "published"
+    }
+    case object WorkInProgress extends Status {
+      val name = "work-in-progress"
+    }
+    case object Draft extends Status {
+      val name = "draft"
+    }
+    case object InPreparetion extends Status {
+      val name = "in-preparation"
+    }
+    case object Inactive extends Status {
+      val name = "inactive"
+    }
+  }
 
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
     createC(hocon).take
@@ -120,21 +187,40 @@ object DocumentMetaData {
   def createC(hocon: Hocon)(implicit ctx: DateTimeContext): Consequence[DocumentMetaData] = {
     for {
       title <- hocon.cStringOption(PROP_TITLE)
+      titleimage <- hocon.cUriOption(PROP_TITLE_IMAGE)
       desc <- hocon.cStringOption(PROP_DESCRIPTION)
+      category <- hocon.cStringOption(PROP_CATEGORY)
       auth <- hocon.cStringOption(PROP_AUTHOR)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
-      published <- hocon.cDateTimeOption(PROP_DATE_PUBLISHED)
-      modified <- hocon.cDateTimeOption(PROP_DATE_MODIFIED)
+      published <- hocon.cLocalDateOrDateTimeOption(PROP_DATE_PUBLISHED)
+      modified <- hocon.cLocalDateOrDateTimeOption(PROP_DATE_MODIFIED)
+      kind <- hocon.cValueOption(Kind, PROP_KIND)
+      status <- hocon.cValueOption(Status, PROP_STATUS)
     } yield {
       val inlinetitle = title.map(x => List(Text(x)))
       DocumentMetaData(
         inlinetitle,
+        titleimage,
         desc,
+        category,
         auth,
         keywords,
         published,
-        modified
+        modified,
+        kind,
+        status
       )
     }
+  }
+
+  def create(title: Inline): DocumentMetaData =
+    DocumentMetaData(Some(List(title)))
+
+  def create(
+    title: InlineContents,
+    date: InlineContents
+  )(implicit ctx: DateTimeContext): DocumentMetaData = {
+    val d = LocalDateOrDateTime.parse(Dox.toText(date)).take
+    DocumentMetaData(Some(title), datePublished = Some(d))
   }
 }

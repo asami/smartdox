@@ -25,7 +25,8 @@ import org.smartdox.util.DoxUtils
  *  version Jan.  1, 2025
  *  version Mar.  8, 2025
  *  version Apr.  6, 2025
- * @version May. 24, 2025
+ *  version May. 24, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -616,11 +617,7 @@ object DoxLinesParser {
     override protected def end_Transition(config: Config): Transition =
       transit_result_next(Dox.toDox(_get_head.toVector ++: lines), NormalState.init)
 
-    private def _get_head: Option[Head] = {
-      Head(
-        title.toList
-      ).toOption
-    }
+    private def _get_head: Option[Head] = title.map(Head.title)
 
     override protected def empty_Transition(config: Config, evt: LogicalLine): Transition = transit_none
 

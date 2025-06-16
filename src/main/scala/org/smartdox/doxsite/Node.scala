@@ -10,7 +10,8 @@ import org.smartdox.generator.Context
 /*
  * @since   Feb. 25, 2025
  *  version Mar.  9, 2025
- * @version Apr. 30, 2025
+ *  version Apr. 30, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -33,9 +34,9 @@ case class Page(
   def pageId: Page.Id = RAISE.notImplementedYetDefect
 
   lazy val title: String = Dox.getTitleString(dox) getOrElse "Unknown"
-  def getMetadata(implicit context: Context): Option[DocumentMetaData] = dox match {
-    case m: Document => m.head.getMetaData
-    case m: Head => m.getMetaData
+  def getMetadata: Option[DocumentMetaData] = dox match {
+    case m: Document => Some(m.head.metadata)
+    case m: Head => Some(m.metadata)
     case _ => None
   }
 

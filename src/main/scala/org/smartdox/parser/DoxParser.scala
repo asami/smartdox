@@ -10,6 +10,8 @@ import scalaz._, Scalaz._, Validation._, Tree._
 import org.smartdox._
 import Dox._
 import com.asamioffice.goldenport.io.UURL
+import org.goldenport.RAISE
+import org.goldenport.context.DateTimeContext
 import org.goldenport.collection.VectorMap
 
 /**
@@ -25,11 +27,13 @@ import org.goldenport.collection.VectorMap
  *  version Mar. 10, 2016
  *  version Dec. 31, 2018
  *  version Oct. 28, 2024
- * @version May.  4, 2025
+ *  version May.  4, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
-  useUnderline: Boolean = false
+  useUnderline: Boolean = false,
+  implicit val dctx: DateTimeContext
 ) extends RegexParsers {
   override def skipWhitespace = false
   val newline = """(\r\n|\n|\r)""".r
@@ -138,7 +142,7 @@ class DoxParser(
                 }
                 val is = (x.contents.head :: cs._1) collect { case i: Inline => i }
                 val l = if (cs._2.isEmpty) xs else Paragraph(cs._2) :: xs
-                Document(head.copy(is), body.copy(l))
+                Document(head.withTitle(is), body.copy(l))
               }
             }
             case _ => Document(head, body)
@@ -1240,4 +1244,7 @@ class DoxParser(
     }
 }
 
-object DoxParser extends DoxParser(true) // false
+object DoxParser {
+  def parseOrgmodeZ(s: String): Validation[NonEmptyList[String], Dox] =
+    RAISE.unsupportedOperationFault
+}

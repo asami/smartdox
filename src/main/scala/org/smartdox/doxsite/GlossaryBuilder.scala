@@ -12,7 +12,7 @@ import org.goldenport.values.CompactUuid
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
  *  version Apr. 28, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryBuilder(
@@ -21,7 +21,9 @@ class GlossaryBuilder(
   import GlossaryBuilder._
 
   override protected def dox_Transformer(
-    ctx: DoxSiteTransformer.Context
+    ctx: DoxSiteTransformer.Context,
+    node: TreeNode[Node],
+    p: Page
   ): HomoTreeTransformer[Dox] = RAISE.unsupportedOperationFault
 
   def glossary: Glossary = _glossaries

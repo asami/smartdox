@@ -23,6 +23,7 @@ import org.goldenport.tree.TreeNode
 import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.hocon.HoconUtils
+import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
@@ -74,7 +75,7 @@ import org.smartdox.generator.Context
  *  version Mar. 31, 2025
  *  version Apr. 30, 2025
  *  version May.  2, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -807,6 +808,12 @@ object Dox extends UseDox {
     case m: Head => m.getTitleString
     case _ => None
   }
+
+  def getMetadata(p: Dox): Option[DocumentMetaData] = p match {
+    case m: Document => Some(m.head.metadata)
+    case m: Head => Some(m.metadata)
+    case _ => None
+  }
 }
 
 case class Document(
@@ -873,8 +880,6 @@ object Document extends DoxFactory {
 }
 
 case class Head(
-  title: InlineContents = Nil,
-  date: InlineContents = Nil,
   css: Option[String] = None,
   csslink: Option[String] = None,
   cacheControl: Head.CacheControl = Head.CacheControl.empty,
@@ -884,7 +889,7 @@ case class Head(
   location: Option[ParseLocation] = None
 ) extends Dox {
   override def isEmpty = (
-    title.isEmpty && date.isEmpty && css.isEmpty && csslink.isEmpty &&
+    css.isEmpty && csslink.isEmpty &&
       cacheControl.isEmpty && seo.isEmpty &&
       metadata.isEmpty &&
       attributes.isEmpty && location.isEmpty
@@ -892,7 +897,7 @@ case class Head(
 
   override def equals_Value(o: Dox) = o match {
     case m: Head =>
-      title == m.title && date == m.date && css == m.css && csslink == m.csslink &&
+      css == m.css && csslink == m.csslink &&
       cacheControl == m.cacheControl && seo == m.seo &&
       metadata == m.metadata &&
       attributes == m.attributes
@@ -932,6 +937,8 @@ case class Head(
     }
   }
 
+  def title: InlineContents = metadata.title getOrElse Nil
+  def date: InlineContents = metadata.datePublished.toList.map(x => Text(x.print))
   def author: InlineContents = seo.author getOrElse Nil
 
   override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
@@ -941,21 +948,15 @@ case class Head(
     case xs => Some(Dox.toText(xs))
   }
 
-  def getMetaData(implicit context: Context) : Option[DocumentMetaData] =
-    metadata.complementTitleDate(title, date).toOption
-
   def toOption: Option[Head] =
     if (isEmpty)
       None
     else
       Some(this)
 
-  def withTitle(ps: InlineContents) = copy(title = ps)
+  def withTitle(ps: InlineContents) = copy(metadata = metadata.withTitle(ps))
 
   def merge(p: Head): Head = Head(
-    title ++ p.title,
-    // author ++ p.author,
-    date ++ p.date,
     css |+| p.css,
     csslink |+| p.csslink,
     cacheControl + p.cacheControl,
@@ -1072,17 +1073,35 @@ object Head extends DoxFactory {
     body.foldLeft(Z())(_+_).r
   }
 
-  def apply(title: InlineContents, author: InlineContents, date: InlineContents): Head =
-    new Head(title, date, seo = Seo.author(author))
+  def apply(
+    title: Inline,
+    subtitle: String, // TODO
+    css: Option[String],
+    csslink: Option[String]
+  ): Head = {
+    val metadata = DocumentMetaData.create(title)
+    new Head(metadata = metadata, css = css, csslink = csslink)
+  }
 
-  def builder() = new Builder
+  def create(
+    title: InlineContents,
+    author: InlineContents,
+    date: InlineContents
+  )(implicit dctx: DateTimeContext): Head = {
+    val metadata = DocumentMetaData.create(title, date)
+    new Head(seo = Seo.author(author), metadata = metadata)
+  }
 
-  class Builder {
+  def title(title: Inline): Head = ???
+
+  def builder(implicit dctx: DateTimeContext) = new Builder()
+
+  class Builder(implicit dctx: DateTimeContext)  {
     var title: InlineContents = Nil
     var author: InlineContents = Nil
     var date: InlineContents = Nil
 
-    def build() = new Head(title, date, seo = Seo.author(author))
+    def build() = create(title, author, date)
   }
 }
 

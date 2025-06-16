@@ -12,16 +12,23 @@ import org.smartdox.metadata._
  *  version Mar.  9, 2025
  *  version Apr.  5, 2025
  *  version May. 21, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
-class LinkEnabler(val context: DoxSiteTransformer.Context)
-    extends DoxSiteTransformer {
+class LinkEnabler(
+  val context: DoxSiteTransformer.Context
+) extends DoxSiteTransformer {
   import LinkEnabler._
 
-  override protected def dox_Transformer(
-    context: DoxSiteTransformer.Context
-  ): HomoTreeTransformer[Dox] = new LinkEmbeder(context)
+  override protected def dox_Transformers(
+    context: DoxSiteTransformer.Context,
+    node: TreeNode[Node],
+    p: Page
+  ): List[HomoTreeTransformer[Dox]] =
+    if (context.config.doxsiteConfig.fold(true)(_.isLinkEnable(p)))
+      List(new LinkEmbeder(context, node))
+    else
+      Nil
 }
 
 object LinkEnabler {
@@ -31,9 +38,9 @@ object LinkEnabler {
   import com.atilika.kuromoji.ipadic.Tokenizer
 
   class LinkEmbeder(
-    val context: DoxSiteTransformer.Context
+    val context: DoxSiteTransformer.Context,
+    pageNode: TreeNode[Node]
   ) extends DoxInSiteTransformer {
-
     override protected def make_Node(
       node: TreeNode[Dox],
       content: Dox
@@ -65,8 +72,8 @@ object LinkEnabler {
                   val a = _split(p.contents, term)
                   a.map {
                     case m if m == term =>
-                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
-                      val href = create_href(pagenode, definition.page, definition.id)
+//                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
+                      val href = create_href(pageNode, definition.page, definition.id)
                       val alt = definition.description.toPlainText
                       Hyperlink.create(m, href, alt)
                     case m => Text(m)

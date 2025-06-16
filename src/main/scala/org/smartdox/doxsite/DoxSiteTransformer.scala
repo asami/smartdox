@@ -13,7 +13,7 @@ import org.goldenport.tree._
  *  version Mar.  9, 2025
  *  version Apr.  5, 2025
  *  version May. 31, 2025
- * @version Jun.  2, 2025
+ * @version Jun. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -22,11 +22,15 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
   def treeTransformerContext = context.nodeContext
 
   protected def dox_Transformers(
-    ctx: DoxSiteTransformer.Context
-  ): List[HomoTreeTransformer[Dox]] = List(dox_Transformer(ctx))
+    ctx: DoxSiteTransformer.Context,
+    node: TreeNode[Node],
+    p: Page
+  ): List[HomoTreeTransformer[Dox]] = List(dox_Transformer(ctx, node, p))
 
   protected def dox_Transformer(
-    ctx: DoxSiteTransformer.Context
+    ctx: DoxSiteTransformer.Context,
+    node: TreeNode[Node],
+    p: Page
   ): HomoTreeTransformer[Dox] = RAISE.notImplementedYetDefect("DoxSiteTransformer#dox_Transformer")
 
   override protected def make_Node(
@@ -44,12 +48,12 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
 
   protected def make_Page(
     node: TreeNode[Node],
-    p: Page
+    page: Page
   ): TreeNode[Node] = {
-    dox_Transformers(context.withTreeNode(node)) match {
-      case Nil => TreeNode.create(node.name, Page(node.name, p.dox))
+    dox_Transformers(context, node, page) match {
+      case Nil => node
       case xs => 
-        val a = Dox.toTree(p.dox)
+        val a = Dox.toTree(page.dox)
         val b = xs.foldLeft(a)((z, x) => z.transform(x))
         val c = Dox.toDox(b)
         TreeNode.create(node.name, Page(node.name, c))
@@ -130,10 +134,8 @@ object DoxSiteTransformer {
     config: Config,
     nodeContext: TreeTransformer.Context[Node],
     doxContext: TreeTransformer.Context[Dox],
-    metadata: MetaData = MetaData.empty,
-    pageNode: Option[TreeNode[Node]] = None
+    metadata: MetaData = MetaData.empty
   ) {
-    def withTreeNode(node: TreeNode[Node]) = copy(pageNode = Some(node))
     def withMetaData(metadata: MetaData): Context = copy(metadata = metadata)
   }
 }
