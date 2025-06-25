@@ -1,4 +1,4 @@
-package org.smartdox.transformer
+package org.smartdox.converter
 
 import scalaz._
 import Scalaz._
@@ -12,10 +12,10 @@ import Dox._
 /*
  * @since   Jan. 12, 2012
  *  version Apr. 27, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 18, 2025
  * @author  ASAMI, Tomoharu
  */
-trait Dox2StringTransformer extends DoxTreeVisitor with StringBuildFeature {
+trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
   protected final def sb_section_title(mark: String, title: String): Unit = {
     sb_println(s"${section_bar(mark)} $title")
     sb_println()

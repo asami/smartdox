@@ -24,6 +24,7 @@ import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.hocon.HoconUtils
 import org.goldenport.values.LocalDateOrDateTime
+import org.goldenport.i18n.I18NContainer
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
@@ -75,12 +76,13 @@ import org.smartdox.generator.Context
  *  version Mar. 31, 2025
  *  version Apr. 30, 2025
  *  version May.  2, 2025
- * @version Jun. 17, 2025
+ * @version Jun. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
   def location: Option[ParseLocation]
   def isEmpty: Boolean = elements.isEmpty
+  def isVisialBlock: Boolean
   def elements: List[Dox] = Nil
 
   def attributes: VectorMap[String, String]
@@ -408,9 +410,11 @@ trait Dox extends IDocument {
 }
 
 trait Block extends Dox with ListContent {
+  def isVisialBlock = true
 }
 
 trait Inline extends Dox with ListContent {
+  def isVisialBlock = false
 }
 
 trait ListContent extends Dox {  
@@ -822,6 +826,7 @@ case class Document(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
+  def isVisialBlock: Boolean = false
   override val elements = List(head, body)
   override def showTerm = "html"
   override def showOpenText = "<!DOCTYPE html><html>"
@@ -888,6 +893,7 @@ case class Head(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
+  def isVisialBlock: Boolean = false
   override def isEmpty = (
     css.isEmpty && csslink.isEmpty &&
       cacheControl.isEmpty && seo.isEmpty &&
@@ -955,6 +961,8 @@ case class Head(
       Some(this)
 
   def withTitle(ps: InlineContents) = copy(metadata = metadata.withTitle(ps))
+
+  def withDescription(p: String) = copy(metadata = metadata.withDescription(p))
 
   def merge(p: Head): Head = Head(
     css |+| p.css,
@@ -1110,6 +1118,7 @@ case class Body(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
+  def isVisialBlock: Boolean = false
   override val elements = contents
 
   override def equals_Value(o: Dox) = o match {
@@ -1139,7 +1148,7 @@ case class Section(
   level: Int = 1,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
-) extends Dox {
+) extends Block {
   lazy val titleName = Dox.toText(title)
   lazy val keyForModel: String = titleName.trim.toLowerCase
   lazy val nameForModel: String = titleName.trim
@@ -1511,7 +1520,7 @@ case class Li(
   contents: List[ListContent],
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
-) extends Dox {
+) extends Block {
   override val elements = contents
 
   def :+(elem: ListContent): Li = {
@@ -2230,6 +2239,7 @@ case class Fragment(
   contents: List[Dox],
   location: Option[ParseLocation] = None
 ) extends Dox with Block with Inline with ListContent {
+  override def isVisialBlock: Boolean = false
   def attributes: VectorMap[String, String] = VectorMap.empty
   override val elements = contents
   override def isOpenClose = false
@@ -2286,6 +2296,21 @@ object Fragment extends DoxFactory {
     case m: Fragment => m.contents.flatMap(_normalize)
     case m => List(m)
   }
+}
+
+case class I18NFragment(
+  contents: I18NContainer[Dox],
+  location: Option[ParseLocation] = None
+) extends Dox with Block with Inline with ListContent {
+  override def isVisialBlock: Boolean = false
+  def attributes: VectorMap[String, String] = VectorMap.empty
+
+  override def equals_Value(o: Dox) = o match {
+    case m: I18NFragment => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  def apply(locale: Locale): Dox = contents.apply(locale)
 }
 
 case class Caption(

@@ -26,8 +26,8 @@ import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator._
 import org.smartdox.doxsite.DoxSite
-import org.smartdox.doxsite.{Node, Page}
-import org.smartdox.transformers.Dox2AsciidocTransformer
+import org.smartdox.doxsite.{Node, Page, MetaDataNode}
+import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.transformers.LanguageFilterTransformer
 import org.smartdox.transformers.DoxTreeNormalizationTransformer
 import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
@@ -36,7 +36,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
  *  version May. 23, 2025
- * @version Jun. 12, 2025
+ * @version Jun. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -174,6 +174,13 @@ object AntoraGenerator {
         } yield Playbook.Content(ss)
     }
 
+    implicit val redirectsDecoder: Decoder[Playbook.Redirects] = new Decoder[Playbook.Redirects] {
+      def apply(c: HCursor): Decoder.Result[Playbook.Redirects] =
+        for {
+          enable <- c.downField("enable").as[Boolean]
+        } yield Playbook.Redirects(enable)
+    }
+
     implicit val uiBundleDecoder: Decoder[Playbook.Ui.Bundle] = new Decoder[Playbook.Ui.Bundle] {
       def apply(c: HCursor): Decoder.Result[Playbook.Ui.Bundle] =
         for {
@@ -200,6 +207,7 @@ object AntoraGenerator {
         for {
           site <- c.downField("site").as[Playbook.Site]
           content <- c.downField("content").as[Playbook.Content]
+//          redirects <- c.downField("redirects").as[Playbook.Redirects]
           ui <- c.downField("ui").as[Playbook.Ui]
           output <- c.downField("output").as[Playbook.Output]
         } yield Playbook(site, content, ui, output)
@@ -229,6 +237,13 @@ object AntoraGenerator {
         )
     }
 
+    // implicit val redirectsEncoder: Encoder[Playbook.Redirects] = new Encoder[Playbook.Redirects] {
+    //   def apply(p: Playbook.Redirects): Json =
+    //     CirceUtils.toJson(
+    //       "enable" -> p.enable.asJson
+    //     )
+    // }
+
     implicit val bundleEncoder: Encoder[Playbook.Ui.Bundle] = new Encoder[Playbook.Ui.Bundle] {
       def apply(p: Playbook.Ui.Bundle): Json =
         CirceUtils.toJson(
@@ -254,6 +269,7 @@ object AntoraGenerator {
       def apply(p: Playbook): Json = Json.obj(
         "site" -> p.site.asJson,
         "content" -> p.content.asJson,
+//        "redirects" -> p.redirects.asJson,
         "ui" -> p.ui.asJson,
         "output" -> p.output.asJson
       )
@@ -264,6 +280,7 @@ object AntoraGenerator {
     case class Playbook(
       site: Playbook.Site,
       content: Playbook.Content,
+//      redirects: Playbook.Redirects,
       ui: Playbook.Ui,
       output: Playbook.Output
     ) {
@@ -280,6 +297,9 @@ object AntoraGenerator {
 
       case class Content(
         sources: List[Content.Source]
+      )
+      case class Redirects(
+        enable: Boolean
       )
       object Content {
         case class Source(
@@ -364,7 +384,7 @@ object AntoraGenerator {
               node: TreeNode[Page],
               content: Page
             ): TreeTransformer.Directive[Realm.Data] = {
-              val da = new Dox2AsciidocTransformer(context)
+              val da = new Dox2AsciidocConverter(context)
               val r = da.transform(content.dox)
               val s = r.fold(_.message, identity)
               val name = StringUtils.changeSuffix(node.name, "adoc")
@@ -560,6 +580,7 @@ object AntoraGenerator {
 
             def +(rhs: Node) = rhs match {
               case m: Page => copy(pages = pages add m)
+              case m: MetaDataNode => this
             }
           }
           _nodes.foldLeft(Z())(_+_).r
@@ -634,6 +655,7 @@ object AntoraGenerator {
           Reference(startpage)
         )
         val content = Playbook.Content(_sources)
+//        val redirects = Playbook.Redirects(false)
         val ui = Playbook.Ui.default
         val output = Playbook.Output.default
         Playbook(site, content, ui, output)

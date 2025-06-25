@@ -34,7 +34,7 @@ import Dox._
  *  version Mar.  2, 2025
  *  version Apr.  6, 2025
  *  version May. 24, 2025
- * @version Jun. 16, 2025
+ * @version Jun. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -64,7 +64,11 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       head: Head = Head(),
       elements: Vector[Dox] = Vector.empty
     ) {
-      def r = ParseSuccess(Document(head, Body(elements.toList)))
+      def r = {
+        val desc = _distill_description(elements)
+        val h = head.withDescription(desc)
+        ParseSuccess(Document(h, Body(elements.toList)))
+      }
 
       def +(rhs: Dox) = rhs match {
         case m: Head => copy(head = head.merge(m))
@@ -73,6 +77,12 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     }
     ps.foldLeft(Z())(_+_).r
   }
+
+  private def _distill_description(ps: Vector[Dox]): String =
+    ps match {
+      case Vector(x, xs @ _*) => x.toText
+      case _ => ""
+    }
 
   private def _blocks(ctx: ParseContext, p: LogicalBlocks): Vector[Dox] =
     p.blocks.flatMap(_block(ctx, _))

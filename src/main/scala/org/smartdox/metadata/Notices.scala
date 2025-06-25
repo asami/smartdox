@@ -15,7 +15,7 @@ import org.smartdox._
 /*
  * @since   Apr. 28, 2025
  *  version Apr. 30, 2025
- * @version Jun. 16, 2025
+ * @version Jun. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -23,32 +23,53 @@ case class Notices(
 ) {
   import Notices._
 
-  def take(n: Int): Vector[Notice] = notices.take(n)
+  def take(status: DocumentMetaData.Status, statuses: DocumentMetaData.Status*): Vector[Notice] =
+    take(status +: statuses)
+
+  def take(statuses: Seq[DocumentMetaData.Status]): Vector[Notice] =
+    notices.filter(_.status.fold(false)(statuses.contains))
 }
 
 object Notices {
   val empty = Notices()
 
-  implicit val circeconf = Configuration.default.
-    withDefaults.withSnakeCaseMemberNames
-
-  implicit val noticeEncoderRaw: Encoder.AsObject[Notice] = deriveConfiguredEncoder
-
-  implicit val noticeEncoder: Encoder[Notice] = CirceUtils.prefixedEncoder[Notice]("notice.")
-
   case class Notice(
     title: String,
     titleImage: Option[URI],
-    category: Option[String],
+    category: Option[Category],
     uri: URI,
     description: String,
     keywords: List[String],
-    published: LocalDate,
-    updated: Option[LocalDate]
+    published: Option[LocalDate],
+    updated: Option[LocalDate],
+    kind: Option[DocumentMetaData.Kind],
+    status: Option[DocumentMetaData.Status]
   ) {
     def yamlString: String = CirceUtils.toYamlString(this.asJson)
   }
+  object Notice {
+    val notitle: Notice = Notice(
+      "No Title",
+      None,
+      None,
+      new URI("nolink"),
+      "No article",
+      Nil,
+      None,
+      None,
+      None,
+      None
+    )
 
+//    import Category.categoryDecoder
+
+    implicit val circeconf = Configuration.default.
+      withDefaults.withSnakeCaseMemberNames
+
+    def noticeEncoderRaw: Encoder.AsObject[Notice] = deriveConfiguredEncoder
+
+    implicit val noticeEncoder: Encoder[Notice] = CirceUtils.prefixedEncoder[Notice]("notice.")(noticeEncoderRaw)
+  }
   // case class Builder() {
   //   def build(): Notices = ???
   // }

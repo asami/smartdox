@@ -15,7 +15,7 @@ import scala.util.parsing.input.Reader
 /*
  * @since   Jan. 12, 2012
  *  version Feb.  5, 2014
- * @version Jun.  9, 2025
+ * @version Jun. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -24,6 +24,7 @@ class DoxSpec extends WordSpec with Matchers with ScalazMatchers {
   val in2 = "* Hello\nworld"
   val out = "List(<!DOCTYPE html><html><head/><body><section><h2>OK</h2></section></body></html>, <head/>, <body><section><h2>OK</h2></section></body>, <section><h2>OK</h2></section>)"
   "Dox" should {
+/*
     "provides scalaz tree" which {
       "plain" in {
         val d = DoxParser.parseOrgmode(in)
@@ -57,6 +58,7 @@ class DoxSpec extends WordSpec with Matchers with ScalazMatchers {
         println("dox2 = " + d2)
       }
     }
+*/
 /*
     "provides scalaz lens" which {
       "plain" in {

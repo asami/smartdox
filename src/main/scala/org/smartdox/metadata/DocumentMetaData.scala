@@ -12,6 +12,7 @@ import org.goldenport.value._
 import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.AnyUtils
+import org.goldenport.util.OptionUtils
 import org.goldenport.util.OptionUtils.lastMonoid
 import org.smartdox._
 import org.smartdox.generator.Context
@@ -19,7 +20,7 @@ import org.smartdox.generator.Context
 /*
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
- * @version Jun. 17, 2025
+ * @version Jun. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -46,7 +47,7 @@ case class DocumentMetaData(
     if (datePublished.nonEmpty)
       DocumentMetaData.Status.Published
     else
-      DocumentMetaData.Status.InPreparetion
+      DocumentMetaData.Status.InPreparation
   }
 
   def getTitleString: Option[String] = title.flatMap(_to_text)
@@ -54,6 +55,8 @@ case class DocumentMetaData(
   def titleString: String = getTitleString getOrElse ""
 
   def withTitle(p: InlineContents) = copy(title = Some(p))
+
+  def withDescription(p: String) = copy(description = Some(p))
 
   def complementTitleDate(
     ptitle: InlineContents,
@@ -127,6 +130,13 @@ case class DocumentMetaData(
 }
 
 object DocumentMetaData {
+  import io.circe._
+  import io.circe.generic.extras._
+  import io.circe.generic.extras.semiauto._
+
+  implicit val circeconf = Configuration.default.
+    withDefaults.withSnakeCaseMemberNames
+
   final val PROP_TITLE = "title"
   final val PROP_TITLE_IMAGE = "titleImage"
   final val PROP_CATEGORY = "category"
@@ -158,27 +168,64 @@ object DocumentMetaData {
     case object Glossary extends Kind {
       val name = "glossary"
     }
+
+    implicit val kindDecoder: Decoder[Kind] = Decoder.decodeString.emap(_create)
+
+    implicit val kindEncoder: Encoder[Kind] = Encoder.encodeString.contramap(_.name)
+
+    private def _create(p: String): Either[String, Kind] =
+      get(p).toRight(s"Unknown kind: $p")
   }
 
-  sealed trait Status extends NamedValueInstance
+  sealed trait Status extends NamedValueInstance {
+    def noticePriority: Int
+  }
   object Status extends EnumerationClass[Status] {
-    val elements = Vector(Published, WorkInProgress, Draft, InPreparetion, Inactive)
+    val elements = Vector(Published, WorkInProgress, Draft, InPreparation, Inactive, Test)
 
     case object Published extends Status {
       val name = "published"
+      def noticePriority = 4
     }
     case object WorkInProgress extends Status {
       val name = "work-in-progress"
+      def noticePriority = 2
     }
     case object Draft extends Status {
       val name = "draft"
+      def noticePriority = 3
     }
-    case object InPreparetion extends Status {
+    case object InPreparation extends Status {
       val name = "in-preparation"
+      def noticePriority = 9
     }
     case object Inactive extends Status {
       val name = "inactive"
+      def noticePriority = 99
     }
+    case object Test extends Status {
+      val name = "test"
+      def noticePriority = 1
+    }
+
+    implicit val statusDecoder: Decoder[Status] = Decoder.decodeString.emap(_create)
+
+    implicit val statusEncoder: Encoder[Status] = Encoder.encodeString.contramap(_.name)
+
+    private def _create(p: String): Either[String, Status] =
+      get(p).toRight(s"Unknown status: $p")
+
+    def compareOption(lhs: Option[Status], rhs: Option[Status]): Option[Boolean] =
+      if (lhs == rhs)
+        None
+      else
+        OptionUtils.compareDescOption(lhs.map(_.noticePriority), rhs.map(_.noticePriority))
+
+    def compareOption(lhs: Status, rhs: Status): Option[Boolean] =
+      if (lhs.noticePriority == rhs.noticePriority)
+        None
+      else
+        Some(lhs.noticePriority < rhs.noticePriority)
   }
 
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =

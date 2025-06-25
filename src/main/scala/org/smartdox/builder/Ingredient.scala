@@ -9,10 +9,11 @@ import org.smartdox._
  * @since   Aug. 11, 2020
  *  version Aug. 11, 2020
  *  version Dec. 22, 2024
- * @version Jun.  7, 2025
+ * @version Jun. 18, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Ingredient extends Dox {
+  def isVisialBlock: Boolean = false
 }
 
 case class FigureIngredient(

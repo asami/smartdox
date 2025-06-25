@@ -14,12 +14,14 @@ import org.smartdox.generator.Context
  * @since   Feb. 24, 2025
  *  version Feb. 28, 2025
  *  version Mar.  1, 2025
- * @version Apr.  3, 2025
+ *  version Apr.  3, 2025
+ * @version Jun. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class DoxSiteSpec extends WordSpec with Matchers with UseDoxParser {
   val context = Context.create()
+  implicit val dctx = context.dateTimeContext
   "DoxSite" should {
     "create" in {
       val site = DoxSite.create(context, new File("src/test/resources/site1"))

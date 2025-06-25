@@ -1,8 +1,9 @@
 package org.smartdox.doxsite
 
-import scalaz.{Tree => ZTree, _}, Scalaz._
+import scalaz.{Tree => ZTree, Category => _, _}, Scalaz._
 import scala.util.matching.Regex
 import java.io.File
+import java.net.URI
 import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
@@ -21,14 +22,19 @@ import org.goldenport.realm.RealmTransformer
 import org.goldenport.value._
 import org.goldenport.collection.NonEmptyVector
 import org.goldenport.i18n.LocaleUtils
+import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
 import org.goldenport.util.OptionUtils.lastMonoid
+import org.goldenport.util.LocalDateUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Glossary
+import org.smartdox.metadata.CategoryCollection
+import org.smartdox.metadata.Category
 import org.smartdox.metadata.Notices
+import org.smartdox.metadata.Notices.Notice
 import org.smartdox.generator.Context
 import org.smartdox.service.operations.SiteParameters
 import org.smartdox.transformers.Dox2HtmlTransformer
@@ -41,7 +47,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Mar.  9, 2025
  *  version Apr. 29, 2025
  *  version May. 31, 2025
- * @version Jun. 16, 2025
+ * @version Jun. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -74,7 +80,9 @@ class DoxSite(
     val ja = _build_locale(context, RealmBuilder.Rule.ja.withConfig(config.outputTreeTransformerConfig))
     val realm = Realm.create()
     val a = realm.merge("en", en)
-    a.merge("ja", ja)
+    val r = a.merge("ja", ja)
+    _build_notices(r)
+    r
   }
 
   private def _build_locale(
@@ -85,33 +93,86 @@ class DoxSite(
     Realm(a)
   }
 
-  private def _build_en(
-    context: Context
-  ) = {
-    val rule = RealmBuilder.Rule.en.withConfig(config.outputTreeTransformerConfig)
-    val a = space.transform(new RealmBuilder(context, rule))
-    Realm(a)
-  }
+  // private def _build_en(
+  //   context: Context
+  // ) = {
+  //   val rule = RealmBuilder.Rule.en.withConfig(config.outputTreeTransformerConfig)
+  //   val a = space.transform(new RealmBuilder(context, rule))
+  //   Realm(a)
+  // }
 
-  private def _build_ja(
-    context: Context
-  ) = {
-    val rule = RealmBuilder.Rule.ja.withConfig(config.outputTreeTransformerConfig)
-    val a = space.transform(new RealmBuilder(context, rule))
-    Realm(a)
-  }
+  // private def _build_ja(
+  //   context: Context
+  // ) = {
+  //   val rule = RealmBuilder.Rule.ja.withConfig(config.outputTreeTransformerConfig)
+  //   val a = space.transform(new RealmBuilder(context, rule))
+  //   Realm(a)
+  // }
 
   def traverse(p: TreeVisitor[Node]): Unit = space.traverse(p)
 
   private def _build_notices(p: Realm): Realm = {
-    val xs = metadata.notices.take(5)
+    import DocumentMetaData.Status
+
+    def _filter_production_ = metadata.notices.take(Status.Published)
+    def _filter_full_ = metadata.notices.notices
+    def _filter_draft_ = metadata.notices.take(
+      Status.Published,
+      Status.WorkInProgress,
+      Status.Draft
+    )
+    def _filter_test_ = metadata.notices.take(
+      Status.Published,
+      Status.WorkInProgress,
+      Status.Draft,
+      Status.Test
+    )
+
+    val xs0 = config.strategy match {
+      case Strategy.Production => _filter_production_
+      case Strategy.Full => _filter_full_
+      case Strategy.WorkInProgress => _filter_draft_
+      case Strategy.Draft => _filter_draft_
+      case Strategy.Preparation => _filter_draft_
+      case Strategy.Overview => _filter_draft_
+      case Strategy.Test => _filter_test_
+    }
+    val xs1 = xs0.sortWith(_compare)
+    val xs = xs1 ++ _make_stub(xs1.length)
     for ((x, i) <- xs.zipWithIndex) {
       val c = x.yamlString
-      val path = f"MET-INF/data/notice${i + 1}%02d.yaml"
+      val path = f"WEB-INF/data/notice${i + 1}%02d.yaml"
       p.setContent(path, c)
     }
     p
   }
+
+  private def _compare(lhs: Notice, rhs: Notice): Boolean = {
+    def _compare_status_option_(): Option[Boolean] =
+      DocumentMetaData.Status.compareOption(lhs.status, rhs.status)
+
+    def _compare_updated_option_(): Option[Boolean] =
+      if (lhs.updated == rhs.updated)
+        None
+      else
+        LocalDateUtils.compareDescOption(lhs.updated, rhs.updated)
+
+    def _compare_published_option_(): Option[Boolean] = 
+      if (lhs.published == rhs.published)
+        None
+      else
+        LocalDateUtils.compareDescOption(lhs.published, rhs.published)
+
+    _compare_status_option_ orElse
+    _compare_updated_option_ orElse
+    _compare_published_option_ getOrElse false
+  }
+
+  private def _make_stub(n: Int): Vector[Notice] =
+    if (n >= 10)
+      Vector.empty
+    else
+      Vector.fill(10 - n)(Notice.notitle)
 }
 
 object DoxSite {
@@ -198,7 +259,7 @@ object DoxSite {
   object Strategy extends EnumerationClass[Strategy] {
     import DocumentMetaData._
 
-    val elements = Vector(Production, Full, WowkInProgress, Draft, Preparetion, Overview)
+    val elements = Vector(Production, Full, WorkInProgress, Draft, Preparation, Overview, Test)
 
     case object Production extends Strategy {
       val name = "production"
@@ -216,15 +277,16 @@ object DoxSite {
           case _ => DocumentStrategy.Full
         }
     }
-    case object WowkInProgress extends Strategy {
+    case object WorkInProgress extends Strategy {
       val name ="work-in-progress"
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
           case Status.Published => DocumentStrategy.Skip
           case Status.WorkInProgress => DocumentStrategy.Full
           case Status.Draft => DocumentStrategy.Draft
-          case Status.InPreparetion => DocumentStrategy.Skip
+          case Status.InPreparation => DocumentStrategy.Skip
           case Status.Inactive => DocumentStrategy.Skip
+          case Status.Test => DocumentStrategy.Skip
         }
     }
     case object Draft extends Strategy {
@@ -234,15 +296,16 @@ object DoxSite {
           case Status.Published => DocumentStrategy.Skip
           case Status.WorkInProgress => DocumentStrategy.Draft
           case Status.Draft => DocumentStrategy.Draft
-          case Status.InPreparetion => DocumentStrategy.Skip
+          case Status.InPreparation => DocumentStrategy.Skip
           case Status.Inactive => DocumentStrategy.Skip
+          case Status.Test => DocumentStrategy.Skip
         }
     }
-    case object Preparetion extends Strategy {
+    case object Preparation extends Strategy {
       val name ="preparation"
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
-          case Status.InPreparetion => DocumentStrategy.Draft
+          case Status.InPreparation => DocumentStrategy.Draft
           case _ => DocumentStrategy.Skip
         }
     }
@@ -253,8 +316,17 @@ object DoxSite {
           case Status.Published => DocumentStrategy.Draft
           case Status.WorkInProgress => DocumentStrategy.Draft
           case Status.Draft => DocumentStrategy.Draft
-          case Status.InPreparetion => DocumentStrategy.Draft
+          case Status.InPreparation => DocumentStrategy.Draft
           case Status.Inactive => DocumentStrategy.Skip
+          case Status.Test => DocumentStrategy.Draft
+        }
+    }
+    case object Test extends Strategy {
+      val name ="test"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Test => DocumentStrategy.Test
+          case _ => DocumentStrategy.Skip
         }
     }
 
@@ -278,7 +350,7 @@ object DoxSite {
   object DocumentStrategy extends EnumerationClass[DocumentStrategy] {
     import DocumentMetaData.Status
 
-    val elements = Vector(Production, Full, WorkInProgress, Draft, Skip)
+    val elements = Vector(Production, Full, WorkInProgress, Draft, Skip, Test)
 
     case object Production extends DocumentStrategy {
       val name = "production"
@@ -290,7 +362,7 @@ object DoxSite {
       //   Status.Published,
       //   Status.WorkInProgress,
       //   Status.Draft,
-      //   Status.InPreparetion
+      //   Status.InPreparation
       // )
     }
     case object WorkInProgress extends DocumentStrategy {
@@ -313,6 +385,10 @@ object DoxSite {
       override def isNotice: Boolean = false
       override def isGlossary: Boolean = false
       override def isLinkEnable: Boolean = false
+    }
+
+    case object Test extends DocumentStrategy {
+      val name = "test"
     }
 
     implicit val strategyDecoder: Decoder[DocumentStrategy] = Decoder.decodeString.emap(_create)
@@ -366,6 +442,7 @@ object DoxSite {
                     case "org" => _org_page(name, m.string)
                     case "md" => _markdown_page(name, m.string)
                     case "markdown" => _markdown_page(name, m.string)
+                    case "yaml" => _yaml_metadata(node.pathname, name, m.string)
                     case _ => Nil
                   }
                   r match {
@@ -402,6 +479,33 @@ object DoxSite {
 
     private def _create_page(name: String, dox: Dox) =
       List(Page(name, dox))
+
+    private def _yaml_metadata(pathname: String, name: String, s: String) =
+      name match {
+        case "category.yaml" => _yaml_category(pathname, name, s)
+        case m => _yaml_hocon(name, s)
+      }
+
+    private def _yaml_category(pathname: String, name: String, s: String): List[Node] = {
+      val index = StringUtils.concatPath(StringUtils.pathContainer(pathname), "index.html")
+      implicit def decoder = Category.categoryDecoder(new URI(index))
+
+      val in = InputSource(s)
+      val r = for {
+        c <- ConfigLoader.loadConfig[Category](in)
+        r <- Consequence(CategoryMetaData(Node.Name(name), c))
+      } yield List(r)
+      r getOrElse Nil
+    }
+
+    private def _yaml_hocon(name: String, s: String): List[Node] = {
+      val in = InputSource(s)
+      val r = for {
+        hocon <- ConfigLoader.loadConfigHocon(in)
+        r <- Consequence(HoconMetaData(Node.Name(name), hocon))
+      } yield List(r)
+      r getOrElse Nil
+    }
   }
   object DoxSiteBuilder {
     case class Rule(
@@ -416,6 +520,7 @@ object DoxSite {
           case "org" => s"${p.nameBody}.dox"
           case "md" => s"${p.nameBody}.dox"
           case "markdown" => s"${p.nameBody}.dox"
+          case "yaml" => s"${p.nameBody}.yaml"
         }
       }
     }
@@ -442,6 +547,7 @@ object DoxSite {
     ): TreeTransformer.Directive[Realm.Data] = {
       content match {
         case m: Page => _to_html(m) // TreeTransformer.Directive.Content(m.toRealmData)
+        case m: MetaDataNode => directive_empty
       }
     }
 
@@ -476,6 +582,8 @@ object DoxSite {
     }
   }
 
+  val realmConfig = Realm.Builder.Config.default.addTextSuffixes("yaml")
+
   def create(
     context: Context,
     file: File
@@ -487,7 +595,7 @@ object DoxSite {
     configname: Option[String],
     inconfig: DoxSite.Config
   )(implicit ctx: DateTimeContext): DoxSite = {
-    val a = Realm.create(file)
+    val a = Realm.create(realmConfig, file)
     create(context, a, configname, inconfig)
   }
 
@@ -511,23 +619,39 @@ object DoxSite {
     val ctx = DoxSiteTransformer.Context(DoxSiteTransformer.Config(Some(config)), nodectx, doxctx)
     val rule = DoxSiteBuilder.Rule(config)
     val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, nodectx))
-    val notices = _collect_notice(config, context, a1)
+    val categories = _collect_category(config, context, a1)
+    val notices = _collect_notice(config, context, categories, a1)
     val a = a1.transform(new DoxSitePreTransformer(config, ctx))
     val (b, glossary) = _build_glossary(config, ctx, a)
-    val metadata = MetaData(glossary = glossary, notices = notices)
+    val metadata = MetaData(
+      glossary = glossary,
+      categories = categories,
+      notices = notices
+    )
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = _enable_link(config, ctx1, b)
     val d = c.transform(new DoxSitePostTransformer(config, ctx))
     new DoxSite(config, c, metadata)
   }
 
-  private def _collect_notice(
+  private def _collect_category(
     config: DoxSite.Config,
     gcontext: Context,
     p: Tree[Node]
+  ): CategoryCollection = {
+    val c = new CategoryCollector(gcontext)
+    p.traverse(c)
+    c.categories
+  }
+
+  private def _collect_notice(
+    config: DoxSite.Config,
+    gcontext: Context,
+    categories: CategoryCollection,
+    p: Tree[Node]
   ): Notices =
     if (config.isNotice) {
-      val noticecollector = new NoticeCollector(gcontext)
+      val noticecollector = new NoticeCollector(gcontext, categories)
       p.traverse(noticecollector)
       noticecollector.notices
     } else {

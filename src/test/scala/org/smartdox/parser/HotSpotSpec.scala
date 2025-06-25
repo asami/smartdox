@@ -12,15 +12,16 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Sep. 15, 2012
  *  version Oct. 19, 2012
  *  version Nov. 23, 2012
- * @version Feb.  5, 2014
+ *  version Feb.  5, 2014
+ * @version Jun. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class HotSpotSpec extends WordSpec with Matchers with ScalazMatchers with UseDoxParser {
   "0.3.2" should {
     "includedoc" which {
       "includedoc" in {
-        parse_orgmode_simple("""#+include: "abc.org"""",
-                             """<includedoc filename="abc.org"/>""")
+        parse_orgmode_simple("""#+include: "src/test/resources/abc.org"""",
+                             """<p>X</p>""")
       }
     }
   }
