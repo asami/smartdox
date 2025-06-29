@@ -47,13 +47,13 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Mar.  9, 2025
  *  version Apr. 29, 2025
  *  version May. 31, 2025
- * @version Jun. 25, 2025
+ * @version Jun. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
   config: DoxSite.Config,
   space: Tree[Node],
-  metadata: MetaData
+  val metadata: MetaData
 ) {
   import DoxSite._
 
@@ -140,9 +140,14 @@ class DoxSite(
     val xs1 = xs0.sortWith(_compare)
     val xs = xs1 ++ _make_stub(xs1.length)
     for ((x, i) <- xs.zipWithIndex) {
-      val c = x.yamlString
+      val ja = x.yamlString(config.locales.context(LocaleUtils.ja))
       val path = f"WEB-INF/data/notice${i + 1}%02d.yaml"
-      p.setContent(path, c)
+      p.setContent(path, ja)
+      val pathja = f"WEB-INF/data/ja/notice${i + 1}%02d.yaml"
+      p.setContent(pathja, ja)
+      val en = x.yamlString(config.locales.context(LocaleUtils.en))
+      val pathen = f"WEB-INF/data/en/notice${i + 1}%02d.yaml"
+      p.setContent(pathen, en)
     }
     p
   }
@@ -177,8 +182,10 @@ class DoxSite(
 
 object DoxSite {
   import io.circe._
+  import io.circe.syntax._
   import io.circe.generic.extras._
   import io.circe.generic.extras.semiauto._
+  import org.goldenport.util.CirceUtils.Codec._
 
   implicit val circeconf = Configuration.default.
     withDefaults.withSnakeCaseMemberNames
@@ -187,7 +194,8 @@ object DoxSite {
     inputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     transformTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     outputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
-    strategy: Strategy = Strategy.Overview
+    strategy: Strategy = Strategy.Overview,
+    locales: Config.LocaleSetting = Config.LocaleSetting.jaen
   ) {
     def isAutoWire(p: Page): Boolean = strategy.isAutoWire(p)
     def isAutoI18n(p: Page): Boolean = strategy.isAutoI18n(p)
@@ -206,8 +214,45 @@ object DoxSite {
   object Config {
     val default = Config()
 
-    implicit val configDecoder: Decoder[Config] = deriveConfiguredDecoder
-    implicit val configEncoder: Encoder[Config] = deriveConfiguredEncoder
+    case class LocaleSetting(
+      slots: Vector[LocaleSetting.Slot] = Vector.empty
+    ) {
+      def context(locale: Locale): I18NContext = slots.find(_.locale == locale).map(_.context) getOrElse RAISE.notImplementedYetDefect
+    }
+    object LocaleSetting {
+      case class Slot(locale: Locale, context: I18NContext)
+      object Slot {
+        implicit val slotDecoder: Decoder[Slot] = Decoder.instance { cursor =>
+          for {
+            locale <- cursor.downField("locale").as[Locale]
+            contextname <- cursor.downField("context").as[String]
+          } yield {
+            val context = contextname match {
+              case "ja" => I18NContext.ja
+              case "en" => I18NContext.en
+            }
+            Slot(locale, context)
+          }
+        }
+
+        implicit val slotEncoder: Encoder[Slot] = Encoder.instance { s =>
+          Json.obj(
+            "locale" -> s.locale.asJson,
+            "context" -> s.context.locale.asJson
+          )
+        }
+      }
+
+      val jaen = LocaleSetting(
+        Vector(
+          Slot(LocaleUtils.ja, I18NContext.ja),
+          Slot(LocaleUtils.en, I18NContext.en)
+        )
+      )
+
+      implicit val localesettingDecoder: Decoder[LocaleSetting] = deriveConfiguredDecoder
+      implicit val localesettingEncoder: Encoder[LocaleSetting] = deriveConfiguredEncoder
+    }
 
     // def create(p: Option[Strategy]): Config = default.copy(strategy = p)
     def create(p: SiteParameters.Holder): Config = {
@@ -237,6 +282,9 @@ object DoxSite {
       )
       TreeTransformer.Config(scope)
     }
+
+    implicit val configDecoder: Decoder[Config] = deriveConfiguredDecoder
+    implicit val configEncoder: Encoder[Config] = deriveConfiguredEncoder
   }
 
   sealed trait Strategy extends NamedValueInstance {
@@ -417,7 +465,7 @@ object DoxSite {
         case Realm.EmptyData => TreeTransformer.Directive.Default[Node]
         case m: Realm.StringData => _build_file(node, m)
         case m: Realm.UrlData => TreeTransformer.Directive.Default[Node]
-        case m: Realm.FileData => TreeTransformer.Directive.Default[Node]
+        case m: Realm.FileData => ??? // TreeTransformer.Directive.Default[Node]
         case m: Realm.BagData => TreeTransformer.Directive.Default[Node]
         case m: Realm.ObjectData => TreeTransformer.Directive.Default[Node]
         case m: Realm.ApplicationData => TreeTransformer.Directive.Default[Node]
@@ -487,7 +535,7 @@ object DoxSite {
       }
 
     private def _yaml_category(pathname: String, name: String, s: String): List[Node] = {
-      val index = StringUtils.concatPath(StringUtils.pathContainer(pathname), "index.html")
+      val index = StringUtils.changeLeafRelative(pathname, "index.html")
       implicit def decoder = Category.categoryDecoder(new URI(index))
 
       val in = InputSource(s)
@@ -619,18 +667,18 @@ object DoxSite {
     val ctx = DoxSiteTransformer.Context(DoxSiteTransformer.Config(Some(config)), nodectx, doxctx)
     val rule = DoxSiteBuilder.Rule(config)
     val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, nodectx))
-    val categories = _collect_category(config, context, a1)
-    val notices = _collect_notice(config, context, categories, a1)
-    val a = a1.transform(new DoxSitePreTransformer(config, ctx))
-    val (b, glossary) = _build_glossary(config, ctx, a)
+    val a = a1.transform(new DoxSitePreTransformer(ctx))
+    val categories = _collect_category(config, context, a)
+    val notices = _collect_notice(config, context, categories, a)
+    val (b, glossary) = _build_glossary(ctx, a)
     val metadata = MetaData(
       glossary = glossary,
       categories = categories,
       notices = notices
     )
     val ctx1 = ctx.withMetaData(metadata)
-    val c: Tree[Node] = _enable_link(config, ctx1, b)
-    val d = c.transform(new DoxSitePostTransformer(config, ctx))
+    val c: Tree[Node] = _enable_link(ctx1, b)
+    val d = c.transform(new DoxSitePostTransformer(ctx))
     new DoxSite(config, c, metadata)
   }
 
@@ -659,11 +707,10 @@ object DoxSite {
     }
 
   private def _build_glossary(
-    config: DoxSite.Config,
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
   ): (Tree[Node], Glossary) =
-    if (config.isGlossary) {
+    if (ctx.config.isGlossary) {
       val gb = new GlossaryBuilder(ctx)
       val b: Tree[Node] = p.transform(gb)
       (b, gb.glossary)
@@ -672,11 +719,10 @@ object DoxSite {
     }
 
   private def _enable_link(
-    config: DoxSite.Config,
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
   ): Tree[Node] =
-    if (config.isLinkEnable)
+    if (ctx.config.isLinkEnable)
       p.transform(new LinkEnabler(ctx))
     else
       p

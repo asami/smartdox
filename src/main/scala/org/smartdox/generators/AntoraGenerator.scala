@@ -27,6 +27,7 @@ import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator._
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page, MetaDataNode}
+import org.smartdox.metadata.MetaData
 import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.transformers.LanguageFilterTransformer
 import org.smartdox.transformers.DoxTreeNormalizationTransformer
@@ -36,7 +37,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
  *  version May. 23, 2025
- * @version Jun. 23, 2025
+ * @version Jun. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -48,7 +49,7 @@ class AntoraGenerator(
   def generate(realm: Realm): Realm = {
     val site = DoxSite.create(context, realm, "antora", config)
     // record_message("XXX")
-    val builder = new Builder()
+    val builder = new Builder(Builder.Config(site.metadata))
     // record_info("INFO")
     site.traverse(builder)
     val antora = builder.build()
@@ -140,6 +141,7 @@ object AntoraGenerator {
     import io.circe.Json
     import io.circe.syntax._
     import cats.syntax.either._
+    import CirceUtils.Codec._
 
     implicit val titleDecoder: Decoder[Title] = Decoder.decodeString.emap { s =>
       Try(Title(s)) match {
@@ -156,7 +158,8 @@ object AntoraGenerator {
         for {
           title <- c.downField("title").as[String]
           startpage <- c.downField("start_page").as[Reference]
-        } yield Playbook.Site(Title(title), startpage)
+          url <- c.downField("url").as[Option[URL]]
+        } yield Playbook.Site(Title(title), startpage, url)
     }
 
     implicit val contentSourceDecoder: Decoder[Playbook.Content.Source] = new Decoder[Playbook.Content.Source] {
@@ -185,7 +188,7 @@ object AntoraGenerator {
       def apply(c: HCursor): Decoder.Result[Playbook.Ui.Bundle] =
         for {
           url <- c.downField("url").as[String]
-        } yield Playbook.Ui.Bundle(new URI(url).toURL)
+        } yield Playbook.Ui.Bundle(new URI(url))
     }
 
     implicit val uiDecoder: Decoder[Playbook.Ui] = new Decoder[Playbook.Ui] {
@@ -316,10 +319,11 @@ object AntoraGenerator {
         bundle: Ui.Bundle
       )
       object Ui {
-        val default = Ui(Bundle(new URI("https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable").toURL))
+//        val default = Ui(Bundle(new URI("https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable").toURL))
+        val default = Ui(Bundle(new URI("./ui-bundle.zip")))
 
         case class Bundle(
-          url: URL
+          url: URI
         )
       }
 
@@ -470,15 +474,13 @@ object AntoraGenerator {
       }
     }
     object Component {
-      class Builder(name: String) {
-        private var _name: Name = Name(name)
-        private var _title: Option[Title] = None
+      class Builder(name: Name, title: Option[Title]) {
         private val _root = new Module.Builder("ROOT")
         private var _modules: Vector[Module] = Vector.empty
 
         def build(): Component = Component(
-          _name,
-          _title,
+          name,
+          title,
           None,
           NonEmptyVector(_root.build(), _modules)
         )
@@ -492,6 +494,12 @@ object AntoraGenerator {
           _modules = _modules :+ module
           this
         }
+      }
+      object Builder {
+        def apply(name: String): Builder = new Builder(Name(name), None)
+
+        def apply(name: String, title: String): Builder =
+          new Builder(Name(name), Some(Title(title)))
       }
     }
 
@@ -627,7 +635,7 @@ object AntoraGenerator {
       }
     }
 
-    class Builder() {
+    class Builder(config: Builder.Config) {
       private var _playbook: Option[Playbook] = None
       private var _components: Vector[Component] = Vector.empty
       private var _current_component: Option[Component.Builder] = None
@@ -644,15 +652,17 @@ object AntoraGenerator {
       }
 
       private def _build_playbook(): Playbook = _playbook getOrElse {
-        val title = "Untitled"
+        val title = config.title
         val startpage = _components.headOption.map { x =>
           val name = x.name.name
           val file = x.homePage
           s"${x.name.name}::${file.name}"
         } getOrElse "index.adoc"
+        val url = config.url
         val site = Playbook.Site(
           Title(title),
-          Reference(startpage)
+          Reference(startpage),
+          url
         )
         val content = Playbook.Content(_sources)
 //        val redirects = Playbook.Redirects(false)
@@ -670,11 +680,11 @@ object AntoraGenerator {
           )
         }
 
-      def setComponent(name: String) = {
+      def setComponent(name: String, title: String) = {
         _current_component.foreach { x =>
           _components = _components :+ x.build()
         }
-        _current_component = Some(new Component.Builder(name))
+        _current_component = Some(Component.Builder(name, title))
         this
       }
 
@@ -713,6 +723,15 @@ object AntoraGenerator {
         this
       }
     }
+    object Builder {
+      case class Config(
+        title: String = "SimpleModeling",
+        url: Option[URL] = Some(new URI("https://www.simplemodeling.org").toURL)
+      )
+      object Config {
+        val default = Config()
+      }
+    }
   }
 
   // case class Config(
@@ -730,10 +749,10 @@ object AntoraGenerator {
   // }
 
   class Builder(
-//    config: Config
+    config: Builder.Config
   ) extends TreeVisitor[Node] {
     private var _depth: Int = 0
-    private val _antora = new Antora.Builder()
+    private val _antora = new Antora.Builder(Antora.Builder.Config.default)
 
     def build(): Antora = _antora.build()
 
@@ -754,7 +773,7 @@ object AntoraGenerator {
         _depth = _depth + 1
     }
 
-    private def _at_home(node: TreeNode[Node]): Unit = _antora.setComponent(node.name)
+    private def _at_home(node: TreeNode[Node]): Unit = _antora.setComponent(node.name, _category_title(node.name))
 
     private def _at_home(node: TreeNode[Node], c: Node): Unit = {}
 
@@ -785,5 +804,13 @@ object AntoraGenerator {
     private def _return_to_component(node: TreeNode[Node]): Unit = _antora.pushModule()
     private def _return_to_module(node: TreeNode[Node]): Unit = {}
     private def _return_to_ingredient(node: TreeNode[Node]): Unit = {}
+
+    private def _category_title(name: String): String =
+      config.categoryTitle(name)
+  }
+  object Builder {
+    case class Config(metadata: MetaData) {
+      def categoryTitle(name: String): String = metadata.categories.makeTitle(name)
+    }
   }
 }

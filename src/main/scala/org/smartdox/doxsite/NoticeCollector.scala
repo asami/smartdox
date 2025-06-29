@@ -1,6 +1,7 @@
 package org.smartdox.doxsite
 
 import java.net.URI
+import org.goldenport.i18n.I18NString
 import org.goldenport.tree.TreeNode
 import org.goldenport.util.StringUtils
 import org.smartdox.generator.Context
@@ -11,7 +12,7 @@ import org.smartdox.metadata.CategoryCollection
 /*
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
- * @version Jun. 25, 2025
+ * @version Jun. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -28,9 +29,9 @@ class NoticeCollector(
     content match {
       case m: Page => for {
         md <- m.getMetadata
-        title <- md.getTitleString
+        title <- md.getTitleI18NString
       } yield {
-        val pathname = StringUtils.changeSuffix(node.pathname, "html")
+        val pathname = StringUtils.changeSuffix(node.pathnameRelative, "html")
         val uri = new URI(pathname)
         val category = _find_category(node, md.category)
         val notice = Notices.Notice(
@@ -38,7 +39,7 @@ class NoticeCollector(
           md.titleImage,
           category,
           uri,
-          md.description getOrElse "",
+          md.getDescriptionI18NString getOrElse I18NString.empty,
           md.keywords,
           md.datePublished.map(_.toLocalDate),
           md.dateModified.map(_.toLocalDate),

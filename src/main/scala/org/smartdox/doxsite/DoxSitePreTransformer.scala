@@ -8,11 +8,10 @@ import org.smartdox.transformers.AutoI18nTransformer
 /*
  * @since   Apr.  5, 2025
  *  version Apr.  7, 2025
- * @version Jun. 16, 2025
+ * @version Jun. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSitePreTransformer(
-  config: DoxSite.Config,
   val context: DoxSiteTransformer.Context
 ) extends DoxSiteTransformer {
   override protected def dox_Transformers(
@@ -23,14 +22,14 @@ class DoxSitePreTransformer(
     List(_auto_wire(page), _auto_i18n(page)).flatten
 
   private def _auto_wire(p: Page) =
-    if (config.isAutoWire(p))
+    if (context.config.isAutoWire(p))
       Some(new AutoWireTransformer(context.doxContext))
     else
       None
 
   private def _auto_i18n(p: Page) =
-    if (config.isAutoI18n(p))
-      Some(new AutoI18nTransformer(context.doxContext))
+    if (context.config.isAutoI18n(p))
+      Some(new AutoI18nTransformer(context))
     else
       None
 }

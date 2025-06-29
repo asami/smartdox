@@ -24,6 +24,7 @@ import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.hocon.HoconUtils
 import org.goldenport.values.LocalDateOrDateTime
+import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
@@ -76,7 +77,7 @@ import org.smartdox.generator.Context
  *  version Mar. 31, 2025
  *  version Apr. 30, 2025
  *  version May.  2, 2025
- * @version Jun. 24, 2025
+ * @version Jun. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -780,6 +781,8 @@ object Dox extends UseDox {
 
   def toText(ps: Seq[Dox]): String = ps.map(_.toText).mkString
 
+  def toPlainText(ps: Seq[Dox]): String = ps.map(_.toPlainText).mkString
+
   def makeSection(p: Dox): Section = findSection(p).get
 
   def findSection(p: Dox): Option[Section] = p match {
@@ -943,7 +946,7 @@ case class Head(
     }
   }
 
-  def title: InlineContents = metadata.title getOrElse Nil
+  def title: InlineContents = metadata.getTitleInclineContents getOrElse Nil
   def date: InlineContents = metadata.datePublished.toList.map(x => Text(x.print))
   def author: InlineContents = seo.author getOrElse Nil
 
@@ -1100,7 +1103,7 @@ object Head extends DoxFactory {
     new Head(seo = Seo.author(author), metadata = metadata)
   }
 
-  def title(title: Inline): Head = ???
+  def title(title: Inline): Head = Head(metadata = DocumentMetaData.create(title))
 
   def builder(implicit dctx: DateTimeContext) = new Builder()
 
@@ -2299,7 +2302,7 @@ object Fragment extends DoxFactory {
 }
 
 case class I18NFragment(
-  contents: I18NContainer[Dox],
+  contents: I18NContainer[List[Dox]],
   location: Option[ParseLocation] = None
 ) extends Dox with Block with Inline with ListContent {
   override def isVisialBlock: Boolean = false
@@ -2310,7 +2313,45 @@ case class I18NFragment(
     case _ => false
   }
 
-  def apply(locale: Locale): Dox = contents.apply(locale)
+  def apply(locale: Locale): List[Dox] = contents.apply(locale)
+
+  def distillString: String = Dox.toPlainText(contents.default)
+
+  def distillInlineContents: InlineContents = contents.default.map {
+    case m: Inline => m
+  }
+
+  def toI18NString: I18NString = I18NString(
+    Dox.toPlainText(contents.c),
+    Dox.toPlainText(contents.en),
+    Dox.toPlainText(contents.ja),
+    contents.map.mapValues(Dox.toPlainText)
+  )
+}
+object I18NFragment {
+  def create(ps: Seq[Dox]): I18NFragment = {
+    case class Z(
+      xs: Vector[Dox] = Vector.empty,
+      ls: Map[Locale, Vector[Dox]] = Map.empty
+    ) {
+      def r = if (ls.isEmpty)
+        I18NFragment(I18NContainer.make(xs.toList))
+      else
+        I18NFragment(I18NContainer.create(ls))
+
+      def +(rhs: Dox) = rhs.getLanguage match {
+        case Some(s) => copy(ls = ls |+| Map(s -> Vector(rhs)))
+        case None => copy(
+          xs = xs :+ rhs,
+          ls = ls.keys.foldLeft(ls)((z, x) =>
+            ls |+| Map(x -> Vector(rhs)))
+        )
+      }
+    }
+    ps.foldLeft(Z())(_+_).r
+  }
+
+  def create(p: String): I18NFragment = create(List(Text(p)))
 }
 
 case class Caption(

@@ -13,7 +13,7 @@ import org.goldenport.tree._
  *  version Mar.  9, 2025
  *  version Apr.  5, 2025
  *  version May. 31, 2025
- * @version Jun. 16, 2025
+ * @version Jun. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -70,6 +70,11 @@ object DoxSiteTransformer {
     doxsiteConfig: Option[DoxSite.Config] = None
   ) {
     def treeConfig: Option[TreeTransformer.Config] = doxsiteConfig.flatMap(_.transformTreeTransformerConfig)
+
+    def isGlossary = doxsiteConfig.fold(false)(_.isGlossary)
+    def isLinkEnable = doxsiteConfig.fold(false)(_.isLinkEnable)
+    def isAutoWire(p: Page) = doxsiteConfig.fold(false)(_.isAutoWire(p))
+    def isAutoI18n(p: Page) = doxsiteConfig.fold(false)(_.isAutoI18n(p))
   }
   object Config {
     val default = Config()

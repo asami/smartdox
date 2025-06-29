@@ -1,15 +1,17 @@
 package org.smartdox.metadata
 
 import java.net.URI
+import java.util.Locale
 import org.goldenport.value._
 import org.goldenport.i18n.I18NString
 import org.goldenport.datatype
 import org.goldenport.collection.VectorMap
+import org.goldenport.util.StringUtils
 import org.goldenport.util.CirceUtils.Codec._
 
 /*
  * @since   Jun. 23, 2025
- * @version Jun. 25, 2025
+ * @version Jun. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Category(
@@ -17,7 +19,13 @@ case class Category(
   title: Option[Category.CategoryTitle],
   uri: URI,
   kind: Category.Kind = Category.Kind.Topics
-)
+) {
+  private lazy val _key = StringUtils.pathContainer(uri.toString)
+
+  def isMatch(name: String) = _key equalsIgnoreCase name
+
+  def effectiveTitle: String = title.map(_.title.en) getOrElse name.name
+}
 
 object Category {
   import io.circe._
@@ -36,9 +44,11 @@ object Category {
 
   case class CategoryTitle(title: I18NString) extends datatype.I18NTitle
   object CategoryTitle {
-    implicit val titleDecoder: Decoder[CategoryTitle] = deriveConfiguredDecoder
+    implicit val titleDecoder: Decoder[CategoryTitle] =
+      Decoder[I18NString].map(CategoryTitle.apply)
 
-    implicit val titleEncoder: Encoder[CategoryTitle] = deriveConfiguredEncoder
+    implicit val titleEncoder: Encoder[CategoryTitle] =
+      Encoder[I18NString].contramap(_.title)
   }
 
   sealed trait Kind extends NamedValueInstance {
@@ -73,12 +83,23 @@ object Category {
     )
   }
 
-  implicit val categoryEncoder: Encoder[Category] = deriveConfiguredEncoder
+//  implicit val categoryEncoder: Encoder[Category] = deriveConfiguredEncoder
+
+  def categoryEncoderWithLocale(locale: Locale): Encoder[Category] = Encoder.instance { c =>
+    Json.obj(
+      "name" -> CategoryName.nameEncoder(c.name),
+      "title" -> Json.fromString(c.title.map(_.print(locale)).getOrElse(c.name.name)),
+      "uri" -> uriEncoder(c.uri),
+      "kind" -> Kind.kindEncoder(c.kind)
+    )
+  }
 }
 
 case class CategoryCollection(
   categories: VectorMap[String, Category] = VectorMap.empty
-)
+) {
+  def makeTitle(name: String): String = categories.values.find(_.isMatch(name)).map(_.effectiveTitle) getOrElse StringUtils.capitalize(name)
+}
 
 object CategoryCollection {
   val empty = CategoryCollection()

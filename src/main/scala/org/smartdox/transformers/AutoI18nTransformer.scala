@@ -5,17 +5,19 @@ import org.goldenport.tree._
 import org.goldenport.i18n.LocaleUtils
 import org.smartdox._
 import org.smartdox.transformer._
+import org.smartdox.doxsite.DoxSiteTransformer
 
 /*
  * @since   Apr.  7, 2025
  *  version May. 21, 2025
- * @version Jun. 16, 2025
+ * @version Jun. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class AutoI18nTransformer(
-  val treeTransformerContext: TreeTransformer.Context[Dox]
+  context: DoxSiteTransformer.Context
 ) extends DoxHomoTreeTransformer {
   import AutoI18nTransformer._
+  val treeTransformerContext: TreeTransformer.Context[Dox] = context.doxContext
 
   override protected def make_Node(
     node: TreeNode[Dox],
