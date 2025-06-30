@@ -12,7 +12,8 @@ import Dox._
 /*
  * @since   Jan. 12, 2012
  *  version Apr. 27, 2025
- * @version Jun. 18, 2025
+ *  version Jun. 18, 2025
+ * @version Jul.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
@@ -21,7 +22,7 @@ trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
     sb_println()
   }
 
-  def transform(dox: Dox): Consequence[String] = Consequence {
+  def convert(dox: Dox): Consequence[String] = Consequence {
     val tree = Dox.toTree(dox)
     tree.traverse(this)
     sb_to_string()

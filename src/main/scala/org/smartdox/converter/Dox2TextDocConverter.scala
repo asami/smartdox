@@ -5,7 +5,8 @@ import org.smartdox._
 
 /*
  * @since   Jun. 12, 2025
- * @version Jun. 20, 2025
+ *  version Jun. 20, 2025
+ * @version Jul.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -34,10 +35,14 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   override def stay(node: TreeNode[Dox], index: Int, prev: TreeNode[Dox], next: TreeNode[Dox]): Unit = {
     val a = _list_stack.isEmpty
     def b = (prev.getContent, next.getContent) match {
-      case (Some(p), Some(n)) => p.isVisialBlock || n.isVisialBlock
+      case (Some(p), Some(n)) => (p, n) match {
+        case (mp: Li, mn: Li) => false
+        case _ => p.isVisialBlock || n.isVisialBlock
+      }
       case _ => false
     }
-    val r = a && b
+    // val r = a && b
+    val r = b
     if (r)
       sb_println()
   }
@@ -65,10 +70,14 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
 
   override protected def leave_Ul(p: Ul) = {
     _list_stack = _list_stack.tail
+    // if (_list_stack == 0)
+    //   sb_println()
   }
 
   override protected def leave_Ol(p: Ol) = {
     _list_stack = _list_stack.tail
+    // if (_list_stack == 0)
+    //   sb_println()
   }
 
   override protected def leave_Li(p: Li) = {

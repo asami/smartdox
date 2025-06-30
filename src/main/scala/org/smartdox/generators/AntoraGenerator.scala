@@ -37,7 +37,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  * @since   Apr. 18, 2025
  *  version Apr. 28, 2025
  *  version May. 23, 2025
- * @version Jun. 29, 2025
+ *  version Jun. 29, 2025
+ * @version Jul.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -389,7 +390,7 @@ object AntoraGenerator {
               content: Page
             ): TreeTransformer.Directive[Realm.Data] = {
               val da = new Dox2AsciidocConverter(context)
-              val r = da.transform(content.dox)
+              val r = da.convert(content.dox)
               val s = r.fold(_.message, identity)
               val name = StringUtils.changeSuffix(node.name, "adoc")
               directive_leaf(name, StringData(s))
