@@ -6,7 +6,7 @@ import org.smartdox._
 /*
  * @since   Jun. 12, 2025
  *  version Jun. 20, 2025
- * @version Jul.  1, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {

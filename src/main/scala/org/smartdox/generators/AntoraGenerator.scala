@@ -15,9 +15,12 @@ import org.goldenport.tree.TreeTransformer
 import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.tree.StringBuildVisitor
 import org.goldenport.datatype.{Name, Title}
+import org.goldenport.datatype.I18NTitle
 import org.goldenport.values.Version
 import org.goldenport.values.PathName
 import org.goldenport.collection.NonEmptyVector
+import org.goldenport.i18n.I18NContext
+import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.StringUtils
 import org.goldenport.util.CirceUtils
@@ -38,7 +41,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Apr. 28, 2025
  *  version May. 23, 2025
  *  version Jun. 29, 2025
- * @version Jul.  1, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -157,10 +160,10 @@ object AntoraGenerator {
     implicit val siteDecoder: Decoder[Playbook.Site] = new Decoder[Playbook.Site] {
       def apply(c: HCursor): Decoder.Result[Playbook.Site] =
         for {
-          title <- c.downField("title").as[String]
+          title <- c.downField("title").as[I18NString]
           startpage <- c.downField("start_page").as[Reference]
           url <- c.downField("url").as[Option[URL]]
-        } yield Playbook.Site(Title(title), startpage, url)
+        } yield Playbook.Site(I18NTitle(title), startpage, url)
     }
 
     implicit val contentSourceDecoder: Decoder[Playbook.Content.Source] = new Decoder[Playbook.Content.Source] {
@@ -220,7 +223,7 @@ object AntoraGenerator {
     implicit val siteEncoder: Encoder[Playbook.Site] = new Encoder[Playbook.Site] {
       def apply(p: Playbook.Site): Json =
         CirceUtils.toJson(
-          "title" -> p.title.title,
+          "title" -> p.title.distillDefault,
           "start_page" -> p.start_page.path,
           "url" -> p.url.map(_.toString)
         )
@@ -292,7 +295,7 @@ object AntoraGenerator {
     }
     object Playbook {
       case class Site(
-        title: Title,
+        title: I18NTitle,
         start_page: Reference,
         url: Option[URL] = None
       )
@@ -338,7 +341,7 @@ object AntoraGenerator {
 
     case class Component(
       name: Name,
-      title: Option[Title],
+      title: Option[I18NTitle],
       version: Option[Version],
       modules: NonEmptyVector[Module]
     ) {
@@ -355,6 +358,7 @@ object AntoraGenerator {
           extends Function1[Realm.Cursor, Unit] with Context.Holder {
 
         private def _newline = "\n"
+        private def _locale = context.targetI18NContextOption.map(_.locale) getOrElse LocaleUtils.C
 
         def apply(c: Realm.Cursor): Unit = {
           val cc = c.enter(name.name)
@@ -410,7 +414,7 @@ object AntoraGenerator {
         private def _make_meta_yaml: String =
           CirceUtils.toYamlString(
             "name" -> name.name,
-            "title" -> title.map(_.title),
+            "title" -> title.map(_.distill(_locale)),
             "version" -> version.map(_.v).getOrElse(null),
             "nav" -> _nav
           )
@@ -447,7 +451,7 @@ object AntoraGenerator {
             content: Module.Navigation.Reference
           ) {
             val filepath = StringUtils.changeSuffix(content.pathname.v.dropWhile(_ == '/'), "adoc")
-            val title = content.title
+            val title = content.title.distill(_locale)
             val s = s"xref:${filepath}[${title}]"
             sb_println(s)
           }
@@ -475,7 +479,10 @@ object AntoraGenerator {
       }
     }
     object Component {
-      class Builder(name: Name, title: Option[Title]) {
+      class Builder(
+        name: Name,
+        title: Option[I18NTitle]
+      ) {
         private val _root = new Module.Builder("ROOT")
         private var _modules: Vector[Module] = Vector.empty
 
@@ -497,10 +504,15 @@ object AntoraGenerator {
         }
       }
       object Builder {
-        def apply(name: String): Builder = new Builder(Name(name), None)
+        def apply(
+          name: String
+        ): Builder = new Builder(Name(name), None)
 
-        def apply(name: String, title: String): Builder =
-          new Builder(Name(name), Some(Title(title)))
+        def apply(
+          name: String,
+          title: I18NString
+        ): Builder =
+          new Builder(Name(name), Some(I18NTitle(title)))
       }
     }
 
@@ -565,7 +577,7 @@ object AntoraGenerator {
         references: Tree[Navigation.Reference] = Tree.create()
       )
       object Navigation {
-        case class Reference(pathname: PathName, title: String)
+        case class Reference(pathname: PathName, title: I18NString)
 
         val empty = Navigation()
       }
@@ -601,7 +613,7 @@ object AntoraGenerator {
           }.headOption.getOrElse(Navigation.empty)
 
         private def _navigation(p: Ingredient.Pages): Navigation = {
-          case class Slot(pathname: String, title: String)
+          case class Slot(pathname: String, title: I18NString)
 
           class Collector() extends TreeVisitor[Page] {
             private var _pages: Vector[Slot] = Vector.empty
@@ -616,8 +628,8 @@ object AntoraGenerator {
 
             override def enter(node: TreeNode[Page]) {
               for (c <- node.getContent) {
-                val title = Dox.getTitleString(c.dox) getOrElse {
-                  StringUtils.makeTitleFromPathname(c.name.name)
+                val title = Dox.getTitleI18NString(c.dox) getOrElse {
+                  I18NString(StringUtils.makeTitleFromPathname(c.name.name))
                 }
                 _pages = _pages :+ Slot(node.pathname, title)
               }
@@ -661,7 +673,7 @@ object AntoraGenerator {
         } getOrElse "index.adoc"
         val url = config.url
         val site = Playbook.Site(
-          Title(title),
+          I18NTitle(title),
           Reference(startpage),
           url
         )
@@ -681,7 +693,7 @@ object AntoraGenerator {
           )
         }
 
-      def setComponent(name: String, title: String) = {
+      def setComponent(name: String, title: I18NString) = {
         _current_component.foreach { x =>
           _components = _components :+ x.build()
         }
@@ -806,11 +818,13 @@ object AntoraGenerator {
     private def _return_to_module(node: TreeNode[Node]): Unit = {}
     private def _return_to_ingredient(node: TreeNode[Node]): Unit = {}
 
-    private def _category_title(name: String): String =
-      config.categoryTitle(name)
+    private def _category_title(name: String): I18NString =
+      I18NString(config.categoryTitle(name))
   }
   object Builder {
-    case class Config(metadata: MetaData) {
+    case class Config(
+      metadata: MetaData
+    ) {
       def categoryTitle(name: String): String = metadata.categories.makeTitle(name)
     }
   }

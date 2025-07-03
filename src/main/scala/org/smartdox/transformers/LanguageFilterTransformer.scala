@@ -12,7 +12,8 @@ import org.smartdox.transformer._
  * @since   Apr.  7, 2025
  *  version Apr.  9, 2025
  *  version May. 21, 2025
- * @version Jun. 12, 2025
+ *  version Jun. 12, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class LanguageFilterTransformer(
@@ -20,7 +21,8 @@ class LanguageFilterTransformer(
 ) extends DoxHomoTreeTransformer {
   import LanguageFilterTransformer._
 
-  private val _locale_option = treeTransformerContext.i18NContextOption.map(_.locale)
+  private val _i18ncontext_option = treeTransformerContext.i18NContextOption
+  private val _locale_option = _i18ncontext_option.map(_.locale)
 
   override protected def make_Node(
     node: TreeNode[Dox],
@@ -30,8 +32,9 @@ class LanguageFilterTransformer(
       val a = _filter_inlines(m.title)
       directive_container_content(m.withTitle(a))
     case m: Head =>
-      val a = _filter_inlines(m.title)
-      directive_node(m.withTitle(a))
+      val t = _filter_inlines(m.title)
+      val d = _filter_inlines(m.description)
+      directive_node(m.withTitle(t).withDescription(d))
     case m =>
       if (_is_accept(m))
         directive_default
@@ -39,8 +42,27 @@ class LanguageFilterTransformer(
         directive_empty
   }
 
+  private def _filter_inlines(p: Option[I18NFragment]): InlineContents =
+    p.map(_filter_inlines).getOrElse(Nil)
+
+  private def _filter_inlines(p: I18NFragment): InlineContents =
+    _locale_option match {
+      case Some(s) => p.distillInline(s)
+      case None => p.distillInlineContentsDefault
+    }
+
   private def _filter_inlines(ps: List[Inline]) =
-    ps.filter(_is_accept)
+    _i18ncontext_option match {
+      case Some(s) => ps.flatMap {
+        case m: I18NFragment => m.distillInline(s.locale)
+        case m =>
+          if (_is_accept(m))
+            List(m)
+          else
+            Nil
+      }
+      case None => ps.filter(_is_accept)
+    }
 
   private def _is_accept(p: Dox): Boolean =
     p.getLanguage.fold(true)(_is_accept)

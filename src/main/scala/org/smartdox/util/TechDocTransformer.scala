@@ -9,13 +9,14 @@ import org.smartdox._
  * @since   Sep.  9, 2014
  *  version Sep.  9, 2014
  *  version Feb.  6, 2019
- * @version Jun.  7, 2025
+ *  version Jun.  7, 2025
+ * @version Jul.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 case class TechDocTransformer() {
   def transform(doc: Document): Document = {
     val head = doc.head
-    val title = doc.head.title
+    val title = doc.head.titleDefault
     val body = _build_doc(doc.body, title)
     doc.copy(body = body)
   }

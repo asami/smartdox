@@ -24,7 +24,8 @@ import org.smartdox.transformer._
  *  version Dec. 27, 2020
  *  version Jan. 17, 2021
  *  version Feb.  8, 2021
- * @version Apr. 29, 2025
+ *  version Apr. 29, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -48,7 +49,7 @@ class Dox2DomHtmlTransformer(
   def documentOut(d: Document) = {
     // println(s"Dox2DomHtmlTransform#documentOut: $d")
     val doc = _factory.document
-    val title = _get_inline(d.head.title)
+    val title = _get_inline(d.head.titleDefault)
     val h = headOut(d.head)
     val b = bodyOut(d.body, title)
     val root = _factory.element("html")
@@ -76,7 +77,7 @@ class Dox2DomHtmlTransformer(
   }
 
   private def _head_title(p: Head): Option[Element] =
-    _get_inline(p.title).map(create_element("title", _))
+    _get_inline(p.titleDefault).map(create_element("title", _))
 
   private def _head_author(p: Head): Option[Element] =
     _get_inline(p.author).map(create_element("author", _))
@@ -143,7 +144,7 @@ class Dox2DomHtmlTransformer(
 
   def delOut(p: Del): Out = _inline(p)
 
-  def hyperlinkOut(p: Hyperlink): Out = _inline(p)
+  def hyperlinkOut(p: Hyperlink): Out = _hyperlink(p)
 
   def referenceImgOut(p: ReferenceImg): Out = _inline(p)
 
@@ -225,6 +226,7 @@ class Dox2DomHtmlTransformer(
     case m: Section => _section(m)
     case m: Table => _table(m)
     case m: Li => _node(m)
+    case m: Hyperlink => _hyperlink(m)
     case m: Inline => _inline(m)
     case m: Block => _block(m)
   }
@@ -272,6 +274,13 @@ class Dox2DomHtmlTransformer(
     val xs = h +: cs
     _count_down
     _factory.element(tag, attrs, xs)
+  }
+
+  private def _hyperlink(p: Hyperlink): Node = {
+    val href = p.href
+    val contents = _inline(p.contents)
+    val attrs = Vector("href" -> href.toString)
+    _factory.element("A", attrs, contents)
   }
 
   private def _table(p: Table): Node = {

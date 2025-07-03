@@ -26,7 +26,8 @@ import org.smartdox.util.DoxUtils
  *  version Mar.  8, 2025
  *  version Apr.  6, 2025
  *  version May. 24, 2025
- * @version Jun. 16, 2025
+ *  version Jun. 16, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -623,7 +624,7 @@ object DoxLinesParser {
 
     override protected def get_List_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       // ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, NonEmptyVector(x))))
-      ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, x)))
+      ListMark.getCandidate(evt.text).map(x => transit_next(ListState(config, this, x)))
 
     override protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       TableMark.get(evt).map(x => transit_next(TableState(this, x)))
@@ -673,6 +674,7 @@ object DoxLinesParser {
   }
 
   case class ListState(
+    config: Config,
     parent: DoxLinesParseState,
     slots: NonEmptyVector[ListState.SlotGroup]
   ) extends ChildDoxLinesParseState {
@@ -686,7 +688,8 @@ object DoxLinesParser {
     }
 
     private def _result: Dox = {
-      Dox.toDox(slots.map(_.toDox))
+      val f = parse_inlines(config, _)
+      Dox.toDox(slots.map(_.toDox(f)))
       // slots.head.listElement
       // val xs = slots.map(_.doxItem)
       // slots.head.doxContainer(xs.vector)
@@ -700,7 +703,7 @@ object DoxLinesParser {
         if (slots.last.rowOffset == x.rowOffset)
           transit_next(copy(slots = _add_slot(x)))
         else if (slots.last.rowOffset < x.rowOffset)
-          transit_next(ListState(this, x))
+          transit_next(ListState(config, this, x))
         else
           parent.returnFrom(_result).apply(config, evt)
       } getOrElse {
@@ -731,15 +734,15 @@ object DoxLinesParser {
         else
           NonEmptyVector.create(this, SlotGroup(p))
 
-      def toDox: Dox = listElement match {
-        case m: Ul => Ul(_build_lis)
-        case m: Ol => Ol(_build_lis)
-        case m: Dl => Dl(_build_dtdds)
+      def toDox(f: String => List[Inline]): Dox = listElement match {
+        case m: Ul => Ul(_build_lis(f))
+        case m: Ol => Ol(_build_lis(f))
+        case m: Dl => Dl(_build_dtdds(f))
       }
 
-      private def _build_lis: Seq[Li] = slots.map(_.toLi).list
+      private def _build_lis(f: String => List[Inline]): Seq[Li] = slots.map(_.toLi(f)).list
 
-      private def _build_dtdds: List[(Dt, Dd)] = slots.map(_.toDtDd).list
+      private def _build_dtdds(f: String => List[Inline]): List[(Dt, Dd)] = slots.map(_.toDtDd(f)).list
     }
     object SlotGroup {
       def apply(p: ListMark.Candidate): SlotGroup = SlotGroup(NonEmptyVector(Slot(p)))
@@ -752,14 +755,16 @@ object DoxLinesParser {
     ) {
       def listElement = candidate.listElement
       def rowOffset = candidate.rowOffset
-      def toLi = {
-        val ts = Text(DoxUtils.concatLines(candidate.text, lines))
-        Li(ts +: children)
+      def toLi(f: String => List[Inline]) = {
+        val s = DoxUtils.concatLines(candidate.text, lines)
+        val ts = f(s)
+        Li(ts ++ children)
       }
-      def toDtDd: (Dt, Dd) = {
+      def toDtDd(f: String => List[Inline]): (Dt, Dd) = {
         val dt = Dt(candidate.term getOrElse candidate.text)
-        val a = Text(DoxUtils.concatLines(candidate.text, lines))
-        val dd = Dd(List(a))
+        val s = DoxUtils.concatLines(candidate.text, lines)
+        val a = f(s)
+        val dd = Dd(a)
         (dt, dd)
       }
       private def doxContainer(ps: Seq[Li]) = candidate.listElement match {
@@ -770,7 +775,7 @@ object DoxLinesParser {
       def addChildren(ps: Seq[ListContent]) = copy(children = children ++ ps)
     }
 
-    def apply(parent: DoxLinesParseState, p: ListMark.Candidate): ListState = ListState(parent, NonEmptyVector(SlotGroup(p)))
+    def apply(config: Config, parent: DoxLinesParseState, p: ListMark.Candidate): ListState = ListState(config, parent, NonEmptyVector(SlotGroup(p)))
   }
 
   case class ListStateOld(
@@ -1157,6 +1162,15 @@ object DoxLinesParser {
         val i = d.asInstanceOf[Inline]
         (msgs :++ ws, Some(i))
       case ParseFailure(es, ws) => (msgs :++ es :++ ws, None)
+    }
+  }
+
+  protected final def parse_inlines(c: Config, p: String): List[Inline] = {
+    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
+    result match {
+      case EmptyParseResult() => Nil
+      case ParseSuccess(ast, ws) => Dox.toInlineContents(ast)
+      case ParseFailure(es, ws) => Nil // TODO
     }
   }
 

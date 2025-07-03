@@ -1,6 +1,7 @@
 package org.smartdox.parser
 
 import scalaz._, Scalaz._, Validation._, Tree._
+import java.util.Locale
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
 import org.goldenport.context._
@@ -8,6 +9,7 @@ import org.goldenport.parser._
 import org.goldenport.config.ConfigLoader
 import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NElement
+import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
 import org.smartdox._
@@ -34,7 +36,8 @@ import Dox._
  *  version Mar.  2, 2025
  *  version Apr.  6, 2025
  *  version May. 24, 2025
- * @version Jun. 24, 2025
+ *  version Jun. 24, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -80,7 +83,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
 
   private def _distill_description(ps: Vector[Dox]): String =
     ps match {
-      case Vector(x, xs @ _*) => x.toText
+      case Vector(x, xs @ _*) => x.toPlainText
       case _ => ""
     }
 
@@ -157,7 +160,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     Section(title, dox.toList, level)
   }
 
-  private def _to_dox(p: I18NElement) = Text(p.toI18NString.en) // TODO
+  private def _to_dox(p: I18NElement) = toInline(config, p) // Text(p.toI18NString.en) // TODO
 
   private def _to_list(p: Dox): List[Dox] = p match {
     case m: Div => _normalize(m.contents)
@@ -198,6 +201,9 @@ object Dox2Parser {
     linesConfig: DoxLinesParser.Config,
     style: Config.DoxStyle
   ) extends ParseConfig {
+    def isAutoI18n: Boolean = true // AutoI18nTransformer
+    def autoI18nDelimiter = "｜"
+    def autoI18nLanguages = List(LocaleUtils.en, LocaleUtils.ja)
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
@@ -249,6 +255,8 @@ object Dox2Parser {
     level: Int = 0
   ) {
     def levelUp = copy(level = level + 1)
+
+    def isAutoI18n: Boolean = config.isAutoI18n // AutoI18nTransformer
   }
   object ParseContext {
     def now(): ParseContext = now(Config.default)
@@ -392,12 +400,12 @@ object Dox2Parser {
     private def _section(config: Config, p: LogicalSection): (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = {
       val dox = ??? // _to_list(DoxInlineParser.parse(p))
       val level = 1 // TODO
-      val title = List(_to_dox(p.title))
+      val title = List(toInline(config, p.title))
       val section = Section(title, dox, level)
       (ParseMessageSequence.empty, ParseSuccess(Dox.empty), copy(body = body :+ section))
     }
 
-    private def _to_dox(p: I18NElement) = Text(p.toI18NString.en) // TODO
+//    private def _to_dox(p: I18NElement) = Text(p.toI18NString.en) // TODO
 
     private def _to_list(p: Dox): List[Dox] = p match {
       case m: Div => _normalize(m.contents)
@@ -432,4 +440,53 @@ object Dox2Parser {
   // sealed trait ParseState {
 
   // }
+
+  def toInline(config: Config, p: I18NElement): Inline = {
+    def _make_en_ja_(p: String) = {
+      val a = p.split(config.autoI18nDelimiter).toList
+      a match {
+        case Nil => (p, p)
+        case x :: Nil => (x, x)
+        case x :: y :: _ => (x, y)
+      }
+    }
+
+    val s = p.toI18NString
+    val a = if (config.isAutoI18n) {
+      if (s.c.contains(config.autoI18nDelimiter)) {
+        val (en, ja) = _make_en_ja_(s.c)
+        s.localeMap + (LocaleUtils.en -> en, LocaleUtils.ja -> ja)
+      } else {
+        s.localeMap
+      }
+    } else {
+      s.localeMap
+    }
+    _to_inline(a)
+  }
+
+  private def _to_inline(p: Map[Locale, String]): Inline = {
+    val minimumscope = p.keySet.forall {
+      case LocaleUtils.C => true
+      case LocaleUtils.en => true
+      case LocaleUtils.ja => true
+      case _ => false
+    }
+    if (minimumscope) {
+      (p.get(LocaleUtils.en), p.get(LocaleUtils.ja)) match {
+        case (Some(en), Some(ja)) =>
+          if (en == ja) {
+            Text(en)
+          } else {
+            // I18NFragment.enja(List(Text(en)), List(Text(ja)))
+            I18NFragment.enja(en, ja)
+          }
+        case (Some(en), None) => Text(en)
+        case (None, Some(ja)) => Text(ja)
+        case (None, None) => EmptyDox
+      }
+    } else {
+      I18NFragment.createString(p)
+    }
+  }
 }

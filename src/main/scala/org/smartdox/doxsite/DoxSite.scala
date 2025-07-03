@@ -47,7 +47,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Mar.  9, 2025
  *  version Apr. 29, 2025
  *  version May. 31, 2025
- * @version Jun. 28, 2025
+ *  version Jun. 28, 2025
+ * @version Jul.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -138,16 +139,32 @@ class DoxSite(
       case Strategy.Test => _filter_test_
     }
     val xs1 = xs0.sortWith(_compare)
-    val xs = xs1 ++ _make_stub(xs1.length)
+//    val xs = xs1 ++ _make_stub(xs1.length)
+    val xs = xs1
     for ((x, i) <- xs.zipWithIndex) {
-      val ja = x.yamlString(config.locales.context(LocaleUtils.ja))
+      val ja = x.yamlString(config.localeSetting.context(LocaleUtils.ja))
       val path = f"WEB-INF/data/notice${i + 1}%02d.yaml"
       p.setContent(path, ja)
       val pathja = f"WEB-INF/data/ja/notice${i + 1}%02d.yaml"
       p.setContent(pathja, ja)
-      val en = x.yamlString(config.locales.context(LocaleUtils.en))
+      val en = x.yamlString(config.localeSetting.context(LocaleUtils.en))
       val pathen = f"WEB-INF/data/en/notice${i + 1}%02d.yaml"
       p.setContent(pathen, en)
+    }
+    val byc: Map[Category, Vector[Notice]] = xs.groupBy(_.category).flatMap {
+      case (Some(c), v) => Some(c -> v)
+      case (None, _) => None
+    }
+    for ((c, ns) <- byc) {
+      for ((x , i) <- ns.zipWithIndex) {
+        val path = c.containerString
+        val ja = x.yamlString(config.localeSetting.context(LocaleUtils.ja))
+        val pathja = f"WEB-INF/data/ja/${path}/notice${i + 1}%02d.yaml"
+        p.setContent(pathja, ja)
+        val en = x.yamlString(config.localeSetting.context(LocaleUtils.en))
+        val pathen = f"WEB-INF/data/en/${path}/notice${i + 1}%02d.yaml"
+        p.setContent(pathen, ja)
+      }
     }
     p
   }
@@ -195,7 +212,7 @@ object DoxSite {
     transformTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     outputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     strategy: Strategy = Strategy.Overview,
-    locales: Config.LocaleSetting = Config.LocaleSetting.jaen
+    localeSetting: Config.LocaleSetting = Config.LocaleSetting.jaen
   ) {
     def isAutoWire(p: Page): Boolean = strategy.isAutoWire(p)
     def isAutoI18n(p: Page): Boolean = strategy.isAutoI18n(p)
@@ -389,7 +406,7 @@ object DoxSite {
   sealed trait DocumentStrategy extends NamedValueInstance {
     def isActive: Boolean = true
     def isAutoWire: Boolean = true
-    def isAutoI18n: Boolean = true
+    def isAutoI18n: Boolean = false // Dox2Parser
     def isNotice: Boolean = true
     def isGlossary: Boolean = true
     def isLinkEnable: Boolean = true

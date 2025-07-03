@@ -13,7 +13,8 @@ import org.smartdox.generator.Context
  * @since   Feb. 25, 2025
  *  version Mar.  9, 2025
  *  version Apr. 30, 2025
- * @version Jun. 24, 2025
+ *  version Jun. 24, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -35,7 +36,7 @@ case class Page(
 ) extends Node {
   def pageId: Page.Id = RAISE.notImplementedYetDefect
 
-  lazy val title: String = Dox.getTitleString(dox) getOrElse "Unknown"
+  lazy val titleDefault: String = Dox.distillTitleStringDefault(dox) getOrElse "Unknown"
   def getMetadata: Option[DocumentMetaData] = dox match {
     case m: Document => Some(m.head.metadata)
     case m: Head => Some(m.metadata)

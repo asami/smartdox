@@ -10,7 +10,8 @@ import org.smartdox.doxsite.DoxSiteTransformer
 /*
  * @since   Apr.  7, 2025
  *  version May. 21, 2025
- * @version Jun. 28, 2025
+ *  version Jun. 28, 2025
+ * @version Jul.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class AutoI18nTransformer(
@@ -30,7 +31,7 @@ class AutoI18nTransformer(
         case x :: Nil => directive_node(m)
         case xs => directive_nodes(_make_spans(xs))
       }
-    case m: Head => directive_node(m.withTitle(_inline_contents(m.title)))
+    case m: Head => directive_node(m.withTitle(_inline_contents(m.titleDefault)))
     case m: Section => directive_node(m.copy(title = _inline_contents(m.title)))
     case _ => directive_default
   }

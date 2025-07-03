@@ -20,7 +20,8 @@ import org.smartdox.generator.Context
 /*
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
- * @version Jun. 26, 2025
+ *  version Jun. 26, 2025
+ * @version Jul.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -30,37 +31,41 @@ case class DocumentMetaData(
   description: Option[I18NFragment] = None,
   author: Option[I18NFragment] = None,
   keywords: List[String] = Nil,
-  datePublished: Option[LocalDateOrDateTime] = None,
-  dateModified: Option[LocalDateOrDateTime] = None,
+  publishedAt: Option[LocalDateOrDateTime] = None,
+  modifiedAt: Option[LocalDateOrDateTime] = None,
   kindOption: Option[DocumentMetaData.Kind] = None,
   statusOption: Option[DocumentMetaData.Status] = None
 ) {
   import DocumentMetaData._
 
-  def isEmpty = title.isEmpty && description.isEmpty && author.isEmpty && keywords.isEmpty && datePublished.isEmpty && dateModified.isEmpty
+  def isEmpty = title.isEmpty && description.isEmpty && author.isEmpty && keywords.isEmpty && publishedAt.isEmpty && modifiedAt.isEmpty
 
   def toOption = if (isEmpty) None else Some(this)
 
   def kind: DocumentMetaData.Kind = kindOption getOrElse DocumentMetaData.Kind.Article
 
   def status: DocumentMetaData.Status = statusOption getOrElse {
-    if (datePublished.nonEmpty)
+    if (publishedAt.nonEmpty)
       DocumentMetaData.Status.Published
     else
       DocumentMetaData.Status.InPreparation
   }
 
-  def getTitleString: Option[String] = title.map(_.distillString)
+  def getTitleStringDefault: Option[String] = title.map(_.distillStringDefault)
 
-  def titleString: String = getTitleString getOrElse ""
+  def titleStringDefault: String = getTitleStringDefault getOrElse ""
 
-  def getTitleInclineContents: Option[InlineContents] = title.map(_.distillInlineContents)
+  def getTitleInclineContentsDefault: Option[InlineContents] = title.map(_.distillInlineContentsDefault)
 
   def getTitleI18NString: Option[I18NString] = title.map(_.toI18NString)
+
+  def getDescriptionStringDefault: Option[String] = description.map(_.distillStringDefault)
 
   def getDescriptionI18NString: Option[I18NString] = description.map(_.toI18NString)
 
   def withTitle(p: InlineContents) = copy(title = Some(I18NFragment.create(p)))
+
+  def withDescription(p: InlineContents) = copy(description = Some(I18NFragment.create(p)))
 
   def withDescription(p: String) = copy(description = Some(I18NFragment.create(p)))
 
@@ -70,7 +75,7 @@ case class DocumentMetaData(
   )(implicit context: Context) = {
     val t = title orElse _to_title(ptitle)
     val d = _to_date(pdate)
-    val (dp, dm) = (datePublished, dateModified) match {
+    val (dp, dm) = (publishedAt, modifiedAt) match {
       case (Some(p), Some(m)) => (Some(p), Some(m))
       case (Some(p), None) => (Some(p), d)
       case (None, Some(m)) => (d, Some(m))
@@ -78,8 +83,8 @@ case class DocumentMetaData(
     }
     copy(
       title = t,
-      datePublished = dp,
-      dateModified = dm
+      publishedAt = dp,
+      modifiedAt = dm
     )
   }
 
@@ -106,22 +111,22 @@ case class DocumentMetaData(
       description orElse rhs.description,
       author orElse rhs.author,
       (keywords ::: rhs.keywords).distinct,
-      datePublished orElse rhs.datePublished,
-      dateModified orElse rhs.dateModified,
+      publishedAt orElse rhs.publishedAt,
+      modifiedAt orElse rhs.modifiedAt,
       lastMonoid(kindOption, rhs.kindOption),
       lastMonoid(statusOption, rhs.statusOption)
     )
 
   def toFlattenVector: Vector[(String, String)] =
     VectorUtils.buildTupleVector(
-      PROP_TITLE -> getTitleString,
+      PROP_TITLE -> getTitleStringDefault,
       PROP_TITLE_IMAGE -> titleImage.map(_.toString),
       PROP_CATEGORY -> category,
-      PROP_DESCRIPTION -> description.map(_.print),
+      PROP_DESCRIPTION -> getDescriptionStringDefault,
       PROP_AUTHOR -> author.map(_.print),
       PROP_KEYWORDS -> _keywords_string,
-      PROP_DATE_PUBLISHED -> datePublished.map(_to_string),
-      PROP_DATE_MODIFIED -> dateModified.map(_to_string),
+      PROP_PUBLISHED_AT -> publishedAt.map(_to_string), // TODO DatePublished
+      PROP_MODIFIED_AT -> modifiedAt.map(_to_string), // TODO DateModified
       PROP_KIND -> Some(kind.name),
       PROP_STATUS -> Some(status.name)
     )
@@ -144,13 +149,13 @@ object DocumentMetaData {
     withDefaults.withSnakeCaseMemberNames
 
   final val PROP_TITLE = "title"
-  final val PROP_TITLE_IMAGE = "titleImage"
+  final val PROP_TITLE_IMAGE = "title_image"
   final val PROP_CATEGORY = "category"
   final val PROP_DESCRIPTION = "description"
   final val PROP_AUTHOR = "author"
   final val PROP_KEYWORDS = "keywords"
-  final val PROP_DATE_PUBLISHED = "datePublished"
-  final val PROP_DATE_MODIFIED = "dateModified"
+  final val PROP_PUBLISHED_AT = "published_at"
+  final val PROP_MODIFIED_AT = "modified_at"
   final val PROP_KIND = "kind"
   final val PROP_STATUS = "status"
 
@@ -245,8 +250,8 @@ object DocumentMetaData {
       category <- hocon.cStringOption(PROP_CATEGORY)
       auth <- hocon.cStringOption(PROP_AUTHOR)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
-      published <- hocon.cLocalDateOrDateTimeOption(PROP_DATE_PUBLISHED)
-      modified <- hocon.cLocalDateOrDateTimeOption(PROP_DATE_MODIFIED)
+      published <- hocon.cLocalDateOrDateTimeOption(PROP_PUBLISHED_AT)
+      modified <- hocon.cLocalDateOrDateTimeOption(PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
     } yield {
@@ -274,6 +279,6 @@ object DocumentMetaData {
     date: InlineContents
   )(implicit ctx: DateTimeContext): DocumentMetaData = {
     val d = LocalDateOrDateTime.parse(Dox.toText(date)).take
-    DocumentMetaData(Some(I18NFragment.create(title)), datePublished = Some(d))
+    DocumentMetaData(Some(I18NFragment.create(title)), publishedAt = Some(d))
   }
 }

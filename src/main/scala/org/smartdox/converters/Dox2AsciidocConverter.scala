@@ -11,7 +11,8 @@ import org.smartdox.converter._
 /*
  * @since   Apr. 18, 2025
  *  version Apr. 29, 2025
- * @version Jun. 20, 2025
+ *  version Jun. 20, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -24,7 +25,7 @@ class Dox2AsciidocConverter(
   protected def orderd_List_Mark = "."
 
   override protected def enter_Head(p: Head): Unit =
-    p.title match {
+    p.titleDefault match {
       case Nil => // do nothing
       case xs => enter_asciidoc_section(to_text(xs))
     }
@@ -36,6 +37,14 @@ class Dox2AsciidocConverter(
 
   protected final def leave_asciidoc_section(): Unit = {
     section_down()
+  }
+
+  override protected def enter_Hyperlink(p: Hyperlink) = {
+    sb_print(s"${p.href.toString}[")
+  }
+
+  override protected def leave_Hyperlink(p: Hyperlink) = {
+    sb_print("]")
   }
 
   override protected def enter_Table(p: Table): Unit = {

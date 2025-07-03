@@ -28,7 +28,8 @@ import org.goldenport.collection.VectorMap
  *  version Dec. 31, 2018
  *  version Oct. 28, 2024
  *  version May.  4, 2025
- * @version Jun. 16, 2025
+ *  version Jun. 16, 2025
+ * @version Jul.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -131,7 +132,7 @@ class DoxParser(
   def orgmode_auto_title: Parser[Dox] = {
     head~body ^^ {
       case head~body => {
-        if (head.title.isEmpty) {
+        if (head.titleDefault.isEmpty) {
           body.contents match {
             case (x: Paragraph) :: xs => {
               if (x.contents.isEmpty || !x.contents.head.isInstanceOf[Inline]) {

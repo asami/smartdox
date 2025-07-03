@@ -26,6 +26,7 @@ import org.goldenport.hocon.HoconUtils
 import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
+import org.goldenport.i18n.I18NContext
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
@@ -77,7 +78,8 @@ import org.smartdox.generator.Context
  *  version Mar. 31, 2025
  *  version Apr. 30, 2025
  *  version May.  2, 2025
- * @version Jun. 26, 2025
+ *  version Jun. 26, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -531,6 +533,14 @@ object Dox extends UseDox {
 
   def toDox(p: GTree[Dox]): Dox = untree(p)
 
+  def toInlineContents(ps: Seq[Dox]): List[Inline] = {
+    val a = toDox(ps)
+    a match {
+      case m: Fragment => m.contents.asInstanceOf[List[Inline]]
+      case m: Inline => List(m)
+    }
+  }
+
   def toTree(p: Dox): GTree[Dox] = {
     val root: TreeNode[Dox] = toTreeNode(p)
     GTree.create[Dox](root)
@@ -810,11 +820,25 @@ object Dox extends UseDox {
       case m => List(m)
     }.toList
 
-  def getTitleString(p: Dox): Option[String] = p match {
-    case m: Document => m.head.getTitleString
-    case m: Head => m.getTitleString
+  def distillTitleStringDefault(p: Dox): Option[String] = p match {
+    case m: Document => m.head.distillTitleStringDefault
+    case m: Head => m.distillTitleStringDefault
     case _ => None
   }
+
+  def distillTitleString(p: Dox)(implicit ctx: I18NContext): Option[String] =
+    p match {
+      case m: Document => m.head.distillTitleString
+      case m: Head => m.distillTitleString
+      case _ => None
+    }
+
+  def getTitleI18NString(p: Dox): Option[I18NString] =
+    p match {
+      case m: Document => m.head.getTitleI18NString
+      case m: Head => m.getTitleI18NString
+      case _ => None
+    }
 
   def getMetadata(p: Dox): Option[DocumentMetaData] = p match {
     case m: Document => Some(m.head.metadata)
@@ -931,7 +955,7 @@ case class Head(
       }
     }
     buf.append(showOpenText)
-    showslot("title", title)
+    showslot("title", titleDefault)
     // showslot("author", author)
     showslot("date", date)
     css foreach { x =>
@@ -946,16 +970,23 @@ case class Head(
     }
   }
 
-  def title: InlineContents = metadata.getTitleInclineContents getOrElse Nil
-  def date: InlineContents = metadata.datePublished.toList.map(x => Text(x.print))
+  def title: Option[I18NFragment] = metadata.title
+  def titleDefault: InlineContents = metadata.getTitleInclineContentsDefault getOrElse Nil
+  def date: InlineContents = metadata.publishedAt.toList.map(x => Text(x.print))
   def author: InlineContents = seo.author getOrElse Nil
+  def description: Option[I18NFragment] = metadata.description
 
-  override def isOpenClose = title.isEmpty && author.isEmpty && date.isEmpty
+  def getTitleI18NString: Option[I18NString] = title.map(_.toI18NString)
 
-  def getTitleString: Option[String] = title match {
+  def distillTitleStringDefault: Option[String] = titleDefault match {
     case Nil => None
     case xs => Some(Dox.toText(xs))
   }
+
+  def distillTitleString(implicit ctx: I18NContext): Option[String] =
+    title.map(_.distillString(ctx.locale))
+
+  override def isOpenClose = titleDefault.isEmpty && author.isEmpty && date.isEmpty
 
   def toOption: Option[Head] =
     if (isEmpty)
@@ -964,6 +995,8 @@ case class Head(
       Some(this)
 
   def withTitle(ps: InlineContents) = copy(metadata = metadata.withTitle(ps))
+
+  def withDescription(ps: InlineContents) = copy(metadata = metadata.withDescription(ps))
 
   def withDescription(p: String) = copy(metadata = metadata.withDescription(p))
 
@@ -2313,11 +2346,17 @@ case class I18NFragment(
     case _ => false
   }
 
-  def apply(locale: Locale): List[Dox] = contents.apply(locale)
+  def distill(locale: Locale): List[Dox] = contents.apply(locale)
 
-  def distillString: String = Dox.toPlainText(contents.default)
+  def distillInline(locale: Locale): List[Inline] = distill(locale) map {
+    case m: Inline => m
+  }
 
-  def distillInlineContents: InlineContents = contents.default.map {
+  def distillString(locale: Locale): String = Dox.toPlainText(distillInline(locale))
+
+  def distillStringDefault: String = Dox.toPlainText(contents.default)
+
+  def distillInlineContentsDefault: InlineContents = contents.default.map {
     case m: Inline => m
   }
 
@@ -2329,7 +2368,16 @@ case class I18NFragment(
   )
 }
 object I18NFragment {
-  def create(ps: Seq[Dox]): I18NFragment = {
+  def create(ps: Seq[Dox]): I18NFragment = ps.toList match {
+    case Nil => _create_inlines(Nil)
+    case x :: Nil => x match {
+      case m: I18NFragment => m
+      case _ => _create_inlines(ps)
+    }
+    case xs => _create_inlines(xs)
+  }
+
+  private def _create_inlines(ps: Seq[Dox]): I18NFragment = {
     case class Z(
       xs: Vector[Dox] = Vector.empty,
       ls: Map[Locale, Vector[Dox]] = Map.empty
@@ -2340,18 +2388,34 @@ object I18NFragment {
         I18NFragment(I18NContainer.create(ls))
 
       def +(rhs: Dox) = rhs.getLanguage match {
-        case Some(s) => copy(ls = ls |+| Map(s -> Vector(rhs)))
-        case None => copy(
-          xs = xs :+ rhs,
-          ls = ls.keys.foldLeft(ls)((z, x) =>
-            ls |+| Map(x -> Vector(rhs)))
-        )
+        case Some(l) =>
+          ls.get(l) match {
+            case Some(v) =>
+              copy(xs = xs :+ rhs, ls = ls + (l -> (v :+ rhs)))
+            case None =>
+              copy(xs = xs :+ rhs, ls = ls + (l -> (xs :+ rhs)))
+          }
+        case None =>
+          copy(
+            xs = xs :+ rhs,
+            ls = ls.keys.foldLeft(ls)((z, x) =>
+              ls |+| Map(x -> Vector(rhs)))
+          )
       }
     }
     ps.foldLeft(Z())(_+_).r
   }
 
   def create(p: String): I18NFragment = create(List(Text(p)))
+
+  def createString(p: Map[Locale, String]): I18NFragment = {
+    val a = p.mapValues(x => List(Text(x)))
+    I18NFragment(I18NContainer.create(a))
+  }
+
+  def enja(en: String, ja: String) = I18NFragment(
+    I18NContainer.enja(List(Text(en)), List(Text(ja)))
+  )
 }
 
 case class Caption(

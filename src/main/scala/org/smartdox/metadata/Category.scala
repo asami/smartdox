@@ -11,7 +11,8 @@ import org.goldenport.util.CirceUtils.Codec._
 
 /*
  * @since   Jun. 23, 2025
- * @version Jun. 28, 2025
+ *  version Jun. 28, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Category(
@@ -20,11 +21,15 @@ case class Category(
   uri: URI,
   kind: Category.Kind = Category.Kind.Topics
 ) {
-  private lazy val _key = StringUtils.pathContainer(uri.toString)
+  private lazy val _key = StringUtils.makePathContainerRelativeBody(uri.toString)
 
   def isMatch(name: String) = _key equalsIgnoreCase name
 
   def effectiveTitle: String = title.map(_.title.en) getOrElse name.name
+
+  def containerString = _key
+
+  def containerUri: URI = new URI(containerString)
 }
 
 object Category {
@@ -88,7 +93,7 @@ object Category {
   def categoryEncoderWithLocale(locale: Locale): Encoder[Category] = Encoder.instance { c =>
     Json.obj(
       "name" -> CategoryName.nameEncoder(c.name),
-      "title" -> Json.fromString(c.title.map(_.print(locale)).getOrElse(c.name.name)),
+      "title" -> Json.fromString(c.title.map(_.distill(locale)).getOrElse(c.name.name)),
       "uri" -> uriEncoder(c.uri),
       "kind" -> Kind.kindEncoder(c.kind)
     )

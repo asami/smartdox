@@ -16,7 +16,8 @@ import org.smartdox._
  *  version Feb.  8, 2021
  *  version Nov. 22, 2024
  *  version Jan.  1, 2025
- * @version Jun. 10, 2025
+ *  version Jun. 10, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -469,7 +470,10 @@ object DoxInlineParser {
       RAISE.notImplementedYetDefect(this, s"character_State: $c")
 
     //
-    protected final def make_text(ps: Seq[Dox]): String = ps.map(_.toText).mkString
+    protected final def make_text(ps: Seq[Dox]): String = ps.map(_.toPlainText).mkString
+
+    protected final def to_transition(p: DoxInlineParseState) =
+      (ParseMessageSequence.empty, ParseResult.empty, p)
   }
 
   trait ChildDoxInlineParseState extends DoxInlineParseState {
@@ -486,6 +490,24 @@ object DoxInlineParser {
 
     protected def leave_to(dox: Dox): DoxInlineParseState = parent.returnFrom(Vector(dox))
     protected def leave_to(doxes: Seq[Dox]): DoxInlineParseState = parent.returnFrom(doxes)
+
+    protected final def leave_to_urn(urn: Seq[Inline]): DoxInlineParseState = {
+      // XXX annotation, block, figure
+      val uri = make_text(urn)
+      if (config.isImageFile(uri))
+        leave_to(ReferenceImg(uri))
+      else
+        leave_to(Hyperlink(urn, uri))
+    }
+
+    protected final def leave_to_urn(urn: Seq[Inline], label: Seq[Inline]): DoxInlineParseState = {
+      // XXX annotation, block, figure
+      val uri = make_text(urn)
+      if (config.isImageFile(uri))
+        leave_to(ReferenceImg(uri))
+      else
+        leave_to(Hyperlink(label, uri))
+    }
   }
 
   case class EndState(config: Config) extends DoxInlineParseState {
@@ -598,6 +620,8 @@ object DoxInlineParser {
     cs: Vector[Char] = Vector.empty,
     isInSpace: Boolean = false
   ) extends ChildDoxInlineParseState with InlineFeature {
+    override protected def use_parenthesis: Boolean = true
+
     protected lazy val is_match = closeChar2.map(x =>
       (evt: CharEvent) => evt.c == closeChar1 && evt.next == Some(x)
     ).getOrElse(
@@ -645,6 +669,15 @@ object DoxInlineParser {
         character_State(evt.c)
       r
     }
+
+    override protected def open_Parenthesis_State(evt: CharEvent): DoxInlineParseState =
+      character_State(evt.c)
+
+    override protected def close_Parenthesis_State(evt: CharEvent): DoxInlineParseState =
+      if (is_match(evt))
+        leave_to_inline_dox
+      else
+        character_State(evt.c)
 
     override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
       character_State(evt.c) // XXX warn?
@@ -736,6 +769,12 @@ object DoxInlineParser {
       closeChar2: Char
     ): InlineState = InlineState(parent.config, parent, closeChar1, Some(closeChar2))
 
+    def createCloseFirst(
+      parent: DoxInlineParseState,
+      closeChar: Char,
+      firstchar: Char
+    ): InlineState = InlineState(parent.config, parent, closeChar, cs = Vector(firstchar))
+
     // def create(
     //   parent: DoxInlineParseState,
     //   closeChar1: Char,
@@ -824,8 +863,10 @@ object DoxInlineParser {
     override protected def close_Bracket_State(c: Char): DoxInlineParseState =
       ???
 
-    override protected def character_State(c: Char): DoxInlineParseState =
-      InlineState(this, ']') // XXX
+    override protected def character_State(c: Char): DoxInlineParseState = {
+      val r = InlineState.createCloseFirst(MarkdownLinkUrnState(config, parent), ']', c)
+      r
+    }
   }
 
   // case class OrgModeLinkState(
@@ -859,12 +900,13 @@ object DoxInlineParser {
       InlineState(OrgModeLinkLabelState(config, parent, urn), ']', ']')
 
     override protected def close_Bracket_State(c: Char): DoxInlineParseState = {
-      // XXX annotation, block, figure
-      val uri = make_text(urn)
-      if (config.isImageFile(uri))
-        leave_to(ReferenceImg(uri))
-      else
-        leave_to(Hyperlink(urn, uri))
+      // // XXX annotation, block, figure
+      // val uri = make_text(urn)
+      // if (config.isImageFile(uri))
+      //   leave_to(ReferenceImg(uri))
+      // else
+      //   leave_to(Hyperlink(urn, uri))
+      leave_to_urn(urn)
     }
   }
   object OrgModeLinkUrnState {
@@ -880,13 +922,62 @@ object DoxInlineParser {
     urn: Seq[Inline]
   ) extends ChildDoxInlineParseState {
     override def returnInlineFrom(doxes: Seq[Inline]) = {
-      val location = None // TODO
-      val uri = make_text(urn)
-      if (config.isImageFile(uri))
-        leave_to(ReferenceImg(uri))
-      else
-        leave_to(Hyperlink(doxes, uri, location))
+      leave_to_urn(urn, doxes)
+      // val location = None // TODO
+      // val uri = make_text(urn)
+      // if (config.isImageFile(uri))
+      //   leave_to(ReferenceImg(uri))
+      // else
+      //   leave_to(Hyperlink(doxes, uri, location))
     }
+  }
+
+  case class MarkdownLinkUrnState(
+    config: Config,
+    parent: DoxInlineParseState
+  ) extends ChildDoxInlineParseState {
+    override protected def use_bracket = true
+
+    override def returnInlineFrom(doxes: Seq[Inline]) = MarkdownLinkUrnContState(config, parent, doxes)
+    // override protected def open_Bracket_State(c: Char): DoxInlineParseState =
+    //   InlineState(MarkdownLinkLabelState(config, parent, urn), ']', ']')
+
+    // override protected def close_Bracket_State(c: Char): DoxInlineParseState = {
+    //   // XXX annotation, block, figure
+    //   val uri = make_text(urn)
+    //   if (config.isImageFile(uri))
+    //     leave_to(ReferenceImg(uri))
+    //   else
+    //     leave_to(Hyperlink(urn, uri))
+    // }
+  }
+  object MarkdownLinkUrnState {
+    def apply(p: DoxInlineParseState): MarkdownLinkUrnState = MarkdownLinkUrnState(
+      p.config,
+      p
+    )
+  }
+
+  case class MarkdownLinkUrnContState(
+    config: Config,
+    parent: DoxInlineParseState,
+    urn: Seq[Inline] = Vector.empty
+  ) extends ChildDoxInlineParseState {
+    override protected def handle_char_event(evt: CharEvent): Transition =
+      evt.c match {
+        case '(' => to_transition(InlineState(MarkdownLinkLabelState(config, parent, urn), ')'))
+        case _ =>
+          leave_to_urn(urn).apply(config, evt)
+      }
+  }
+
+  case class MarkdownLinkLabelState(
+    config: Config,
+    parent: DoxInlineParseState,
+    urn: Seq[Inline]
+  ) extends ChildDoxInlineParseState {
+    override def returnInlineFrom(doxes: Seq[Inline]) =
+      leave_to_urn(urn, doxes)
   }
 
   case class BoldState(

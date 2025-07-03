@@ -16,7 +16,8 @@ import org.smartdox._
 /*
  * @since   Apr. 28, 2025
  *  version Apr. 30, 2025
- * @version Jun. 26, 2025
+ *  version Jun. 26, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -75,11 +76,11 @@ object Notices {
     def noticeEncoderRaw(implicit ctx: I18NContext): Encoder.AsObject[Notice] = Encoder.AsObject.instance { n =>
       io.circe.JsonObject.fromMap(
         Map(
-          "title" -> n.title.apply(ctx).asJson,
+          "title" -> n.title.distill(ctx).asJson,
           "title_image" -> n.titleImage.asJson,
           "category" -> n.category.asJson(Encoder.encodeOption(Category.categoryEncoderWithLocale(ctx.locale))),
           "uri" -> n.uri.asJson,
-          "description" -> n.description.apply(ctx).asJson,
+          "description" -> n.description.distill(ctx).asJson,
           "keywords" -> n.keywords.asJson,
           "published" -> n.published.asJson(Encoder.encodeOption(localdateFormatEncoder)),
           "updated" -> n.updated.asJson(Encoder.encodeOption(localdateFormatEncoder)),

@@ -7,7 +7,8 @@ import org.smartdox._
 /*
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
- * @version Jun. 18, 2025
+ *  version Jun. 18, 2025
+ * @version Jul.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -61,6 +62,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Dl => enter_dl(m)
       case m: Dt => enter_Dt(m)
       case m: Dd => enter_Dd(m)
+      case m: Hyperlink => enter_Hyperlink(m)
       case m: Table => enter_table(node, m)
       case m: THead => enter_Thead(m)
       case m: TBody => enter_Tbody(m)
@@ -113,6 +115,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Dl(p: Dl): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dl: $p")
   protected def enter_Dt(p: Dt): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dt: $p")
   protected def enter_Dd(p: Dd): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dd: $p")
+  protected def enter_Hyperlink(p: Hyperlink): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Hyperlink: $p")
   protected def enter_Table(p: Table): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Table: $p")
   protected def enter_Thead(p: THead): Unit = {}
   protected def enter_Tbody(p: TBody): Unit = {}
@@ -137,6 +140,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Dl => leave_dl(m)
       case m: Dt => leave_Dt(m)
       case m: Dd => leave_Dd(m)
+      case m: Hyperlink => leave_Hyperlink(m)
       case m: Table => leave_Table(m)
       case m: THead => leave_Thead(m)
       case m: TBody => leave_Tbody(m)
@@ -184,6 +188,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Dl(p: Dl): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dl: $p")
   protected def leave_Dt(p: Dt): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dt: $p")
   protected def leave_Dd(p: Dd): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dd: $p")
+  protected def leave_Hyperlink(p: Hyperlink): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Hyperlink: $p")
   protected def leave_Table(p: Table): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Table: $p")
   protected def leave_Thead(p: THead): Unit = {}
   protected def leave_Tbody(p: TBody): Unit = {}
