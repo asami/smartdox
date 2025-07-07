@@ -11,28 +11,31 @@ import org.smartdox.doxsite.DoxSiteTransformer
  * @since   Apr.  7, 2025
  *  version May. 21, 2025
  *  version Jun. 28, 2025
- * @version Jul.  2, 2025
+ * @version Jul.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class AutoI18nTransformer(
   context: DoxSiteTransformer.Context
 ) extends DoxHomoTreeTransformer {
-  import AutoI18nTransformer._
   val treeTransformerContext: TreeTransformer.Context[Dox] = context.doxContext
+
+  private lazy val _locale_setting = context.config.doxsiteConfig.map(_.localeSetting)
+  private val _delimiter = _locale_setting.map(_.autoI18nDelimiter) getOrElse AutoI18nTransformer.delimiter
+  private val _languages = _locale_setting.map(_.autoI18nLanguages) getOrElse AutoI18nTransformer.languages
 
   override protected def make_Node(
     node: TreeNode[Dox],
     content: Dox
   ): TreeTransformer.Directive[Dox] = content match {
     case m: Text =>
-      val a = m.contents.split(delimiter).toList
+      val a = m.contents.split(_delimiter).toList
       a match {
         case Nil => directive_node(m)
         case x :: Nil => directive_node(m)
         case xs => directive_nodes(_make_spans(xs))
       }
-    case m: Head => directive_node(m.withTitle(_inline_contents(m.titleDefault)))
-    case m: Section => directive_node(m.copy(title = _inline_contents(m.title)))
+//    case m: Head => directive_node(m.withTitle(_inline_contents(m.titleDefault)))
+//    case m: Section => directive_node(m.copy(title = _inline_contents(m.title)))
     case _ => directive_default
   }
 
@@ -43,7 +46,7 @@ class AutoI18nTransformer(
     }
 
   private def _text_i18n(p: Text): List[Inline] = {
-    val a = p.contents.split(delimiter).toList
+    val a = p.contents.split(_delimiter).toList
     a match {
       case Nil => List(p)
       case x :: Nil => List(p)
@@ -58,11 +61,11 @@ class AutoI18nTransformer(
       def +(rhs: (Locale, String)) =
         copy(xs = xs :+ Span.create(rhs._1, rhs._2))
     }
-    languages.zip(ps).foldLeft(Z())(_+_).r
+    _languages.zip(ps).foldLeft(Z())(_+_).r
   }
 }
 
 object AutoI18nTransformer {
   val delimiter = "｜"
-  val languages = List(LocaleUtils.ja, LocaleUtils.en)
+  val languages = List(LocaleUtils.en, LocaleUtils.ja)
 }

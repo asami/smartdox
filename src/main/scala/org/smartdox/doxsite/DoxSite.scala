@@ -1,6 +1,7 @@
 package org.smartdox.doxsite
 
 import scalaz.{Tree => ZTree, Category => _, _}, Scalaz._
+import scala.util.control.NonFatal
 import scala.util.matching.Regex
 import java.io.File
 import java.net.URI
@@ -48,7 +49,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Apr. 29, 2025
  *  version May. 31, 2025
  *  version Jun. 28, 2025
- * @version Jul.  2, 2025
+ * @version Jul.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -83,6 +84,7 @@ class DoxSite(
     val a = realm.merge("en", en)
     val r = a.merge("ja", ja)
     _build_notices(r)
+    _build_categories(r)
     r
   }
 
@@ -131,6 +133,7 @@ class DoxSite(
 
     val xs0 = config.strategy match {
       case Strategy.Production => _filter_production_
+      case Strategy.ProductionPreview => _filter_production_
       case Strategy.Full => _filter_full_
       case Strategy.WorkInProgress => _filter_draft_
       case Strategy.Draft => _filter_draft_
@@ -163,8 +166,21 @@ class DoxSite(
         p.setContent(pathja, ja)
         val en = x.yamlString(config.localeSetting.context(LocaleUtils.en))
         val pathen = f"WEB-INF/data/en/${path}/notice${i + 1}%02d.yaml"
-        p.setContent(pathen, ja)
+        p.setContent(pathen, en)
       }
+    }
+    p
+  }
+
+  private def _build_categories(p: Realm): Realm = {
+    for (c <- metadata.categories.categoryVector) {
+      val path = c.containerString
+      val ja = c.yamlString(config.localeSetting.context(LocaleUtils.ja))
+      val pathja = f"WEB-INF/data/ja/${path}/category.yaml"
+      p.setContent(pathja, ja)
+      val en = c.yamlString(config.localeSetting.context(LocaleUtils.en))
+      val pathen = f"WEB-INF/data/en/${path}/category.yaml"
+      p.setContent(pathen, en)
     }
     p
   }
@@ -235,6 +251,9 @@ object DoxSite {
       slots: Vector[LocaleSetting.Slot] = Vector.empty
     ) {
       def context(locale: Locale): I18NContext = slots.find(_.locale == locale).map(_.context) getOrElse RAISE.notImplementedYetDefect
+
+      def autoI18nDelimiter = "｜"
+      def autoI18nLanguages = List(LocaleUtils.en, LocaleUtils.ja)
     }
     object LocaleSetting {
       case class Slot(locale: Locale, context: I18NContext)
@@ -324,13 +343,21 @@ object DoxSite {
   object Strategy extends EnumerationClass[Strategy] {
     import DocumentMetaData._
 
-    val elements = Vector(Production, Full, WorkInProgress, Draft, Preparation, Overview, Test)
+    val elements = Vector(Production, ProductionPreview, Full, WorkInProgress, Draft, Preparation, Overview, Test)
 
     case object Production extends Strategy {
       val name = "production"
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
           case Status.Published => DocumentStrategy.Full
+          case _ => DocumentStrategy.Skip
+        }
+    }
+    case object ProductionPreview extends Strategy {
+      val name = "production-preview"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match {
+          case Status.Published => DocumentStrategy.Draft
           case _ => DocumentStrategy.Skip
         }
     }
@@ -406,7 +433,7 @@ object DoxSite {
   sealed trait DocumentStrategy extends NamedValueInstance {
     def isActive: Boolean = true
     def isAutoWire: Boolean = true
-    def isAutoI18n: Boolean = false // Dox2Parser
+    def isAutoI18n: Boolean = true // See Dox2Parser
     def isNotice: Boolean = true
     def isGlossary: Boolean = true
     def isLinkEnable: Boolean = true
@@ -551,16 +578,18 @@ object DoxSite {
         case m => _yaml_hocon(name, s)
       }
 
-    private def _yaml_category(pathname: String, name: String, s: String): List[Node] = {
+    private def _yaml_category(pathname: String, name: String, s: String): List[Node] = try {
       val index = StringUtils.changeLeafRelative(pathname, "index.html")
       implicit def decoder = Category.categoryDecoder(new URI(index))
 
       val in = InputSource(s)
       val r = for {
-        c <- ConfigLoader.loadConfig[Category](in)
-        r <- Consequence(CategoryMetaData(Node.Name(name), c))
+        c <- ConfigLoader.loadConfigFromYaml[Category](in)
+        r <- Consequence(CategoryMetaData(name, c))
       } yield List(r)
       r getOrElse Nil
+    } catch {
+      case NonFatal(e) => List(CategoryMetaData.error(name, e))
     }
 
     private def _yaml_hocon(name: String, s: String): List[Node] = {

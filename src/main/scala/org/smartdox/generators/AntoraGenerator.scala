@@ -41,7 +41,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Apr. 28, 2025
  *  version May. 23, 2025
  *  version Jun. 29, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -350,6 +350,8 @@ object AntoraGenerator {
       def canonize(ctx: Context): Component =
         copy(modules = modules.map(_.canonize(ctx)))
 
+      def isNoPages: Boolean = modules.vector.forall(_.isNoPages)
+
       def export(
         c: Realm.Cursor
       )(implicit context: Context): Unit = ExportFunction(context).apply(c)
@@ -523,17 +525,26 @@ object AntoraGenerator {
     ) {
       def isRoot = name.name == "ROOT"
 
+      def isNoPages: Boolean = ingredients.vector.forall(_.isNoPages)
+
       def canonize(ctx: Context) = copy(ingredients = ingredients.map(_.canonize(ctx)))
     }
     object Module {
       sealed trait Ingredient {
         def name: Name
-
+        def isNoPages: Boolean
         def canonize(ctx: Context): Ingredient
       }
       object Ingredient {
         case class Pages(pages: Tree[Page] = Tree.create()) extends Ingredient {
           val name = Name("pages")
+
+          lazy val isNoPages = {
+            val a = pages.collectContent {
+              case m => m
+            }
+            a.isEmpty
+          }
 
           def add(page: Page) = {
             val path = page.name.name
@@ -566,9 +577,13 @@ object AntoraGenerator {
         case class Images(realm: Realm = Realm.create()) extends Ingredient {
           val name = Name("images")
 
+          def isNoPages = true
+
           def canonize(ctx: Context) = this
         }
         case class Container(name: Name, realm: Realm = Realm.create()) extends Ingredient {
+          def isNoPages = true
+
           def canonize(ctx: Context) = this
         }
       }
@@ -657,16 +672,17 @@ object AntoraGenerator {
       def build(): Antora = {
         pushModule()
         pushComponent()
-        val pb = _build_playbook()
+        val comps = _components.filter(_is_available).toList
+        val pb = _build_playbook(comps)
         Antora(
           pb,
-          _components.toList
+          comps
         )
       }
 
-      private def _build_playbook(): Playbook = _playbook getOrElse {
+      private def _build_playbook(comps: List[Component]): Playbook = _playbook getOrElse {
         val title = config.title
-        val startpage = _components.headOption.map { x =>
+        val startpage = comps.headOption.map { x =>
           val name = x.name.name
           val file = x.homePage
           s"${x.name.name}::${file.name}"
@@ -677,21 +693,29 @@ object AntoraGenerator {
           Reference(startpage),
           url
         )
-        val content = Playbook.Content(_sources)
+        val content = Playbook.Content(_sources(comps))
 //        val redirects = Playbook.Redirects(false)
         val ui = Playbook.Ui.default
         val output = Playbook.Output.default
         Playbook(site, content, ui, output)
       }
 
-      private def _sources: List[Playbook.Content.Source] =
-        _components.toList.map { x =>
+      private def _sources(comps: List[Component]): List[Playbook.Content.Source] = {
+        comps.map { x =>
           val startpath = x.name.name
           Playbook.Content.Source(
             new URI("./docs"),
             Paths.get(startpath)
           )
         }
+      }
+
+      private def _is_available(p: Component) = {
+        if (true)
+          !p.isNoPages
+        else
+          true
+      }
 
       def setComponent(name: String, title: I18NString) = {
         _current_component.foreach { x =>

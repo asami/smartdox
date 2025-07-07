@@ -8,7 +8,7 @@ import org.smartdox._
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -56,6 +56,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Paragraph => enter_Paragraph(m)
       case m: Div => enter_Div(m)
       case m: Span => enter_Span(m)
+      case m: Bold => enter_Bold(m)
+      case m: Italic => enter_Italic(m)
       case m: Ul => enter_ul(m)
       case m: Ol => enter_ol(m)
       case m: Li => enter_Li(m)
@@ -109,6 +111,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Paragraph(p: Paragraph): Unit = {}
   protected def enter_Div(p: Div): Unit = {}
   protected def enter_Span(p: Span): Unit = {}
+  protected def enter_Bold(p: Bold): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Bold: $p")
+  protected def enter_Italic(p: Italic): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Italic: $p")
   protected def enter_Ul(p: Ul): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ul: $p")
   protected def enter_Ol(p: Ol): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ol: $p")
   protected def enter_Li(p: Li): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Li: $p")
@@ -134,6 +138,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Paragraph => leave_Paragraph(m)
       case m: Div => leave_Div(m)
       case m: Span => leave_Span(m)
+      case m: Bold => leave_Bold(m)
+      case m: Italic => leave_Italic(m)
       case m: Ul => leave_ul(m)
       case m: Ol => leave_ol(m)
       case m: Li => leave_Li(m)
@@ -182,6 +188,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Paragraph(p: Paragraph): Unit = {}
   protected def leave_Div(p: Div): Unit = {}
   protected def leave_Span(p: Span): Unit = {}
+  protected def leave_Bold(p: Bold): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Bold: $p")
+  protected def leave_Italic(p: Italic): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Italic: $p")
   protected def leave_Ul(p: Ul): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ul: $p")
   protected def leave_Ol(p: Ol): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ol: $p")
   protected def leave_Li(p: Li): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Li: $p")

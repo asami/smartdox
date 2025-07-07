@@ -6,7 +6,7 @@ import org.smartdox._
 /*
  * @since   Jun. 12, 2025
  *  version Jun. 20, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -16,6 +16,12 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   protected def unorderd_List_Mark: String
   protected def orderd_List_Mark: String
   protected def list_Indent_Space: String = "  "
+  protected def bold_open: String
+  protected def bold_close: String
+  protected def italic_open: String
+  protected def italic_close: String
+  protected def bolditalic_open: String
+  protected def bolditalic_close: String
 
   private var _list_stack: List[ListKind] = Nil
 
@@ -52,6 +58,22 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   }
 
   override def leave_Paragraph(p: Paragraph) = sb_println()
+
+  override protected def enter_Bold(p: Bold) = {
+    sb_print(bold_open)
+  }
+
+  override protected def leave_Bold(p: Bold) = {
+    sb_print(bold_close)
+  }
+
+  override protected def enter_Italic(p: Italic) = {
+    sb_print(italic_open)
+  }
+
+  override protected def leave_Italic(p: Italic) = {
+    sb_print(italic_close)
+  }
 
   override protected def enter_Ul(p: Ul) = {
     _list_stack = UlKind :: _list_stack

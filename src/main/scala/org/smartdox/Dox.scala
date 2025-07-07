@@ -27,6 +27,7 @@ import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
 import org.goldenport.i18n.I18NContext
+import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
@@ -79,7 +80,7 @@ import org.smartdox.generator.Context
  *  version Apr. 30, 2025
  *  version May.  2, 2025
  *  version Jun. 26, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -519,26 +520,35 @@ object Dox extends UseDox {
     Abbr
   )
 
-  def toDox(ps: Seq[Dox]): Dox = ps.filter {
+  def toDox(ps: Seq[Dox]): Dox =
+    _activate(ps) match {
+      case Nil => Dox.empty
+      case x :: Nil => x
+      case xs => Fragment(xs)
+    }
+
+  private def _activate(ps: Seq[Dox]): List[Dox] = ps.filter {
     case m: Div if m.contents.isEmpty => false
     case m: Span if m.contents.isEmpty => false
     case _ => true
-  }.toList match {
-    case Nil => Dox.empty
-    case x :: Nil => x
-    case xs => Fragment(xs)
-  }
+  }.toList
 
   def toDox(p: NonEmptyVector[Dox]): Dox = toDox(p.vector)
 
   def toDox(p: GTree[Dox]): Dox = untree(p)
 
-  def toInlineContents(ps: Seq[Dox]): List[Inline] = {
-    val a = toDox(ps)
-    a match {
-      case m: Fragment => m.contents.asInstanceOf[List[Inline]]
+  def toInlineContents(ps: Seq[Dox]): List[Inline] =
+    _activate(ps).flatMap {
+      case m: Fragment => toInlineContents(m)
+      case m: Block => toInlineContents(m)
       case m: Inline => List(m)
+      case m => RAISE.illegalStateFault(s"No inline: $m")
     }
+
+  def toInlineContents(p: Dox): List[Inline] = p match {
+    case m: Inline => List(m)
+    case m: Block => toInlineContents(p.elements)
+    case m => RAISE.illegalStateFault(s"No inline: $m")
   }
 
   def toTree(p: Dox): GTree[Dox] = {
@@ -1372,7 +1382,7 @@ object Bold extends Bold(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "b"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Bold =
-    Bold(body.toList)
+    Bold(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Bold(List(element))
 }
@@ -1408,7 +1418,7 @@ object Italic extends Italic(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "i"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Italic =
-    Italic(body.toList)
+    Italic(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Italic(List(element))
 }
@@ -2297,6 +2307,8 @@ case class Fragment(
 //    Success(copy(contents ::: normalize_fragment(cs)))
   }
 
+  def toInlines: List[Inline] = Dox.toInlineContents(contents)
+
   def append(p: String): Fragment = {
     contents.lastOption.map {
       case m: Text => copy(contents = contents.init :+ m.append(p))
@@ -2366,6 +2378,28 @@ case class I18NFragment(
     Dox.toPlainText(contents.ja),
     contents.map.mapValues(Dox.toPlainText)
   )
+
+  def makeInlines: List[Inline] =
+    contents.getIfNoLocale match {
+      case Some(s) => Dox.toInlineContents(s)
+      case None => _make_inlines
+    }
+
+  private def _make_inlines = {
+    case class Z(ls: Map[Locale, List[Inline]] = Map.empty) {
+      def r = {
+        ls.toList map {
+          case (l, xs) => Span.create(l, xs)
+        }
+      }
+
+      def +(rhs: (Locale, List[Dox])) = {
+        val v = Dox.toInlineContents(rhs._2)
+        copy(ls + (rhs._1 -> v))
+      }
+    }
+    contents.localeVector.foldLeft(Z())(_+_).r
+  }
 }
 object I18NFragment {
   def create(ps: Seq[Dox]): I18NFragment = ps.toList match {
@@ -2391,9 +2425,9 @@ object I18NFragment {
         case Some(l) =>
           ls.get(l) match {
             case Some(v) =>
-              copy(xs = xs :+ rhs, ls = ls + (l -> (v :+ rhs)))
+              copy(ls = ls + (l -> (v :+ rhs)))
             case None =>
-              copy(xs = xs :+ rhs, ls = ls + (l -> (xs :+ rhs)))
+              copy(ls = ls + (l -> (xs :+ rhs)))
           }
         case None =>
           copy(
@@ -2761,6 +2795,14 @@ object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
     List(Text(p)),
     VectorMap("lang" -> locale.toLanguageTag)
   )
+
+  def create(locale: Locale, p: List[Inline]): Span = Span(
+    p,
+    VectorMap("lang" -> locale.toLanguageTag)
+  )
+
+  def createEn(p: String) = create(LocaleUtils.en, p)
+  def createJa(p: String) = create(LocaleUtils.ja, p)
 }
 
 // 2025-03-03

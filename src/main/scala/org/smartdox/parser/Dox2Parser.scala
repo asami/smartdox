@@ -8,6 +8,7 @@ import org.goldenport.context._
 import org.goldenport.parser._
 import org.goldenport.config.ConfigLoader
 import org.goldenport.collection.VectorMap
+import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NElement
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
@@ -37,7 +38,7 @@ import Dox._
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 24, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -81,11 +82,15 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     ps.foldLeft(Z())(_+_).r
   }
 
-  private def _distill_description(ps: Vector[Dox]): String =
-    ps match {
-      case Vector(x, xs @ _*) => x.toPlainText
-      case _ => ""
+  private def _distill_description(ps: Vector[Dox]): List[Inline] = {
+    val a = ps.toStream.collect {
+      case m: Paragraph => m
+    }.headOption
+    a match {
+      case Some(s) => List(I18NFragment.create(Dox.toInlineContents(s)))
+      case None => Dox.toInlineContents(ps).headOption.toList
     }
+  }
 
   private def _blocks(ctx: ParseContext, p: LogicalBlocks): Vector[Dox] =
     p.blocks.flatMap(_block(ctx, _))
@@ -407,13 +412,14 @@ object Dox2Parser {
 
 //    private def _to_dox(p: I18NElement) = Text(p.toI18NString.en) // TODO
 
-    private def _to_list(p: Dox): List[Dox] = p match {
-      case m: Div => _normalize(m.contents)
-      case m: Span => _normalize(m.contents)
+    private def _to_list(config: Config, p: Dox): List[Dox] = p match {
+      case m: Div => _normalize(config, m.contents)
+      case m: Span => _normalize(config, m.contents)
+      case m: Text => toInlines(config, m)
       case m => List(m)
     }
 
-    private def _normalize(ps: List[Dox]): List[Dox] = ps.flatMap(_to_list)
+    private def _normalize(config: Config, ps: List[Dox]): List[Dox] = ps.flatMap(_to_list(config, _))
 
     private def _paragraph(config: Config, p: LogicalParagraph): (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = {
       val dox = DoxLinesParser.parse(config.linesConfig, p)
@@ -441,20 +447,18 @@ object Dox2Parser {
 
   // }
 
-  def toInline(config: Config, p: I18NElement): Inline = {
-    def _make_en_ja_(p: String) = {
-      val a = p.split(config.autoI18nDelimiter).toList
-      a match {
-        case Nil => (p, p)
-        case x :: Nil => (x, x)
-        case x :: y :: _ => (x, y)
-      }
+  def toInlines(config: Config, p: I18NElement): List[Inline] =
+    toInline(config, p) match {
+      case m: Fragment => m.toInlines
+      case m: I18NFragment => m.makeInlines
+      case m => List(m)
     }
 
+  def toInline(config: Config, p: I18NElement): Inline = {
     val s = p.toI18NString
     val a = if (config.isAutoI18n) {
       if (s.c.contains(config.autoI18nDelimiter)) {
-        val (en, ja) = _make_en_ja_(s.c)
+        val (en, ja) = _make_en_ja(config, s.c)
         s.localeMap + (LocaleUtils.en -> en, LocaleUtils.ja -> ja)
       } else {
         s.localeMap
@@ -463,6 +467,15 @@ object Dox2Parser {
       s.localeMap
     }
     _to_inline(a)
+  }
+
+  private def _make_en_ja(config: Config, p: String) = {
+    val a = p.split(config.autoI18nDelimiter).toList
+    a match {
+      case Nil => (p, p)
+      case x :: Nil => (x, x)
+      case x :: y :: _ => (x, y)
+    }
   }
 
   private def _to_inline(p: Map[Locale, String]): Inline = {
@@ -489,4 +502,26 @@ object Dox2Parser {
       I18NFragment.createString(p)
     }
   }
+
+  def toInlines(config: Config, s: Text): List[Inline] = {
+    val a = _get_inlines(config, s.contents)
+    a getOrElse List(s)
+  }
+
+  def toInlines(config: Config, s: String): List[Inline] = {
+    val a = _get_inlines(config, s)
+    a getOrElse List(Text(s))
+  }
+
+  private def _get_inlines(config: Config, s: String): Option[List[Inline]] =
+    if (config.isAutoI18n) {
+      if (s.contains(config.autoI18nDelimiter)) {
+        val (en, ja) = _make_en_ja(config, s)
+        Some(List(Span.createEn(en), Span.createJa(ja)))
+      } else {
+        None
+      }
+    } else {
+      None
+    }
 }

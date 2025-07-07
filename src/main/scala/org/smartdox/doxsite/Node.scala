@@ -14,7 +14,7 @@ import org.smartdox.generator.Context
  *  version Mar.  9, 2025
  *  version Apr. 30, 2025
  *  version Jun. 24, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -58,6 +58,12 @@ case class CategoryMetaData(
   name: Node.Name,
   category: Category
 ) extends MetaDataNode {
+}
+object CategoryMetaData {
+  def apply(name: String, c: Category): CategoryMetaData = CategoryMetaData(Node.Name(name), c)
+
+  def error(name: String, e: Throwable) =
+    CategoryMetaData(Node.Name(name), Category.error(name, e))
 }
 
 case class HoconMetaData(

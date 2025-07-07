@@ -17,7 +17,7 @@ import org.smartdox._
  *  version Nov. 22, 2024
  *  version Jan.  1, 2025
  *  version Jun. 10, 2025
- * @version Jul.  3, 2025
+ * @version Jul.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -598,16 +598,18 @@ object DoxInlineParser {
       if (cs.isEmpty)
         doxes
       else
-        doxes :+ Text(cs.mkString)
+        doxes :+ _parse(cs.mkString)
 
     protected def make_inline_dox: Vector[Inline] =
       make_dox.map {
         case m: Inline => m
-        case m => ???
+        case m => RAISE.illegalStateFault(s"No inline: $m")
       }
 
     protected def make_dox(c: Char): Vector[Dox] = 
-      doxes :+ Text((cs :+ c).mkString)
+      doxes :+ _parse((cs :+ c).mkString)
+
+    private def _parse(p: String): Dox = DoxInlineParser.parse(p)
   }
 
   case class InlineState(
