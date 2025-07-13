@@ -21,7 +21,7 @@ import org.smartdox.generator.Context
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
- * @version Jul.  2, 2025
+ * @version Jul. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -190,6 +190,7 @@ object DocumentMetaData {
 
   sealed trait Status extends NamedValueInstance {
     def noticePriority: Int
+    def noticePriorityDraft: Int = noticePriority
   }
   object Status extends EnumerationClass[Status] {
     val elements = Vector(Published, WorkInProgress, Draft, InPreparation, Inactive, Test)
@@ -237,6 +238,12 @@ object DocumentMetaData {
         None
       else
         Some(lhs.noticePriority < rhs.noticePriority)
+
+    def compareDraftOption(lhs: Option[Status], rhs: Option[Status]): Option[Boolean] =
+      if (lhs == rhs)
+        None
+      else
+        OptionUtils.compareDescOption(lhs.map(_.noticePriorityDraft), rhs.map(_.noticePriorityDraft))
   }
 
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =

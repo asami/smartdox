@@ -8,7 +8,7 @@ import org.smartdox._
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
- * @version Jul.  4, 2025
+ * @version Jul. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -175,9 +175,13 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   }
 
   protected def leave_ol(p: Ol): Unit = {
+    leave_Ol(p)
+    list_down()
   }
 
   protected def leave_dl(p: Dl): Unit = {
+    leave_Dl(p)
+    list_down()
   }
 
   protected def leave_table(p: Table): Unit = {

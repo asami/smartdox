@@ -12,7 +12,7 @@ import org.smartdox.converter._
  * @since   Apr. 18, 2025
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
- * @version Jul.  4, 2025
+ * @version Jul. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -23,6 +23,8 @@ class Dox2AsciidocConverter(
   protected def section_Mark = "="
   protected def unorderd_List_Mark = "*"
   protected def orderd_List_Mark = "."
+  protected def definition_List_Term_Mark = ""
+  protected def definition_List_Definition_Mark = "::"
   protected def bold_open = "*"
   protected def bold_close = "*"
   protected def italic_open = "_"

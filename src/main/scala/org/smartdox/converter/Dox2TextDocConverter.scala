@@ -6,16 +6,19 @@ import org.smartdox._
 /*
  * @since   Jun. 12, 2025
  *  version Jun. 20, 2025
- * @version Jul.  4, 2025
+ * @version Jul. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
   import Dox2TextDocConverter._
 
+  protected def is_newline_dt_dd: Boolean = false
   protected def section_Mark: String
   protected def unorderd_List_Mark: String
   protected def orderd_List_Mark: String
   protected def list_Indent_Space: String = "  "
+  protected def definition_List_Term_Mark: String
+  protected def definition_List_Definition_Mark: String
   protected def bold_open: String
   protected def bold_close: String
   protected def italic_open: String
@@ -30,12 +33,20 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
 
   protected final def sb_list_bar(mark: String): Unit = {
     sb_print(list_bar(mark))
-    sb_print_space
+    sb_print_space()
   }
 
   protected final def sb_list_indent(mark: String): Unit = {
     sb_print(list_indent(mark, list_Indent_Space))
-    sb_print_space
+    sb_print_space()
+  }
+
+  protected final def sb_list_term_bar(mark: String): Unit = {
+  }
+
+  protected final def sb_list_definition_bar(mark: String): Unit = {
+    sb_print(mark)
+    sb_print_space()
   }
 
   override def stay(node: TreeNode[Dox], index: Int, prev: TreeNode[Dox], next: TreeNode[Dox]): Unit = {
@@ -43,6 +54,8 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     def b = (prev.getContent, next.getContent) match {
       case (Some(p), Some(n)) => (p, n) match {
         case (mp: Li, mn: Li) => false
+        case (mp: Dt, mn: Dd) => is_newline_dt_dd
+        case (mp: Dd, mn: Dt) => is_newline_dt_dd
         case _ => p.isVisialBlock || n.isVisialBlock
       }
       case _ => false
@@ -87,6 +100,7 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     _list_stack.head match {
       case UlKind => sb_list_bar(unorderd_List_Mark)
       case OlKind => sb_list_bar(orderd_List_Mark)
+      case DlKind => sb_list_bar(unorderd_List_Mark)
     }
   }
 
@@ -106,10 +120,34 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     if (p.contents.length <= 1)
       sb_println()
   }
+
+  override protected def enter_Dl(p: Dl) = {
+    _list_stack = DlKind :: _list_stack
+  }
+
+  override protected def enter_Dt(p: Dt) = {
+    sb_list_term_bar(definition_List_Term_Mark)
+  }
+
+  override protected def enter_Dd(p: Dd) = {
+    sb_list_definition_bar(definition_List_Definition_Mark)
+  }
+
+  override protected def leave_Dt(p: Dt) = {
+  }
+
+  override protected def leave_Dd(p: Dd) = {
+    sb_println()
+  }
+
+  override protected def leave_Dl(p: Dl) = {
+    _list_stack = _list_stack.tail
+  }
 }
 
 object Dox2TextDocConverter {
   sealed trait ListKind
   case object UlKind extends ListKind
   case object OlKind extends ListKind
+  case object DlKind extends ListKind
 }

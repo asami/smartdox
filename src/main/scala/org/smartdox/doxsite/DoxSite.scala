@@ -49,7 +49,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Apr. 29, 2025
  *  version May. 31, 2025
  *  version Jun. 28, 2025
- * @version Jul.  7, 2025
+ * @version Jul. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -185,9 +185,37 @@ class DoxSite(
     p
   }
 
-  private def _compare(lhs: Notice, rhs: Notice): Boolean = {
+  private def _compare(lhs: Notice, rhs: Notice): Boolean =
+    config.strategy match {
+      case Strategy.WorkInProgress => _compare_draft(lhs, rhs)
+      case Strategy.Draft => _compare_draft(lhs, rhs)
+      case _ => _compare_default(lhs, rhs)
+    }
+
+  private def _compare_default(lhs: Notice, rhs: Notice): Boolean = {
     def _compare_status_option_(): Option[Boolean] =
       DocumentMetaData.Status.compareOption(lhs.status, rhs.status)
+
+    def _compare_updated_option_(): Option[Boolean] =
+      if (lhs.updated == rhs.updated)
+        None
+      else
+        LocalDateUtils.compareDescOption(lhs.updated, rhs.updated)
+
+    def _compare_published_option_(): Option[Boolean] = 
+      if (lhs.published == rhs.published)
+        None
+      else
+        LocalDateUtils.compareDescOption(lhs.published, rhs.published)
+
+    _compare_status_option_ orElse
+    _compare_updated_option_ orElse
+    _compare_published_option_ getOrElse false
+  }
+
+  private def _compare_draft(lhs: Notice, rhs: Notice): Boolean = {
+    def _compare_status_option_(): Option[Boolean] =
+      DocumentMetaData.Status.compareDraftOption(lhs.status, rhs.status)
 
     def _compare_updated_option_(): Option[Boolean] =
       if (lhs.updated == rhs.updated)
@@ -373,7 +401,7 @@ object DoxSite {
       val name ="work-in-progress"
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
-          case Status.Published => DocumentStrategy.Skip
+          case Status.Published => DocumentStrategy.Draft
           case Status.WorkInProgress => DocumentStrategy.Full
           case Status.Draft => DocumentStrategy.Draft
           case Status.InPreparation => DocumentStrategy.Skip
@@ -385,7 +413,7 @@ object DoxSite {
       val name ="draft"
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
-          case Status.Published => DocumentStrategy.Skip
+          case Status.Published => DocumentStrategy.Draft
           case Status.WorkInProgress => DocumentStrategy.Draft
           case Status.Draft => DocumentStrategy.Draft
           case Status.InPreparation => DocumentStrategy.Skip
