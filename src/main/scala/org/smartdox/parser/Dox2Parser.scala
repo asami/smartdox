@@ -12,9 +12,12 @@ import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NElement
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
+import org.goldenport.io.FileTextResolver
+import org.goldenport.tree._
 import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.transformer._
 import Dox._
 
 /*
@@ -38,7 +41,7 @@ import Dox._
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 24, 2025
- * @version Jul.  5, 2025
+ * @version Jul. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -60,7 +63,11 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   def apply(blocks: LogicalBlocks): ParseResult[Document] = {
     val xs = _blocks(context, blocks)
     // println(s"Dox2Parser#apply ${blocks} => $xs")
-    _create(xs)
+    val a = _create(xs)
+    if (context.isResolve)
+      a.map(_resolve)
+    else
+      a
   }
 
   private def _create(ps: Vector[Dox]) = {
@@ -194,6 +201,13 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     val attrs = VectorMap.empty[String, String]
     Program(cs, attrs, p.location)
   }
+
+  private def _resolve(p: Document): Document = {
+    val ttc = context.treeTransformerContext
+    val drc = DoxResolver.Context(context)
+    val resolver = new Resolver(ttc, drc)
+    Dox.transformDocument(p, resolver)
+  }
 }
 
 object Dox2Parser {
@@ -209,6 +223,7 @@ object Dox2Parser {
     def isAutoI18n: Boolean = true // AutoI18nTransformer
     def autoI18nDelimiter = "｜"
     def autoI18nLanguages = List(LocaleUtils.en, LocaleUtils.ja)
+    def isResolve: Boolean = true
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
@@ -257,11 +272,17 @@ object Dox2Parser {
   case class ParseContext(
     config: Config,
     dateTimeContext: DateTimeContext,
-    level: Int = 0
+    level: Int = 0,
+    treeTransformerContext: TreeTransformer.Context[Dox] = TreeTransformer.Context.default,
+    fileTextResolverContext: FileTextResolver.Context = FileTextResolver.Context.default
   ) {
     def levelUp = copy(level = level + 1)
 
     def isAutoI18n: Boolean = config.isAutoI18n // AutoI18nTransformer
+    def isResolve: Boolean = config.isResolve
+
+    def withParameters(params: FileTextResolver.Parameters) =
+      copy(fileTextResolverContext = fileTextResolverContext.withParameters(params))
   }
   object ParseContext {
     def now(): ParseContext = now(Config.default)
@@ -432,6 +453,23 @@ object Dox2Parser {
   }
   object RootState {
     val init = RootState(Head(), Vector.empty)
+  }
+
+  class Resolver(
+    val treeTransformerContext: TreeTransformer.Context[Dox],
+    val resolverContext: DoxResolver.Context
+  ) extends DoxHomoTreeTransformer {
+    private val _resolver = new DoxResolver(resolverContext)
+
+    override protected def make_Node(
+      node: TreeNode[Dox],
+      content: Dox
+    ): TreeTransformer.Directive[Dox] = content match {
+      case m: Include =>
+        val a = _resolver.resolve(m.directive).foldConclusion(Error(_))
+        directive_node(a)
+      case m => directive_default
+    }
   }
 
   // case class ParseError()

@@ -19,6 +19,7 @@ import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.tree.TreeVisitor
 import org.goldenport.tree.ControlTreeNode
 import org.goldenport.realm.Realm
+import org.goldenport.realm.Realm.FileData
 import org.goldenport.realm.RealmTransformer
 import org.goldenport.value._
 import org.goldenport.collection.NonEmptyVector
@@ -49,7 +50,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Apr. 29, 2025
  *  version May. 31, 2025
  *  version Jun. 28, 2025
- * @version Jul. 10, 2025
+ * @version Jul. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -537,7 +538,7 @@ object DoxSite {
         case Realm.EmptyData => TreeTransformer.Directive.Default[Node]
         case m: Realm.StringData => _build_file(node, m)
         case m: Realm.UrlData => TreeTransformer.Directive.Default[Node]
-        case m: Realm.FileData => ??? // TreeTransformer.Directive.Default[Node]
+        case m: Realm.FileData => directive_leaf(ImageNode(Node.Name(newname), m.file))
         case m: Realm.BagData => TreeTransformer.Directive.Default[Node]
         case m: Realm.ObjectData => TreeTransformer.Directive.Default[Node]
         case m: Realm.ApplicationData => TreeTransformer.Directive.Default[Node]
@@ -643,6 +644,7 @@ object DoxSite {
           case "md" => s"${p.nameBody}.dox"
           case "markdown" => s"${p.nameBody}.dox"
           case "yaml" => s"${p.nameBody}.yaml"
+          case "png" => s"${p.nameBody}.png"
         }
       }
     }
@@ -670,6 +672,7 @@ object DoxSite {
       content match {
         case m: Page => _to_html(m) // TreeTransformer.Directive.Content(m.toRealmData)
         case m: MetaDataNode => directive_empty
+        case m: ImageNode => directive_leaf(FileData(m.file))
       }
     }
 

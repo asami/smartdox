@@ -12,7 +12,7 @@ import org.smartdox.converter._
  * @since   Apr. 18, 2025
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
- * @version Jul. 13, 2025
+ * @version Jul. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -20,6 +20,7 @@ class Dox2AsciidocConverter(
 ) extends Dox2TextDocConverter {
   import Dox2AsciidocConverter._
 
+  protected override def is_ignore_img_in_figure = true
   protected def section_Mark = "="
   protected def unorderd_List_Mark = "*"
   protected def orderd_List_Mark = "."
@@ -53,6 +54,29 @@ class Dox2AsciidocConverter(
 
   override protected def leave_Hyperlink(p: Hyperlink) = {
     sb_print("]")
+  }
+
+  override protected def enter_Figure(p: Figure): Unit = {
+    sb_print(".")
+    sb_print(p.caption.contents)
+    sb_println("")
+    sb_print("image::")
+    if (false)
+      sb_print("_")
+    sb_print(_normalize_src(p.img.src))
+    sb_println("[]")
+    sb_println()
+  }
+
+  private def _normalize_src(p: URI): String = {
+    val s = p.toString
+    if (s.startsWith("images/"))
+      s.substring("images/".length)
+    else
+      s
+  }
+
+  override protected def leave_Figure(p: Figure): Unit = {
   }
 
   override protected def enter_Table(p: Table): Unit = {

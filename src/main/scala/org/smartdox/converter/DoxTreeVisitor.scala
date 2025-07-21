@@ -8,12 +8,17 @@ import org.smartdox._
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
- * @version Jul. 13, 2025
+ * @version Jul. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
+  protected def is_ignore_img_in_figure: Boolean = false
   private var _section: Int = 0
   private var _list_depth = 0
+  private var _is_in_figure: Boolean = false
+
+  protected final def is_uninvoke_img = is_ignore_img_in_figure && _is_in_figure
+  protected final def is_invoke_img = !is_uninvoke_img
 
   protected final def section_up(): Int = {
     _section = _section + 1
@@ -51,6 +56,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected final def to_text(ps: Seq[Dox]): String = Dox.toText(ps)
 
  override final  protected def enter_Content(node: TreeNode[Dox], content: Dox): Unit =
+   if (is_invoke_img)
+     _enter_content(node, content)
+
+  private def _enter_content(node: TreeNode[Dox], content: Dox): Unit =
     content match {
       case m: Text => enter_Text(m)
       case m: Paragraph => enter_Paragraph(m)
@@ -65,6 +74,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Dt => enter_Dt(m)
       case m: Dd => enter_Dd(m)
       case m: Hyperlink => enter_Hyperlink(m)
+      case m: Figure => enter_figure(m)
+      case m: Figcaption => enter_figcaption(m)
+      case m: Img => enter_img(m)
       case m: Table => enter_table(node, m)
       case m: THead => enter_Thead(m)
       case m: TBody => enter_Tbody(m)
@@ -102,6 +114,19 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     enter_Dl(p)
   }
 
+  protected def enter_figure(p: Figure): Unit = {
+    enter_Figure(p)
+    _is_in_figure = true
+  }
+
+  protected def enter_figcaption(p: Figcaption): Unit = {
+    enter_Figcaption(p)
+  }
+
+  protected def enter_img(p: Img): Unit = {
+    enter_Img(p)
+  }
+
   protected def enter_table(node: TreeNode[Dox], p: Table): Unit = {
     enter_Table(p)
     done_traverse(node)
@@ -120,6 +145,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Dt(p: Dt): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dt: $p")
   protected def enter_Dd(p: Dd): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dd: $p")
   protected def enter_Hyperlink(p: Hyperlink): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Hyperlink: $p")
+  protected def enter_Figure(p: Figure): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Figure: $p")
+  protected def enter_Figcaption(p: Figcaption): Unit = {}
+  protected def enter_Img(p: Img): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Img: $p")
   protected def enter_Table(p: Table): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Table: $p")
   protected def enter_Thead(p: THead): Unit = {}
   protected def enter_Tbody(p: TBody): Unit = {}
@@ -133,6 +161,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Body(p: Body): Unit = {}
 
   override final protected def leave_Content(node: TreeNode[Dox], content: Dox): Unit =
+    if (is_invoke_img)
+      _leave_content(node, content)
+    else
+      _leave_content_figure(node, content)
+
+  private def _leave_content(node: TreeNode[Dox], content: Dox): Unit =
     content match {
       case m: Text => leave_Text(m)
       case m: Paragraph => leave_Paragraph(m)
@@ -147,7 +181,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Dt => leave_Dt(m)
       case m: Dd => leave_Dd(m)
       case m: Hyperlink => leave_Hyperlink(m)
-      case m: Table => leave_Table(m)
+      case m: Figure => leave_figure(m)
+      case m: Figcaption => leave_figcaption(m)
+      case m: Img => leave_img(m)
+      case m: Table => leave_table(m)
       case m: THead => leave_Thead(m)
       case m: TBody => leave_Tbody(m)
       case m: TFoot => leave_Tfoot(m)
@@ -160,6 +197,13 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Body => leave_Body(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
+
+  private def _leave_content_figure(node: TreeNode[Dox], content: Dox): Unit =
+    content match {
+      case m: Figure => leave_figure(m)
+      case m => {}
+    }
+
 
   protected def leave_section(node: TreeNode[Dox], p: Section): Unit = {
     leave_Section(p)
@@ -184,6 +228,21 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     list_down()
   }
 
+  protected def leave_figure(p: Figure): Unit = {
+    leave_Figure(p)
+    _is_in_figure = false
+  }
+
+  protected def leave_figcaption(p: Figcaption): Unit = {
+    if (is_invoke_img)
+      leave_Figcaption(p)
+  }
+
+  protected def leave_img(p: Img): Unit = {
+    if (is_invoke_img)
+      leave_Img(p)
+  }
+
   protected def leave_table(p: Table): Unit = {
     leave_Table(p)
   }
@@ -192,16 +251,19 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Paragraph(p: Paragraph): Unit = {}
   protected def leave_Div(p: Div): Unit = {}
   protected def leave_Span(p: Span): Unit = {}
-  protected def leave_Bold(p: Bold): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Bold: $p")
-  protected def leave_Italic(p: Italic): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Italic: $p")
-  protected def leave_Ul(p: Ul): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ul: $p")
-  protected def leave_Ol(p: Ol): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ol: $p")
-  protected def leave_Li(p: Li): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Li: $p")
-  protected def leave_Dl(p: Dl): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dl: $p")
-  protected def leave_Dt(p: Dt): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dt: $p")
-  protected def leave_Dd(p: Dd): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dd: $p")
-  protected def leave_Hyperlink(p: Hyperlink): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Hyperlink: $p")
-  protected def leave_Table(p: Table): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Table: $p")
+  protected def leave_Bold(p: Bold): Unit = {}
+  protected def leave_Italic(p: Italic): Unit = {}
+  protected def leave_Ul(p: Ul): Unit = {}
+  protected def leave_Ol(p: Ol): Unit = {}
+  protected def leave_Li(p: Li): Unit = {}
+  protected def leave_Dl(p: Dl): Unit = {}
+  protected def leave_Dt(p: Dt): Unit = {}
+  protected def leave_Dd(p: Dd): Unit = {}
+  protected def leave_Hyperlink(p: Hyperlink): Unit = {}
+  protected def leave_Figure(p: Figure): Unit = {}
+  protected def leave_Figcaption(p: Figcaption): Unit = {}
+  protected def leave_Img(p: Img): Unit = {}
+  protected def leave_Table(p: Table): Unit = {}
   protected def leave_Thead(p: THead): Unit = {}
   protected def leave_Tbody(p: TBody): Unit = {}
   protected def leave_Tfoot(p: TFoot): Unit = {}

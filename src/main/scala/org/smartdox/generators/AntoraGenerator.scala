@@ -7,6 +7,7 @@ import java.nio.file.{Paths, Path}
 import org.goldenport.RAISE
 import org.goldenport.realm.Realm
 import org.goldenport.realm.Realm.{Data, ObjectData, StringData}
+import org.goldenport.realm.Realm.FileData
 import org.goldenport.realm.RealmMaker
 import org.goldenport.tree.Tree
 import org.goldenport.tree.TreeNode
@@ -30,6 +31,7 @@ import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator._
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page, MetaDataNode}
+import org.smartdox.doxsite.ImageNode
 import org.smartdox.metadata.MetaData
 import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.transformers.LanguageFilterTransformer
@@ -41,7 +43,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Apr. 28, 2025
  *  version May. 23, 2025
  *  version Jun. 29, 2025
- * @version Jul.  6, 2025
+ * @version Jul. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -407,7 +409,18 @@ object AntoraGenerator {
         }
 
         private def _export_images(c: Realm.Cursor, p: Module.Ingredient.Images) = {
-          c.merge(p.name.name, p.realm)
+          val tf = new RealmMaker.Transformer[ImageNode] {
+            def treeTransformerContext = context_realm
+
+            override protected def make_Node(
+              node: TreeNode[ImageNode],
+              content: ImageNode
+            ): TreeTransformer.Directive[Realm.Data] = {
+              directive_leaf(node.name, FileData(content.file))
+            }
+          }
+          val realm = RealmMaker.make(p.images, tf)
+          c.merge(p.name.name, realm)
         }
 
         private def _export_container(c: Realm.Cursor, p: Module.Ingredient.Container) =
@@ -574,12 +587,18 @@ object AntoraGenerator {
             copy(pages = a)
           }
         }
-        case class Images(realm: Realm = Realm.create()) extends Ingredient {
+        case class Images(images: Tree[ImageNode] = Tree.create()) extends Ingredient {
           val name = Name("images")
 
           def isNoPages = true
 
           def canonize(ctx: Context) = this
+
+          def add(image: ImageNode) = {
+            val path = image.name.name
+            images.setContent(path, image)
+            this
+          }
         }
         case class Container(name: Name, realm: Realm = Realm.create()) extends Ingredient {
           def isNoPages = true
@@ -617,6 +636,7 @@ object AntoraGenerator {
             def +(rhs: Node) = rhs match {
               case m: Page => copy(pages = pages add m)
               case m: MetaDataNode => this
+              case m: ImageNode => copy(images = images add m)
             }
           }
           _nodes.foldLeft(Z())(_+_).r
@@ -789,32 +809,45 @@ object AntoraGenerator {
     config: Builder.Config
   ) extends TreeVisitor[Node] {
     private var _depth: Int = 0
+    private var _in_images: Boolean = false
     private val _antora = new Antora.Builder(Antora.Builder.Config.default)
+
+    private def _effective_depth: Int =
+      if (_in_images)
+        _depth - 1
+      else
+        _depth
 
     def build(): Antora = _antora.build()
 
-    override def enter(node: TreeNode[Node]) = node.getContent match {
-      case Some(s) => _depth match {
-        case 0 => _at_home(node, s)
-        case 1 => _at_component(node, s)
-        case 2 => _at_module(node, s)
-        case _ => _at_ingredient(node, s)
-      }
-      case None =>
-        _depth match {
-          case 0 => _at_home(node)
-          case 1 => _at_component(node)
-          case 2 => _at_module(node)
-          case _ => _at_ingredient(node)
+    override def enter(node: TreeNode[Node]) = {
+      node.getContent match {
+        case Some(s) => _effective_depth match {
+          case 0 => _at_home(node, s)
+          case 1 => _at_component(node, s)
+          case 2 => _at_module(node, s)
+          case _ => _at_ingredient(node, s)
         }
-        _depth = _depth + 1
+        case None =>
+          _effective_depth match {
+            case 0 => _at_home(node)
+            case 1 => _at_component(node)
+            case 2 => _at_module(node)
+            case _ => _at_ingredient(node)
+          }
+      }
+      _depth = _depth + 1
+      if (_is_images(node))
+        _in_images = true
     }
 
     private def _at_home(node: TreeNode[Node]): Unit = _antora.setComponent(node.name, _category_title(node.name))
 
     private def _at_home(node: TreeNode[Node], c: Node): Unit = {}
 
-    private def _at_component(node: TreeNode[Node]): Unit = _antora.setModule(node.name)
+    private def _at_component(node: TreeNode[Node]): Unit =
+      if (!_is_images(node))
+        _antora.setModule(node.name)
 
     private def _at_component(node: TreeNode[Node], c: Node): Unit = _antora.addNode(c)
 
@@ -825,16 +858,20 @@ object AntoraGenerator {
     private def _at_ingredient(node: TreeNode[Node]): Unit = RAISE.notImplementedYetDefect
     private def _at_ingredient(node: TreeNode[Node], c: Node): Unit = RAISE.notImplementedYetDefect
 
-    override def leave(node: TreeNode[Node]) = node.getContent match {
-      case Some(s) => {}
-      case None =>
-        _depth = _depth - 1
-        _depth match {
-          case 0 => _return_to_home(node)
-          case 1 => _return_to_component(node)
-          case 2 => _return_to_module(node)
+    override def leave(node: TreeNode[Node]) = {
+      _depth = _depth - 1
+      if (_is_images(node))
+        _in_images = false
+      node.getContent match {
+        case Some(s) => {}
+        case None =>
+          _effective_depth match {
+            case 0 => _return_to_home(node)
+            case 1 => _return_to_component(node)
+            case 2 => _return_to_module(node)
           case _ => _return_to_ingredient(node)
-        }
+          }
+      }
     }
 
     private def _return_to_home(node: TreeNode[Node]): Unit = _antora.pushComponent()
@@ -844,6 +881,8 @@ object AntoraGenerator {
 
     private def _category_title(name: String): I18NString =
       I18NString(config.categoryTitle(name))
+
+    private def _is_images(node: TreeNode[Node]) = node.name == "images"
   }
   object Builder {
     case class Config(

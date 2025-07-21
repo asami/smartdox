@@ -14,7 +14,8 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Jun.  9, 2024
  *  version May. 10, 2024
  *  version Sep.  5, 2024
- * @version Oct. 23, 2024
+ *  version Oct. 23, 2024
+ * @version Jul. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -117,6 +118,34 @@ curl "http://localhost:9000/acm/rest/api/2.1c/appresource?app_resource_kind=PALS
 """
       val result = Dox2Parser.parse(s)
       print(result)
+    }
+    "Image" which {
+      "simple" ignore {
+        parse_orgmode_simple("[[image/simple.png]]", """<p><img src="image/simple.png"/></p>""")
+      }
+    }
+    "Figure" which {
+      "simple" ignore {
+        parse_orgmode_simple(
+          """#+CAPTION: Figure
+[[image/simple.png]]""",
+          """<figure><img src="image/simple.png"/><figcaption>Figure</figcaption></figure>"""
+        )
+      }
+    }
+    "Include" which {
+      "asciidoc style" in {
+        parse_orgmode_simple(
+          """include::src/test/resource/min.dox[]""",
+          """<p>X</p>"""
+        )
+      }
+      "orgmode style" in {
+        parse_orgmode_simple(
+          """#+INCLUDE: src/test/resource/min.dox""",
+          """<p>X</p>"""
+        )
+      }
     }
   }
 }

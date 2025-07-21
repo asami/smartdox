@@ -3,10 +3,16 @@ package org.smartdox.parser
 import scalaz._, Scalaz._
 import org.goldenport.RAISE
 import org.goldenport.Strings
+import org.goldenport.context.Consequence
 import org.goldenport.parser._
 import org.goldenport.parser.LogicalBlock.{VerbatimMarkClass, VerbatimMark}
 import org.goldenport.collection.{NonEmptyVector, VectorMap}
+import org.goldenport.value._
+// import org.goldenport.values.NumberRange
+import org.goldenport.io.FileTextResolver
 import org.goldenport.util.VectorUtils
+import org.goldenport.util.NumberUtils
+import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.util.DoxUtils
 
@@ -27,7 +33,7 @@ import org.smartdox.util.DoxUtils
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 16, 2025
- * @version Jul.  3, 2025
+ * @version Jul. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -221,6 +227,11 @@ object DoxLinesParser {
     location: Option[ParseLocation]
   ) extends AnnotationMark {
   }
+  case class IncludeAnnotation(
+    uri: String,
+    location: Option[ParseLocation]
+  ) extends AnnotationMark {
+  }
   case class AttrHtmlAnnotation(
     text: String, // TODO
     location: Option[ParseLocation]
@@ -398,6 +409,8 @@ object DoxLinesParser {
           val (m, d) = parse_inline(config, value)
           // TODO warn
           CaptionAnnotation(d.toList, location)
+        case "include" =>
+          IncludeAnnotation(value, location)
         case "label" => LabelAnnotation(value, location)
         case "attr_html" => AttrHtmlAnnotation(value, location)
         case "attr_latex" => AttrLatexAnnotation(value, location)
@@ -414,6 +427,229 @@ object DoxLinesParser {
             GenericAnnotation(key, value, location)
       }
     }
+  }
+
+  sealed trait BlockMacro {
+    def target: String
+    def attrs: Map[String, String]
+    def location: Option[ParseLocation]
+  }
+  object BlockMacro {
+    case class Broken(
+      name: String,
+      target: String,
+      attrs: Map[String, String],
+      location: Option[ParseLocation]
+    ) extends BlockMacro {
+    }
+    object Broken {
+      // def apply(p: LogicalLine): Broken = Broken(
+      //   p.text,
+      //   p.location
+      // )
+    }
+    case class Include(
+      target: String,
+      attrs: Map[String, String],
+      parameters: FileTextResolver.Parameters,
+      location: Option[ParseLocation]
+    ) extends BlockMacro {
+    }
+    object Include {
+    //   case class Parameters(
+    //     leveloffset: Option[Int],
+    //     lines: Option[NumberRange],
+    //     tag: Option[String],
+    //     tags: Option[NonEmptyVector[String]],
+    //     indent: Option[String],
+    //     encoding: Option[String],
+    //     options: Option[NonEmptyVector[Opt]],
+    //     substitutes: Option[NonEmptyVector[Sub]]
+    //   )
+    //   object Parameters {
+    //     def parse(attrs: Map[String, String]): Consequence[Parameters] = {
+    //       for {
+    //         leveloffset <- _parse_int(attrs.get("lineoffset"))
+    //         lines <- _parse_range(attrs.get("lines"))
+    //         tag <- _parse_string(attrs.get("tag"))
+    //         tags <- _parse_string_list(attrs.get("tags"))
+    //         indent <- _parse_string(attrs.get("indent"))
+    //         encoding <- _parse_string(attrs.get("encoding"))
+    //         options <- _parse_options(attrs.get("opts"))
+    //         substitutes <- _parse_substitutes(attrs.get("subs"))
+    //       } yield Parameters(
+    //         leveloffset,
+    //         lines,
+    //         tag,
+    //         tags,
+    //         indent,
+    //         encoding,
+    //         options,
+    //         substitutes
+    //       )
+    //     }
+
+    //     private def _parse_int(p: Option[String]): Consequence[Option[Int]] =
+    //       p match {
+    //         case Some(s) => NumberUtils.consequenceInt(s).map(Some(_))
+    //         case None => Consequence.none[Option[Int]]
+    //       }
+
+    //     private def _parse_string(p: Option[String]): Consequence[Option[String]] =
+    //       p match {
+    //         case Some(s) => Consequence.success(Some(s))
+    //         case None => Consequence.none[Option[String]]
+    //       }
+
+    //     private def _parse_string_list(p: Option[String]): Consequence[Option[NonEmptyVector[String]]] =
+    //       p match {
+    //         case Some(s) => Consequence(StringUtils.makeOptionNonEmptyVectorToken(s))
+    //         case None => Consequence.none[Option[NonEmptyVector[String]]]
+    //       }
+
+    //     private def _parse_range(p: Option[String]): Consequence[Option[NumberRange]] =
+    //       Consequence.runOptionMap(p)(NumberRange.parseC)
+
+    //     private def _parse_options(p: Option[String]): Consequence[Option[NonEmptyVector[Opt]]] =
+    //       Consequence.runOptionMap(p)(Opt.parseNonEmptyVector(_, "+"))
+
+    //     private def _parse_substitutes(p: Option[String]): Consequence[Option[NonEmptyVector[Sub]]] =
+    //       Consequence.runOptionMap(p)(Sub.parseNonEmptyVector(_, "+"))
+    //   }
+
+    //   sealed trait Opt extends NamedValueInstance
+    //   object Opt extends EnumerationClass[Opt] {
+    //     val elements = Vector(
+    //       Optional,
+    //       Inline,
+    //       Default,
+    //       Nowrap,
+    //       Noheader,
+    //       Header,
+    //       Unbreakable,
+    //       Autowidth,
+    //       Breakable
+    //     )
+
+    //     case object Optional extends Opt {
+    //       val name = "optional"
+    //     }
+    //     case object Inline extends Opt {
+    //       val name = "inline"
+    //     }
+    //     case object Default extends Opt {
+    //       val name = "default"
+    //     }
+    //     case object Nowrap extends Opt {
+    //       val name = "nowrap"
+    //     }
+    //     case object Noheader extends Opt {
+    //       val name = "noheader"
+    //     }
+    //     case object Header extends Opt {
+    //       val name = "header"
+    //     }
+    //     case object Unbreakable extends Opt {
+    //       val name = "unbreakable"
+    //     }
+    //     case object Autowidth extends Opt {
+    //       val name = "autowidth"
+    //     }
+    //     case object Breakable extends Opt {
+    //       val name = "breakable"
+    //     }
+    //   }
+
+    //   sealed trait Sub extends NamedValueInstance
+    //   object Sub extends EnumerationClass[Sub] {
+    //     val elements = Vector(
+    //       Attributes,
+    //       Macros,
+    //       Quotes,
+    //       Replacements,
+    //       Specialcharacters,
+    //       Callouts,
+    //       Normal,
+    //       Verbatim,
+    //       NoneSub
+    //     )
+
+    //     case object Attributes extends Sub {
+    //       val name = "attributes"
+    //     }
+    //     case object Macros extends Sub {
+    //       val name = "macos"
+    //     }
+    //     case object Quotes extends Sub {
+    //       val name = "quotes"
+    //     }
+    //     case object Replacements extends Sub {
+    //       val name = "replacements"
+    //     }
+    //     case object Specialcharacters extends Sub {
+    //       val name = "specialcharacters"
+    //     }
+    //     case object Callouts extends Sub {
+    //       val name = "callouts"
+    //     }
+    //     case object Normal extends Sub {
+    //       val name = "normal"
+    //     }
+    //     case object Verbatim extends Sub {
+    //       val name = "verbatim"
+    //     }
+    //     case object NoneSub extends Sub {
+    //       val name = "none"
+    //     }
+    //   }
+    }
+
+    private val _block_macro_regex = """(?x)  # Enable verbose mode
+    ^(\w+)::                  # (1) Macro name
+    ([^\[\]\s]+)             # (2) Target
+    \[                       # Opening bracket
+      (.*?)                  # (3) Attributes (non-greedy)
+    \]$                      # Closing bracket
+""".r
+    private val _attr_regex = """(?x)
+  (\w+)                   # (1) Key
+  \s*=\s*
+  (?:
+    "([^"]*)"             # (2) Quoted value
+    |
+    ([^,\s\]]+)           # (3) Unquoted value
+  )
+""".r
+
+    def get(config: Config, p: LogicalLine): Option[BlockMacro] =
+      if (p.text.endsWith("]") && p.text.contains("::"))
+        _get(config, p)
+      else
+        None
+
+    private def _get(config: Config, p: LogicalLine): Option[BlockMacro] =
+      p.text match {
+        case _block_macro_regex(name, target, attrstr) =>
+          val attrs = _parse_attributes(attrstr)
+          def _broken_(): BlockMacro = BlockMacro.Broken(name, target, attrs, p.location)
+          val r = name match {
+            case "include" =>
+              val params = FileTextResolver.Parameters.parse(attrs)
+              params.toOption.fold(_broken_) { x =>
+                BlockMacro.Include(target, attrs, x, p.location)
+              }
+            case _ => _broken_
+          }
+          Some(r)
+        case _ => None
+      }
+
+    private def _parse_attributes(attrString: String): Map[String, String] =
+      _attr_regex.findAllMatchIn(attrString).map { m =>
+        val key = m.group(1)
+        val value = Option(m.group(2)).getOrElse(m.group(3))
+        key -> value
+      }.toMap
   }
 
   sealed trait DoxLinesParseState extends LogicalLineReaderWriterState[Config, Dox] {
@@ -450,7 +686,9 @@ object DoxLinesParser {
       else
         get_list_transition(config, evt) orElse
       get_table_transition(config, evt) orElse
-      get_annotation_transition(config, evt) getOrElse
+      get_image_transition(config, evt) orElse
+      get_annotation_transition(config, evt) orElse
+      get_block_macro_transition(config, evt) getOrElse
       text_transition(config, evt)
     }
 
@@ -484,12 +722,25 @@ object DoxLinesParser {
     protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       RAISE.noReachDefect(this, "get_Table_Transition")
 
+    protected def get_image_transition(config: Config, evt: LogicalLineEvent): Option[Transition] =
+      get_Image_Transition(config, evt.line)
+
+    protected def get_Image_Transition(config: Config, line: LogicalLine): Option[Transition] =
+      RAISE.noReachDefect(this, "get_Image_Transition")
+
     protected def get_annotation_transition(config: Config, evt: LogicalLineEvent): Option[Transition] = {
       get_Annotation_Transition(config, evt.line)
     }
 
     protected def get_Annotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       RAISE.noReachDefect(this, "get_Annotation_Transition")
+
+    protected def get_block_macro_transition(config: Config, evt: LogicalLineEvent): Option[Transition] = {
+      get_Block_Macro_Transition(config, evt.line)
+    }
+
+    protected def get_Block_Macro_Transition(config: Config, evt: LogicalLine): Option[Transition] =
+      RAISE.noReachDefect(this, "get_Block_Macro_Transition")
 
     protected def text_transition(config: Config, evt: LogicalLineEvent): Transition = {
       text_Transition(config, evt.line)
@@ -629,12 +880,35 @@ object DoxLinesParser {
     override protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       TableMark.get(evt).map(x => transit_next(TableState(this, x)))
 
+    override protected def get_Image_Transition(config: Config, line: LogicalLine): Option[Transition] =
+      if (line.text.startsWith("[[")) {
+        get_img_block(config, line).
+          map(img => transit_next(copy(lines = lines :+ Paragraph(img, line))))
+      } else {
+        None
+      }
+
     override protected def get_Annotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       AnnotationMark.get(config, evt).map {
         case m: BeginSrcAnnotation => transit_next(SourceCodeState(this, m.parameters))
         case m: BeginExampleAnnotation => transit_next(SourceCodeState(this, m.parameters)) // TODO
         case m => transit_next(AnnotationState(this, m))
       }
+
+    override protected def get_Block_Macro_Transition(config: Config, evt: LogicalLine): Option[Transition] =
+      BlockMacro.get(config, evt).map { x =>
+        val r = x match {
+          case m: BlockMacro.Include => _include(m)
+          case m: BlockMacro.Broken => _broken(m)
+        }
+        transit_next(copy(lines = lines ++ r))
+      }
+
+    private def _include(p: BlockMacro.Include): Vector[Dox] =
+      Vector(org.smartdox.Include(p))
+
+    private def _broken(p: BlockMacro.Broken): Vector[Dox] =
+      RAISE.notImplementedYetDefect
 
     override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition = {
       val (msgs, result, _) = DoxInlineParser.apply(config.inlineConfig, evt.line.text)
@@ -1152,32 +1426,14 @@ object DoxLinesParser {
   //     leave_to(config, evt)
   // }
 
-  protected final def parse_inline(c: Config, p: String): (ParseMessageSequence, Option[Inline]) = {
-    // println(s"parse_inline: $c, $p")
-    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
-    result match {
-      case EmptyParseResult() => (msgs, None)
-      case ParseSuccess(ast, ws) =>
-        val d = Dox.toDox(ast)
-        val i = d.asInstanceOf[Inline]
-        (msgs :++ ws, Some(i))
-      case ParseFailure(es, ws) => (msgs :++ es :++ ws, None)
-    }
-  }
-
-  protected final def parse_inlines(c: Config, p: String): List[Inline] = {
-    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
-    result match {
-      case EmptyParseResult() => Nil
-      case ParseSuccess(ast, ws) => Dox.toInlineContents(ast)
-      case ParseFailure(es, ws) => Nil // TODO
-    }
-  }
-
   case class AnnotationState(
     parent: DoxLinesParseState,
     annotations: NonEmptyVector[AnnotationMark]
   ) extends ChildDoxLinesParseState {
+    private def _get_caption = annotations.vector.collect {
+      case m: CaptionAnnotation => m
+    }.headOption
+
     override protected def end_Transition(config: Config): Transition =
       leave_to_in_end(config, annotations)
 
@@ -1193,6 +1449,20 @@ object DoxLinesParser {
       TableMark.get(evt).map { x =>
         transit_next(TableState(parent, x, annotations.vector))
       }
+
+    override protected def get_Image_Transition(config: Config, line: LogicalLine): Option[Transition] = {
+      if (line.text.startsWith("[[")) {
+        get_img_block(config, line).map { img =>
+          val r = _get_caption match {
+            case Some(s) => Figure(img, s.caption)
+            case None => img
+          }
+          leave_to(r)
+        }
+      } else {
+        None
+      }
+    }
 
     override protected def get_Annotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       AnnotationMark.get(config, evt).collect {
@@ -1365,4 +1635,51 @@ object DoxLinesParser {
 
   //   private def _init(p: String): ListContentBuilder = Plain(Vector(Text(p)))
   // }
+
+  protected final def parse_inline(c: Config, p: String): (ParseMessageSequence, Option[Inline]) = {
+    // println(s"parse_inline: $c, $p")
+    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
+    result match {
+      case EmptyParseResult() => (msgs, None)
+      case ParseSuccess(ast, ws) =>
+        val d = Dox.toDox(ast)
+        val i = d.asInstanceOf[Inline]
+        (msgs :++ ws, Some(i))
+      case ParseFailure(es, ws) => (msgs :++ es :++ ws, None)
+    }
+  }
+
+  protected final def parse_inlines(c: Config, p: String): List[Inline] = {
+    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
+    result match {
+      case EmptyParseResult() => Nil
+      case ParseSuccess(ast, ws) => Dox.toInlineContents(ast)
+      case ParseFailure(es, ws) => Nil // TODO
+    }
+  }
+
+  protected final def get_img_block(config: Config, line: LogicalLine): Option[Img] =
+    parse_inlines(config, line.text) match {
+      case Nil => None
+      case x :: Nil => x match {
+        case m: ReferenceImg => Some(m)
+        case m: Img => Some(m)
+      }
+      case _ => None
+    }
+
+  // protected final def parse_inline(config: Config, line: LogicalLine): List[Dox] = {
+  //   val (msgs, result, _) = DoxInlineParser.apply(config.inlineConfig, line.text)
+  //   result match {
+  //     case EmptyParseResult() => Nil
+  //     case ParseSuccess(ast, ws) => normalize_ast(ast)
+  //     case ParseFailure(es, ws) => Nil
+  //   }
+  // }
+
+  // protected final def normalize_ast(p: Seq[Dox]): List[Dox] =
+  //   p.toList.flatMap {
+  //     case m: Fragment => normalize_ast(m.contents)
+  //     case m => List(m)
+  //   }
 }

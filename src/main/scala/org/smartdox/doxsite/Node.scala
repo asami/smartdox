@@ -1,5 +1,7 @@
 package org.smartdox.doxsite
 
+import java.net.URI
+import java.io.File
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
 import org.goldenport.realm.Realm
@@ -14,7 +16,7 @@ import org.smartdox.generator.Context
  *  version Mar.  9, 2025
  *  version Apr. 30, 2025
  *  version Jun. 24, 2025
- * @version Jul.  5, 2025
+ * @version Jul. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -71,3 +73,8 @@ case class HoconMetaData(
   hocon: Hocon
 ) extends MetaDataNode {
 }
+
+case class ImageNode(
+  name: Node.Name,
+  file: File
+) extends Node

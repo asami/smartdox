@@ -32,6 +32,7 @@ import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.generator.Context
+import org.smartdox.parser.DoxLinesParser.BlockMacro
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -80,7 +81,7 @@ import org.smartdox.generator.Context
  *  version Apr. 30, 2025
  *  version May.  2, 2025
  *  version Jun. 26, 2025
- * @version Jul.  6, 2025
+ * @version Jul. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -424,6 +425,9 @@ trait Inline extends Dox with ListContent {
 trait ListContent extends Dox {  
 }
 
+trait Directive extends Dox {
+}
+
 trait UseDox {
   // implicit def toDox(string: String): Dox = {
   //   parser.DoxParser.parseOrgmodeZ(string) match {
@@ -583,6 +587,18 @@ object Dox extends UseDox {
     val a = Dox.toTree(p)
     val b = a.transform(tx)
     Dox.toDox(b)
+  }
+
+  def transformDocument(p: Document, tx: HomoTreeTransformer[Dox]): Document = {
+    val r = transform(p, tx)
+    toDocument(r)
+  }
+
+  def toDocument(p: Dox): Document = p match {
+    case m: Document => m
+    case m: Head => Document.create(m)
+    case m: Body => Document.create(m)
+    case m => Document.create(m)
   }
 
   // def untreeV(tree: GTree[Dox]): ValidationNel[String, Dox] = {
@@ -919,6 +935,12 @@ object Document extends DoxFactory {
   //     Some(apply(p._1, p._2, p._3))
   //   else
   //     None
+
+  def create(p: Head): Document = Document(p, Body.empty)
+
+  def create(p: Body): Document = Document(Head.empty, p)
+
+  def create(p: Dox): Document = create(Body(p))
 }
 
 case class Head(
@@ -1022,6 +1044,8 @@ case class Head(
 }
 
 object Head extends DoxFactory {
+  val empty = Head()
+
   case class CacheControl(
   ) {
     def isEmpty = true
@@ -1185,7 +1209,10 @@ object Body extends DoxFactory {
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Body =
     RAISE.unsupportedOperationFault
 
-  def apply(element: Dox) = new Body(List(element))
+  def apply(node: Dox) = node match {
+    case m: Fragment => new Body(m.contents)
+    case m => new Body(List(m))
+  }
 }
 
 case class Section(
@@ -1318,6 +1345,8 @@ case class Paragraph(
 object Paragraph {
   def apply(p: List[Dox], ll: LogicalLine): Paragraph =
     Paragraph(p, logicalLine = Some(ll))
+
+  def apply(p: Dox, ll: LogicalLine): Paragraph = apply(List(p), ll)
 
   def text(p: String): Paragraph = Paragraph(List(Text(p)))
 }
@@ -1661,9 +1690,16 @@ object Hyperlink extends DoxFactory {
 
 case class ReferenceImg(
   src: URI,
+  alt: Option[String] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Img {
+  def attributesUnified = {
+    val a = VectorMap("src" -> src.toString)
+    val b = VectorMap.create("alt" -> alt)
+    a ++ b ++ attributes
+  }
+
   override def equals_Value(o: Dox) = o match {
     case m: ReferenceImg => src == m.src && attributes == m.attributes
     case _ => false
@@ -2497,6 +2533,9 @@ case class Figure(
 }
 object Figure {
   def apply(img: Img, name: String): Figure = Figure(img, Figcaption(name))
+
+  def apply(img: Img, caption: InlineContents): Figure =
+    Figure(img, Figcaption(caption))
 }
 
 case class Figcaption(
@@ -2561,6 +2600,7 @@ case class Newline(
 
 trait Img extends Inline {
   val src: URI
+  val alt: Option[String]
   def attributes: VectorMap[String, String]
   override val elements = Nil
   override def showTerm = "img"
@@ -2568,9 +2608,14 @@ trait Img extends Inline {
   //   "src" -> src.toASCIIString(),
   //   "width" -> "640" // TODO
   // )
-  override def showParams = List(
+  override def showParams = {
+    val a = List(
     "src" -> src.toASCIIString()
-  ) ::: attributes.toList
+    )
+    val b = ListUtils.buildTupleList("alt" -> alt)
+    val c = attributes.toList
+    a ++ b ++ c
+  }
 }
 
 trait EmbeddedImg extends Img {
@@ -2582,6 +2627,7 @@ case class DotImg(
   src: URI,
   contents: String,
   params: List[String] = Nil,
+  alt: Option[String] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends EmbeddedImg {
@@ -2599,6 +2645,7 @@ case class DitaaImg(
   src: URI,
   contents: String,
   params: List[String] = Nil,
+  alt: Option[String] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends EmbeddedImg {
@@ -2705,6 +2752,7 @@ case class SmCsvImg(
   src: URI,
   contents: String,
   params: List[String] = Nil,
+  alt: Option[String] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends EmbeddedImg {
@@ -2885,6 +2933,7 @@ case class BinaryImg(
   name: String,
   mime: MimeType,
   chunk: ChunkBag,
+  alt: Option[String] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Img {
@@ -2932,3 +2981,25 @@ object UnresolvedLink {
   def apply(label: String, data: Any): UnresolvedLink =
     UnresolvedLink(List(Dox.text(label)), data)
 }
+
+// 2025-07-17
+case class Include(
+  directive: BlockMacro.Include,
+  location: Option[ParseLocation] = None
+) extends Directive {
+  def attributes: VectorMap[String, String] = VectorMap.empty
+  override def isVisialBlock: Boolean = false
+  override def equals_Value(o: Dox) = o == this
+
+  def target = directive.target
+  def parameters = directive.parameters
+}
+
+case class Error(
+  conclusion: Conclusion,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  def attributes: VectorMap[String, String] = VectorMap.empty
+  override def equals_Value(o: Dox) = o == this
+}
+

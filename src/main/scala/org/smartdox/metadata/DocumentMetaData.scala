@@ -21,7 +21,7 @@ import org.smartdox.generator.Context
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
- * @version Jul. 10, 2025
+ * @version Jul. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -231,7 +231,7 @@ object DocumentMetaData {
       if (lhs == rhs)
         None
       else
-        OptionUtils.compareDescOption(lhs.map(_.noticePriority), rhs.map(_.noticePriority))
+        OptionUtils.compareAscOption(lhs.map(_.noticePriority), rhs.map(_.noticePriority))
 
     def compareOption(lhs: Status, rhs: Status): Option[Boolean] =
       if (lhs.noticePriority == rhs.noticePriority)
@@ -243,7 +243,7 @@ object DocumentMetaData {
       if (lhs == rhs)
         None
       else
-        OptionUtils.compareDescOption(lhs.map(_.noticePriorityDraft), rhs.map(_.noticePriorityDraft))
+        OptionUtils.compareAscOption(lhs.map(_.noticePriorityDraft), rhs.map(_.noticePriorityDraft))
   }
 
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
