@@ -33,7 +33,7 @@ import org.smartdox.util.DoxUtils
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 16, 2025
- * @version Jul. 19, 2025
+ * @version Jul. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -48,8 +48,7 @@ object DoxLinesParser {
   def parse(config: Config, p: LogicalLines): Dox = {
     // println(s"DoxLinesParser#parse(${config}): $p")
     // DoxInlineParser.toDox(p.lines.map(parse))
-    val parser = LogicalLineReaderWriterStateClass(config, NormalState.init)
-    val (messages, result, state) = parser.apply(p)
+    val (messages, result, state) = apply(config, p)
     result match {
       case ParseSuccess(dox, _) => dox
       case ParseFailure(_, _) => RAISE.notImplementedYetDefect
@@ -57,6 +56,12 @@ object DoxLinesParser {
         // println(s"DoxLinesParser#parse[EmptyResult]: $p")
         RAISE.notImplementedYetDefect
     }
+  }
+
+  def apply(config: Config, p: LogicalLines) = {
+    val parser = LogicalLineReaderWriterStateClass(config, NormalState.init)
+//    val (messages, result, state) = parser.apply(p)
+    parser.apply(p)
   }
 
   case class Config(
@@ -910,8 +915,12 @@ object DoxLinesParser {
     private def _broken(p: BlockMacro.Broken): Vector[Dox] =
       RAISE.notImplementedYetDefect
 
-    override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition = {
-      val (msgs, result, _) = DoxInlineParser.apply(config.inlineConfig, evt.line.text)
+    override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition =
+      _text_transition_inline(config, evt)
+
+    private def _text_transition_inline(config: Config, evt: LogicalLineEvent): Transition = {
+      val (msgs, result, _) =
+        DoxInlineParser.apply(config.inlineConfig, evt.line.text)
       result match {
         case EmptyParseResult() => (msgs, ParseResult.empty, this)
         case ParseSuccess(ast, ws) =>
@@ -934,6 +943,27 @@ object DoxLinesParser {
     private def _is_inline(p: Dox): Boolean = p.isInstanceOf[Inline]
 
     private def _is_inline(ps: List[Dox]): Boolean = if (ps.isEmpty) false else ps.forall(_is_inline)
+
+    private def _text_transition_lines(config: Config, evt: LogicalLineEvent): Transition = {
+      val (msgs, result, _) = DoxLinesParser.apply(config, LogicalLines(evt.line))
+      result match {
+        case EmptyParseResult() => (msgs, ParseResult.empty, this)
+        case ParseSuccess(ast, ws) =>
+          val contents = _normalize(List(ast))
+          val p = contents match {
+            case Nil => Fragment.empty
+            case x :: Nil =>
+              if (_is_inline(x))
+                Paragraph(List(x), evt.line)
+              else
+                x
+            case xs if _is_inline(xs) => Paragraph(xs, evt.line)
+            case xs => Paragraph(xs, evt.line)
+          }
+          (msgs :++ ws, ParseResult.empty, copy(lines = lines :+ p))
+        case ParseFailure(es, ws) => (msgs :++ es :++ ws, ParseResult.empty, this)
+      }
+    }
 
     private def _normalize(p: Seq[Dox]): List[Dox] = p.flatMap {
       case m: Fragment => _normalize(m.contents)

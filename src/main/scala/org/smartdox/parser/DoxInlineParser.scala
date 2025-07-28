@@ -17,7 +17,7 @@ import org.smartdox._
  *  version Nov. 22, 2024
  *  version Jan.  1, 2025
  *  version Jun. 10, 2025
- * @version Jul.  4, 2025
+ * @version Jul. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -156,6 +156,8 @@ object DoxInlineParser {
     def returnFrom(c: Char): DoxInlineParseState = RAISE.noReachDefect(this, "returnFrom")
 
     def returnFrom(dox: Seq[Dox]): DoxInlineParseState = RAISE.noReachDefect(this, "returnFrom")
+
+    def returnCharsFrom(cs: Seq[Char]): DoxInlineParseState = RAISE.noReachDefect(this, "returnCharsFrom")
 
     def returnInlineFrom(dox: Seq[Inline]): DoxInlineParseState = returnFrom(dox)
 
@@ -491,6 +493,9 @@ object DoxInlineParser {
     protected def leave_to(dox: Dox): DoxInlineParseState = parent.returnFrom(Vector(dox))
     protected def leave_to(doxes: Seq[Dox]): DoxInlineParseState = parent.returnFrom(doxes)
 
+    protected final def leave_to_chars(cs: Seq[Char]): DoxInlineParseState =
+      parent.returnCharsFrom(cs)
+
     protected final def leave_to_urn(urn: Seq[Inline]): DoxInlineParseState = {
       // XXX annotation, block, figure
       val uri = make_text(urn)
@@ -784,6 +789,91 @@ object DoxInlineParser {
     // ): DoxInlineParseState = SkipOneState(InlineState(parent, closeChar1, closeChar2), closeChar2)
   }
 
+  case class XmlState(
+    config: Config,
+    parent: DoxInlineParseState,
+    tagName: String,
+    attrs: Vector[(String, String)],
+    cs: Vector[Char] = Vector.empty
+  ) extends ChildDoxInlineParseState with RawFeature {
+    override def returnCharsFrom(p: Seq[Char]): DoxInlineParseState = {
+      val s = (cs ++ p).mkString
+      val c = DoxLinesParser.Config(inlineConfig = config)
+      val ll = LogicalLines.parse(LogicalLines.Config.easyHtml, s)
+      val dox = DoxLinesParser.parse(c, ll)
+      leave_to(dox)
+    }
+
+    override protected def use_angle_bracket = true
+
+    override protected def character_State(c: Char) = copy(cs = cs :+ c)
+
+    override protected def open_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+      evt.next match {
+        case Some(s) if s == '/' => SkipOneState(XmlState.XmlCloseState(config, this), s)
+        case _ => XmlState.TagOpenState(config, this)
+      }
+  }
+  object XmlState {
+    case class XmlCloseState(
+      config: Config,
+      parent: XmlState
+    ) extends ChildDoxInlineParseState with RawFeature {
+      override protected def use_angle_bracket = true
+
+      override protected def character_State(c: Char) = this
+
+      override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+        leave_to_chars(Nil)
+    }
+
+    case class TagOpenState(
+      config: Config,
+      parent: DoxInlineParseState,
+      cs: Vector[Char] = Vector.empty
+    ) extends ChildDoxInlineParseState with RawFeature {
+      override protected def use_angle_bracket = true
+
+      override def returnCharsFrom(cs: Seq[Char]): DoxInlineParseState = RAISE.noReachDefect(this, "returnCharsFrom")
+
+      override protected def character_State(c: Char) = copy(cs = cs :+ c)
+
+      override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+        TextState(config, this)
+    }
+
+    case class TextState(
+      config: Config,
+      parent: DoxInlineParseState,
+      cs: Vector[Char] = Vector.empty
+    ) extends ChildDoxInlineParseState with RawFeature {
+      override def returnCharsFrom(cs: Seq[Char]): DoxInlineParseState = RAISE.noReachDefect(this, "returnCharsFrom")
+
+      override protected def use_angle_bracket = true
+
+      override protected def character_State(c: Char) = copy(cs = cs :+ c)
+
+      override protected def open_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+        evt.next match {
+          case Some(s) if s == '/' => SkipOneState(TagCloseState(config, this), s)
+          case _ => TagOpenState(config, this)
+        }
+    }
+
+    case class TagCloseState(
+      config: Config,
+      parent: DoxInlineParseState,
+      cs: Vector[Char] = Vector.empty
+    ) extends ChildDoxInlineParseState with RawFeature {
+      override protected def use_angle_bracket = true
+
+      override protected def character_State(c: Char) = copy(cs = cs :+ c)
+
+      override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+        leave_to_chars(cs)
+    }
+  }
+
   case class SkipSpaceState(
     config: Config,
     parent: DoxInlineParseState
@@ -1041,13 +1131,20 @@ object DoxInlineParser {
     name: Vector[Char] = Vector.empty
   ) extends ChildDoxInlineParseState with RawFeature {
     def resultOpenClose(ps: Vector[(String, String)]) =
-      InlineState(CloseTagState(config, parent, name.mkString, ps), '<', '/')
+      if (true)
+        XmlState(config, parent, name.mkString, ps)
+      else
+        InlineState(CloseTagState(config, parent, name.mkString, ps), '<', '/')
 
     def resultOpenEnd(ps: Vector[(String, String)]) = ???
 
     override protected def character_State(evt: CharEvent): DoxInlineParseState =
       evt.c match {
-        case '>' => InlineState(CloseTagState(config, parent, name.mkString, Vector.empty), '<', '/')
+        case '>' =>
+          if (true)
+            XmlState(config, parent, name.mkString, Vector.empty)
+          else
+            InlineState(CloseTagState(config, parent, name.mkString, Vector.empty), '<', '/')
         case ' ' => SkipSpaceState(config, TagAttributeListState(config, this))
         case m => copy(name = name :+ m)
       }
