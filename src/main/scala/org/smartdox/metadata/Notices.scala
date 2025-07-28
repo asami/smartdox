@@ -1,14 +1,19 @@
 package org.smartdox.metadata
 
 import java.net.URI
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 import org.joda.time.DateTime
 import org.joda.time.LocalDate
+import org.joda.time.DateTimeZone
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.extras._
 import io.circe.generic.extras.semiauto._
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.I18NString
+import org.goldenport.util.InstantUtils
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.CirceUtils.Codec._
 import org.smartdox._
@@ -17,7 +22,7 @@ import org.smartdox._
  * @since   Apr. 28, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
- * @version Jul.  3, 2025
+ * @version Jul. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -30,6 +35,63 @@ case class Notices(
 
   def take(statuses: Seq[DocumentMetaData.Status]): Vector[Notice] =
     notices.filter(_.status.fold(false)(statuses.contains))
+
+  def toAtomFeed(locale: Locale): AtomFeed = {
+    val id = "id:urn:SimpleModeling.org"
+    val title = "SimpleModeling.org"
+    val updated = _updated
+    val links = List(
+      AtomFeed.Link(href = "https://www.simplemodeling.org/atom.${locale}.xml", rel = Some("self")),
+      AtomFeed.Link(href = "https://www.simplemodeling.org/")
+    )
+    val entries = _make_entries(locale)
+    AtomFeed(
+      id,
+      title,
+      updated,
+      links = links,
+      entries = entries
+    )
+  }
+
+  private def _updated = notices.flatMap(_.getTimestamp) match {
+    case Vector() => Instant.now
+    case xs => xs.max
+  }
+
+  private def _make_entries(locale: Locale): List[AtomFeed.Entry] =
+    notices.map(_create_entry(locale, _)).toList
+
+  private def _create_entry(locale: Locale, p: Notice): AtomFeed.Entry = {
+    val id = p.id
+    val title = p.title.as(locale)
+    val updated = p.getTimestamp getOrElse Instant.now()
+    val published = p.published.map(InstantUtils.toInstant)
+    val author = None
+    val contributors = Nil
+    val links = List(
+      AtomFeed.Link(href = s"https://www.simplemodeling.org/${locale}/${p.uri}")
+    )
+    val categories = Nil
+    val content = None
+    val summary = Some(p.description.as(locale))
+    val rights = None
+    val source = None
+    AtomFeed.Entry(
+      id,
+      title,
+      updated,
+      published,
+      author,
+      contributors,
+      links,
+      categories,
+      content,
+      summary,
+      rights,
+      source
+    )
+  }
 }
 
 object Notices {
@@ -45,9 +107,26 @@ object Notices {
     published: Option[LocalDate],
     updated: Option[LocalDate],
     kind: Option[DocumentMetaData.Kind],
-    status: Option[DocumentMetaData.Status]
+    status: Option[DocumentMetaData.Status],
+    lastModified: Option[Instant]
   ) {
     import Notice._
+
+    def id = s"id:urn:${uri}"
+
+    def getTimestamp: Option[Instant] = {
+      val a = Vector(
+        published.map(_to_instant),
+        updated.map(_to_instant),
+        lastModified
+      ).flatten
+      a match {
+        case Vector() => None
+        case xs => Some(xs.max)
+      }
+    }
+
+    private def _to_instant(p: LocalDate) = InstantUtils.toInstant(p)
 
     def yamlString(ctx: I18NContext): String = {
       val json = this.asJson(noticeEncoder(ctx))
@@ -62,6 +141,7 @@ object Notices {
       new URI("nolink"),
       I18NString("No article"),
       Nil,
+      None,
       None,
       None,
       None,

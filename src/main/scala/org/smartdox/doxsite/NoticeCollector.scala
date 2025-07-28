@@ -13,7 +13,7 @@ import org.smartdox.metadata.CategoryCollection
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 29, 2025
- * @version Jul.  2, 2025
+ * @version Jul. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -45,7 +45,8 @@ class NoticeCollector(
           md.publishedAt.map(_.toLocalDate),
           md.modifiedAt.map(_.toLocalDate),
           md.kindOption,
-          md.statusOption
+          md.statusOption,
+          m.lastModified
         )
         _notices = _notices :+ notice
       }

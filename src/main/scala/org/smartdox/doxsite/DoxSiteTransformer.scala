@@ -4,6 +4,7 @@ import scala.util.control.NonFatal
 import scala.util.matching.Regex
 import org.goldenport.RAISE
 import org.smartdox._
+import org.smartdox.generator.{Context => GContext}
 import org.smartdox.transformer._
 import org.smartdox.metadata._
 import org.goldenport.tree._
@@ -13,7 +14,8 @@ import org.goldenport.tree._
  *  version Mar.  9, 2025
  *  version Apr.  5, 2025
  *  version May. 31, 2025
- * @version Jun. 28, 2025
+Page(node.name, c)) *  version Jun. 28, 2025
+Page(node.name, c)) * @version Jul. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -56,7 +58,7 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
         val a = Dox.toTree(page.dox)
         val b = xs.foldLeft(a)((z, x) => z.transform(x))
         val c = Dox.toDox(b)
-        TreeNode.create(node.name, Page(node.name, c))
+        TreeNode.create(node.name, page.withDox(c))
     }
   }
 }
@@ -137,10 +139,13 @@ object DoxSiteTransformer {
 
   case class Context(
     config: Config,
+    generatorContext: GContext,
     nodeContext: TreeTransformer.Context[Node],
     doxContext: TreeTransformer.Context[Dox],
     metadata: MetaData = MetaData.empty
   ) {
+    lazy val cache: DoxSiteCache = new DoxSiteCache(config.doxsiteConfig, generatorContext)
+
     def withMetaData(metadata: MetaData): Context = copy(metadata = metadata)
   }
 }

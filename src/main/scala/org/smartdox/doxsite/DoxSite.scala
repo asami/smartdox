@@ -5,6 +5,7 @@ import scala.util.control.NonFatal
 import scala.util.matching.Regex
 import java.io.File
 import java.net.URI
+import java.time.Instant
 import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
@@ -26,8 +27,10 @@ import org.goldenport.collection.NonEmptyVector
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
+import org.goldenport.util.OptionUtils
 import org.goldenport.util.OptionUtils.lastMonoid
 import org.goldenport.util.LocalDateUtils
+import org.goldenport.util.InstantUtils.instantOrderingAsc
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
@@ -37,6 +40,9 @@ import org.smartdox.metadata.CategoryCollection
 import org.smartdox.metadata.Category
 import org.smartdox.metadata.Notices
 import org.smartdox.metadata.Notices.Notice
+import org.smartdox.metadata.KeywordCollection
+import org.smartdox.metadata.TagCollection
+import org.smartdox.metadata.{AtomFeed, AtomFeedBag}
 import org.smartdox.generator.Context
 import org.smartdox.service.operations.SiteParameters
 import org.smartdox.transformers.Dox2HtmlTransformer
@@ -50,7 +56,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Apr. 29, 2025
  *  version May. 31, 2025
  *  version Jun. 28, 2025
- * @version Jul. 15, 2025
+ * @version Jul. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -86,6 +92,7 @@ class DoxSite(
     val r = a.merge("ja", ja)
     _build_notices(r)
     _build_categories(r)
+    _build_atomfeed(r)
     r
   }
 
@@ -134,6 +141,7 @@ class DoxSite(
 
     val xs0 = config.strategy match {
       case Strategy.Production => _filter_production_
+      case Strategy.ProductionUpdate => _filter_production_
       case Strategy.ProductionPreview => _filter_production_
       case Strategy.Full => _filter_full_
       case Strategy.WorkInProgress => _filter_draft_
@@ -186,6 +194,28 @@ class DoxSite(
     p
   }
 
+  private def _build_atomfeed(p: Realm): Realm = {
+    for (x <- metadata.atomFeed) {
+      _build_atomfeed_ja(p, x.ja)
+      _build_atomfeed_en(p, x.en)
+    }
+    p
+  }
+
+  private def _build_atomfeed_ja(realm: Realm, af: AtomFeed): Realm = {
+    _build_atomfeed(realm, "atom.xml", af)
+    _build_atomfeed(realm, "ja/atom.xml", af)
+  }
+
+  private def _build_atomfeed_en(realm: Realm, af: AtomFeed): Realm = {
+    _build_atomfeed(realm, "en/atom.xml", af)
+  }
+
+  private def _build_atomfeed(realm: Realm, path: String, af: AtomFeed): Realm = {
+    val json = af.toAtomString
+    realm.setContent(path, json)
+  }
+
   private def _compare(lhs: Notice, rhs: Notice): Boolean =
     config.strategy match {
       case Strategy.WorkInProgress => _compare_draft(lhs, rhs)
@@ -193,47 +223,37 @@ class DoxSite(
       case _ => _compare_default(lhs, rhs)
     }
 
-  private def _compare_default(lhs: Notice, rhs: Notice): Boolean = {
-    def _compare_status_option_(): Option[Boolean] =
-      DocumentMetaData.Status.compareOption(lhs.status, rhs.status)
+  private def _compare_default(lhs: Notice, rhs: Notice): Boolean = (
+    _compare_status_option(lhs, rhs) orElse
+    _compare_updated_option(lhs, rhs) orElse
+    _compare_published_option(lhs, rhs) orElse
+    _compare_lastmodified_option(lhs, rhs) getOrElse false
+  )
 
-    def _compare_updated_option_(): Option[Boolean] =
-      if (lhs.updated == rhs.updated)
-        None
-      else
-        LocalDateUtils.compareDescOption(lhs.updated, rhs.updated)
+  private def _compare_draft(lhs: Notice, rhs: Notice): Boolean = (
+    _compare_status_option(lhs, rhs) orElse
+    _compare_updated_option(lhs, rhs) orElse
+    _compare_published_option(lhs, rhs) orElse
+    _compare_lastmodified_option(lhs, rhs) getOrElse false
+  )
 
-    def _compare_published_option_(): Option[Boolean] = 
-      if (lhs.published == rhs.published)
-        None
-      else
-        LocalDateUtils.compareDescOption(lhs.published, rhs.published)
-
-    _compare_status_option_ orElse
-    _compare_updated_option_ orElse
-    _compare_published_option_ getOrElse false
-  }
-
-  private def _compare_draft(lhs: Notice, rhs: Notice): Boolean = {
-    def _compare_status_option_(): Option[Boolean] =
+  private def _compare_status_option(lhs: Notice, rhs: Notice): Option[Boolean] =
       DocumentMetaData.Status.compareDraftOption(lhs.status, rhs.status)
 
-    def _compare_updated_option_(): Option[Boolean] =
-      if (lhs.updated == rhs.updated)
-        None
-      else
-        LocalDateUtils.compareDescOption(lhs.updated, rhs.updated)
+  private def _compare_updated_option(lhs: Notice, rhs: Notice): Option[Boolean] =
+    if (lhs.updated == rhs.updated)
+      None
+    else
+      LocalDateUtils.compareDescOption(lhs.updated, rhs.updated)
 
-    def _compare_published_option_(): Option[Boolean] = 
-      if (lhs.published == rhs.published)
-        None
-      else
-        LocalDateUtils.compareDescOption(lhs.published, rhs.published)
+  private def _compare_published_option(lhs: Notice, rhs: Notice): Option[Boolean] =
+    if (lhs.published == rhs.published)
+      None
+    else
+      LocalDateUtils.compareDescOption(lhs.published, rhs.published)
 
-    _compare_status_option_ orElse
-    _compare_updated_option_ orElse
-    _compare_published_option_ getOrElse false
-  }
+  private def _compare_lastmodified_option(lhs: Notice, rhs: Notice): Option[Boolean] =
+    OptionUtils.compareDescOption(lhs.lastModified, rhs.lastModified)
 
   private def _make_stub(n: Int): Vector[Notice] =
     if (n >= 10)
@@ -382,6 +402,14 @@ object DoxSite {
           case _ => DocumentStrategy.Skip
         }
     }
+    case object ProductionUpdate extends Strategy {
+      val name = "production-update"
+      def documentStrategy(p: DocumentMetaData): DocumentStrategy =
+        p.status match { // TODO 3days
+          case Status.Published => DocumentStrategy.Full
+          case _ => DocumentStrategy.Skip
+        }
+    }
     case object ProductionPreview extends Strategy {
       val name = "production-preview"
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
@@ -522,10 +550,10 @@ object DoxSite {
 
   class DoxSiteBuilder(
     override val rule: DoxSiteBuilder.Rule,
-    context: TreeTransformer.Context[Node]
-  )(implicit val ctx: DateTimeContext) extends TreeTransformer[Realm.Data, Node] {
+    context: DoxSiteTransformer.Context
+  ) extends TreeTransformer[Realm.Data, Node] {
     override def isCleanEmptyChildren = true
-    def treeTransformerContext = context
+    def treeTransformerContext = context.nodeContext
 
     override protected def make_Node(
       oldname: String, // unused
@@ -546,9 +574,9 @@ object DoxSite {
     }
 
     private def _build_file(node: TreeNode[Realm.Data], p: Realm.StringData): TreeTransformer.Directive[Node] =
-      _build_file(node, p.string)
+      _build_file(node, p.string, p.lastModifiedOption)
 
-    private def _build_file(node: TreeNode[Realm.Data], p: String): TreeTransformer.Directive[Node] =
+    private def _build_file(node: TreeNode[Realm.Data], p: String, lastmodified: Option[Instant]): TreeTransformer.Directive[Node] =
       node.getNameSuffix match {
         case None => TreeTransformer.Directive.Default[Node]
         case Some(s) =>
@@ -559,7 +587,7 @@ object DoxSite {
                 case m: Realm.StringData =>
                   val name = node.name
                   val r: List[Node] = s match {
-                    case "dox" => _dox_page(name, m.string)
+                    case "dox" => _dox_page(node, m.string, m.lastModifiedOption)
                     case "org" => _org_page(name, m.string)
                     case "md" => _markdown_page(name, m.string)
                     case "markdown" => _markdown_page(name, m.string)
@@ -576,10 +604,16 @@ object DoxSite {
           }
       }
 
-    private def _dox_page(name: String, c: String) = {
+    private def _dox_page(
+      node: TreeNode[Realm.Data],
+      c: String,
+      lastmodified: Option[Instant]
+    ) = {
       // println(s"_dox_page: $c")
-      val dox = Dox2Parser.parse(c)
-      _create_dox(name, dox)
+      val dox = context.cache.get(node.pathname, lastmodified) getOrElse {
+        Dox2Parser.parse(c)
+      }
+      _create_dox(node.name, dox, lastmodified)
     }
 
     private def _org_page(name: String, c: String) = {
@@ -592,14 +626,14 @@ object DoxSite {
       _create_dox(name, dox)
     }
 
-    private def _create_dox(name: String, dox: Dox) =
+    private def _create_dox(name: String, dox: Dox, lastmodified: Option[Instant] = None) =
       if (rule.strategy.isActive(dox))
-        _create_page(name, dox)
+        _create_page(name, dox, lastmodified)
       else
         Nil
 
-    private def _create_page(name: String, dox: Dox) =
-      List(Page(name, dox))
+    private def _create_page(name: String, dox: Dox, lastmodified: Option[Instant]) =
+      List(Page(name, dox, lastmodified))
 
     private def _yaml_metadata(pathname: String, name: String, s: String) =
       name match {
@@ -712,14 +746,14 @@ object DoxSite {
   def create(
     context: Context,
     file: File
-  )(implicit ctx: DateTimeContext): DoxSite = create(context, file, None, DoxSite.Config.default)
+  ): DoxSite = create(context, file, None, DoxSite.Config.default)
 
   def create(
     context: Context,
     file: File,
     configname: Option[String],
     inconfig: DoxSite.Config
-  )(implicit ctx: DateTimeContext): DoxSite = {
+  ): DoxSite = {
     val a = Realm.create(realmConfig, file)
     create(context, a, configname, inconfig)
   }
@@ -729,7 +763,7 @@ object DoxSite {
     realm: Realm,
     configname: String,
     inconfig: DoxSite.Config
-  )(implicit ctx: DateTimeContext): DoxSite =
+  ): DoxSite =
     create(context, realm, Some(configname), inconfig)
 
   def create(
@@ -737,26 +771,38 @@ object DoxSite {
     realm: Realm,
     configname: Option[String],
     inconfig: DoxSite.Config
-  )(implicit dctx: DateTimeContext): DoxSite = {
+  ): DoxSite = {
     val config = _config(inconfig, realm, configname)(context.i18NContext)
     val nodectx = TreeTransformer.Context.default[Node]
     val doxctx = context.doxContext
-    val ctx = DoxSiteTransformer.Context(DoxSiteTransformer.Config(Some(config)), nodectx, doxctx)
+    val ctx = DoxSiteTransformer.Context(
+      DoxSiteTransformer.Config(Some(config)),
+      context,
+      nodectx,
+      doxctx
+    )
     val rule = DoxSiteBuilder.Rule(config)
-    val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, nodectx))
+    val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
     val a = a1.transform(new DoxSitePreTransformer(ctx))
     val categories = _collect_category(config, context, a)
     val notices = _collect_notice(config, context, categories, a)
+    val atoms = _build_atom_feed(notices)
     val (b, glossary) = _build_glossary(ctx, a)
+    val keywords = _collect_keywords()
+    val tags = _collect_tags()
     val metadata = MetaData(
       glossary = glossary,
       categories = categories,
-      notices = notices
+      keywords = keywords,
+      tags = tags,
+      notices = notices,
+      atomFeed = atoms
     )
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = _enable_link(ctx1, b)
-    val d = c.transform(new DoxSitePostTransformer(ctx))
-    new DoxSite(config, c, metadata)
+    val d = c.transform(new DoxSitePostTransformer(ctx1))
+    _flush_cache(ctx1, d)
+    new DoxSite(config, d, metadata)
   }
 
   private def _collect_category(
@@ -783,6 +829,19 @@ object DoxSite {
       Notices.empty
     }
 
+  private def _collect_keywords(): KeywordCollection = KeywordCollection.empty
+
+  private def _collect_tags(): TagCollection = TagCollection.empty
+
+  private def _build_atom_feed(p: Notices): Option[AtomFeedBag] = {
+    val ja = p.toAtomFeed(LocaleUtils.ja)
+    val en = p.toAtomFeed(LocaleUtils.en)
+    if (ja.nonEmpty || en.nonEmpty)
+      Some(AtomFeedBag(ja, en))
+    else
+      None
+  }
+
   private def _build_glossary(
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
@@ -803,6 +862,14 @@ object DoxSite {
       p.transform(new LinkEnabler(ctx))
     else
       p
+
+  private def _flush_cache(
+    ctx: DoxSiteTransformer.Context,
+    p: Tree[Node]
+  ): Unit = {
+    val flusher = new CacheFlusher(ctx)
+    p.traverse(flusher)
+  }
 
   private def _config(
     inconfig: Config,

@@ -1,27 +1,33 @@
 package org.smartdox.metadata
 
+import scalaz._, Scalaz._
 import scala.util.Try
+import scala.xml.{Node => XNode, Text => XText, _}
 import java.net.URI
 import org.joda.time.DateTime
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.context.Consequence
 import org.goldenport.context.DateTimeContext
 import org.goldenport.i18n.I18NString
+import org.goldenport.i18n.I18NContainer
 import org.goldenport.hocon.RichConfig.Implicits._
 import org.goldenport.value._
 import org.goldenport.values.LocalDateOrDateTime
+import org.goldenport.xml.XmlUtils
+import org.goldenport.xml.XmlUtils.{printObject, printPowertype}
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.OptionUtils
 import org.goldenport.util.OptionUtils.lastMonoid
 import org.smartdox._
 import org.smartdox.generator.Context
+import org.smartdox.parser.PureParser
 
 /*
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
- * @version Jul. 14, 2025
+ * @version Jul. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -63,9 +69,15 @@ case class DocumentMetaData(
 
   def getDescriptionI18NString: Option[I18NString] = description.map(_.toI18NString)
 
-  def withTitle(p: InlineContents) = copy(title = Some(I18NFragment.create(p)))
+  def withTitle(p: InlineContents) = {
+    val x = Dox.trimSingleLine(p)
+    copy(title = Some(I18NFragment.create(x)))
+  }
 
-  def withDescription(p: InlineContents) = copy(description = Some(I18NFragment.create(p)))
+  def withDescription(p: InlineContents) = {
+    val x = Dox.trimSingleLine(p)
+    copy(description = Some(I18NFragment.create(x)))
+  }
 
   def withDescription(p: String) = copy(description = Some(I18NFragment.create(p)))
 
@@ -138,6 +150,38 @@ case class DocumentMetaData(
     }
 
   private def _to_string(p: LocalDateOrDateTime) = p.print
+
+  def printFlat(buf: StringBuilder): Unit = {
+    val kws = keywords match {
+      case Nil => None
+      case xs => Some(xs.mkString(","))
+    }
+    printI18NFragment(buf, "title", title)
+    printObject(buf, "titleImage", titleImage)
+    printObject(buf, "category", category)
+    printI18NFragment(buf, "description", description)
+    printDox(buf, "author", author)
+    printObject(buf, "keywords", kws)
+    printObject(buf, "publishedAt", publishedAt)
+    printObject(buf, "modifiedAt", modifiedAt)
+    printPowertype(buf, "kind", kindOption)
+    printPowertype(buf, "status", statusOption)
+  }
+
+  def printI18NFragment(buf: StringBuilder, name: String, dox: Option[I18NFragment]): Unit =
+    dox.foreach(printI18NFragment(buf, name, _))
+
+  def printI18NFragment(buf: StringBuilder, name: String, dox: I18NFragment): Unit =
+    printDox(buf, name, dox)
+
+  def printDox(buf: StringBuilder, name: String, dox: Option[Dox]): Unit =
+    dox.foreach(printDox(buf, name, _))
+
+  def printDox(buf: StringBuilder, name: String, dox: Dox): Unit = {
+    XmlUtils.printOpenTag(buf, name)
+    dox.printDox(buf)
+    XmlUtils.printCloseTag(buf, name)
+  }
 }
 
 object DocumentMetaData {
@@ -285,7 +329,65 @@ object DocumentMetaData {
     title: InlineContents,
     date: InlineContents
   )(implicit ctx: DateTimeContext): DocumentMetaData = {
-    val d = LocalDateOrDateTime.parse(Dox.toText(date)).take
-    DocumentMetaData(Some(I18NFragment.create(title)), publishedAt = Some(d))
+    val d = date match {
+      case Nil => None
+      case xs => LocalDateOrDateTime.parse(Dox.toText(date)).toOption
+    }
+    DocumentMetaData(Some(I18NFragment.create(title)), publishedAt = d)
   }
+
+  def parseFlat(p: XNode)(implicit ctx: DateTimeContext): Consequence[Option[DocumentMetaData]] = {
+    for {
+      title <- _get_i18nfragment(p, "title")
+      titleimage <- _get_uri(p, "titleImage")
+      category <- _get_string(p, "category")
+      description <- _get_i18nfragment(p, "description")
+      author <- _get_i18nfragment(p, "author")
+      keywords <- _get_string_list_eager(p, "keywords")
+      publishedat <- _get_localdateordatetime(p, "publishedAt")
+      modifiedat <- _get_localdateordatetime(p, "modifiedAt")
+      kind <- _get_powertype(p, Kind, "kind")
+      status <- _get_powertype(p, Status, "status")
+    } yield {
+      DocumentMetaData(
+        title,
+        titleimage,
+        category,
+        description,
+        author,
+        keywords,
+        publishedat,
+        modifiedat,
+        kind,
+        status
+      ).toOption
+    }
+  }
+
+  private def _get_string(p: XNode, name: String): Consequence[Option[String]] =
+    XmlUtils.getStringC(p, name)
+
+  private def _get_string_list_eager(p: XNode, name: String): Consequence[List[String]] =
+    XmlUtils.getStringListEagerC(p, name)
+
+  private def _get_uri(p: XNode, name: String): Consequence[Option[URI]] =
+    XmlUtils.getUriC(p, name)
+
+  private def _get_localdateordatetime(p: XNode, name: String)(implicit ctx: DateTimeContext): Consequence[Option[LocalDateOrDateTime]] =
+    XmlUtils.getLocalDateOrDateTimeC(p, name)
+
+  private def _get_i18nfragment(p: XNode, name: String): Consequence[Option[I18NFragment]] =
+    for {
+      a <- XmlUtils.getI18NContainerC(p, name)
+      r <- a.traverse(x => _make_i18nfragment(x))
+    } yield r
+
+  private def _make_i18nfragment(p: I18NContainer[List[XNode]]): Consequence[I18NFragment] =
+  Consequence {
+    val a = p.mapValue(xs => xs.map(PureParser.build))
+    I18NFragment(a)
+  }
+
+  private def _get_powertype[T <: NamedValueInstance](p: XNode, pt: EnumerationClass[T], name: String): Consequence[Option[T]] =
+    XmlUtils.getPowertypeC(p, pt, name)
 }

@@ -16,7 +16,8 @@ import org.smartdox.service
  *  version Nov. 23, 2020
  *  version Apr. 30, 2025
  *  version May.  2, 2025
- * @version Jun.  7, 2025
+ *  version Jun.  7, 2025
+ * @version Jul. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Context(
@@ -41,6 +42,10 @@ case class Context(
       withI18NContext(targetI18NContext)
 
   def withTargetI18NContext(p: Locale) = copy(targetI18NContextOption = Some(contextFoundation.i18NContext.withLocale(p)))
+
+  object log {
+    def error(msg: String) = observabilityContext.log.error(msg)
+  }
 }
 
 object Context {

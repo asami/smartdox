@@ -43,7 +43,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Apr. 28, 2025
  *  version May. 23, 2025
  *  version Jun. 29, 2025
- * @version Jul. 15, 2025
+ * @version Jul. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -810,6 +810,7 @@ object AntoraGenerator {
   ) extends TreeVisitor[Node] {
     private var _depth: Int = 0
     private var _in_images: Boolean = false
+    private var _in_work_area: Int = 0
     private val _antora = new Antora.Builder(Antora.Builder.Config.default)
 
     private def _effective_depth: Int =
@@ -821,6 +822,15 @@ object AntoraGenerator {
     def build(): Antora = _antora.build()
 
     override def enter(node: TreeNode[Node]) = {
+      if (node.name.endsWith(".d"))
+        _in_work_area = _in_work_area + 1
+      if (_in_work_area > 0)
+        Unit
+      else
+        _enter(node)
+    }
+
+    private def _enter(node: TreeNode[Node]) = {
       node.getContent match {
         case Some(s) => _effective_depth match {
           case 0 => _at_home(node, s)
@@ -859,6 +869,15 @@ object AntoraGenerator {
     private def _at_ingredient(node: TreeNode[Node], c: Node): Unit = RAISE.notImplementedYetDefect
 
     override def leave(node: TreeNode[Node]) = {
+      if (_in_work_area == 0)
+        _leave(node)
+      if (node.name.endsWith(".d"))
+        _in_work_area = _in_work_area - 1
+    }
+
+    private def _leave(node: TreeNode[Node]) = {
+      if (_depth == 0)
+        RAISE.noReachDefect(s"AntoraGenerator#_leave: $node")
       _depth = _depth - 1
       if (_is_images(node))
         _in_images = false

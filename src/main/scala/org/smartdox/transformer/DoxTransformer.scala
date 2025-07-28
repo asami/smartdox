@@ -6,6 +6,7 @@ import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.Reader
 import java.net.URI
 import org.goldenport.RAISE
+import org.goldenport.context.Consequence
 import org.goldenport.parser.{ParseResult => GParseResult}
 import org.smartdox._, Dox._
 
@@ -16,7 +17,8 @@ import org.smartdox._, Dox._
  *  version Nov.  8, 2020
  *  version Jan. 17, 2021
  *  version Feb.  8, 2021
- * @version Apr.  3, 2025
+ *  version Apr.  3, 2025
+ * @version Jul. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTransformer extends Parsers {
@@ -58,6 +60,11 @@ trait DoxTransformer extends Parsers {
   def transformZ(in: Dox): Validation[NonEmptyList[String], Out] = transform(in) match {
     case s: Success[_] => s.get.success[String].toValidationNel
     case n: NoSuccess => n.msg.failure[Out].toValidationNel
+  }
+
+  def transformC(in: Dox): Consequence[Out] = {
+    val r = transformG(in)
+    Consequence.from(r)
   }
 
   def document: Parser[Out] = new Parser[Out] {

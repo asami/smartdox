@@ -12,7 +12,8 @@ import org.smartdox.metadata._
  *  version Mar.  9, 2025
  *  version Apr.  5, 2025
  *  version May. 21, 2025
- * @version Jun. 16, 2025
+ *  version Jun. 16, 2025
+ * @version Jul. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -29,6 +30,30 @@ class LinkEnabler(
       List(new LinkEmbeder(context, node))
     else
       Nil
+
+  // override protected def make_Page(
+  //   node: TreeNode[Node],
+  //   page: Page
+  // ): TreeNode[Node] = _get_cache(node) match {
+  //   case Some(s) => TreeNode.create(node.name, Page(node.name, s))
+  //   case None =>
+  //     val r = super.make_Page(node, page)
+  //     _set_cache(node, page.dox)
+  //     r
+  // }
+
+  // private def _get_cache(
+  //   node: TreeNode[Node]
+  // ): Option[Dox] = {
+  //   context.cache.get(node.pathname)
+  // }
+
+  // private def _set_cache(
+  //   node: TreeNode[Node],
+  //   dox: Dox
+  // ): Unit = {
+  //   context.cache.set(node.pathname, dox)
+  // }
 }
 
 object LinkEnabler {
@@ -46,60 +71,57 @@ object LinkEnabler {
       content: Dox
     ): TreeTransformer.Directive[Dox] = {
       content match {
-        // case m: Paragraph =>
-        //   val s = m.toPlainText
-        //   val tokens = _to_tokens(_tokenize(s))
-        //   println(s"text: $s")
-        //   println(s"tokens: $tokens")
-        //   TreeTransformer.Directive.Default
-        case m: Text =>
-          val tokens0 = _to_tokens(_tokenize(m.contents))
-          val tokens = Glossary.Term.Tokens(tokens0.map(_.text))
-          val candidates = context.metadata.glossary.candidates(tokens)
-          if (candidates.isEmpty) {
-            directive_container_content(m)
-          } else {
-            case class ZZ(definition: Glossary.Definition, xs: Vector[Dox]) {
-              def r = xs
-
-              def +(term: String) = {
-                def _doxes_(ps: Vector[Dox]): Vector[Dox] = ps.flatMap {
-                  case m: Text => _enlink_(m)
-                  case m => Vector(m)
-                }
-
-                def _enlink_(p: Text): Vector[Dox] = {
-                  val a = _split(p.contents, term)
-                  a.map {
-                    case m if m == term =>
-//                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
-                      val href = create_href(pageNode, definition.page, definition.id)
-                      val alt = definition.description.toPlainText
-                      Hyperlink.create(m, href, alt)
-                    case m => Text(m)
-                  }
-                }
-
-                copy(xs = _doxes_(xs))
-              }
-
-              private def _split(input: String, delimiter: String) =
-                input.split(s"(?=$delimiter)|(?<=$delimiter)").toVector
-            }
-            case class Z(xs: Vector[Dox]) {
-              def r: TreeTransformer.Directive[Dox] = xs match {
-                case Vector() => TreeTransformer.Directive.Empty()
-                case Vector(m) => directive_node(m)
-                case ms => directive_nodes(ms)
-              }
-
-              def +(definition: Glossary.Definition) =
-                Z(definition.terms.foldLeft(ZZ(definition, xs))(_+_).r)
-            }
-            candidates.foldLeft(Z(Vector(m)))(_+_).r
-          }
+        case m: Text => _transform(m)
         case m: Dfn => directive_node(m)
         case m => directive_container_content(m)
+      }
+    }
+
+    private def _transform(m: Text) = {
+      val tokens0 = _to_tokens(_tokenize(m.contents))
+      val tokens = Glossary.Term.Tokens(tokens0.map(_.text))
+      val candidates = context.metadata.glossary.candidates(tokens)
+      if (candidates.isEmpty) {
+        directive_container_content(m)
+      } else {
+        case class ZZ(definition: Glossary.Definition, xs: Vector[Dox]) {
+          def r = xs
+
+          def +(term: String) = {
+            def _doxes_(ps: Vector[Dox]): Vector[Dox] = ps.flatMap {
+              case m: Text => _enlink_(m)
+              case m => Vector(m)
+            }
+
+            def _enlink_(p: Text): Vector[Dox] = {
+              val a = _split(p.contents, term)
+              a.map {
+                case m if m == term =>
+                  //                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
+                  val href = create_href(pageNode, definition.page, definition.id)
+                  val alt = definition.description.toPlainText
+                  Hyperlink.create(m, href, alt)
+                case m => Text(m)
+              }
+            }
+
+            copy(xs = _doxes_(xs))
+          }
+
+          private def _split(input: String, delimiter: String) =
+            input.split(s"(?=$delimiter)|(?<=$delimiter)").toVector
+        }
+        case class Z(xs: Vector[Dox]) {
+          def r: TreeTransformer.Directive[Dox] = xs match {
+            case Vector() => TreeTransformer.Directive.Empty()
+            case Vector(m) => directive_node(m)
+            case ms => directive_nodes(ms)
+          }
+
+          def +(definition: Glossary.Definition) =
+            Z(definition.terms.foldLeft(ZZ(definition, xs))(_+_).r)
+        }
+        candidates.foldLeft(Z(Vector(m)))(_+_).r
       }
     }
   }

@@ -10,6 +10,7 @@ import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
 import org.goldenport.context.Showable
 import org.goldenport.context.Conclusion
+import org.goldenport.context.Consequence
 import org.goldenport.context.DateTimeContext
 import org.goldenport.collection.VectorMap
 import org.goldenport.collection.NonEmptyVector
@@ -28,11 +29,15 @@ import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.LocaleUtils
+import org.goldenport.xml.XmlUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.metadata.DoxCacheControl
 import org.smartdox.generator.Context
 import org.smartdox.parser.DoxLinesParser.BlockMacro
+import org.smartdox.parser.PureParser
+import org.smartdox.util.DoxUtils
 
 /*
  * derived from SNode.java since Sep. 17, 2006
@@ -81,7 +86,7 @@ import org.smartdox.parser.DoxLinesParser.BlockMacro
  *  version Apr. 30, 2025
  *  version May.  2, 2025
  *  version Jun. 26, 2025
- * @version Jul. 19, 2025
+ * @version Jul. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -89,6 +94,7 @@ trait Dox extends IDocument {
   def isEmpty: Boolean = elements.isEmpty
   def isVisialBlock: Boolean
   def elements: List[Dox] = Nil
+  def children: List[Dox] = elements // for print
 
   def attributes: VectorMap[String, String]
   def attributeMap = attributes // for element specific attributes
@@ -100,9 +106,14 @@ trait Dox extends IDocument {
 
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
-  lazy val showParamsText = showParams.map {
+
+  def effectiveAttributes: Map[String, String] =
+    attributes ++ showParams
+
+  lazy val showParamsText = effectiveAttributes.map {
     case (k, v) => """%s="%s"""".format(k, v) 
   } mkString(" ")
+
   def showOpenCloseText = {
     val params = showParamsText.isEmpty ? "" | " " + showParamsText
     "<" + showTerm + params + "/>"
@@ -113,6 +124,26 @@ trait Dox extends IDocument {
   }
   def showCloseText = "</" + showTerm + ">"
   def showContentsElements = elements
+
+  def printDox(buffer: StringBuilder): Unit = {
+    printOpen(buffer)
+    printContents(buffer)
+    printClose(buffer)
+  }
+
+  def printOpen(buffer: StringBuilder): Unit =
+    if (isOpenClose)
+      print_Open_Close(buffer)
+    else
+      print_Open(buffer)
+
+  def printContents(buffer: StringBuilder): Unit =
+    print_Contents(buffer)
+
+  def printClose(buffer: StringBuilder): Unit =
+    if (!isOpenClose)
+      print_Close(buffer)
+
   def isOpenClose = showContentsElements.isEmpty
 
   def takeHtmlTag: String = getHtmlTag getOrElse RAISE.noReachDefect(s"${this}")
@@ -180,6 +211,23 @@ trait Dox extends IDocument {
 
   protected def show_Close(buf: StringBuilder) {
     buf.append(showCloseText)
+  }
+
+  protected def print_Open_Close(buf: StringBuilder) {
+    show_Open_Close(buf)
+  }
+
+  protected def print_Open(buf: StringBuilder) {
+    show_Open(buf)
+  }
+
+  protected def print_Contents(buf: StringBuilder): Unit =
+    for (x <- children) {
+      x.printDox(buf)
+    }
+
+  protected def print_Close(buf: StringBuilder) {
+    show_Close(buf)
   }
 
   def toText(): String = {
@@ -412,6 +460,18 @@ trait Dox extends IDocument {
       case _ => None
     }
   def getStringIfOnlyText: Option[String] = getTextIfOnly.map(_.contents)
+
+  protected final def print_open_tag(buf: StringBuilder, name: String): Unit =
+    XmlUtils.printOpenTag(buf, name)
+
+  protected final def print_open_tag(
+    buf: StringBuilder,
+    name: String,
+    attributes: Map[String, String]
+  ): Unit = XmlUtils.printOpenTag(buf, name, attributes)
+
+  protected final def print_close_tag(buf: StringBuilder, name: String): Unit =
+    XmlUtils.printCloseTag(buf, name)
 }
 
 trait Block extends Dox with ListContent {
@@ -534,6 +594,7 @@ object Dox extends UseDox {
   private def _activate(ps: Seq[Dox]): List[Dox] = ps.filter {
     case m: Div if m.contents.isEmpty => false
     case m: Span if m.contents.isEmpty => false
+    case m: Text if m.contents.isEmpty => false
     case _ => true
   }.toList
 
@@ -592,6 +653,11 @@ object Dox extends UseDox {
   def transformDocument(p: Document, tx: HomoTreeTransformer[Dox]): Document = {
     val r = transform(p, tx)
     toDocument(r)
+  }
+
+  def transformInlineContents(p: InlineContents, tx: HomoTreeTransformer[Dox]): InlineContents = {
+    val r = transform(p, tx)
+    toInlineContents(r)
   }
 
   def toDocument(p: Dox): Document = p match {
@@ -866,10 +932,37 @@ object Dox extends UseDox {
       case _ => None
     }
 
-  def getMetadata(p: Dox): Option[DocumentMetaData] = p match {
-    case m: Document => Some(m.head.metadata)
-    case m: Head => Some(m.metadata)
+  def trimSingleLine(p: InlineContents): InlineContents =
+    toInlineContents(p.map(trimSingleLine))
+
+  def trimSingleLine(p: Inline): Inline = p match {
+    case m: Text => Text(DoxUtils.trimSingleLine(m.contents))
+    case m => m
+  }
+
+  def getHead(p: Dox): Option[Head] = p match {
+    case m: Document => Some(m.head)
+    case m: Head => Some(m)
     case _ => None
+  }
+
+  def getMetadata(p: Dox): Option[DocumentMetaData] =
+    getHead(p).map(_.metadata)
+
+  def compareWithoutDoxCacheControl(expected: Dox, actual: Dox): Boolean = {
+    expected match {
+      case m: Document => actual match {
+        case mm: Document =>
+          compareWithoutDoxCacheControl(m.head, mm.head) &&
+          compareWithoutDoxCacheControl(m.body, mm.body)
+        case _ => false
+      }
+      case m: Head => actual match {
+        case mm: Head => m.equalsWithoutDoxCacheControl(mm)
+        case _ => false
+      }
+      case m => m.equals(actual)
+    }
   }
 }
 
@@ -884,6 +977,14 @@ case class Document(
   override def showTerm = "html"
   override def showOpenText = "<!DOCTYPE html><html>"
   override def showCloseText = "</html>"
+
+  override protected def print_Open(buf: StringBuilder): Unit = {
+    print_open_tag(buf, "document")
+  }
+
+  override protected def print_Close(buf: StringBuilder): Unit = {
+    print_close_tag(buf, "document")
+  }
 
   override def equals_Value(o: Dox) = o match {
     case m: Document => head == m.head && body == m.body && attributes == m.attributes
@@ -923,6 +1024,8 @@ case class Document(
   private def _copy_v(cs: List[Dox]): ValidationNel[String, Dox] = for {
     x <- body.copyV(cs)
   } yield copy(head, x)
+
+  def markCache: Document = copy(head = head.markCache)
 }
 object Document extends DoxFactory {
   val label = "document"
@@ -950,6 +1053,7 @@ case class Head(
   seo: Head.Seo = Head.Seo.empty,
   metadata: DocumentMetaData = DocumentMetaData.empty,
   attributes: VectorMap[String, String] = VectorMap.empty,
+  doxCacheControl: Option[DoxCacheControl] = None,
   location: Option[ParseLocation] = None
 ) extends Dox {
   def isVisialBlock: Boolean = false
@@ -967,6 +1071,15 @@ case class Head(
       metadata == m.metadata &&
       attributes == m.attributes
     case _ => false
+  }
+
+  def equalsWithoutDoxCacheControl(p: Head): Boolean = {
+    css.equals(p.css) &&
+    csslink.equals(p.csslink) &&
+    cacheControl.equals(p.cacheControl) &&
+    seo.equals(p.seo) &&
+    metadata.equals(p.metadata) &&
+    attributes.equals(p.attributes)
   }
 
   override def copyV(cs: List[Dox]) = {
@@ -1000,6 +1113,16 @@ case class Head(
       buf.append(x)
       buf.append("\">")
     }
+  }
+
+  override protected def print_Open(buf: StringBuilder): Unit = {
+    print_open_tag(buf, "head", attributes)
+    metadata.printFlat(buf)
+    doxCacheControl.map(_.print(buf))
+  }
+
+  override protected def print_Close(buf: StringBuilder): Unit = {
+    print_close_tag(buf, "head")
   }
 
   def title: Option[I18NFragment] = metadata.title
@@ -1039,8 +1162,14 @@ case class Head(
     seo + p.seo,
     metadata + p.metadata, // properties.withFallback(p.properties),
     attributes ++ p.attributes,
+    doxCacheControl,
     location orElse p.location
   )
+
+  def markCache: Head = {
+    val dcc = doxCacheControl.map(_.mark) getOrElse DoxCacheControl.marked()
+    copy(doxCacheControl = Some(dcc))
+  }
 }
 
 object Head extends DoxFactory {
@@ -1063,6 +1192,8 @@ object Head extends DoxFactory {
   ) {
     def isEmpty = basic.isEmpty && openGraphProtocol.isEmpty && twitterCard.isEmpty
 
+    def toOption: Option[Seo] = if (isEmpty) None else Some(this)
+
     def +(rhs: Seo) = copy(
       basic = basic + rhs.basic,
       openGraphProtocol = openGraphProtocol + rhs.openGraphProtocol,
@@ -1075,6 +1206,14 @@ object Head extends DoxFactory {
     val empty = Seo()
 
     def author(p: InlineContents) = empty.copy(basic = BasicSeo.author(p))
+
+    def parseFlat(elem: XNode): Consequence[Option[Seo]] = {
+      for {
+        bseo <- BasicSeo.parseFlat(elem)
+      } yield {
+        Seo(bseo).toOption
+      }
+    }
   }
 
   case class BasicSeo(
@@ -1092,6 +1231,15 @@ object Head extends DoxFactory {
     val empty = BasicSeo()
 
     def author(p: InlineContents) = if (p.isEmpty) empty else empty.copy(author = Some(p))
+
+    def parseFlat(elem: XNode): Consequence[BasicSeo] = {
+      for {
+        authorx <- XmlUtils.getElementC(elem, "author")
+        author <- authorx.traverse(PureParser.buildChildrenInlinesC)
+      } yield {
+        BasicSeo(author = author)
+      }
+    }
   }
 
   case class OpenGraphProtocol(
@@ -1159,6 +1307,18 @@ object Head extends DoxFactory {
   ): Head = {
     val metadata = DocumentMetaData.create(title)
     new Head(metadata = metadata, css = css, csslink = csslink)
+  }
+
+  def create(
+    md: Option[DocumentMetaData],
+    seo: Option[Seo],
+    dcc: Option[DoxCacheControl]
+  ): Head = {
+    new Head(
+      seo = seo getOrElse Seo.empty,
+      metadata = md getOrElse DocumentMetaData.empty,
+      doxCacheControl = dcc
+    )
   }
 
   def create(
@@ -1238,6 +1398,18 @@ case class Section(
     buf.append(">")
   }
   override def isOpenClose = false
+
+  override def print_Open(buf: StringBuilder): Unit = {
+    val showh = "title"
+    buf.append(showOpenText)
+    buf.append("<")
+    buf.append(showh)
+    buf.append(">")
+    title.foreach(_.printDox(buf))
+    buf.append("</")
+    buf.append(showh)
+    buf.append(">")
+  }
 
   override def equals_Value(o: Dox) = o match {
     case m: Section => title == m.title && contents == m.contents && level == m.level && attributes == m.attributes
@@ -1369,6 +1541,10 @@ case class Text(
     buf.append(contents)
   }
   override def to_Data(buf: StringBuilder) {
+    buf.append(contents)
+  }
+
+  override def print_Contents(buf: StringBuilder): Unit = {
     buf.append(contents)
   }
 
@@ -1519,7 +1695,7 @@ case class Pre(
   location: Option[ParseLocation] = None
 ) extends Inline {
   override val elements = List(Text(contents))
-  override def showParams = attributes.list
+//  override def showParams = attributes.list
 
   override def equals_Value(o: Dox) = o match {
     case m: Pre => contents == m.contents && attributes == m.attributes
@@ -2394,6 +2570,33 @@ case class I18NFragment(
     case _ => false
   }
 
+  override def showTerm = "i18n"
+
+  override def isOpenClose = false
+
+  override def printDox(buf: StringBuilder): Unit = 
+    contents.getIfNoLocale match {
+      case Some(s) => _print_contents(buf, s)
+      case None => super.printDox(buf)
+    }
+
+
+  override def print_Contents(buf: StringBuilder): Unit =
+    for ((locale, xs) <- contents.localeVector) {
+      buf.append("<")
+      buf.append(locale)
+      buf.append(">")
+      _print_contents(buf, xs)
+      buf.append("</")
+      buf.append(locale)
+      buf.append(">")
+    }
+
+  private def _print_contents(buf: StringBuilder, xs: Seq[Dox]): Unit =
+    for (x <- xs) {
+      x.printDox(buf)
+    }
+
   def distill(locale: Locale): List[Dox] = contents.apply(locale)
 
   def distillInline(locale: Locale): List[Inline] = distill(locale) map {
@@ -2455,7 +2658,7 @@ object I18NFragment {
       def r = if (ls.isEmpty)
         I18NFragment(I18NContainer.make(xs.toList))
       else
-        I18NFragment(I18NContainer.create(ls))
+        I18NFragment(I18NContainer.createSeq(ls))
 
       def +(rhs: Dox) = rhs.getLanguage match {
         case Some(l) =>
@@ -2480,8 +2683,11 @@ object I18NFragment {
 
   def createString(p: Map[Locale, String]): I18NFragment = {
     val a = p.mapValues(x => List(Text(x)))
-    I18NFragment(I18NContainer.create(a))
+    I18NFragment(I18NContainer.createSeq(a))
   }
+
+  def createDox(p: Seq[(Locale, Seq[Dox])]) =
+    I18NFragment(I18NContainer.createSeq(p))
 
   def enja(en: String, ja: String) = I18NFragment(
     I18NContainer.enja(List(Text(en)), List(Text(ja)))
@@ -2690,6 +2896,14 @@ case class Program(
   override def showTerm = "pre"
   override def showParams = attributes.list ++ List("class" -> "program")
 
+  override protected def print_Open(buf: StringBuilder): Unit = {
+    print_open_tag(buf, "program", attributes)
+  }
+
+  override protected def print_Close(buf: StringBuilder): Unit = {
+    print_close_tag(buf, "program")
+  }
+
   override def equals_Value(o: Dox) = o match {
     case m: Program => contents == m.contents && attributes == m.attributes
     case _ => false
@@ -2816,6 +3030,8 @@ case class Span(
 ) extends Inline {
   override val elements = contents
   override def showTerm = "span"
+
+  override def children = contents
 
   override def equals_Value(o: Dox) = o match {
     case m: Span => contents == m.contents && attributes == m.attributes
@@ -3002,4 +3218,3 @@ case class Error(
   def attributes: VectorMap[String, String] = VectorMap.empty
   override def equals_Value(o: Dox) = o == this
 }
-

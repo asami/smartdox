@@ -12,7 +12,8 @@ import org.goldenport.values.CompactUuid
  * @since   Mar.  7, 2025
  *  version Mar.  9, 2025
  *  version Apr. 28, 2025
- * @version Jun. 16, 2025
+ *  version Jun. 16, 2025
+ * @version Jul. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryBuilder(
@@ -43,7 +44,7 @@ class GlossaryBuilder(
     // println(s"_collect_glossaries b: ${b.show}")
     val c = Dox.toDox(b)
     // println(s"_collect_glossaries c: $c")
-    TreeNode.create(node.name, Page(node.name, c))
+    TreeNode.create(node.name, p.withDox(c))
   }
 }
 

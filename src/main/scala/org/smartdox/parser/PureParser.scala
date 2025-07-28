@@ -3,23 +3,38 @@ package org.smartdox.parser
 import scalaz._, Scalaz._
 import java.io.Reader
 import java.net.URI
+import java.util.Locale
 import scala.xml.{Node => XNode, _}
+import org.goldenport.context.Consequence
 import org.goldenport.context.DateTimeContext
 import org.goldenport.collection.VectorMap
+import org.goldenport.io.InputSource
 import org.smartdox._
+import org.smartdox.Head.Seo
+import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.metadata.DoxCacheControl
 import Dox._, Doxes._
 
-/**
+/*
  * @since   Dec.  5, 2012
  *  version Jan. 15, 2014
  *  version Feb.  5, 2014
  *  version Dec. 30, 2018
  *  version Oct. 28, 2024
- * @version Jun. 16, 2025
+ *  version Jun. 16, 2025
+ * @version Jul. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
   implicit val datetimeContext = DateTimeContext.now() // WORKAROUND
+
+  def parseC(in: InputSource): Consequence[Dox] =
+    Consequence.runUsing(in.openReader) { reader =>
+      parse(reader) match {
+        case scalaz.Success(s) => Consequence.success(s)
+        case scalaz.Failure(es) => Consequence.syntaxErrorFault(es.toList.mkString(";"))
+      }
+    }
 
   def parse(reader: Reader): Validation[NonEmptyList[String], Dox] = {
     val elem = XML.load(reader)
@@ -29,9 +44,10 @@ object PureParser {
 
   def build(elem: XNode): Dox = {
 //    println("PureParser#build = " + elem)
-    println("... = " + elem.label)
-    elem.label match {
-      case "html" => buildDocument(elem)
+//    println("... = " + elem.label)
+    val name = elem.label
+    name match {
+      case "document" => buildDocument(elem)
       case "head" => buildHead(elem)
       case "body" => buildBody(elem)
       case "section" => buildSection(elem)
@@ -72,10 +88,19 @@ object PureParser {
       case "smartdoc" => buildSmartdoc(elem)
       case "tt" => buildTt(elem)
       case "span" => buildSpan(elem)
+      case "i18n" => buildI18n(elem)
       case "includedoc" => buildIncludeDoc(elem)
       case "#PCDATA" => buildText(elem)
       case _ => sys.error("bad element = " + elem)
     }
+  }
+
+  def buildChildren(elem: XNode): List[Dox] = {
+    elem.child.map(build).toList
+  }
+
+  def buildChildrenInlinesC(elem: XNode): Consequence[List[Inline]] = {
+    ???
   }
 
   def buildDocument(elem: XNode): org.smartdox.Document = {
@@ -87,6 +112,13 @@ object PureParser {
   }
 
   def buildHead(elem: XNode): Head = {
+    val md = DocumentMetaData.parseFlat(elem).take
+    val seo = Seo.parseFlat(elem).take
+    val dcc = DoxCacheControl.parse(elem).take
+    Head.create(md, seo, dcc)
+  }
+
+  def buildHead0(elem: XNode): Head = {
     Head.create(getTitle(elem), getAuthor(elem), getDate(elem))
   }
 
@@ -116,10 +148,6 @@ object PureParser {
     Body(buildChildren(elem))
   }
 
-  def buildChildren(elem: XNode): List[Dox] = {
-    elem.child.map(build).toList
-  }
-
   def buildSection(elem: XNode): Section = {
 //    println("PureParser#buildSection = " + elem)
     val header = getHeader(elem)
@@ -133,7 +161,8 @@ object PureParser {
           label.startsWith("h6") ||
           label.startsWith("h7") ||
           label.startsWith("h8") ||
-          label.startsWith("h9")) false
+          label.startsWith("h9") ||
+          label.startsWith("title")) false
       else true
     }).map(build)
     Section(header._2, contents.toList, header._1)
@@ -141,6 +170,7 @@ object PureParser {
 
   def getHeader(elem: XNode): (Int, InlineContents) = {
     elem.child.collectFirst {
+      case x if x.label == "title" => (0, buildInline(x))
       case x if x.label == "h1" => (0, buildInline(x))
       case x if x.label == "h2" => (1, buildInline(x))
       case x if x.label == "h3" => (2, buildInline(x))
@@ -157,7 +187,7 @@ object PureParser {
   }
 
   def buildDiv(elem: XNode): Div = {
-    Div(build(elem))
+    Div(buildChildren(elem))
   }
 
   def buildParagraph(elem: XNode): Paragraph = {
@@ -302,6 +332,17 @@ object PureParser {
 
   def buildSpace(elem: XNode): Space = {
     Space()
+  }
+
+  def buildI18n(elem: XNode): I18NFragment = {
+    val xs = elem.child.map(_to_locale)
+    I18NFragment.createDox(xs)
+  }
+
+  private def _to_locale(p: XNode): (Locale, Seq[Dox]) = {
+    val locale = Locale.of(p.label)
+    val xs = p.child.map(build)
+    (locale, xs)
   }
 
   def buildDl(elem: XNode): Dl = {

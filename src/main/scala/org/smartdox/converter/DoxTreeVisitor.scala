@@ -8,7 +8,7 @@ import org.smartdox._
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
- * @version Jul. 15, 2025
+ * @version Jul. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -55,9 +55,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
 
   protected final def to_text(ps: Seq[Dox]): String = Dox.toText(ps)
 
- override final  protected def enter_Content(node: TreeNode[Dox], content: Dox): Unit =
-   if (is_invoke_img)
-     _enter_content(node, content)
+  override final protected def start_Content(node: TreeNode[Dox], content: Dox): Unit =
+    _enter_content(node, content)
+
+  override final protected def enter_Content(node: TreeNode[Dox], content: Dox): Unit =
+    if (is_invoke_img)
+      _enter_content(node, content)
 
   private def _enter_content(node: TreeNode[Dox], content: Dox): Unit =
     content match {
@@ -85,6 +88,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: TH => enter_Th(m)
       case m: TD => enter_Td(m)
       case m: Section => enter_section(node, m)
+      case m: Program => enter_program(node, m)
       case m: Document => enter_Document(m)
       case m: Head => enter_head(node, m)
       case m: Body => enter_Body(m)
@@ -94,6 +98,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_section(node: TreeNode[Dox], p: Section): Unit = {
     section_up()
     enter_Section(p)
+  }
+
+  protected def enter_program(node: TreeNode[Dox], p: Program): Unit = {
+    enter_Program(p)
   }
 
   protected def enter_head(node: TreeNode[Dox], p: Head): Unit =
@@ -156,9 +164,13 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Th(p: TH): Unit = {}
   protected def enter_Td(p: TD): Unit = {}
   protected def enter_Section(p: Section): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Section: $p")
+  protected def enter_Program(p: Program): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Program: $p")
   protected def enter_Document(p: Document): Unit = {}
   protected def enter_Head(p: Head): Unit = {}
   protected def enter_Body(p: Body): Unit = {}
+
+  override final protected def leaveEnd_Content(node: TreeNode[Dox], content: Dox): Unit =
+    _leave_content(node, content)
 
   override final protected def leave_Content(node: TreeNode[Dox], content: Dox): Unit =
     if (is_invoke_img)
@@ -192,6 +204,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: TH => leave_Th(m)
       case m: TD => leave_Td(m)
       case m: Section => leave_section(node, m)
+      case m: Program => leave_program(node, m)
       case m: Document => leave_Document(m)
       case m: Head => leave_head(node, m)
       case m: Body => leave_Body(m)
@@ -204,10 +217,13 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m => {}
     }
 
-
   protected def leave_section(node: TreeNode[Dox], p: Section): Unit = {
     leave_Section(p)
     section_down()
+  }
+
+  protected def leave_program(node: TreeNode[Dox], p: Program): Unit = {
+    leave_Program(p)
   }
 
   protected def leave_head(node: TreeNode[Dox], p: Head): Unit =
@@ -271,6 +287,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Th(p: TH): Unit = {}
   protected def leave_Td(p: TD): Unit = {}
   protected def leave_Section(p: Section): Unit = {}
+  protected def leave_Program(p: Program): Unit = {}
   protected def leave_Document(p: Document): Unit = {}
   protected def leave_Head(p: Head): Unit = {}
   protected def leave_Body(p: Body): Unit = {}

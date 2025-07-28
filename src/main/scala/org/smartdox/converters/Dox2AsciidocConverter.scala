@@ -12,7 +12,7 @@ import org.smartdox.converter._
  * @since   Apr. 18, 2025
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
- * @version Jul. 20, 2025
+ * @version Jul. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -49,7 +49,7 @@ class Dox2AsciidocConverter(
   }
 
   override protected def enter_Hyperlink(p: Hyperlink) = {
-    sb_print(s"${p.href.toString}[")
+    sb_print(s"link:${p.href.toString}[")
   }
 
   override protected def leave_Hyperlink(p: Hyperlink) = {
@@ -57,6 +57,7 @@ class Dox2AsciidocConverter(
   }
 
   override protected def enter_Figure(p: Figure): Unit = {
+    val style = "role=img-figure"
     sb_print(".")
     sb_print(p.caption.contents)
     sb_println("")
@@ -64,7 +65,9 @@ class Dox2AsciidocConverter(
     if (false)
       sb_print("_")
     sb_print(_normalize_src(p.img.src))
-    sb_println("[]")
+    sb_print("[")
+    sb_print(style)
+    sb_println("]")
     sb_println()
   }
 
@@ -97,6 +100,21 @@ class Dox2AsciidocConverter(
   private def _print_record(p: TRecord): Unit = {
     val s = p.fields.map(_.text).mkString("|", "|", "")
     sb_println(s)
+  }
+
+  override protected def enter_Program(p: Program): Unit = {
+    val caption = None
+    val directive = "[source,scala]" // TODO
+    caption.foreach { x =>
+      sb_print(".")
+      sb_println(x)
+    }
+    sb_println(directive)
+    sb_println("----")
+  }
+
+  override protected def leave_Program(p: Program): Unit = {
+    sb_println("----")
   }
 }
 
