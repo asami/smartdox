@@ -86,7 +86,7 @@ import org.smartdox.util.DoxUtils
  *  version Apr. 30, 2025
  *  version May.  2, 2025
  *  version Jun. 26, 2025
- * @version Jul. 27, 2025
+ * @version Jul. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -611,6 +611,7 @@ object Dox extends UseDox {
     }
 
   def toInlineContents(p: Dox): List[Inline] = p match {
+    case m: Fragment => toInlineContents(m.contents)
     case m: Inline => List(m)
     case m: Block => toInlineContents(p.elements)
     case m => RAISE.illegalStateFault(s"No inline: $m")
@@ -1467,7 +1468,7 @@ object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "div"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Div =
-    Div(body.toList)
+    Div(body.toList, attrs)
 
   def apply(d: Dox) = new Div(List(d))
 }

@@ -33,7 +33,7 @@ import org.smartdox.util.DoxUtils
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 16, 2025
- * @version Jul. 28, 2025
+ * @version Jul. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {

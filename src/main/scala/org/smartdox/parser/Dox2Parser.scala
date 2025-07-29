@@ -41,7 +41,7 @@ import Dox._
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 24, 2025
- * @version Jul. 19, 2025
+ * @version Jul. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -148,19 +148,29 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     ps match {
       case Vector() => (ps, None)
       case Vector(x, xs @ _*) =>
-        _parse_properties(x).toOption match {
+        _parse_properties(x) match {
           case Some(s) => (xs.toVector, Some(s))
           case None => (ps, None)
         }
     }
 
   private def _parse_properties(p: Dox): Option[Hocon] =
-    p match {
-      case m: Paragraph => 
-        val in = InputSource(m.toData)
-        ConfigLoader.loadConfigHocon(in).toOption
+    _get_text_data_in_simple_paragraph(p).flatMap { s =>
+      val in = InputSource(s)
+      ConfigLoader.loadConfigHocon(in).toOption
+    }
+
+  private def _get_text_data_in_simple_paragraph(p: Dox): Option[String] = p match {
+    case m: Paragraph => m.contents match {
+      case Nil => None
+      case x :: Nil => x match {
+        case _: Text => Some(m.toData)
+        case _ => None
+      }
       case _ => None
     }
+    case _ => None
+  }
 
   private def _section(
     ctx: ParseContext,

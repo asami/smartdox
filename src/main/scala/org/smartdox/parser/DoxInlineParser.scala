@@ -796,15 +796,29 @@ object DoxInlineParser {
     attrs: Vector[(String, String)],
     cs: Vector[Char] = Vector.empty
   ) extends ChildDoxInlineParseState with RawFeature {
+    private val _ctx = Dox2Parser.ParseContext.now() // TODO
+    implicit def dtctx = _ctx.dateTimeContext
+
     override def returnCharsFrom(p: Seq[Char]): DoxInlineParseState = {
       val s = (cs ++ p).mkString
       val c = DoxLinesParser.Config(inlineConfig = config)
       val ll = LogicalLines.parse(LogicalLines.Config.easyHtml, s)
-      val dox = DoxLinesParser.parse(c, ll)
+      val a = DoxLinesParser.parse(c, ll)
+      val dox = Dox.create(tagName, attrs, _normalize(a))
       leave_to(dox)
     }
 
+    private def _normalize(p: Dox): List[Dox] = p match {
+      case m: Paragraph => m.contents // TODO
+      case m: Fragment => m.contents
+      case m: Div => m.contents
+      case m => List(m)
+    }
+
     override protected def use_angle_bracket = true
+
+    override protected def end_Result(): ParseResult[Dox] =
+      leave_end
 
     override protected def character_State(c: Char) = copy(cs = cs :+ c)
 
@@ -830,16 +844,17 @@ object DoxInlineParser {
     case class TagOpenState(
       config: Config,
       parent: DoxInlineParseState,
-      cs: Vector[Char] = Vector.empty
+      cs: Vector[Char] = Vector('<')
     ) extends ChildDoxInlineParseState with RawFeature {
       override protected def use_angle_bracket = true
 
-      override def returnCharsFrom(cs: Seq[Char]): DoxInlineParseState = RAISE.noReachDefect(this, "returnCharsFrom")
+      override def returnCharsFrom(p: Seq[Char]): DoxInlineParseState =
+        parent.returnCharsFrom(cs ++ p)
 
       override protected def character_State(c: Char) = copy(cs = cs :+ c)
 
       override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
-        TextState(config, this)
+        TextState(config, copy(cs = cs :+ '>'))
     }
 
     case class TextState(
@@ -847,7 +862,8 @@ object DoxInlineParser {
       parent: DoxInlineParseState,
       cs: Vector[Char] = Vector.empty
     ) extends ChildDoxInlineParseState with RawFeature {
-      override def returnCharsFrom(cs: Seq[Char]): DoxInlineParseState = RAISE.noReachDefect(this, "returnCharsFrom")
+      override def returnCharsFrom(p: Seq[Char]): DoxInlineParseState =
+        parent.returnCharsFrom(cs ++ p)
 
       override protected def use_angle_bracket = true
 
@@ -863,14 +879,14 @@ object DoxInlineParser {
     case class TagCloseState(
       config: Config,
       parent: DoxInlineParseState,
-      cs: Vector[Char] = Vector.empty
+      cs: Vector[Char] = Vector('<', '/')
     ) extends ChildDoxInlineParseState with RawFeature {
       override protected def use_angle_bracket = true
 
       override protected def character_State(c: Char) = copy(cs = cs :+ c)
 
       override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
-        leave_to_chars(cs)
+        leave_to_chars(cs :+ '>')
     }
   }
 
