@@ -10,14 +10,15 @@ import org.goldenport.value._
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContext
 import org.goldenport.datatype
-import org.goldenport.collection.VectorMap
+import org.goldenport.tree._
 import org.goldenport.util.StringUtils
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.CirceUtils.Codec._
 
 /*
  * @since   Jul. 22, 2025
- * @version Jul. 22, 2025
+ *  version Jul. 22, 2025
+ * @version Aug.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Tag(
@@ -47,10 +48,10 @@ object Tag {
 }
 
 case class TagCollection(
-  tags: VectorMap[String, Tag] = VectorMap.empty
+  tags: Tree[Tag] = Tree.create()
 ) {
 }
 
 object TagCollection {
-  val empty = TagCollection()
+  def create(): TagCollection = TagCollection()
 }

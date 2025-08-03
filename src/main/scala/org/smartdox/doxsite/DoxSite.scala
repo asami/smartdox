@@ -56,7 +56,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Apr. 29, 2025
  *  version May. 31, 2025
  *  version Jun. 28, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -831,7 +832,7 @@ object DoxSite {
 
   private def _collect_keywords(): KeywordCollection = KeywordCollection.empty
 
-  private def _collect_tags(): TagCollection = TagCollection.empty
+  private def _collect_tags(): TagCollection = TagCollection.create()
 
   private def _build_atom_feed(p: Notices): Option[AtomFeedBag] = {
     val ja = p.toAtomFeed(LocaleUtils.ja)
