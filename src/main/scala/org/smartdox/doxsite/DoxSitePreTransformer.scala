@@ -2,13 +2,15 @@ package org.smartdox.doxsite
 
 import org.goldenport.tree._
 import org.smartdox._
+import org.smartdox.transformers.LinkNormalizeTransformer
 import org.smartdox.transformers.AutoWireTransformer
 import org.smartdox.transformers.AutoI18nTransformer
 
 /*
  * @since   Apr.  5, 2025
  *  version Apr.  7, 2025
- * @version Jun. 28, 2025
+ *  version Jun. 28, 2025
+ * @version Aug.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSitePreTransformer(
@@ -19,7 +21,10 @@ class DoxSitePreTransformer(
     node: TreeNode[Node],
     page: Page
   ): List[HomoTreeTransformer[Dox]] =
-    List(_auto_wire(page), _auto_i18n(page)).flatten
+    List(_link_normalize(page), _auto_wire(page), _auto_i18n(page)).flatten
+
+  private def _link_normalize(p: Page) =
+    Some(new LinkNormalizeTransformer(context))
 
   private def _auto_wire(p: Page) =
     if (context.config.isAutoWire(p))

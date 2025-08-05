@@ -18,7 +18,8 @@ import org.smartdox.generator.Context
  *  version Mar.  9, 2025
  *  version Apr. 30, 2025
  *  version Jun. 24, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -105,4 +106,6 @@ case class HoconMetaData(
 case class ImageNode(
   name: Node.Name,
   file: File
-) extends Node
+) extends Node {
+  def withName(p: String) = copy(name = Node.Name(p))
+}
