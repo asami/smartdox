@@ -12,6 +12,7 @@ import org.goldenport.xml.{XmlAttributes, XmlAttribute}
 import org.goldenport.xml.dom.DomFactory
 import org.goldenport.value._
 import org.goldenport.hocon.HoconUtils
+import org.goldenport.util.ListUtils
 import org.goldenport.util.AnyUtils
 import org.smartdox._
 import Dox._
@@ -228,6 +229,7 @@ class Dox2DomHtmlTransformer(
     case m: Table => _table(m)
     case m: Li => _node(m)
 //    case m: Hyperlink => _hyperlink(m)
+    case m: Figure => _figure(m)
     case m: Inline => _inline(m)
     case m: Block => _block(m)
   }
@@ -280,8 +282,23 @@ class Dox2DomHtmlTransformer(
   private def _hyperlink(p: Hyperlink): Node = {
     val href = p.href
     val contents = _inline(p.contents)
-    val attrs = Vector("href" -> href.toString)
+    val text = Dox.getText(p.contents)
+    val attrs = List("href" -> href.toString)
     _factory.element("A", attrs, contents)
+  }
+
+  private def _figure(p: Figure): Node = {
+    val img = _factory.element("IMG",
+      ListUtils.buildTupleList(
+        List("src" -> p.img.src.toString),
+        List("alt" -> (p.img.alt orElse Dox.getText(p.caption.contents)))
+      )
+    )
+    val caption = _factory.element(
+      "FIGCAPTION",
+      _inline(p.caption.contents)
+    )
+    _factory.element("FIGURE", List(img, caption))
   }
 
   private def _table(p: Table): Node = {

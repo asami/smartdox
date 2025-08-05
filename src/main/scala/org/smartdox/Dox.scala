@@ -885,6 +885,17 @@ object Dox extends UseDox {
 
   def toText(ps: Seq[Dox]): String = ps.map(_.toText).mkString
 
+  def getText(ps: Seq[Dox]): Option[String] =
+    if (ps.isEmpty) {
+      None
+    } else {
+      val s = toText(ps)
+      if (s.isEmpty)
+        None
+      else
+        Some(s)
+    }
+
   def toPlainText(ps: Seq[Dox]): String = ps.map(_.toPlainText).mkString
 
   def makeSection(p: Dox): Section = findSection(p).get
@@ -2824,7 +2835,7 @@ trait Img extends Inline {
   // )
   override def showParams = {
     val a = List(
-    "src" -> src.toASCIIString()
+      "src" -> src.toASCIIString()
     )
     val b = ListUtils.buildTupleList("alt" -> alt)
     val c = attributes.toList

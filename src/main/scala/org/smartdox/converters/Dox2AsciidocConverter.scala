@@ -4,6 +4,7 @@ import scalaz._, Scalaz._
 import java.net.URI
 import org.goldenport.RAISE
 import org.goldenport.tree._
+import org.goldenport.util.ListUtils
 import org.smartdox._
 import org.smartdox.generator.Context
 import org.smartdox.converter._
@@ -12,7 +13,8 @@ import org.smartdox.converter._
  * @since   Apr. 18, 2025
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
- * @version Jul. 28, 2025
+ *  version Jul. 28, 2025
+ * @version Aug.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -57,7 +59,13 @@ class Dox2AsciidocConverter(
   }
 
   override protected def enter_Figure(p: Figure): Unit = {
-    val style = "role=img-figure"
+    val attrs = ListUtils.buildTupleList(
+      List("role" -> "img-figure"),
+      List(
+        "alt" -> get_text(p.caption.contents),
+        "title" -> get_text(p.caption.contents)
+      )
+    )
     sb_print(".")
     sb_print(p.caption.contents)
     sb_println("")
@@ -66,7 +74,7 @@ class Dox2AsciidocConverter(
       sb_print("_")
     sb_print(_normalize_src(p.img.src))
     sb_print("[")
-    sb_print(style)
+    sb_print(_build_attrs(attrs))
     sb_println("]")
     sb_println()
   }
@@ -78,6 +86,11 @@ class Dox2AsciidocConverter(
     else
       s
   }
+
+  private def _build_attrs(ps: Seq[(String, String)]): String = 
+    ps.map {
+      case (k, v) => s"$k=$v" // TODO escape
+    }.mkString(",")
 
   override protected def leave_Figure(p: Figure): Unit = {
   }

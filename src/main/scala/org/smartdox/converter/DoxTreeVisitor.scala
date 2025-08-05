@@ -8,7 +8,8 @@ import org.smartdox._
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -54,6 +55,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     space * depth + mark
 
   protected final def to_text(ps: Seq[Dox]): String = Dox.toText(ps)
+
+  protected final def get_text(ps: Seq[Dox]): Option[String] = Dox.getText(ps)
 
   override final protected def start_Content(node: TreeNode[Dox], content: Dox): Unit =
     _enter_content(node, content)
