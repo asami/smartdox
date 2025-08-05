@@ -25,7 +25,8 @@ import org.smartdox.transformer._
  *  version Jan. 17, 2021
  *  version Feb.  8, 2021
  *  version Apr. 29, 2025
- * @version Jul.  3, 2025
+ *  version Jul.  3, 2025
+ * @version Aug.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -226,7 +227,7 @@ class Dox2DomHtmlTransformer(
     case m: Section => _section(m)
     case m: Table => _table(m)
     case m: Li => _node(m)
-    case m: Hyperlink => _hyperlink(m)
+//    case m: Hyperlink => _hyperlink(m)
     case m: Inline => _inline(m)
     case m: Block => _block(m)
   }

@@ -86,7 +86,8 @@ import org.smartdox.util.DoxUtils
  *  version Apr. 30, 2025
  *  version May.  2, 2025
  *  version Jun. 26, 2025
- * @version Jul. 29, 2025
+ *  version Jul. 29, 2025
+ * @version Aug.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -97,7 +98,7 @@ trait Dox extends IDocument {
   def children: List[Dox] = elements // for print
 
   def attributes: VectorMap[String, String]
-  def attributeMap = attributes // for element specific attributes
+  def attributeMap: VectorMap[String, String] = effectiveAttributes
   def attribute(name: String): Option[String] = attributeMap.get(name)
 
   def getId: Option[Dox.Id] = attributeMap.get("id").map(Dox.Id)
@@ -107,8 +108,8 @@ trait Dox extends IDocument {
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
 
-  def effectiveAttributes: Map[String, String] =
-    attributes ++ showParams
+  def effectiveAttributes: VectorMap[String, String] =
+    attributes ++ VectorMap(showParams)
 
   lazy val showParamsText = effectiveAttributes.map {
     case (k, v) => """%s="%s"""".format(k, v) 
@@ -1871,11 +1872,15 @@ case class ReferenceImg(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Img {
-  def attributesUnified = {
-    val a = VectorMap("src" -> src.toString)
-    val b = VectorMap.create("alt" -> alt)
-    a ++ b ++ attributes
-  }
+  // def attributesUnified = {
+  //   val a = VectorMap("src" -> src.toString)
+  //   val b = VectorMap.create("alt" -> alt)
+  //   a ++ b ++ attributes
+  // }
+  override def showParams = ListUtils.buildTupleList(
+    List("src" -> src.toString),
+    List("atl" -> alt)
+  )
 
   override def equals_Value(o: Dox) = o match {
     case m: ReferenceImg => src == m.src && attributes == m.attributes
@@ -1885,6 +1890,8 @@ case class ReferenceImg(
   override def copyV(cs: List[Dox]) = {
     to_empty(cs).map(_ => this)
   }
+
+  def withSrc(p: String): ReferenceImg = copy(src = new URI(p))
 }
 object ReferenceImg extends DoxFactory {
   val label = "img"
