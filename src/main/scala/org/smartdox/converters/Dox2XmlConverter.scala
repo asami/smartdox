@@ -11,13 +11,14 @@ import org.smartdox.converter.Dox2StringConverter
 
 /*
  * @since   Jul. 23, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2XmlConverter(
   context: Context
 ) extends Dox2StringConverter {
-  override protected def enter_Text(p: Text): Unit = sb_print(p.contents)
+  override protected def enter_Text(p: Text): Unit = sb_print(p.xmlString)
 
   override protected def enter_Paragraph(p: Paragraph): Unit = p.printOpen(sb_buffer)
 

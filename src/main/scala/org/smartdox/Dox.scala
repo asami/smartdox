@@ -87,7 +87,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug.  5, 2025
+ * @version Aug.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1038,6 +1038,7 @@ case class Document(
     x <- body.copyV(cs)
   } yield copy(head, x)
 
+//  def isMarkCache: Boolean = head.isMarkCache
   def markCache: Document = copy(head = head.markCache)
 }
 object Document extends DoxFactory {
@@ -1178,6 +1179,8 @@ case class Head(
     doxCacheControl,
     location orElse p.location
   )
+
+//  def isMarkCache: Boolean = doxCacheControl.fold(false)(_.isMarked)
 
   def markCache: Head = {
     val dcc = doxCacheControl.map(_.mark) getOrElse DoxCacheControl.marked()
@@ -1576,6 +1579,8 @@ case class Text(
   override def getTextIfOnly = Some(this)
 
   def append(p: String): Text = copy(contents = contents ++ p)
+
+  def xmlString: String = XmlUtils.escape(contents)
 }
 
 case class Bold(

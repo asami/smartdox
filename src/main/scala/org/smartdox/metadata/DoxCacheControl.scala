@@ -8,7 +8,8 @@ import org.goldenport.xml.XmlUtils
 
 /*
  * @since   Jul. 26, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DoxCacheControl(
@@ -22,6 +23,8 @@ case class DoxCacheControl(
 
   def isAvailable(lastmodified: Instant): Boolean =
     lastModified.fold(false)(_.isAfter(lastmodified))
+
+//  def isMarked: Boolean = lastModified.isDefined
 
   def mark(): DoxCacheControl = copy(lastModified = Some(Instant.now()))
 
