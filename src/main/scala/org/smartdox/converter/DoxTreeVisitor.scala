@@ -9,10 +9,11 @@ import org.smartdox._
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
  *  version Jul. 26, 2025
- * @version Aug.  5, 2025
+ * @version Aug.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
+  protected def is_ignore_table_children: Boolean = false
   protected def is_ignore_img_in_figure: Boolean = false
   private var _section: Int = 0
   private var _list_depth = 0
@@ -140,7 +141,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
 
   protected def enter_table(node: TreeNode[Dox], p: Table): Unit = {
     enter_Table(p)
-    done_traverse(node)
+    if (is_ignore_table_children)
+      done_traverse(node)
   }
 
   protected def enter_Text(p: Text): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Text: $p")

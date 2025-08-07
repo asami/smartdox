@@ -6,12 +6,14 @@ import org.smartdox._
 /*
  * @since   Jun. 12, 2025
  *  version Jun. 20, 2025
- * @version Jul. 15, 2025
+ *  version Jul. 15, 2025
+ * @version Aug.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
   import Dox2TextDocConverter._
 
+  override def is_ignore_table_children = true
   protected def is_newline_dt_dd: Boolean = false
   protected def section_Mark: String
   protected def unorderd_List_Mark: String

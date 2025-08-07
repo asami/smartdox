@@ -22,7 +22,8 @@ import Dox._, Doxes._
  *  version Dec. 30, 2018
  *  version Oct. 28, 2024
  *  version Jun. 16, 2025
- * @version Jul. 28, 2025
+ *  version Jul. 28, 2025
+ * @version Aug.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -186,33 +187,21 @@ object PureParser {
     }
   }
 
-  def buildDiv(elem: XNode): Div = {
-    Div(buildChildren(elem))
-  }
+  def buildDiv(elem: XNode): Div = Div.build(elem)
 
-  def buildParagraph(elem: XNode): Paragraph = {
-    Paragraph(buildInline(elem))
-  }
+  def buildParagraph(elem: XNode): Paragraph = Paragraph.build(elem)
 
   def buildText(elem: XNode): org.smartdox.Text = {
     org.smartdox.Text(elem.text)
   }
 
-  def buildBold(elem: XNode): Bold = {
-    Bold(buildInline(elem))
-  }
+  def buildBold(elem: XNode): Bold = Bold.build(elem)
 
-  def buildItalic(elem: XNode): Italic = {
-    Italic(buildInline(elem))
-  }
+  def buildItalic(elem: XNode): Italic = Italic.build(elem)
 
-  def buildUnderline(elem: XNode): Underline = {
-    Underline(buildInline(elem))
-  }
+  def buildUnderline(elem: XNode): Underline = Underline.build(elem)
 
-  def buildCode(elem: XNode): Code = {
-    Code(buildInline(elem))
-  }
+  def buildCode(elem: XNode): Code = Code.build(elem)
 
   def buildPre(elem: XNode): Pre = {
     Pre(elem.text, getAttributes(elem))
@@ -369,7 +358,7 @@ object PureParser {
   }
 
   def buildDt(elem: XNode): Dt = {
-    Dt(elem.text)
+    Dt(buildInline(elem))
   }
 
   def buildDd(elem: XNode): Dd = {
@@ -431,9 +420,7 @@ object PureParser {
     Tt(buildInline(elem))
   }
 
-  def buildSpan(elem: XNode): Span = {
-    Span(buildInline(elem))
-  }
+  def buildSpan(elem: XNode): Span = Span.build(elem)
 
   def buildIncludeDoc(elem: XNode): IncludeDoc = {
     val fn = getAttribute(elem, "filename") | ""

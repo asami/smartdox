@@ -41,7 +41,8 @@ import Dox._
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 24, 2025
- * @version Jul. 29, 2025
+ *  version Jul. 29, 2025
+ * @version Aug.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -77,7 +78,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     ) {
       def r = {
         val desc = _distill_description(elements)
-        val h = head.withDescription(desc)
+        val h = desc.fold(head)(head.withDescription(_))
         ParseSuccess(Document(h, Body(elements.toList)))
       }
 
@@ -89,13 +90,13 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     ps.foldLeft(Z())(_+_).r
   }
 
-  private def _distill_description(ps: Vector[Dox]): List[Inline] = {
+  private def _distill_description(ps: Vector[Dox]): Option[List[Inline]] = {
     val a = ps.toStream.collect {
       case m: Paragraph => m
     }.headOption
     a match {
-      case Some(s) => List(I18NFragment.create(Dox.toInlineContents(s)))
-      case None => Dox.toInlineContents(ps).headOption.toList
+      case Some(s) => Some(List(I18NFragment.create(Dox.toInlineContents(s))))
+      case None => None
     }
   }
 

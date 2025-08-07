@@ -27,7 +27,8 @@ import org.smartdox.parser.PureParser
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
- * @version Jul. 27, 2025
+ *  version Jul. 27, 2025
+ * @version Aug.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(

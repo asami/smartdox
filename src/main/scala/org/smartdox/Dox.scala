@@ -87,7 +87,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug.  6, 2025
+ * @version Aug.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -215,11 +215,11 @@ trait Dox extends IDocument {
   }
 
   protected def print_Open_Close(buf: StringBuilder) {
-    show_Open_Close(buf)
+    XmlUtils.printOpenCloseTag(buf, showTerm, attributeMap)
   }
 
   protected def print_Open(buf: StringBuilder) {
-    show_Open(buf)
+    XmlUtils.printOpenTag(buf, showTerm, attributeMap)
   }
 
   protected def print_Contents(buf: StringBuilder): Unit =
@@ -949,6 +949,7 @@ object Dox extends UseDox {
     toInlineContents(p.map(trimSingleLine))
 
   def trimSingleLine(p: Inline): Inline = p match {
+    case m: I18NFragment => m.trimSingleLine
     case m: Text => Text(DoxUtils.trimSingleLine(m.contents))
     case m => m
   }
@@ -1486,6 +1487,12 @@ object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
     Div(body.toList, attrs)
 
   def apply(d: Dox) = new Div(List(d))
+
+  def build(elem: XNode): Div = {
+    val cs = PureParser.buildChildren(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Div(cs, attrs)
+  }
 }
 
 case class Paragraph(
@@ -1537,6 +1544,12 @@ object Paragraph {
   def apply(p: Dox, ll: LogicalLine): Paragraph = apply(List(p), ll)
 
   def text(p: String): Paragraph = Paragraph(List(Text(p)))
+
+  def build(elem: XNode): Paragraph = {
+    val cs = PureParser.buildChildren(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Paragraph(cs, attrs)
+  }
 }
 
 case class Text(
@@ -1554,15 +1567,19 @@ case class Text(
     buf.append(contents)
   }
   override def to_Plain_Text(buf: StringBuilder) {
-    buf.append(contents)
+    buf.append(XmlUtils.escape(contents))
   }
   override def to_Data(buf: StringBuilder) {
     buf.append(contents)
   }
 
+  override def print_Open(buf: StringBuilder) = {}
+
   override def print_Contents(buf: StringBuilder): Unit = {
     buf.append(contents)
   }
+
+  override def print_Close(buf: StringBuilder) = {}
 
   override def getHtmlTag = None
 
@@ -1608,6 +1625,12 @@ object Bold extends Bold(Nil, VectorMap.empty, None) with DoxFactory {
     Bold(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Bold(List(element))
+
+  def build(elem: XNode): Bold = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Bold(cs, attrs)
+  }
 }
 
 // 2011-12-26
@@ -1644,6 +1667,12 @@ object Italic extends Italic(Nil, VectorMap.empty, None) with DoxFactory {
     Italic(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Italic(List(element))
+
+  def build(elem: XNode): Italic = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Italic(cs, attrs)
+  }
 }
 
 case class Underline(
@@ -1679,6 +1708,12 @@ object Underline extends Underline(Nil, VectorMap.empty, None) with DoxFactory {
     Underline(body.toList)
 
   def apply(element: Inline) = new Underline(List(element))
+
+  def build(elem: XNode): Underline = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Underline(cs, attrs)
+  }
 }
 
 case class Code(
@@ -1705,6 +1740,12 @@ object Code extends Code(Nil, VectorMap.empty, None) with DoxFactory {
     Code(body.toList)
 
   def apply(element: Inline) = new Code(List(element))
+
+  def build(elem: XNode): Code = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Code(cs, attrs)
+  }
 }
 
 case class Pre(
@@ -2485,8 +2526,9 @@ object Dt extends Dt(Nil, VectorMap.empty, None) with DoxFactory {
 
   def apply(p: Inline): Dt = Dt(List(p))
 
-  def unapply(x: XNode): Option[Dt] = {
-    RAISE.notImplementedYetDefect
+  def unapply(x: XNode): Option[Dt] = x.label.toLowerCase match {
+    case "dt" => Some(PureParser.buildDt(x))
+    case _ => None
   }
 }
 
@@ -2512,8 +2554,9 @@ object Dd extends Dd(Nil, VectorMap.empty, None) with DoxFactory {
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dd =
     Dd(ensure_inline(body))
 
-  def unapply(x: XNode): Option[Dd] = {
-    RAISE.notImplementedYetDefect
+  def unapply(x: XNode): Option[Dd] = x.label.toLowerCase match {
+    case "dd" => Some(PureParser.buildDd(x))
+    case _ => None
   }
 }
 
@@ -2662,6 +2705,29 @@ case class I18NFragment(
       }
     }
     contents.localeVector.foldLeft(Z())(_+_).r
+  }
+
+  def trimSingleLine: I18NFragment = {
+    val lv = contents.localeVector
+    val r = lv.map(_trim_single_line)
+    copy(contents = I18NContainer.create(r))
+  }
+
+  private def _trim_single_line(p: (Locale, List[Dox])): (Locale, List[Dox]) = {
+    val (k, v) = p
+    val r = _find_text(v) match {
+      case Some(s) => List(Text(DoxUtils.trimSingleLine(s.contents)))
+      case None => Nil
+    }
+    k -> r
+  }
+
+  private def _find_text(ps: List[Dox]): Option[Text] = {
+    def _go_(x: Dox): Option[Text] = x match {
+      case m: Text => Some(m)
+      case m => x.children.toStream.flatMap(_go_).headOption
+    }
+    ps.toStream.flatMap(_go_).headOption
   }
 }
 object I18NFragment {
@@ -3091,6 +3157,12 @@ object Span extends Span(Nil, VectorMap.empty, None) with DoxFactory {
 
   def createEn(p: String) = create(LocaleUtils.en, p)
   def createJa(p: String) = create(LocaleUtils.ja, p)
+
+  def build(elem: XNode): Span = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Span(cs, attrs)
+  }
 }
 
 // 2025-03-03
