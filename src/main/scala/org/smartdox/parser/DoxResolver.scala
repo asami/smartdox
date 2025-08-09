@@ -4,11 +4,15 @@ import org.goldenport.context.Consequence
 import org.goldenport.io.FileTextResolver
 import org.goldenport.util.StringUtils
 import org.smartdox.{Dox, Error}
+import org.smartdox.Text
+import org.smartdox.Document
+import org.smartdox.Section
 import org.smartdox.parser.DoxLinesParser.BlockMacro
 
 /*
  * @since   Jul. 17, 2025
- * @version Jul. 19, 2025
+ *  version Jul. 19, 2025
+ * @version Aug.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxResolver(context: DoxResolver.Context) {
@@ -42,13 +46,41 @@ class DoxResolver(context: DoxResolver.Context) {
 
   private def _resolve(ctx: FileTextResolver.Context, path: String): Consequence[Dox] = {
     val resolver = new FileTextResolver(ctx)
-    resolver.resolve(path) match {
-      case Some(s) =>
-        val parser = new Dox2Parser(context.parseContext)
-        Consequence.from(parser.apply(s))
-      case None => Consequence.resourceNotFound(path)
+    for {
+      s <- resolver.resolve(path)
+      dox <- _parse(path, s)
+    } yield dox
+  }
+
+  private def _parse(path: String, s: String): Consequence[Dox] =
+    StringUtils.getSuffix(path) match {
+      case Some(suffix) => suffix match {
+        case "dox" => _parse_dox(s)
+        case _ => _parse_text(s)
+      }
+      case None => _parse_text(s)
+    }
+
+  private def _parse_dox(s: String): Consequence[Dox] = {
+    val parser = new Dox2Parser(context.parseContext)
+    for {
+      a <- Consequence.from(parser.apply(s))
+      r <- _adjust_dox(a)
+    } yield r
+  }
+
+  private def _adjust_dox(p: Dox): Consequence[Dox] = Consequence {
+    p match {
+      case m: Document => m.head.title match {
+        case Some(s) => Section(s, m.body.contents)
+        case None => m.body.toContent
+      }
+      case m => m
     }
   }
+
+  private def _parse_text(s: String): Consequence[Dox] =
+    Consequence.success(Text(s))
 }
 
 object DoxResolver {

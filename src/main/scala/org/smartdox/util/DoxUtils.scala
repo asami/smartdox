@@ -5,7 +5,8 @@ import org.goldenport.util.StringUtils
 /*
  * @since   Sep.  4, 2024
  *  version Sep.  5, 2024
- * @version Jul. 27, 2025
+ *  version Jul. 27, 2025
+ * @version Aug.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxUtils {
@@ -34,9 +35,9 @@ object DoxUtils {
     else if (b.isEmpty)
       a
     else if (StringUtils.isSeparationLanguageChar(a.last) && StringUtils.isSeparationLanguageChar(b.head))
-      a + b
-    else
       a + ' ' + b
+    else
+      a + b
   }
 
   def trimSingleLine(p: String): String = {

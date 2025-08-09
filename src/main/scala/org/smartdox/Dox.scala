@@ -87,7 +87,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug.  7, 2025
+ * @version Aug.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -473,6 +473,8 @@ trait Dox extends IDocument {
 
   protected final def print_close_tag(buf: StringBuilder, name: String): Unit =
     XmlUtils.printCloseTag(buf, name)
+
+  def toContent: Dox = Dox.toDox(elements)
 }
 
 trait Block extends Dox with ListContent {
@@ -1460,6 +1462,9 @@ object Section {
 
   def apply(title: String, ps: Seq[Dox]): Section =
     Section(List(Dox.text(title)), ps.toList)
+
+  def apply(title: I18NFragment, ps: Seq[Dox]): Section =
+    Section(List(title), ps.toList)
 }
 
 case class Div(
@@ -3305,6 +3310,10 @@ case class Include(
 
   def target = directive.target
   def parameters = directive.parameters
+}
+object Include {
+  def create(p: String): Include = Include(BlockMacro.Include(p))
+  def create(p: URI): Include = Include(BlockMacro.Include.create(p))
 }
 
 case class Error(

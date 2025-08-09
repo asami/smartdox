@@ -1,6 +1,7 @@
 package org.smartdox.parser
 
 import scalaz._, Scalaz._
+import java.net.URI
 import org.goldenport.RAISE
 import org.goldenport.Strings
 import org.goldenport.context.Consequence
@@ -33,7 +34,8 @@ import org.smartdox.util.DoxUtils
  *  version Apr.  6, 2025
  *  version May. 24, 2025
  *  version Jun. 16, 2025
- * @version Jul. 29, 2025
+ *  version Jul. 29, 2025
+ * @version Aug.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -455,12 +457,14 @@ object DoxLinesParser {
     }
     case class Include(
       target: String,
-      attrs: Map[String, String],
-      parameters: FileTextResolver.Parameters,
-      location: Option[ParseLocation]
+      attrs: Map[String, String] = Map.empty,
+      parameters: FileTextResolver.Parameters = FileTextResolver.Parameters.empty,
+      location: Option[ParseLocation] = None
     ) extends BlockMacro {
     }
     object Include {
+      def create(p: URI): Include = Include(p.toString)
+
     //   case class Parameters(
     //     leveloffset: Option[Int],
     //     lines: Option[NumberRange],
@@ -865,11 +869,13 @@ object DoxLinesParser {
       copy(lines :+ dox)
 
     override def returnFrom(as: NonEmptyVector[AnnotationMark]): DoxLinesParseState =
-      as.vector.collect {
-        case m: TitleAnnotation => m.title
-      }.headOption.
-        map(x => copy(title = Some(x))).
-        getOrElse(this)
+      as.vector.foldLeft(this)((z, x) =>
+        x match {
+          case m: TitleAnnotation => z.copy(title = Some(m.title))
+          case m: IncludeAnnotation => z.copy(lines = lines :+ Include.create(m.uri))
+          case _ => z
+        }
+      )
 
     override protected def end_Transition(config: Config): Transition =
       transit_result_next(Dox.toDox(_get_head.toVector ++: lines), NormalState.init)

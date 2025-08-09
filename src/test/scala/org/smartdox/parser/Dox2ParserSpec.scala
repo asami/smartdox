@@ -11,7 +11,8 @@ import org.goldenport.scalatest.ScalazMatchers
  * @since   Oct. 14, 2018
  *  version Nov. 12, 2018
  *  version Dec. 31, 2018
- * @version Sep.  5, 2024
+ *  version Sep.  5, 2024
+ * @version Aug.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -353,4 +354,26 @@ class Dox2ParserSpec extends WordSpec with Matchers with ScalazMatchers with Use
 //       }
 //     }
 //   }
+  "include" should {
+    "Include" which {
+      "asciidoc style" in {
+        parse_orgmode_simple(
+          """include::src/test/resources/abc.dox[]""",
+          """<p>X</p>"""
+        )
+      }
+      "orgmode style" in {
+        parse_orgmode_simple(
+          """#+INCLUDE: src/test/resources/abc.dox""",
+          """<p>X</p>"""
+        )
+      }
+      "scala" in {
+        parse_orgmode_simple(
+          """include::src/test/resources/sample.scala[]""",
+          """object x {}"""
+        )
+      }
+    }
+  }
 }

@@ -23,7 +23,7 @@ import Dox._, Doxes._
  *  version Oct. 28, 2024
  *  version Jun. 16, 2025
  *  version Jul. 28, 2025
- * @version Aug.  7, 2025
+ * @version Aug.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -329,7 +329,7 @@ object PureParser {
   }
 
   private def _to_locale(p: XNode): (Locale, Seq[Dox]) = {
-    val locale = Locale.of(p.label)
+    val locale = Locale.forLanguageTag(p.label)
     val xs = p.child.map(build)
     (locale, xs)
   }
