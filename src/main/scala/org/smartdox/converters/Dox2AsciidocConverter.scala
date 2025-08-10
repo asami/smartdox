@@ -14,7 +14,7 @@ import org.smartdox.converter._
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
  *  version Jul. 28, 2025
- * @version Aug.  5, 2025
+ * @version Aug. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -116,8 +116,9 @@ class Dox2AsciidocConverter(
   }
 
   override protected def enter_Program(p: Program): Unit = {
-    val caption = None
-    val directive = "[source,scala]" // TODO
+    val caption = p.caption
+    val kind = p.kind getOrElse "text"
+    val directive = s"[source,$kind]"
     caption.foreach { x =>
       sb_print(".")
       sb_println(x)

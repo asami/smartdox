@@ -7,12 +7,13 @@ import org.smartdox.{Dox, Error}
 import org.smartdox.Text
 import org.smartdox.Document
 import org.smartdox.Section
+import org.smartdox.Program
 import org.smartdox.parser.DoxLinesParser.BlockMacro
 
 /*
  * @since   Jul. 17, 2025
  *  version Jul. 19, 2025
- * @version Aug.  9, 2025
+ * @version Aug. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxResolver(context: DoxResolver.Context) {
@@ -56,7 +57,7 @@ class DoxResolver(context: DoxResolver.Context) {
     StringUtils.getSuffix(path) match {
       case Some(suffix) => suffix match {
         case "dox" => _parse_dox(s)
-        case _ => _parse_text(s)
+        case m => _parse_source(path, m, s)
       }
       case None => _parse_text(s)
     }
@@ -77,6 +78,12 @@ class DoxResolver(context: DoxResolver.Context) {
       }
       case m => m
     }
+  }
+
+  private def _parse_source(path: String, suffix: String, s: String): Consequence[Dox] = {
+    val kind = suffix
+    val caption = StringUtils.pathLastComponent(path)
+    Consequence.success(Program.create(s, Some(kind), Some(caption)))
   }
 
   private def _parse_text(s: String): Consequence[Dox] =

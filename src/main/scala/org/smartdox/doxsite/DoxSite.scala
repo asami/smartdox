@@ -57,7 +57,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug.  1, 2025
+ * @version Aug. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -278,7 +278,8 @@ object DoxSite {
     transformTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     outputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     strategy: Strategy = Strategy.Overview,
-    localeSetting: Config.LocaleSetting = Config.LocaleSetting.jaen
+    localeSetting: Config.LocaleSetting = Config.LocaleSetting.jaen,
+    origin: Option[File] = None
   ) {
     def isAutoWire(p: Page): Boolean = strategy.isAutoWire(p)
     def isAutoI18n(p: Page): Boolean = strategy.isAutoI18n(p)
@@ -287,7 +288,7 @@ object DoxSite {
     def isLinkEnable: Boolean = strategy.isLinkEnable
     def isLinkEnable(p: Page): Boolean = strategy.isLinkEnable(p)
 
-    def +(rhs: Config): Config = Config(
+    def +(rhs: Config): Config = copy(
       lastMonoid(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
       lastMonoid(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
       lastMonoid(outputTreeTransformerConfig, rhs.outputTreeTransformerConfig),
@@ -612,7 +613,11 @@ object DoxSite {
     ) = {
       // println(s"_dox_page: $c")
       val dox = context.cache.get(node.pathname, lastmodified) getOrElse {
-        Dox2Parser.parse(c)
+        val pathname = rule.doxSiteConfig.origin match {
+          case Some(s) => new File(s, node.pathname).toString
+          case None => node.pathname
+        }
+        Dox2Parser.parseWithFilename(pathname, c)
       }
       _create_dox(node.name, dox, lastmodified)
     }
@@ -889,7 +894,7 @@ object DoxSite {
         json <- ConfigLoader.loadConfigJson(realm, n)
         output <- _tree_transformer_config(json.hcursor.downField("output").focus)
       } yield {
-        Config(None, None, output)
+        Config(None, None, output, origin = realm.origin)
       }
       c.take
     }

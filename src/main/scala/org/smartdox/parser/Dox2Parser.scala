@@ -1,6 +1,7 @@
 package org.smartdox.parser
 
 import scalaz._, Scalaz._, Validation._, Tree._
+import java.net.URI
 import java.util.Locale
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
@@ -42,7 +43,7 @@ import Dox._
  *  version May. 24, 2025
  *  version Jun. 24, 2025
  *  version Jul. 29, 2025
- * @version Aug.  7, 2025
+ * @version Aug. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -229,12 +230,23 @@ object Dox2Parser {
     isLocation: Boolean,
     blocksConfig: LogicalBlocks.Config,
     linesConfig: DoxLinesParser.Config,
+    file: Option[URI],
     style: Config.DoxStyle
   ) extends ParseConfig {
     def isAutoI18n: Boolean = true // AutoI18nTransformer
     def autoI18nDelimiter = "｜"
     def autoI18nLanguages = List(LocaleUtils.en, LocaleUtils.ja)
     def isResolve: Boolean = true
+
+    lazy val fileTextResolverContext: FileTextResolver.Context = {
+      val c = FileTextResolver.Context.default
+      file.fold(c)(c.withBaseFile)
+    }
+
+    def withPathname(pathname: String) = {
+      val pn = StringUtils.toRelative(pathname)
+      copy(file = Some(new URI(pn)))
+    }
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
@@ -261,6 +273,7 @@ object Dox2Parser {
       true,
       Config.blocksConfig,
       DoxLinesParser.Config.default,
+      None,
       DoxStyle.SmartDox
     )
     val debug = default.copy(true)
@@ -285,15 +298,17 @@ object Dox2Parser {
     dateTimeContext: DateTimeContext,
     level: Int = 0,
     treeTransformerContext: TreeTransformer.Context[Dox] = TreeTransformer.Context.default,
-    fileTextResolverContext: FileTextResolver.Context = FileTextResolver.Context.default
+    fileTextResolverContextOption: Option[FileTextResolver.Context] = None
   ) {
+    lazy val fileTextResolverContext = fileTextResolverContextOption getOrElse config.fileTextResolverContext
+
     def levelUp = copy(level = level + 1)
 
     def isAutoI18n: Boolean = config.isAutoI18n // AutoI18nTransformer
     def isResolve: Boolean = config.isResolve
 
     def withParameters(params: FileTextResolver.Parameters) =
-      copy(fileTextResolverContext = fileTextResolverContext.withParameters(params))
+      copy(fileTextResolverContextOption = Some(fileTextResolverContext.withParameters(params)))
   }
   object ParseContext {
     def now(): ParseContext = now(Config.default)
@@ -309,13 +324,14 @@ object Dox2Parser {
   def parseWithFilename(filename: String, in: String): Dox = {
     def _default_ = Dox2Parser.Config.default
 
-    val cfg = StringUtils.getSuffix(filename).fold(_default_) {
+    val cfg0 = StringUtils.getSuffix(filename).fold(_default_) {
       case "dox" => Dox2Parser.Config.smartdox
       case "org" => Dox2Parser.Config.orgmode
       case "md" => Dox2Parser.Config.markdown
       case "markdown" => Dox2Parser.Config.markdown
       case _ => _default_
     }
+    val cfg = cfg0.withPathname(filename)
     parse(cfg, in)
   }
 

@@ -87,7 +87,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug.  9, 2025
+ * @version Aug. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2982,7 +2982,7 @@ case class Html5(
 }
 
 // 2011-01-17
-case class Program(
+case class Program private(
   contents: String,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
@@ -2990,6 +2990,9 @@ case class Program(
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
   override def showParams = attributes.list ++ List("class" -> "program")
+
+  def kind: Option[String] = attributes.get("kind")
+  def caption: Option[String] = attributes.get("caption")
 
   override protected def print_Open(buf: StringBuilder): Unit = {
     print_open_tag(buf, "program", attributes)
@@ -3009,11 +3012,33 @@ case class Program(
   }
 }
 object Program {
-  def apply(p: String, attr: (String, String), attrs: (String, String)*): Program =
-    Program(p, VectorMap(attr +: attrs))
+  def create(p: String): Program =
+    Program(_normalize(p), VectorMap.empty[String, String])
 
-  def apply(p: Seq[String], attr: (String, String), attrs: (String, String)*): Program =
-    Program(p.mkString("\n"), VectorMap(attr +: attrs))
+  def create(p: String, attrs: Map[String, String]): Program =
+    Program(_normalize(p), VectorMap(attrs))
+
+  def create(p: String, attrs: Seq[(String, String)]): Program =
+    create(p, VectorMap(attrs))
+
+  def create(p: String, attrs: Map[String, String], location: Option[ParseLocation]): Program =
+    Program(_normalize(p), VectorMap(attrs), location)
+
+  def create(p: String, attr: (String, String), attrs: (String, String)*): Program =
+    Program(_normalize(p), VectorMap(attr +: attrs))
+
+  def create(p: Seq[String], attr: (String, String), attrs: (String, String)*): Program =
+    Program(_normalize(p.mkString("\n")), VectorMap(attr +: attrs))
+
+
+  def create(p: String, kind: Option[String], caption: Option[String]): Program =
+    create(p, ListUtils.buildTupleList("kind" -> kind, "caption" -> caption))
+
+  private def _normalize(p: String): String =
+    if (p.endsWith("\n") || p.endsWith("\r"))
+      p
+    else
+      p + "\n"
 }
 
 case class Console(

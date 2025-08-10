@@ -416,8 +416,7 @@ object DoxLinesParser {
           val (m, d) = parse_inline(config, value)
           // TODO warn
           CaptionAnnotation(d.toList, location)
-        case "include" =>
-          IncludeAnnotation(value, location)
+        case "include" => IncludeAnnotation(value, location)
         case "label" => LabelAnnotation(value, location)
         case "attr_html" => AttrHtmlAnnotation(value, location)
         case "attr_latex" => AttrLatexAnnotation(value, location)
