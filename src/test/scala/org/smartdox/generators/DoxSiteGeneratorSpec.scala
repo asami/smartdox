@@ -2,9 +2,9 @@ package org.smartdox.generators
 
 import scalaz._, Scalaz._
 import java.io.File
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.goldenport.cli.{Environment, Config => CliConfig}
@@ -17,11 +17,12 @@ import org.smartdox.generator._
  * @since   Mar.  2, 2025
  *  version Mar. 11, 2025
  *  version May.  2, 2025
- * @version Jun.  8, 2025
+ *  version Jun.  8, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxSiteGeneratorSpec extends WordSpec with Matchers with ScalazMatchers with UseDoxParser {
+class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDoxParser {
   "DoxSiteGenerator" should {
     val env = Environment.createJaJp()
     val cliconfig = CliConfig.buildJaJp()

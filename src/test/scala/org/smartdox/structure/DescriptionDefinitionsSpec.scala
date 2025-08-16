@@ -1,9 +1,9 @@
 package org.smartdox.structure
 
 import scalaz._, Scalaz._
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox._
@@ -13,11 +13,12 @@ import org.smartdox.parser.UseDox2Parser
 /*
  * @since   Nov.  9, 2024
  *  version Nov. 24, 2024
- * @version Dec. 22, 2024
+ *  version Dec. 22, 2024
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DescriptionDefinitionsSpec extends WordSpec with Matchers with ScalazMatchers with UseDox2Parser with DoxMatchers {
+class DescriptionDefinitionsSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser with DoxMatchers {
   "DescriptionDefinitions" should {
     "table" which {
       "plain" in {

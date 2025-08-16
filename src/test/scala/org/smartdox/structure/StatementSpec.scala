@@ -1,9 +1,9 @@
 package org.smartdox.structure
 
 import scalaz._, Scalaz._
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox._
@@ -12,11 +12,12 @@ import org.smartdox.parser.UseDox2Parser
 /*
  * @since   Nov. 22, 2024
  *  version Nov. 24, 2024
- * @version Dec. 20, 2024
+ *  version Dec. 20, 2024
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class StatementSpec extends WordSpec with Matchers with ScalazMatchers with UseDox2Parser {
+class StatementSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser {
   "Statement" should {
 //     "tryout" which {
 //       "underscore" in {

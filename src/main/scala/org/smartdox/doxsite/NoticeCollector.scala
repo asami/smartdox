@@ -13,7 +13,8 @@ import org.smartdox.metadata.CategoryCollection
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 29, 2025
- * @version Jul. 22, 2025
+ *  version Jul. 22, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -40,6 +41,7 @@ class NoticeCollector(
           md.titleImage,
           category,
           uri,
+          md.getSummaryI18NString getOrElse I18NString.empty,
           md.getDescriptionI18NString getOrElse I18NString.empty,
           md.keywords,
           md.publishedAt.map(_.toLocalDate),

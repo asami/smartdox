@@ -1,9 +1,9 @@
 package org.smartdox.util
 
 import scalaz._, Scalaz._
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox.parser.{DoxParser, UseDoxParser}
@@ -11,11 +11,12 @@ import org.smartdox.Dox
 
 /*
  * @since   Feb.  4, 2019
- * @version Feb.  6, 2019
+ *  version Feb.  6, 2019
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class TryoutSpec extends WordSpec with Matchers with ScalazMatchers with UseDoxParser {
+class TryoutSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDoxParser {
   // "TechDocTransformer" should {
   //   "top" in {
   //     val in = "_OK_"

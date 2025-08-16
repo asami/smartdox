@@ -3,9 +3,9 @@ package org.smartdox
 import scalaz._, Scalaz._, Show._, Tree._
 import org.goldenport.Z._
 import scala.util.parsing.combinator.Parsers
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox.parser.DoxParser
@@ -15,11 +15,12 @@ import scala.util.parsing.input.Reader
 /*
  * @since   Jan. 12, 2012
  *  version Feb.  5, 2014
- * @version Jun. 17, 2025
+ *  version Jun. 17, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxSpec extends WordSpec with Matchers with ScalazMatchers {
+class DoxSpec extends AnyWordSpec with Matchers with ScalazMatchers {
   val in = "* OK"
   val in2 = "* Hello\nworld"
   val out = "List(<!DOCTYPE html><html><head/><body><section><h2>OK</h2></section></body></html>, <head/>, <body><section><h2>OK</h2></section></body>, <section><h2>OK</h2></section>)"

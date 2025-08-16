@@ -22,7 +22,8 @@ import org.smartdox._
  * @since   Apr. 28, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -102,6 +103,7 @@ object Notices {
     titleImage: Option[URI],
     category: Option[Category],
     uri: URI,
+    summary: I18NString,
     description: I18NString,
     keywords: List[String],
     published: Option[LocalDate],
@@ -139,6 +141,7 @@ object Notices {
       None,
       None,
       new URI("nolink"),
+      I18NString("No article"),
       I18NString("No article"),
       Nil,
       None,

@@ -28,7 +28,7 @@ import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
 import org.goldenport.util.OptionUtils
-import org.goldenport.util.OptionUtils.lastMonoid
+import org.goldenport.util.OptionUtils.lastOption
 import org.goldenport.util.LocalDateUtils
 import org.goldenport.util.InstantUtils.instantOrderingAsc
 import org.smartdox._
@@ -57,7 +57,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug. 10, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -289,9 +289,9 @@ object DoxSite {
     def isLinkEnable(p: Page): Boolean = strategy.isLinkEnable(p)
 
     def +(rhs: Config): Config = copy(
-      lastMonoid(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
-      lastMonoid(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
-      lastMonoid(outputTreeTransformerConfig, rhs.outputTreeTransformerConfig),
+      lastOption(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
+      lastOption(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
+      lastOption(outputTreeTransformerConfig, rhs.outputTreeTransformerConfig),
       rhs.strategy
     )
   }

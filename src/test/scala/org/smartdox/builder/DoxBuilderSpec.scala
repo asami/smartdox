@@ -1,20 +1,21 @@
 package org.smartdox.builder
 
 import scalaz._, Scalaz._
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox._
 
 /*
  * @since   Nov. 23, 2020
- * @version Nov. 24, 2020
+ *  version Nov. 24, 2020
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxBuilderSpec extends WordSpec with Matchers with ScalazMatchers {
+class DoxBuilderSpec extends AnyWordSpec with Matchers with ScalazMatchers {
   "DoxBuilder" should {
     "empty" in {
       val b = DoxBuilder.create()

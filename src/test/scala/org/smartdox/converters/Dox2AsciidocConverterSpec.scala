@@ -2,9 +2,10 @@ package org.smartdox.converters
 
 import scalaz._, Scalaz._
 import java.io.File
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 import org.junit.runner.RunWith
 import org.goldenport.context.Consequence
 import org.goldenport.context.test.ConsequenceMatchers
@@ -17,12 +18,12 @@ import org.smartdox.generator._
 
 /*
  * @since   Jun. 20, 2025
- *  version Jun. 20, 2025
- * @version Jul.  1, 2025
+ *  version Jul.  1, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class Dox2AsciidocConverterSpec extends WordSpec with Matchers with ScalazMatchers with UseDox2Parser with ConsequenceMatchers {
+class Dox2AsciidocConverterSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser with ConsequenceMatchers {
   val context = Context.create()
 
   protected def make_asciidoc(s: String): Consequence[String] = {

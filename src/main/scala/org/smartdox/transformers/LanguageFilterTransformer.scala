@@ -13,7 +13,8 @@ import org.smartdox.transformer._
  *  version Apr.  9, 2025
  *  version May. 21, 2025
  *  version Jun. 12, 2025
- * @version Jul.  3, 2025
+ *  version Jul.  3, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class LanguageFilterTransformer(
@@ -34,7 +35,7 @@ class LanguageFilterTransformer(
     case m: Head =>
       val t = _filter_inlines(m.title)
       val d = _filter_inlines(m.description)
-      directive_node(m.withTitle(t).withDescription(d))
+      directive_node(m.withTitle(t).withSummary(d))
     case m =>
       if (_is_accept(m))
         directive_default

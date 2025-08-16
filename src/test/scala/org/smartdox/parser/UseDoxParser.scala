@@ -2,7 +2,9 @@ package org.smartdox.parser
 
 import scalaz._
 import Scalaz._
-import org.scalatest.Matchers
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox._
 
@@ -11,7 +13,8 @@ import org.smartdox._
  *  version Feb.  5, 2014
  *  version Sep.  9, 2014
  *  version Mar. 10, 2016
- * @version Jun. 17, 2025
+ *  version Jun. 17, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 trait UseDoxParser extends Matchers with ScalazMatchers {

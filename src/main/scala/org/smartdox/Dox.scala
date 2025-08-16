@@ -8,6 +8,7 @@ import java.util.Locale
 import scala.xml.{Node => XNode, _}
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
+import org.goldenport.Strings
 import org.goldenport.context.Showable
 import org.goldenport.context.Conclusion
 import org.goldenport.context.Consequence
@@ -87,7 +88,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug. 10, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1168,9 +1169,9 @@ case class Head(
 
   def withTitle(ps: InlineContents) = copy(metadata = metadata.withTitle(ps))
 
-  def withDescription(ps: InlineContents) = copy(metadata = metadata.withDescription(ps))
+  def withSummary(ps: InlineContents) = copy(metadata = metadata.withSummary(ps))
 
-  def withDescription(p: String) = copy(metadata = metadata.withDescription(p))
+  private def withSummary(p: String) = copy(metadata = metadata.withSummary(p))
 
   def merge(p: Head): Head = Head(
     css |+| p.css,
@@ -1603,6 +1604,8 @@ case class Text(
   def append(p: String): Text = copy(contents = contents ++ p)
 
   def xmlString: String = XmlUtils.escape(contents)
+
+  def isBlank: Boolean = Strings.blankp(contents)
 }
 
 case class Bold(
@@ -2729,7 +2732,7 @@ case class I18NFragment(
 
   private def _find_text(ps: List[Dox]): Option[Text] = {
     def _go_(x: Dox): Option[Text] = x match {
-      case m: Text => Some(m)
+      case m: Text => if (m.isBlank) None else Some(m)
       case m => x.children.toStream.flatMap(_go_).headOption
     }
     ps.toStream.flatMap(_go_).headOption
@@ -2787,6 +2790,18 @@ object I18NFragment {
   def enja(en: String, ja: String) = I18NFragment(
     I18NContainer.enja(List(Text(en)), List(Text(ja)))
   )
+
+  def getC(name: String, p: XNode): Consequence[Option[I18NFragment]] =
+    for {
+      a <- XmlUtils.getI18NContainerC(p, name)
+      r <- a.traverse(x => _make_i18nfragment(x))
+    } yield r
+
+  private def _make_i18nfragment(p: I18NContainer[List[XNode]]): Consequence[I18NFragment] =
+  Consequence {
+    val a = p.mapValue(xs => xs.map(PureParser.build))
+    I18NFragment(a)
+  }
 }
 
 case class Caption(

@@ -4,9 +4,9 @@ import scalaz._
 import Scalaz._
 import org.goldenport.Z._
 import scala.util.parsing.combinator.Parsers
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.smartdox.parser.DoxParser
@@ -16,11 +16,12 @@ import scala.util.parsing.input.Reader
 /*
  * @since   Jan. 16, 2014
  *  version Feb.  5, 2014
- * @version Sep.  5, 2024
+ *  version Sep.  5, 2024
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxesSpec extends WordSpec with Matchers with ScalazMatchers with Doxes {
+class DoxesSpec extends AnyWordSpec with Matchers with ScalazMatchers with Doxes {
   "Doxes" should {
     "dox_desc" which {
       "empty" in {

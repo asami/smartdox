@@ -18,34 +18,47 @@ import org.goldenport.xml.XmlUtils.{printObject, printPowertype}
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.OptionUtils
-import org.goldenport.util.OptionUtils.lastMonoid
+import org.goldenport.util.OptionUtils.lastOption
 import org.smartdox._
 import org.smartdox.generator.Context
 import org.smartdox.parser.PureParser
 
 /*
+
+| attribute   | style    | lines | html        |
+|-------------+----------+-------+-------------|
+| title       | phrase   |     1 |             |
+| headline    | phrase   |     1 |             |
+| brief       | phrase   |     1 |             |
+| summary     | sentense |     1 | description |
+| abstract    | sentense |     N |             |
+| description | sentense |     N |             |
+| remarks     | sentense |     1 |             |
+
+ * 
  * @since   Apr. 29, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
- * @version Aug.  7, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
   title: Option[I18NFragment] = None,
   titleImage: Option[URI] = None,
   category: Option[String] = None,
-  description: Option[I18NFragment] = None,
+//  description: Option[I18NFragment] = None,
+  explanation: Explanation = Explanation.empty,
   author: Option[I18NFragment] = None,
   keywords: List[String] = Nil,
   publishedAt: Option[LocalDateOrDateTime] = None,
   modifiedAt: Option[LocalDateOrDateTime] = None,
   kindOption: Option[DocumentMetaData.Kind] = None,
   statusOption: Option[DocumentMetaData.Status] = None
-) {
+) extends Explanation.Holder {
   import DocumentMetaData._
 
-  def isEmpty = title.isEmpty && description.isEmpty && author.isEmpty && keywords.isEmpty && publishedAt.isEmpty && modifiedAt.isEmpty
+  def isEmpty = title.isEmpty && explanation.isEmpty && author.isEmpty && keywords.isEmpty && publishedAt.isEmpty && modifiedAt.isEmpty
 
   def toOption = if (isEmpty) None else Some(this)
 
@@ -66,21 +79,25 @@ case class DocumentMetaData(
 
   def getTitleI18NString: Option[I18NString] = title.map(_.toI18NString)
 
-  def getDescriptionStringDefault: Option[String] = description.map(_.distillStringDefault)
+  private def getDescriptionStringDefault: Option[String] = description.map(_.distillStringDefault)
 
-  def getDescriptionI18NString: Option[I18NString] = description.map(_.toI18NString)
+  def getSummaryI18NString: Option[I18NString] = summary.map(_.toI18NString)
+
+  def getDescriptionI18NString: Option[I18NString] = (description orElse summary).map(_.toI18NString)
 
   def withTitle(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)
     copy(title = Some(I18NFragment.create(x)))
   }
 
-  def withDescription(p: InlineContents) = {
-    val x = Dox.trimSingleLine(p)
-    copy(description = Some(I18NFragment.create(x)))
-  }
+  def withSummary(p: InlineContents) =
+    copy(explanation = explanation.withSummary(p))
 
-  def withDescription(p: String) = copy(description = Some(I18NFragment.create(p)))
+  def withSummary(p: String) =
+    copy(explanation = explanation.withSummary(p))
+
+  def withExplanation(p: Explanation) =
+    copy(explanation = p)
 
   def complementTitleDate(
     ptitle: InlineContents,
@@ -121,13 +138,13 @@ case class DocumentMetaData(
       title orElse rhs.title,
       titleImage orElse rhs.titleImage,
       category orElse rhs.category,
-      description orElse rhs.description,
+      explanation + rhs.explanation,
       author orElse rhs.author,
       (keywords ::: rhs.keywords).distinct,
       publishedAt orElse rhs.publishedAt,
       modifiedAt orElse rhs.modifiedAt,
-      lastMonoid(kindOption, rhs.kindOption),
-      lastMonoid(statusOption, rhs.statusOption)
+      lastOption(kindOption, rhs.kindOption),
+      lastOption(statusOption, rhs.statusOption)
     )
 
   def toFlattenVector: Vector[(String, String)] =
@@ -294,12 +311,12 @@ object DocumentMetaData {
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
     createC(hocon).take
 
-  def createC(hocon: Hocon)(implicit ctx: DateTimeContext): Consequence[DocumentMetaData] = {
+  def createC(hocon: Hocon)(implicit ctx: DateTimeContext): Consequence[DocumentMetaData] =
     for {
       title <- hocon.cStringOption(PROP_TITLE)
       titleimage <- hocon.cUriOption(PROP_TITLE_IMAGE)
-      desc <- hocon.cStringOption(PROP_DESCRIPTION)
       category <- hocon.cStringOption(PROP_CATEGORY)
+      exp <- Explanation.parse(hocon)
       auth <- hocon.cStringOption(PROP_AUTHOR)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
       published <- hocon.cLocalDateOrDateTimeOption(PROP_PUBLISHED_AT)
@@ -311,8 +328,8 @@ object DocumentMetaData {
       DocumentMetaData(
         inlinetitle,
         titleimage,
-        desc,
-        category.map(I18NFragment.create),
+        category,
+        exp,
         auth.map(I18NFragment.create),
         keywords,
         published,
@@ -321,7 +338,6 @@ object DocumentMetaData {
         status
       )
     }
-  }
 
   def create(title: Inline): DocumentMetaData =
     DocumentMetaData(Some(I18NFragment.create(List(title))))
@@ -337,12 +353,15 @@ object DocumentMetaData {
     DocumentMetaData(Some(I18NFragment.create(title)), publishedAt = d)
   }
 
+  def create(p: Explanation): DocumentMetaData =
+    DocumentMetaData.empty.withExplanation(p)
+
   def parseFlat(p: XNode)(implicit ctx: DateTimeContext): Consequence[Option[DocumentMetaData]] = {
     for {
       title <- _get_i18nfragment(p, "title")
       titleimage <- _get_uri(p, "titleImage")
       category <- _get_string(p, "category")
-      description <- _get_i18nfragment(p, "description")
+      exp <- Explanation.parse(p)
       author <- _get_i18nfragment(p, "author")
       keywords <- _get_string_list_eager(p, "keywords")
       publishedat <- _get_localdateordatetime(p, "publishedAt")
@@ -354,7 +373,7 @@ object DocumentMetaData {
         title,
         titleimage,
         category,
-        description,
+        exp,
         author,
         keywords,
         publishedat,
@@ -378,16 +397,7 @@ object DocumentMetaData {
     XmlUtils.getLocalDateOrDateTimeC(p, name)
 
   private def _get_i18nfragment(p: XNode, name: String): Consequence[Option[I18NFragment]] =
-    for {
-      a <- XmlUtils.getI18NContainerC(p, name)
-      r <- a.traverse(x => _make_i18nfragment(x))
-    } yield r
-
-  private def _make_i18nfragment(p: I18NContainer[List[XNode]]): Consequence[I18NFragment] =
-  Consequence {
-    val a = p.mapValue(xs => xs.map(PureParser.build))
-    I18NFragment(a)
-  }
+    I18NFragment.getC(name, p)
 
   private def _get_powertype[T <: NamedValueInstance](p: XNode, pt: EnumerationClass[T], name: String): Consequence[Option[T]] =
     XmlUtils.getPowertypeC(p, pt, name)

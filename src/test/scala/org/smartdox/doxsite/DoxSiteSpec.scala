@@ -2,9 +2,9 @@ package org.smartdox.doxsite
 
 import scalaz._, Scalaz._
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import java.io.File
 import org.smartdox.parser.UseDoxParser
@@ -15,11 +15,12 @@ import org.smartdox.generator.Context
  *  version Feb. 28, 2025
  *  version Mar.  1, 2025
  *  version Apr.  3, 2025
- * @version Jun. 17, 2025
+ *  version Jun. 17, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxSiteSpec extends WordSpec with Matchers with UseDoxParser {
+class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
   val context = Context.create()
   implicit val dctx = context.dateTimeContext
   "DoxSite" should {

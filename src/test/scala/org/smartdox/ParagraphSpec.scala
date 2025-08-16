@@ -1,17 +1,19 @@
 package org.smartdox
 
 import org.scalatest._
-import org.scalatest.junit.JUnitRunner
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.smartdox.parser.Dox2Parser
 
 /*
  * @since   Jun.  9, 2025
- * @version Jun.  9, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class ParagraphSpec extends WordSpec with Matchers {
+class ParagraphSpec extends AnyWordSpec with Matchers {
   val hocon = """a.b=c
 x.y=z
 """

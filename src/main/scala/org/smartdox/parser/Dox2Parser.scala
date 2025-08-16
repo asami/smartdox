@@ -15,9 +15,11 @@ import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.io.FileTextResolver
 import org.goldenport.tree._
+import org.goldenport.util.VectorUtils
 import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.metadata.Explanation
 import org.smartdox.transformer._
 import Dox._
 
@@ -43,7 +45,7 @@ import Dox._
  *  version May. 24, 2025
  *  version Jun. 24, 2025
  *  version Jul. 29, 2025
- * @version Aug. 10, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -78,8 +80,8 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       elements: Vector[Dox] = Vector.empty
     ) {
       def r = {
-        val desc = _distill_description(elements)
-        val h = desc.fold(head)(head.withDescription(_))
+        val desc = _distill_brief(elements)
+        val h = desc.fold(head)(head.withSummary(_))
         ParseSuccess(Document(h, Body(elements.toList)))
       }
 
@@ -91,7 +93,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     ps.foldLeft(Z())(_+_).r
   }
 
-  private def _distill_description(ps: Vector[Dox]): Option[List[Inline]] = {
+  private def _distill_brief(ps: Vector[Dox]): Option[List[Inline]] = {
     val a = ps.toStream.collect {
       case m: Paragraph => m
     }.headOption
@@ -135,16 +137,54 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       case _ => Vector(_section(ctx.levelUp, p))
     }
 
+  // private def _section_head(
+  //   p: LogicalSection,
+  //   xs: Vector[Dox]
+  // ): (Vector[Dox], DocumentMetaData) = {
+  //   val title = List(_to_dox(p.title))
+  //   val (xs1, props) = _distill_props(xs)
+  //   val meta0 = props.fold(DocumentMetaData.empty)(DocumentMetaData.create(_))
+  //   val meta = meta0.withTitle(title)
+  //   (xs1, meta)
+  // }
+
   private def _section_head(
     p: LogicalSection,
     xs: Vector[Dox]
   ): (Vector[Dox], DocumentMetaData) = {
     val title = List(_to_dox(p.title))
-    val (xs1, props) = _distill_props(xs)
-    val meta0 = props.fold(DocumentMetaData.empty)(DocumentMetaData.create(_))
+    val (xs1, meta0) = _parse_head(xs)
     val meta = meta0.withTitle(title)
     (xs1, meta)
   }
+
+  private def _parse_head(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {
+    val a = VectorUtils.findMapSplit(ps) {
+      case m: Section if m.titleName == "HEAD" => Some(m)
+      case _ => None
+    }
+    a match {
+      case Some((prologe, x, epilogue)) =>
+        val (xs, meta0) = _distill_meta(prologe)
+        val meta1 = _parse_head(x)
+        val meta = meta0 + meta1
+        (epilogue, meta)
+      case None => _distill_meta(ps)
+    }
+  }
+
+  private def _parse_head(p: Section): DocumentMetaData = {
+    val a = for {
+      ex <- Explanation.parse(p)
+    } yield DocumentMetaData.create(ex)
+    a.take
+  }
+
+  private def _distill_meta(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {
+    val (xs, props) = _distill_props(ps)
+    val meta = props.fold(DocumentMetaData.empty)(DocumentMetaData.create(_))
+    (xs, meta)
+   }
 
   private def _distill_props(ps: Vector[Dox]): (Vector[Dox], Option[Hocon]) =
     ps match {

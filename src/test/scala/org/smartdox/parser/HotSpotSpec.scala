@@ -3,8 +3,9 @@ package org.smartdox.parser
 import scalaz._
 import Scalaz._
 import scala.util.parsing.combinator.Parsers
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.goldenport.scalatest.ScalazMatchers
 
 /*
@@ -13,10 +14,11 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Oct. 19, 2012
  *  version Nov. 23, 2012
  *  version Feb.  5, 2014
- * @version Jun. 17, 2025
+ *  version Jun. 17, 2025
+ * @version Aug. 16, 2025
  * @author  ASAMI, Tomoharu
  */
-class HotSpotSpec extends WordSpec with Matchers with ScalazMatchers with UseDoxParser {
+class HotSpotSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDoxParser {
   "0.3.2" should {
     "includedoc" which {
       "includedoc" in {
