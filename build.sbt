@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.3.5"
+version := "2.3.6"
 
 scalaVersion := "2.12.18"
 
@@ -45,7 +45,7 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.4"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.5"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "2.0.0"
 
@@ -62,7 +62,13 @@ libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.10.0.2020120
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.14"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+
+libraryDependencies += "org.scalatestplus" %% "junit-4-13" % "3.2.19.0" % Test
+
+libraryDependencies += "org.scalatestplus" %% "scalacheck-1-17" % "3.2.18.0" % Test // ScalaCheck 1.17 用
+
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.17.0" % Test
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalatest-lib" % "2.1.1" % "test"
 
