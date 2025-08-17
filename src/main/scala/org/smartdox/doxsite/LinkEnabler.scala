@@ -13,7 +13,8 @@ import org.smartdox.metadata._
  *  version Apr.  5, 2025
  *  version May. 21, 2025
  *  version Jun. 16, 2025
- * @version Jul. 26, 2025
+ *  version Jul. 26, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -98,7 +99,7 @@ object LinkEnabler {
               a.map {
                 case m if m == term =>
                   //                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
-                  val href = create_href(pageNode, definition.page, definition.id)
+                  val href = create_href(pageNode, definition.page, definition.getId)
                   val alt = definition.description.toPlainText
                   Hyperlink.create(m, href, alt)
                 case m => Text(m)

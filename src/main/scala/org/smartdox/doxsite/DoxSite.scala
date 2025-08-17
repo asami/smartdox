@@ -57,7 +57,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug. 16, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -122,6 +122,12 @@ class DoxSite(
   // }
 
   def traverse(p: TreeVisitor[Node]): Unit = space.traverse(p)
+
+  def traverse(pathname: String, p: TreeVisitor[Node]): Unit =
+    space.getNode(pathname) match {
+      case Some(s) => s.traverse(p)
+      case None => Unit
+    }
 
   private def _build_notices(p: Realm): Realm = {
     import DocumentMetaData.Status
@@ -639,7 +645,7 @@ object DoxSite {
         Nil
 
     private def _create_page(name: String, dox: Dox, lastmodified: Option[Instant]) =
-      List(Page(name, dox, lastmodified))
+      List(Page(name, Dox.toDocument(dox), lastmodified))
 
     private def _yaml_metadata(pathname: String, name: String, s: String) =
       name match {

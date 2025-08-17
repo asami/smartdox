@@ -17,7 +17,7 @@ import org.goldenport.tree._
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 23, 2025
- * @version Aug.  5, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {

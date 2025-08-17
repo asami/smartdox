@@ -17,8 +17,7 @@ import org.goldenport.util.CirceUtils.Codec._
 
 /*
  * @since   Jul. 22, 2025
- *  version Jul. 22, 2025
- * @version Aug.  1, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Tag(
@@ -30,11 +29,14 @@ case class Tag(
 }
 
 object Tag {
-  case class TagName(name: String) extends datatype.Name
+  case class TagName(name: String) extends datatype.QualifiedName
   object TagName {
     implicit val nameDecoder: Decoder[TagName] = Decoder.decodeString.emap(x => Right(TagName(x)))
 
     implicit val nameEncoder: Encoder[TagName] = Encoder.encodeString.contramap(_.name)
+
+    def apply(p: datatype.QualifiedName): TagName = TagName(p.name)
+    def apply(p: Seq[String]): TagName = TagName(p.mkString("."))
   }
 
   case class TagTitle(title: I18NString) extends datatype.I18NTitle

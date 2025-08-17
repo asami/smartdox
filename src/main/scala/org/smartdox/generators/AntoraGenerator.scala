@@ -43,7 +43,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Apr. 28, 2025
  *  version May. 23, 2025
  *  version Jun. 29, 2025
- * @version Jul. 27, 2025
+ *  version Jul. 27, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -578,7 +579,7 @@ object AntoraGenerator {
               val b = a.transform(t)
 //              val b0 = b.transform(nt)
               val c = Dox.toDox(b)
-              directive_leaf(content.copy(dox = c))
+              directive_leaf(content.copy(dox = Dox.toDocument(c)))
             }
           }
 

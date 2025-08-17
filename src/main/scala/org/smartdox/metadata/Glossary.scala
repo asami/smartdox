@@ -10,7 +10,8 @@ import org.smartdox.doxsite.LinkEnabler
 /*
  * @since   Feb. 23, 2025
  *  version Feb. 24, 2025
- * @version Mar.  9, 2025
+ *  version Mar.  9, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -42,17 +43,36 @@ object Glossary {
     }
   }
 
-  case class Definition(
-    term: Term,
-    page: URI,
-    id: Dox.Id,
-    description: Dox
-  ) {
+  sealed trait Definition {
+    def term: Term
+    def page: URI
+    def getId: Option[Dox.Id]
+    def description: Dox
+
     def isAvailable(tokens: Term.Tokens): Boolean = {
       term.isAvailable(tokens)
     }
 
     def terms: Vector[String] = term.term.terms
+  }
+  object Definition {
+    case class InDocument(
+      term: Term,
+      page: URI,
+      id: Dox.Id,
+      description: Dox
+    ) extends Definition {
+      def getId = Some(id)
+    }
+
+    case class InGlossary(
+      term: Term,
+      page: URI,
+      description: Dox,
+      status: DocumentMetaData.Status
+    ) extends Definition {
+      def getId = None
+    }
   }
 
   class Builder() {
@@ -69,9 +89,39 @@ object Glossary {
     }
 
     def add(term: String, uri: URI, id: Dox.Id, description: Dox): Unit = {
-      val s = Slot(term, Definition(Term(I18NString(term)), uri, id, description))
+      val d = Definition.InDocument(Term(I18NString(term)), uri, id, description)
+      add(term, d)
+    }
+
+    def add(term: String, d: Definition): Unit = {
+      val s = Slot(term, d)
       _slots = _slots |+| Map(term -> Vector(s))
     }
+
+    def register(name: String, p: Document): Unit =
+      for (term <- _make_term(p)) {
+        val title = p.head.title
+        val uri = new URI(s"glossary/$name.html")
+        val status = p.head.metadata.status
+        val dox = p.body.elements
+        val d = Definition.InGlossary(term, uri, dox, status)
+        add(name, d)
+      }
+
+    def register(name: String, tag: Tag.TagName, p: Document): Unit = {
+      for (term <- _make_term(p)) {
+        val uri = new URI(s"""glossary/${tag.name.replace(".", "/")}/$name.html""")
+        val status = p.head.metadata.status
+        val dox = p.body.elements
+        val d = Definition.InGlossary(term, uri, dox, status)
+        add(name, d)
+      }
+    }
+
+    private def _make_term(p: Document): Option[Term] =
+      for (title <- p.head.title) yield {
+        Term(title.toI18NString)
+      }
   }
   object Builder {
     case class Slot(term: String, definition: Definition)

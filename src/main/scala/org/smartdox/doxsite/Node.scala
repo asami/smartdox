@@ -19,7 +19,7 @@ import org.smartdox.generator.Context
  *  version Apr. 30, 2025
  *  version Jun. 24, 2025
  *  version Jul. 26, 2025
- * @version Aug.  5, 2025
+ * @version Aug. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -37,7 +37,7 @@ object Node {
 
 case class Page(
   name: Node.Name,
-  dox: Dox,
+  dox: Document,
   lastModified: Option[Instant] = None
 ) extends Node {
   def pageId: Page.Id = RAISE.notImplementedYetDefect
@@ -50,13 +50,14 @@ case class Page(
   // def getDoxCacheControl: Option[DoxCacheControl] =
   //   getHead.flatMap(_.doxCacheControl)
 
-  def getHead: Option[Head] = dox match {
-    case m: Document => Some(m.head)
-    case m: Head => Some(m)
-    case _ => None
-  }
+  // def getHead: Option[Head] = dox match {
+  //   case m: Document => Some(m.head)
+  //   case m: Head => Some(m)
+  //   case _ => None
+  // }
+  def getHead: Option[Head] = Some(dox.head)
 
-  def withDox(p: Dox) = copy(dox = p)
+  def withDox(p: Dox) = copy(dox = Dox.toDocument(p))
   def withlastModified(p: Option[Instant]) = copy(lastModified = p)
 
   def toRealmData: Realm.Data = Realm.StringData(dox.toString, lastModified)
@@ -67,18 +68,18 @@ object Page {
 
   def apply(
     name: String,
-    dox: Dox
+    dox: Document
   ): Page = Page(Node.Name(name), dox)
 
   def apply(
     name: String,
-    dox: Dox,
+    dox: Document,
     lastmodified: Long
   ): Page = Page(Node.Name(name), dox, Some(Instant.ofEpochMilli(lastmodified)))
 
   def apply(
     name: String,
-    dox: Dox,
+    dox: Document,
     lastmodified: Option[Instant]
   ): Page = Page(Node.Name(name), dox, lastmodified)
 }
