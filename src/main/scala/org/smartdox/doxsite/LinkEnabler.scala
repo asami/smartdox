@@ -14,7 +14,7 @@ import org.smartdox.metadata._
  *  version May. 21, 2025
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
- * @version Aug. 17, 2025
+ * @version Aug. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -101,7 +101,7 @@ object LinkEnabler {
                   //                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
                   val href = create_href(pageNode, definition.page, definition.getId)
                   val alt = definition.description.toPlainText
-                  Hyperlink.create(m, href, alt)
+                  Hyperlink.createGlossary(m, href, alt)
                 case m => Text(m)
               }
             }
@@ -120,7 +120,7 @@ object LinkEnabler {
           }
 
           def +(definition: Glossary.Definition) =
-            Z(definition.terms.foldLeft(ZZ(definition, xs))(_+_).r)
+            Z(definition.candidates.foldLeft(ZZ(definition, xs))(_+_).r)
         }
         candidates.foldLeft(Z(Vector(m)))(_+_).r
       }
@@ -156,6 +156,9 @@ object LinkEnabler {
 
     def create(p: Token): DoxSiteToken = DoxSiteToken(p.getSurface)
 
+    def create(a: DoxSiteToken, b: String, c: Token): DoxSiteToken =
+      DoxSiteToken(a.text + b + c.getSurface)
+
     def classify(p: String): TokenKind = {
       import org.goldenport.util.StringUtils._
 
@@ -187,25 +190,52 @@ object LinkEnabler {
   }
 
   private def _to_tokens(ps: Seq[Token]): Vector[DoxSiteToken] = {
-    case class Z(xs: Vector[DoxSiteToken] = Vector.empty) {
-      val r = xs.filter(_.isAvailable)
+    case class Z(
+      xs: Vector[DoxSiteToken] = Vector.empty,
+      glue: Option[String] = None
+    ) {
+      val r = xs.filter(_.isAvailable).distinct
 
       def +(rhs: Token) = {
-        if (rhs.getPartOfSpeechLevel1().startsWith("名詞")) {
-          val x = if (rhs.getPartOfSpeechLevel2().startsWith("接尾"))
-            xs.lastOption match {
-              case Some(s) => xs.init :+ s.merge(rhs)
-              case None => xs :+ DoxSiteToken.create(rhs)
+        if (_is_middle_dot(rhs)) {
+          if (xs.isEmpty)
+            this
+          else
+            glue match {
+              case Some(s) => copy(glue = Some(s + rhs.getSurface))
+              case None => copy(glue = Some(rhs.getSurface))
             }
-            else
-              xs :+ DoxSiteToken.create(rhs)
-          copy(xs = x)
-//          copy(xs = xs :+ DoxSiteToken.create(rhs))
         } else {
-          this
+          glue match {
+            case Some(s) => xs.lastOption match {
+              case Some(l) => copy(xs = xs.init :+ DoxSiteToken.create(l, s, rhs), glue = None)
+              case None => copy(xs = xs :+ DoxSiteToken.create(rhs), glue = None)
+            }
+            case None => 
+              if (_is_noun(rhs)) {
+                val x = if (_is_suffix(rhs))
+                  xs.lastOption match {
+                    case Some(s) => xs.init :+ s.merge(rhs)
+                    case None => xs :+ DoxSiteToken.create(rhs)
+                  }
+                  else
+                    xs :+ DoxSiteToken.create(rhs)
+                copy(xs = x)
+              } else {
+                this
+              }
+          }
         }
       }
     }
     ps.foldLeft(Z())(_+_).r
   }
+
+  private def _is_noun(t: Token): Boolean =
+    t.getPartOfSpeechLevel1().startsWith("名詞")
+
+  private def _is_suffix(t: Token): Boolean =
+    t.getPartOfSpeechLevel2().startsWith("接尾")
+
+  private def _is_middle_dot(t: Token): Boolean =  t.getSurface == "・"
 }

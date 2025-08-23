@@ -40,7 +40,7 @@ import org.smartdox.parser.PureParser
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
- * @version Aug. 16, 2025
+ * @version Aug. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -84,6 +84,8 @@ case class DocumentMetaData(
   def getSummaryI18NString: Option[I18NString] = summary.map(_.toI18NString)
 
   def getDescriptionI18NString: Option[I18NString] = (description orElse summary).map(_.toI18NString)
+
+  def getHtmlDescriptionI18NString: Option[I18NString] = (summary orElse description).map(_.toI18NString)
 
   def withTitle(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)
@@ -174,31 +176,16 @@ case class DocumentMetaData(
       case Nil => None
       case xs => Some(xs.mkString(","))
     }
-    printI18NFragment(buf, "title", title)
+    Dox.printI18NFragment(buf, "title", title)
     printObject(buf, "titleImage", titleImage)
     printObject(buf, "category", category)
-    printI18NFragment(buf, "description", description)
-    printDox(buf, "author", author)
+    explanation.printFlat(buf)
+    Dox.printDox(buf, "author", author)
     printObject(buf, "keywords", kws)
     printObject(buf, "publishedAt", publishedAt)
     printObject(buf, "modifiedAt", modifiedAt)
     printPowertype(buf, "kind", kindOption)
     printPowertype(buf, "status", statusOption)
-  }
-
-  def printI18NFragment(buf: StringBuilder, name: String, dox: Option[I18NFragment]): Unit =
-    dox.foreach(printI18NFragment(buf, name, _))
-
-  def printI18NFragment(buf: StringBuilder, name: String, dox: I18NFragment): Unit =
-    printDox(buf, name, dox)
-
-  def printDox(buf: StringBuilder, name: String, dox: Option[Dox]): Unit =
-    dox.foreach(printDox(buf, name, _))
-
-  def printDox(buf: StringBuilder, name: String, dox: Dox): Unit = {
-    XmlUtils.printOpenTag(buf, name)
-    dox.printDox(buf)
-    XmlUtils.printCloseTag(buf, name)
   }
 }
 
@@ -355,6 +342,9 @@ object DocumentMetaData {
 
   def create(p: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withExplanation(p)
+
+  def create(title: InlineContents, explanation: Explanation): DocumentMetaData =
+    DocumentMetaData.empty.withTitle(title).withExplanation(explanation)
 
   def parseFlat(p: XNode)(implicit ctx: DateTimeContext): Consequence[Option[DocumentMetaData]] = {
     for {

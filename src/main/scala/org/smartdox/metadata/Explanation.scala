@@ -9,7 +9,7 @@ import org.smartdox._
 
 /*
  * @since   Aug. 16, 2025
- * @version Aug. 16, 2025
+ * @version Aug. 18, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
@@ -20,6 +20,8 @@ case class Explanation(
   description: Option[I18NFragment] = None,
   remarks: Option[I18NFragment] = None
 ) {
+  import Explanation._
+
   def isEmpty = headline.isEmpty && breif.isEmpty && summary.isEmpty &&
   `abstract`.isEmpty && description.isEmpty && remarks.isEmpty
 
@@ -43,6 +45,15 @@ case class Explanation(
 
   private def _plus(l: Option[I18NFragment], r: Option[I18NFragment]): Option[I18NFragment] =
     OptionUtils.lastOption(l, r)
+
+  def printFlat(buf: StringBuilder): Unit = {
+    Dox.printI18NFragment(buf, PROP_HEADLINE, headline)
+    Dox.printI18NFragment(buf, PROP_BREIF, breif)
+    Dox.printI18NFragment(buf, PROP_SUMMARY, summary)
+    Dox.printI18NFragment(buf, PROP_ABSTRACT, `abstract`)
+    Dox.printI18NFragment(buf, PROP_DESCRIPTION, description)
+    Dox.printI18NFragment(buf, PROP_REMARKS, remarks)
+  }
 }
 object Explanation {
   final val PROP_HEADLINE = "headline"
@@ -137,6 +148,15 @@ object Explanation {
     val a = ps.toStream.collect {
       case m: Section if m.nameForModel == k => m
     }.headOption
-    a.map(x => I18NFragment.create(x.contents))
+    a.map(x => I18NFragment.create(_normalize(x.contents)))
+  }
+
+  private def _normalize(ps: List[Dox]): List[Dox] = ps match {
+    case Nil => Nil
+    case x :: Nil => x match {
+      case m: Paragraph if m.attributes.isEmpty => m.contents
+      case _ => List(x)
+    }
+    case xs => xs
   }
 }

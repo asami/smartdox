@@ -17,7 +17,7 @@ import org.goldenport.tree._
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 23, 2025
- * @version Aug. 17, 2025
+ * @version Aug. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -89,6 +89,7 @@ object DoxSiteTransformer {
     def treeConfig: Option[TreeTransformer.Config] = doxsiteConfig.flatMap(_.transformTreeTransformerConfig)
 
     def isGlossary = doxsiteConfig.fold(false)(_.isGlossary)
+    def isGlossaryInDocument = doxsiteConfig.fold(false)(_.isGlossaryInDocument)
     def isLinkEnable = doxsiteConfig.fold(false)(_.isLinkEnable)
     def isAutoWire(p: Page) = doxsiteConfig.fold(false)(_.isAutoWire(p))
     def isAutoI18n(p: Page) = doxsiteConfig.fold(false)(_.isAutoI18n(p))
@@ -102,55 +103,6 @@ object DoxSiteTransformer {
     implicit val configdecoder: Decoder[Config] = deriveConfiguredDecoder
     implicit val configencoder: Encoder[Config] = deriveConfiguredEncoder
   }
-
-  // case class Config(
-  //   scope: Config.Scope = Config.Scope.All,
-  //   includes: List[Regex] = Nil,
-  //   excludes: List[Regex] = Nil
-  // )
-  // object Config {
-  //   val empty = Config()
-
-  //   implicit val circeconf = Configuration.default.
-  //     withDefaults.withSnakeCaseMemberNames
-
-  //   implicit val regexDecoder: Decoder[Regex] = Decoder.decodeString.emap { str =>
-  //     try {
-  //       Right(str.r)
-  //     } catch {
-  //       case NonFatal(e) => Left(s"Invalid regex: ${e.getMessage}")
-  //     }
-  //   }
-  //   implicit val regexEncoder: Encoder[Regex] = Encoder.encodeString.contramap(_.regex)
-
-  //   implicit val configdecoder: Decoder[Config] = deriveConfiguredDecoder
-  //   implicit val configencoder: Encoder[Config] = deriveConfiguredEncoder
-
-  //   sealed trait Scope {
-  //     def name: String
-  //   }
-  //   object Scope {
-  //     val elements = Vector(All, HomeOnly, ExcludeHome)
-
-  //     case object All extends Scope {
-  //       def name = "all"
-  //     }
-  //     case object HomeOnly extends Scope {
-  //       def name = "home_only"
-  //     }
-  //     case object ExcludeHome extends Scope {
-  //       def name = "exclude_home"
-  //     }
-
-  //     def create(p: String): Either[String, Scope] =
-  //       elements.find(_.name == p).map(Right(_)) getOrElse {
-  //         Left(s"Unknown Scope: $p")
-  //       }
-
-  //     implicit val scopeDecoder: Decoder[Scope] = Decoder.decodeString.emap(create)
-  //     implicit val scopeEncoder: Encoder[Scope] = Encoder.encodeString.contramap(_.name)
-  //   }
-  // }
 
   case class Context(
     config: Config,

@@ -45,7 +45,7 @@ import Dox._
  *  version May. 24, 2025
  *  version Jun. 24, 2025
  *  version Jul. 29, 2025
- * @version Aug. 16, 2025
+ * @version Aug. 18, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -87,11 +87,16 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
 
       def +(rhs: Dox) = rhs match {
         case m: Head => copy(head = head.merge(m))
+        case m: Section if _is_head(m) =>
+          val meta = _parse_head(m)
+          copy(head = head.merge(meta))
         case m => copy(elements = elements :+ m)
       }
     }
     ps.foldLeft(Z())(_+_).r
   }
+
+  private def _is_head(p: Section) = p.titleName.trim == "HEAD"
 
   private def _distill_brief(ps: Vector[Dox]): Option[List[Inline]] = {
     val a = ps.toStream.collect {
@@ -153,31 +158,34 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     xs: Vector[Dox]
   ): (Vector[Dox], DocumentMetaData) = {
     val title = List(_to_dox(p.title))
-    val (xs1, meta0) = _parse_head(xs)
+    val (xs1, meta0) = _distill_meta(xs)
     val meta = meta0.withTitle(title)
     (xs1, meta)
   }
 
-  private def _parse_head(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {
-    val a = VectorUtils.findMapSplit(ps) {
-      case m: Section if m.titleName == "HEAD" => Some(m)
-      case _ => None
-    }
-    a match {
-      case Some((prologe, x, epilogue)) =>
-        val (xs, meta0) = _distill_meta(prologe)
-        val meta1 = _parse_head(x)
-        val meta = meta0 + meta1
-        (epilogue, meta)
-      case None => _distill_meta(ps)
-    }
-  }
+  // private def _parse_head(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {
+  //   def _is_head(p: Section) = p.titleName.trim == "HEAD"
+
+  //   val a = VectorUtils.findMapSplit(ps) {
+  //     case m: Section if _is_head(m) => Some(m)
+  //     case _ => None
+  //   }
+  //   a match {
+  //     case Some((prologe, x, epilogue)) =>
+  //       val (xs, meta0) = _distill_meta(prologe)
+  //       val meta1 = _parse_head(x)
+  //       val meta = meta0 + meta1
+  //       (epilogue, meta)
+  //     case None => _distill_meta(ps)
+  //   }
+  // }
 
   private def _parse_head(p: Section): DocumentMetaData = {
+    val (_, meta) = _distill_meta(p.contents.toVector)
     val a = for {
       ex <- Explanation.parse(p)
     } yield DocumentMetaData.create(ex)
-    a.take
+    meta + a.take
   }
 
   private def _distill_meta(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {

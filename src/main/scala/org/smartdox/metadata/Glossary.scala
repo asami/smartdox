@@ -3,15 +3,17 @@ package org.smartdox.metadata
 import scalaz._
 import Scalaz._
 import java.net.URI
+import java.util.Locale
 import org.goldenport.i18n.I18NString
+import org.goldenport.collection.VectorMap
 import org.smartdox._
-import org.smartdox.doxsite.LinkEnabler
+import org.smartdox.doxsite.Page
 
 /*
  * @since   Feb. 23, 2025
  *  version Feb. 24, 2025
  *  version Mar.  9, 2025
- * @version Aug. 17, 2025
+ * @version Aug. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -33,14 +35,32 @@ object Glossary {
     def append(f1: Glossary, f2: => Glossary): Glossary = f1 + f2
   }
 
-  case class Term(term: I18NString) {
-    def isAvailable(tokens: Term.Tokens): Boolean =
-      tokens.contains(term.terms)
+  case class Term(
+    name: I18NString,
+    aliases: VectorMap[Locale, Vector[String]] = VectorMap.empty
+  ) {
+    val key: String = name.en
+
+    val candidates: Vector[String] = {
+      val a = name.terms
+      val b = aliases.valueVector.flatten
+      (a ++ b).distinct
+    }
+
+    def isAvailable(tokens: Term.Tokens): Boolean = tokens.contains(candidates)
+
+    def toTitle: List[Inline] =
+      if (name.isSimple)
+        List(Text(name.en))
+      else
+        List(I18NFragment.create(name))
   }
   object Term {
     case class Tokens(tokens: Vector[String]) {
       def contains(ps: Vector[String]) = tokens.intersect(ps).nonEmpty
     }
+
+    def create(name: String): Term = Term(I18NString(name))
   }
 
   sealed trait Definition {
@@ -53,7 +73,19 @@ object Glossary {
       term.isAvailable(tokens)
     }
 
-    def terms: Vector[String] = term.term.terms
+    def candidates: Vector[String] = term.candidates
+
+    def createPage: Page = {
+      val title = term.toTitle
+      val explanation = Explanation.empty
+      val meta = DocumentMetaData.create(title, explanation)
+      val head = Head(metadata = meta)
+      val body = Body(List(description))
+      val dox = Document(head, body)
+      val name = term.key
+      val lastmodefied = None
+      Page(name, dox, None)
+    }
   }
   object Definition {
     case class InDocument(
@@ -88,8 +120,10 @@ object Glossary {
       Glossary(xs)
     }
 
+
     def add(term: String, uri: URI, id: Dox.Id, description: Dox): Unit = {
-      val d = Definition.InDocument(Term(I18NString(term)), uri, id, description)
+      val t = Term.create(term)
+      val d = Definition.InDocument(t, uri, id, description)
       add(term, d)
     }
 

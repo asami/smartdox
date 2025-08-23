@@ -88,7 +88,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug. 16, 2025
+ * @version Aug. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -981,6 +981,21 @@ object Dox extends UseDox {
       case m => m.equals(actual)
     }
   }
+
+  def printI18NFragment(buf: StringBuilder, name: String, dox: Option[I18NFragment]): Unit =
+    dox.foreach(printI18NFragment(buf, name, _))
+
+  def printI18NFragment(buf: StringBuilder, name: String, dox: I18NFragment): Unit =
+    printDox(buf, name, dox)
+
+  def printDox(buf: StringBuilder, name: String, dox: Option[Dox]): Unit =
+    dox.foreach(printDox(buf, name, _))
+
+  def printDox(buf: StringBuilder, name: String, dox: Dox): Unit = {
+    XmlUtils.printOpenTag(buf, name)
+    dox.printDox(buf)
+    XmlUtils.printCloseTag(buf, name)
+  }
 }
 
 case class Document(
@@ -1183,6 +1198,8 @@ case class Head(
     doxCacheControl,
     location orElse p.location
   )
+
+  def merge(p: DocumentMetaData): Head = copy(metadata = metadata + p)
 
 //  def isMarkCache: Boolean = doxCacheControl.fold(false)(_.isMarked)
 
@@ -1911,6 +1928,9 @@ case class Hyperlink(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_, href, location = get_location(location, cs)))
   }
+
+  def getTitle: Option[String] = attributes.get("title")
+  def getHtmlClass: Option[String] = attributes.get("class")
 }
 object Hyperlink extends DoxFactory {
   val label = "a"
@@ -1925,10 +1945,13 @@ object Hyperlink extends DoxFactory {
     Hyperlink(c.toList, new URI(href), VectorMap.empty, location)
 
   def create(body: String, href: URI, alt: String): Hyperlink =
-    Hyperlink(List(Text(body)), href, VectorMap("alt" -> alt))
+    Hyperlink(List(Text(body)), href, VectorMap("title" -> alt))
 
   def create(url: String): Hyperlink =
     Hyperlink(List(Text(url)), new URI(url))
+
+  def createGlossary(body: String, href: URI, alt: String): Hyperlink =
+    Hyperlink(List(Text(body)), href, VectorMap("title" -> alt, "class" -> "glossary"))
 }
 
 case class ReferenceImg(
@@ -2676,6 +2699,7 @@ case class I18NFragment(
 
   def distillInline(locale: Locale): List[Inline] = distill(locale) map {
     case m: Inline => m
+    case m => RAISE.noReachDefect(s"Not inline: $m")
   }
 
   def distillString(locale: Locale): String = Dox.toPlainText(distillInline(locale))
@@ -2778,6 +2802,13 @@ object I18NFragment {
   }
 
   def create(p: String): I18NFragment = create(List(Text(p)))
+
+  def create(p: I18NString): I18NFragment = {
+    val a = p.localeVector.map {
+      case (k, v) => k -> List(Text(v))
+    }
+    I18NFragment(I18NContainer.create(a))
+  }
 
   def createString(p: Map[Locale, String]): I18NFragment = {
     val a = p.mapValues(x => List(Text(x)))

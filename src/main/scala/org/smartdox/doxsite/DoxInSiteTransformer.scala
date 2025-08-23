@@ -9,7 +9,7 @@ import org.smartdox.transformer._
 /*
  * @since   Mar.  7, 2025
  *  version Apr.  5, 2025
- * @version Aug. 17, 2025
+ * @version Aug. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxInSiteTransformer extends DoxHomoTreeTransformer {
@@ -21,7 +21,8 @@ trait DoxInSiteTransformer extends DoxHomoTreeTransformer {
     id.fold(create_href(from, to))(create_href(from, to, _))
 
   protected final def create_href(from: TreeNode[Node], to: URI): URI = {
-    val path = StringUtils.getRelativePath(from.pathname, to.toString)
+    val frompath = from.pathnameRelative
+    val path = StringUtils.getRelativePath(frompath, to.toString)
     val body = StringUtils.toPathnameBody(path)
     val s = s"${body}.html"
     new URI(s)

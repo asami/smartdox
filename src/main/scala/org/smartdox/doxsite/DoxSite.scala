@@ -57,7 +57,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug. 17, 2025
+ * @version Aug. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -291,6 +291,7 @@ object DoxSite {
     def isAutoI18n(p: Page): Boolean = strategy.isAutoI18n(p)
     def isNotice: Boolean = strategy.isNotice
     def isGlossary: Boolean = strategy.isGlossary
+    def isGlossaryInDocument: Boolean = strategy.isGlossaryInDocument
     def isLinkEnable: Boolean = strategy.isLinkEnable
     def isLinkEnable(p: Page): Boolean = strategy.isLinkEnable(p)
 
@@ -385,6 +386,7 @@ object DoxSite {
     def isAutoI18n(p: Page): Boolean = documentStrategy(p).isAutoI18n
     def isNotice: Boolean = true
     def isGlossary: Boolean = true
+    def isGlossaryInDocument: Boolean = false
     def isLinkEnable: Boolean = true
     def isLinkEnable(p: Page): Boolean = documentStrategy(p).isLinkEnable
     def isActive(p: Dox): Boolean =
@@ -812,9 +814,10 @@ object DoxSite {
     )
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = _enable_link(ctx1, b)
-    val d = c.transform(new DoxSitePostTransformer(ctx1))
-    _flush_cache(ctx1, d)
-    new DoxSite(config, d, metadata)
+    val d: Tree[Node] = _deploy_metadata(c, metadata)
+    val e = d.transform(new DoxSitePostTransformer(ctx1))
+    _flush_cache(ctx1, e)
+    new DoxSite(config, e, metadata)
   }
 
   private def _collect_category(
@@ -857,8 +860,30 @@ object DoxSite {
   private def _build_glossary(
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
-  ): (Tree[Node], Glossary) =
+  ): (Tree[Node], Glossary) = {
+    val (a, g0) = _collect_glossary(ctx, p)
+    val (b, g1) = _build_glossary_in_documents(ctx, a)
+    (b, g0 + g1)
+  }
+
+  private def _collect_glossary(
+    ctx: DoxSiteTransformer.Context,
+    p: Tree[Node]
+  ): (Tree[Node], Glossary) = {
     if (ctx.config.isGlossary) {
+      val g = GlossaryCollector.collect(ctx.generatorContext, p)
+      p.remove(GlossaryCollector.PROP_GLOSSARY_DIRECTORY)
+      (p, g)
+    } else {
+      (p, Glossary.empty)
+    }
+  }
+
+  private def _build_glossary_in_documents(
+    ctx: DoxSiteTransformer.Context,
+    p: Tree[Node]
+  ): (Tree[Node], Glossary) =
+    if (ctx.config.isGlossaryInDocument) {
       val gb = new GlossaryBuilder(ctx)
       val b: Tree[Node] = p.transform(gb)
       (b, gb.glossary)
@@ -874,6 +899,21 @@ object DoxSite {
       p.transform(new LinkEnabler(ctx))
     else
       p
+
+  private def _deploy_metadata(base: Tree[Node], meta: MetaData): Tree[Node] = {
+    _deploy_glossary(base, meta.glossary)
+  }
+
+  private def _deploy_glossary(base: Tree[Node], glossary: Glossary): Tree[Node] = {
+    // val g = base.setNode("glossary")
+    for (d <- glossary.definitions) {
+      val c = d.createPage
+      val path = d.page.toString // TODO
+      // g.setContent(path, c)
+      base.setContent(path, c)
+    }
+    base
+  }
 
   private def _flush_cache(
     ctx: DoxSiteTransformer.Context,

@@ -1,6 +1,7 @@
 package org.smartdox.doxsite
 
 import java.net.URI
+import org.goldenport.tree.Tree
 import org.goldenport.tree.TreeNode
 import org.goldenport.collection.VectorMap
 import org.goldenport.values.PathName
@@ -10,7 +11,7 @@ import org.smartdox.metadata._
 
 /*
  * @since   Aug. 11, 2025
- * @version Aug. 17, 2025
+ * @version Aug. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryCollector(
@@ -50,9 +51,11 @@ class GlossaryCollector(
 }
 
 object GlossaryCollector {
-  def collect(content: Context, site: DoxSite): Glossary = {
-    val gc = new GlossaryCollector(content)
-    site.traverse("glossary", gc)
+  val PROP_GLOSSARY_DIRECTORY = "glossary"
+
+  def collect(context: Context, site: Tree[Node]): Glossary = {
+    val gc = new GlossaryCollector(context)
+    site.traverse(PROP_GLOSSARY_DIRECTORY, gc)
     gc.glossary()
   }
 }
