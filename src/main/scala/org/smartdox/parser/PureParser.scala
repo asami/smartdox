@@ -23,7 +23,7 @@ import Dox._, Doxes._
  *  version Oct. 28, 2024
  *  version Jun. 16, 2025
  *  version Jul. 28, 2025
- * @version Aug.  9, 2025
+ * @version Aug. 23, 2025
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -207,10 +207,6 @@ object PureParser {
     Pre(elem.text, getAttributes(elem))
   }
 
-  def getAttributes(elem: XNode): VectorMap[String, String] = {
-    VectorMap(elem.attributes.map(x => (x.key, x.value.text)))
-  }
-
   def buildUl(elem: XNode): Ul = {
     Ul(buildLis(elem))
   }
@@ -238,17 +234,16 @@ object PureParser {
   }
 
   def buildHyperlink(elem: XNode): Hyperlink = {
+    val attrs = getAttributes(elem).without("href")
     val href = getAttribute(elem, "href") | ""
-    Hyperlink(buildInline(elem), new URI(href))
-  }
-
-  def getAttribute(elem: XNode, name: String): Option[String] = {
-    elem.attribute(name).map(_.text)
+    Hyperlink(buildInline(elem), new URI(href), attrs)
   }
 
   def buildReferenceImg(elem: XNode): ReferenceImg = {
+    val attrs = getAttributes(elem).without("src")
     val src = getAttribute(elem, "src") | ""
-    ReferenceImg(new URI(src))
+    val alt = getAttribute(elem, "alt")
+    ReferenceImg(new URI(src), alt, attrs)
   }
 
   def buildTable(elem: XNode): Table = {
@@ -425,5 +420,14 @@ object PureParser {
   def buildIncludeDoc(elem: XNode): IncludeDoc = {
     val fn = getAttribute(elem, "filename") | ""
     IncludeDoc(fn)
+  }
+
+  //
+  def getAttribute(elem: XNode, name: String): Option[String] = {
+    elem.attribute(name).map(_.text)
+  }
+
+  def getAttributes(elem: XNode): VectorMap[String, String] = {
+    VectorMap(elem.attributes.map(x => (x.key, x.value.text)))
   }
 }

@@ -100,8 +100,8 @@ object LinkEnabler {
                 case m if m == term =>
                   //                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
                   val href = create_href(pageNode, definition.page, definition.getId)
-                  val alt = definition.description.toPlainText
-                  Hyperlink.createGlossary(m, href, alt)
+                  val title = definition.description.toPlainText.trim
+                  Hyperlink.createGlossary(m, href, title)
                 case m => Text(m)
               }
             }
