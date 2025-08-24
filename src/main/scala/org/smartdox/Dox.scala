@@ -88,7 +88,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug. 23, 2025
+ * @version Aug. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -603,6 +603,12 @@ object Dox extends UseDox {
   }.toList
 
   def toDox(p: NonEmptyVector[Dox]): Dox = toDox(p.vector)
+
+  def toDox(p: I18NString): Dox =
+    if (p.isSimple)
+      Text(p.en)
+    else
+      I18NFragment.create(p)
 
   def toDox(p: GTree[Dox]): Dox = untree(p)
 

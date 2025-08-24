@@ -40,7 +40,7 @@ import org.smartdox.parser.PureParser
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
- * @version Aug. 22, 2025
+ * @version Aug. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -91,6 +91,8 @@ case class DocumentMetaData(
     val x = Dox.trimSingleLine(p)
     copy(title = Some(I18NFragment.create(x)))
   }
+
+  def withTitle(p: String) = copy(title = Some(I18NFragment.create(p)))
 
   def withSummary(p: InlineContents) =
     copy(explanation = explanation.withSummary(p))
@@ -344,6 +346,9 @@ object DocumentMetaData {
     DocumentMetaData.empty.withExplanation(p)
 
   def create(title: InlineContents, explanation: Explanation): DocumentMetaData =
+    DocumentMetaData.empty.withTitle(title).withExplanation(explanation)
+
+  def create(title: String, explanation: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withTitle(title).withExplanation(explanation)
 
   def parseFlat(p: XNode)(implicit ctx: DateTimeContext): Consequence[Option[DocumentMetaData]] = {

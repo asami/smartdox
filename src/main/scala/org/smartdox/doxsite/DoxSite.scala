@@ -35,11 +35,13 @@ import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
 import org.smartdox.metadata.CategoryCollection
 import org.smartdox.metadata.Category
 import org.smartdox.metadata.Notices
 import org.smartdox.metadata.Notices.Notice
+import org.smartdox.metadata.History
 import org.smartdox.metadata.KeywordCollection
 import org.smartdox.metadata.TagCollection
 import org.smartdox.metadata.{AtomFeed, AtomFeedBag}
@@ -57,7 +59,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug. 23, 2025
+ * @version Aug. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -799,7 +801,7 @@ object DoxSite {
     val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
     val a = a1.transform(new DoxSitePreTransformer(ctx))
     val categories = _collect_category(config, context, a)
-    val notices = _collect_notice(config, context, categories, a)
+    val (notices, history) = _collect_notice_history(config, context, categories, a)
     val atoms = _build_atom_feed(notices)
     val (b, glossary) = _build_glossary(ctx, a)
     val keywords = _collect_keywords()
@@ -810,14 +812,15 @@ object DoxSite {
       keywords = keywords,
       tags = tags,
       notices = notices,
-      atomFeed = atoms
+      atomFeed = atoms,
+      history = history
     )
     val ctx1 = ctx.withMetaData(metadata)
     val c: Tree[Node] = _enable_link(ctx1, b)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
-    val e = d.transform(new DoxSitePostTransformer(ctx1))
-    _flush_cache(ctx1, e)
-    new DoxSite(config, e, metadata)
+    val z = d.transform(new DoxSitePostTransformer(ctx1))
+    _flush_cache(ctx1, z)
+    new DoxSite(config, z, metadata)
   }
 
   private def _collect_category(
@@ -830,18 +833,18 @@ object DoxSite {
     c.categories
   }
 
-  private def _collect_notice(
+  private def _collect_notice_history(
     config: DoxSite.Config,
     gcontext: Context,
     categories: CategoryCollection,
     p: Tree[Node]
-  ): Notices =
+  ): (Notices, History) =
     if (config.isNotice) {
       val noticecollector = new NoticeCollector(gcontext, categories)
       p.traverse(noticecollector)
-      noticecollector.notices
+      (noticecollector.notices, noticecollector.history)
     } else {
-      Notices.empty
+      (Notices.empty, History.empty)
     }
 
   private def _collect_keywords(): KeywordCollection = KeywordCollection.empty
@@ -901,7 +904,8 @@ object DoxSite {
       p
 
   private def _deploy_metadata(base: Tree[Node], meta: MetaData): Tree[Node] = {
-    _deploy_glossary(base, meta.glossary)
+    val a = _deploy_glossary(base, meta.glossary)
+    _deploy_history(a, meta.history)
   }
 
   private def _deploy_glossary(base: Tree[Node], glossary: Glossary): Tree[Node] = {
@@ -913,6 +917,40 @@ object DoxSite {
       base.setContent(path, c)
     }
     base
+  }
+
+  private def _deploy_history(base: Tree[Node], history: History): Tree[Node] = {
+    val years = history.yearList
+    val home = base.setNode("history")
+    for ((y, h) <- years) {
+      _deploy_year(home, y, h)
+    }
+    base
+  }
+
+  private def _deploy_year(base: TreeNode[Node], year: Int, h: History.HistoryCollection): Unit = {
+    val tb = new Table.Builder()
+    tb.withCaption(year.toString)
+    tb.withHeaderString(List("Date", "Kind", "Event", "Title", "Summary"))
+    for (x <- h.desc) {
+      val date = Dox.text(x.date.toString)
+      val ckind = Dox.text(x.contentKind.toString) // TODO
+      val evt = Dox.text(x.eventKind.toString) // TODO
+      val title = Dox.toDox(x.title)
+      val summary = Dox.toDox(x.summary)
+      tb.append(date, ckind, evt, title, summary)
+    }
+    val t = tb.apply()
+    val title = year.toString
+    val explanation = Explanation.empty
+    val meta = DocumentMetaData.create(title, explanation)
+    val head = Head(metadata = meta)
+    val body = Body(List(t))
+    val dox = Document(head, body)
+    val name = year.toString
+    val lastmodefied = None
+    val page = Page(name, dox, None)
+    base.setContent(name, page)
   }
 
   private def _flush_cache(

@@ -8,7 +8,7 @@ import org.smartdox._
  *  version Apr. 29, 2025
  *  version Jun. 23, 2025
  *  version Jul. 23, 2025
- * @version Aug.  1, 2025
+ * @version Aug. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 case class MetaData(
@@ -19,7 +19,8 @@ case class MetaData(
   keywords: KeywordCollection = KeywordCollection.empty,
   tags: TagCollection = TagCollection.create(),
   notices: Notices = Notices.empty,
-  atomFeed: Option[AtomFeedBag] = None
+  atomFeed: Option[AtomFeedBag] = None,
+  history: History = History.empty
 )
 
 object MetaData {
