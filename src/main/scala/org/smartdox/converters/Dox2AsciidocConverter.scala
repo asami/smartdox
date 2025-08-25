@@ -14,7 +14,7 @@ import org.smartdox.converter._
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
  *  version Jul. 28, 2025
- * @version Aug. 22, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -123,6 +123,16 @@ class Dox2AsciidocConverter(
   private def _print_record(p: TRecord): Unit = {
     val s = p.fields.map(_.text).mkString("|", "|", "")
     sb_println(s)
+  }
+
+  override protected def enter_I18NFragment(p: I18NFragment): Unit = {
+    val a = p.makeInlines
+    if (a.nonEmpty) {
+      for (x <- a)
+        x.traverse(this)
+      sb_println()
+      sb_println()
+    }
   }
 
   override protected def enter_Program(p: Program): Unit = {

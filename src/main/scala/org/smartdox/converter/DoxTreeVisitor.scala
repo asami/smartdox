@@ -3,13 +3,14 @@ package org.smartdox.converter
 import org.goldenport.RAISE
 import org.goldenport.tree._
 import org.smartdox._
+import org.smartdox.metadata.DocumentMetaData
 
 /*
  * @since   Apr. 25, 2025
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
  *  version Jul. 26, 2025
- * @version Aug.  7, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -18,9 +19,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   private var _section: Int = 0
   private var _list_depth = 0
   private var _is_in_figure: Boolean = false
+  private var _metadata: Option[DocumentMetaData] = None
 
   protected final def is_uninvoke_img = is_ignore_img_in_figure && _is_in_figure
   protected final def is_invoke_img = !is_uninvoke_img
+
+  protected final def get_metadata: Option[DocumentMetaData] = _metadata
 
   protected final def section_up(): Int = {
     _section = _section + 1
@@ -88,10 +92,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: THead => enter_Thead(m)
       case m: TBody => enter_Tbody(m)
       case m: TFoot => enter_Tfoot(m)
+      case m: Caption => enter_caption(m)
       case m: TR => enter_Tr(m)
       case m: TH => enter_Th(m)
       case m: TD => enter_Td(m)
       case m: Section => enter_section(node, m)
+      case m: I18NFragment => enter_i18nfragment(m)
       case m: Program => enter_program(node, m)
       case m: Document => enter_Document(m)
       case m: Head => enter_head(node, m)
@@ -104,12 +110,18 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     enter_Section(p)
   }
 
+  protected def enter_i18nfragment(p: I18NFragment): Unit = {
+    enter_I18NFragment(p)
+  }
+
   protected def enter_program(node: TreeNode[Dox], p: Program): Unit = {
     enter_Program(p)
   }
 
-  protected def enter_head(node: TreeNode[Dox], p: Head): Unit =
+  protected def enter_head(node: TreeNode[Dox], p: Head): Unit = {
+    _metadata = Some(p.metadata)
     enter_Head(p)
+  }
 
   protected def enter_ul(p: Ul): Unit = {
     list_up()
@@ -145,6 +157,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       done_traverse(node)
   }
 
+  protected def enter_caption(p: Caption): Unit = {
+    enter_Caption(p)
+  }
+
   protected def enter_Text(p: Text): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Text: $p")
   protected def enter_Paragraph(p: Paragraph): Unit = {}
   protected def enter_Div(p: Div): Unit = {}
@@ -165,10 +181,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Thead(p: THead): Unit = {}
   protected def enter_Tbody(p: TBody): Unit = {}
   protected def enter_Tfoot(p: TFoot): Unit = {}
+  protected def enter_Caption(p: Caption): Unit = {}
   protected def enter_Tr(p: TR): Unit = {}
   protected def enter_Th(p: TH): Unit = {}
   protected def enter_Td(p: TD): Unit = {}
   protected def enter_Section(p: Section): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Section: $p")
+  protected def enter_I18NFragment(p: I18NFragment): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] I18NFragment: $p")
   protected def enter_Program(p: Program): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Program: $p")
   protected def enter_Document(p: Document): Unit = {}
   protected def enter_Head(p: Head): Unit = {}
@@ -205,10 +223,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: THead => leave_Thead(m)
       case m: TBody => leave_Tbody(m)
       case m: TFoot => leave_Tfoot(m)
+      case m: Caption => leave_caption(m)
       case m: TR => leave_Tr(m)
       case m: TH => leave_Th(m)
       case m: TD => leave_Td(m)
       case m: Section => leave_section(node, m)
+      case m: I18NFragment => leave_i18nfragment(m)
       case m: Program => leave_program(node, m)
       case m: Document => leave_Document(m)
       case m: Head => leave_head(node, m)
@@ -225,6 +245,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_section(node: TreeNode[Dox], p: Section): Unit = {
     leave_Section(p)
     section_down()
+  }
+
+  protected def leave_i18nfragment(p: I18NFragment): Unit = {
+    leave_I18NFragment(p)
   }
 
   protected def leave_program(node: TreeNode[Dox], p: Program): Unit = {
@@ -268,6 +292,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     leave_Table(p)
   }
 
+  protected def leave_caption(p: Caption): Unit = {
+    leave_Caption(p)
+  }
+
   protected def leave_Text(p: Text): Unit = {}
   protected def leave_Paragraph(p: Paragraph): Unit = {}
   protected def leave_Div(p: Div): Unit = {}
@@ -288,10 +316,12 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Thead(p: THead): Unit = {}
   protected def leave_Tbody(p: TBody): Unit = {}
   protected def leave_Tfoot(p: TFoot): Unit = {}
+  protected def leave_Caption(p: Caption): Unit = {}
   protected def leave_Tr(p: TR): Unit = {}
   protected def leave_Th(p: TH): Unit = {}
   protected def leave_Td(p: TD): Unit = {}
   protected def leave_Section(p: Section): Unit = {}
+  protected def leave_I18NFragment(p: I18NFragment): Unit = {}
   protected def leave_Program(p: Program): Unit = {}
   protected def leave_Document(p: Document): Unit = {}
   protected def leave_Head(p: Head): Unit = {}

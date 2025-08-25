@@ -12,7 +12,7 @@ import org.smartdox.converter.Dox2StringConverter
 /*
  * @since   Jul. 23, 2025
  *  version Jul. 26, 2025
- * @version Aug.  6, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2XmlConverter(
@@ -58,6 +58,8 @@ class Dox2XmlConverter(
 
   override protected def enter_Tfoot(p: TFoot): Unit = p.printOpen(sb_buffer)
 
+  override protected def enter_Caption(p: Caption): Unit = p.printOpen(sb_buffer)
+
   override protected def enter_Tr(p: TR): Unit = p.printOpen(sb_buffer)
 
   override protected def enter_Th(p: TH): Unit = p.printOpen(sb_buffer)
@@ -65,6 +67,8 @@ class Dox2XmlConverter(
   override protected def enter_Td(p: TD): Unit = p.printOpen(sb_buffer)
 
   override protected def enter_Section(p: Section): Unit = p.printOpen(sb_buffer)
+
+  override protected def enter_I18NFragment(p: I18NFragment): Unit = p.printOpen(sb_buffer)
 
   override protected def enter_Program(p: Program): Unit = p.printOpen(sb_buffer)
 
@@ -97,7 +101,9 @@ class Dox2XmlConverter(
   override protected def leave_Tr(p: TR): Unit = p.printClose(sb_buffer)
   override protected def leave_Th(p: TH): Unit = p.printClose(sb_buffer)
   override protected def leave_Td(p: TD): Unit = p.printClose(sb_buffer)
+  override protected def leave_Caption(p: Caption): Unit = p.printClose(sb_buffer)
   override protected def leave_Section(p: Section): Unit = p.printClose(sb_buffer)
+  override protected def leave_I18NFragment(p: I18NFragment): Unit = p.printClose(sb_buffer)
   override protected def leave_Program(p: Program): Unit = p.printClose(sb_buffer)
   override protected def leave_Document(p: Document): Unit = p.printClose(sb_buffer)
   override protected def leave_Head(p: Head): Unit = p.printClose(sb_buffer)

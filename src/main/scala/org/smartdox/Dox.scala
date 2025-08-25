@@ -36,6 +36,7 @@ import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.DoxCacheControl
 import org.smartdox.generator.Context
+import org.smartdox.converter.DoxTreeVisitor
 import org.smartdox.parser.DoxLinesParser.BlockMacro
 import org.smartdox.parser.PureParser
 import org.smartdox.util.DoxUtils
@@ -88,7 +89,7 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug. 24, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -281,6 +282,8 @@ trait Dox extends IDocument {
   def toTree: GTree[Dox] = Dox.toTree(this)
 
   def tree: Tree[Dox] = Dox.tree(this)
+
+  def traverse(p: DoxTreeVisitor): Unit = toTree.traverse(p)
 
   def copyV(cs: List[Dox]): ValidationNel[String, Dox] =
     if (cs.isEmpty)
@@ -934,6 +937,12 @@ object Dox extends UseDox {
       case m => List(m)
     }.toList
 
+  def distillInline(p: Dox): List[Inline] = p match {
+    case m: Inline => List(m)
+    case m: Paragraph => m.contents.flatMap(x => distillInline(x))
+    case m => RAISE.noReachDefect(s"Not inline: $m")
+  }
+
   def distillTitleStringDefault(p: Dox): Option[String] = p match {
     case m: Document => m.head.distillTitleStringDefault
     case m: Head => m.distillTitleStringDefault
@@ -1187,6 +1196,8 @@ case class Head(
       None
     else
       Some(this)
+
+  def withDocumentMetaData(p: DocumentMetaData) = copy(metadata = p)
 
   def withTitle(ps: InlineContents) = copy(metadata = metadata.withTitle(ps))
 
@@ -2684,7 +2695,6 @@ case class I18NFragment(
       case None => super.printDox(buf)
     }
 
-
   override def print_Contents(buf: StringBuilder): Unit =
     for ((locale, xs) <- contents.localeVector) {
       buf.append("<")
@@ -2701,12 +2711,21 @@ case class I18NFragment(
       x.printDox(buf)
     }
 
+  def isSimple: Boolean = contents.getIfNoLocale.isDefined
+
   def distill(locale: Locale): List[Dox] = contents.apply(locale)
 
-  def distillInline(locale: Locale): List[Inline] = distill(locale) map {
-    case m: Inline => m
-    case m => RAISE.noReachDefect(s"Not inline: $m")
-  }
+  def distillInline(locale: Locale): List[Inline] =
+    distill(locale).flatMap(Dox.distillInline)
+
+  def distillI18NFragment(locale: Option[Locale]): I18NFragment =
+    locale.fold(distillI18NFragmentDefault)(distillI18NFragment)
+
+  def distillI18NFragment(locale: Locale): I18NFragment =
+    I18NFragment(I18NContainer.make(distill(locale)))
+
+  def distillI18NFragmentDefault: I18NFragment =
+    I18NFragment(I18NContainer.make(contents.default))
 
   def distillString(locale: Locale): String = Dox.toPlainText(distillInline(locale))
 
@@ -2770,41 +2789,73 @@ case class I18NFragment(
 }
 object I18NFragment {
   def create(ps: Seq[Dox]): I18NFragment = ps.toList match {
-    case Nil => _create_inlines(Nil)
+    case Nil => _create_distill(Nil)
     case x :: Nil => x match {
       case m: I18NFragment => m
-      case _ => _create_inlines(ps)
+      case _ => _create_distill(ps)
     }
-    case xs => _create_inlines(xs)
+    case xs => _create_distill(xs)
   }
 
-  private def _create_inlines(ps: Seq[Dox]): I18NFragment = {
-    case class Z(
-      xs: Vector[Dox] = Vector.empty,
-      ls: Map[Locale, Vector[Dox]] = Map.empty
-    ) {
-      def r = if (ls.isEmpty)
-        I18NFragment(I18NContainer.make(xs.toList))
-      else
-        I18NFragment(I18NContainer.createSeq(ls))
+  case class Z(
+    xs: Vector[Dox] = Vector.empty,
+    ls: Map[Locale, Vector[Dox]] = Map.empty
+  ) {
+    def r = if (ls.isEmpty)
+      I18NFragment(I18NContainer.make(xs.toList))
+    else
+      I18NFragment(I18NContainer.createSeq(ls))
 
-      def +(rhs: Dox) = rhs.getLanguage match {
-        case Some(l) =>
-          ls.get(l) match {
-            case Some(v) =>
-              copy(ls = ls + (l -> (v :+ rhs)))
-            case None =>
-              copy(ls = ls + (l -> (xs :+ rhs)))
-          }
-        case None =>
-          copy(
-            xs = xs :+ rhs,
-            ls = ls.keys.foldLeft(ls)((z, x) =>
-              ls |+| Map(x -> Vector(rhs)))
-          )
+    def +(rhs: Dox) = rhs.getLanguage match {
+      case Some(l) =>
+        ls.get(l) match {
+          case Some(v) =>
+            copy(ls = ls + (l -> (v :+ rhs)))
+          case None =>
+            copy(ls = ls + (l -> (xs :+ rhs)))
+        }
+      case None =>
+        val a = _make_locales(rhs)
+        a match {
+          case Some(lrs) =>
+            lrs.foldLeft(ZZ(Z.this))(_+_).r
+          case None =>
+            copy(
+              xs = xs :+ rhs,
+              ls = ls.keys.foldLeft(ls)((z, x) =>
+                ls |+| Map(x -> Vector(rhs)))
+            )
+        }
+    }
+  }
+
+  case class ZZ(z: Z) {
+    def r = z
+
+    def +(rhs: (Locale, Vector[Dox])) = {
+      val (locale, rs) = rhs
+      z.ls.get(locale) match {
+        case Some(v) => copy(z = z.copy(ls = z.ls + (locale -> (v ++ rs))))
+        case None => copy(z = z.copy(ls = z.ls + (locale -> (z.xs ++ rs))))
       }
     }
+  }
+
+  private def _create_distill(ps: Seq[Dox]): I18NFragment = {
     ps.foldLeft(Z())(_+_).r
+  }
+
+  private def _make_locales(p: Dox): Option[Vector[(Locale, Vector[Dox])]] = {
+    val a = _create_distill(p.elements)
+    if (a.isSimple) {
+      None
+    } else {
+      val b: Vector[(Locale, List[Dox])] = a.contents.localeVector
+      val c = b.map {
+        case (k, vs) => k -> Vector(p.copyV(vs).toOption.get)
+      }
+      Some(c)
+    }
   }
 
   def create(p: String): I18NFragment = create(List(Text(p)))

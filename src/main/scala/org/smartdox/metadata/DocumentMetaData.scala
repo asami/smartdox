@@ -4,6 +4,7 @@ import scalaz._, Scalaz._
 import scala.util.Try
 import scala.xml.{Node => XNode, Text => XText, _}
 import java.net.URI
+import java.util.Locale
 import org.joda.time.DateTime
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.context.Consequence
@@ -40,7 +41,7 @@ import org.smartdox.parser.PureParser
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
- * @version Aug. 24, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -86,6 +87,8 @@ case class DocumentMetaData(
   def getDescriptionI18NString: Option[I18NString] = (description orElse summary).map(_.toI18NString)
 
   def getHtmlDescriptionI18NString: Option[I18NString] = (summary orElse description).map(_.toI18NString)
+
+  def getLead: Option[I18NFragment] = description
 
   def withTitle(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)
@@ -149,6 +152,20 @@ case class DocumentMetaData(
       modifiedAt orElse rhs.modifiedAt,
       lastOption(kindOption, rhs.kindOption),
       lastOption(statusOption, rhs.statusOption)
+    )
+
+  def distillLocale(p: Option[Locale]): DocumentMetaData =
+    copy(
+      title = title.map(_.distillI18NFragment(p)),
+      author = author.map(_.distillI18NFragment(p)),
+      explanation = explanation.distillLocale(p)
+    )
+
+  def distillLocale(p: Locale): DocumentMetaData =
+    copy(
+      title = title.map(_.distillI18NFragment(p)),
+      author = author.map(_.distillI18NFragment(p)),
+      explanation = explanation.distillLocale(p)
     )
 
   def toFlattenVector: Vector[(String, String)] =

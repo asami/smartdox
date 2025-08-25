@@ -1,6 +1,7 @@
 package org.smartdox.metadata
 
 import scala.xml.{Node => XNode, Text => XText, _}
+import java.util.Locale
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.context.Consequence
 import org.goldenport.hocon.RichConfig.Implicits._
@@ -9,7 +10,7 @@ import org.smartdox._
 
 /*
  * @since   Aug. 16, 2025
- * @version Aug. 18, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
@@ -45,6 +46,33 @@ case class Explanation(
 
   private def _plus(l: Option[I18NFragment], r: Option[I18NFragment]): Option[I18NFragment] =
     OptionUtils.lastOption(l, r)
+
+  def distillLocale(locale: Option[Locale]): Explanation =
+    locale.fold(distillLocaleDefault)(distillLocale)
+
+  def distillLocale(locale: Locale): Explanation = {
+    def _distill_(p: Option[I18NFragment]) = p.map(_.distillI18NFragment(locale))
+    Explanation(
+      _distill_(headline),
+      _distill_(breif),
+      _distill_(summary),
+      _distill_(`abstract`),
+      _distill_(description),
+      _distill_(remarks),
+    )
+  }
+
+  def distillLocaleDefault: Explanation = {
+    def _distill_(p: Option[I18NFragment]) = p.map(_.distillI18NFragmentDefault)
+    Explanation(
+      _distill_(headline),
+      _distill_(breif),
+      _distill_(summary),
+      _distill_(`abstract`),
+      _distill_(description),
+      _distill_(remarks),
+    )
+  }
 
   def printFlat(buf: StringBuilder): Unit = {
     Dox.printI18NFragment(buf, PROP_HEADLINE, headline)
@@ -125,12 +153,12 @@ object Explanation {
 
   def parse(ps: Seq[Dox]): Consequence[Explanation] =
     for {
-      headline <- _parse_subsection(PROP_HEADLINE, ps)
-      breif <- _parse_subsection(PROP_BREIF, ps)
-      summary <- _parse_subsection(PROP_SUMMARY, ps)
-      `abstract` <- _parse_subsection(PROP_ABSTRACT, ps)
+      headline <- _parse_subsection_inline(PROP_HEADLINE, ps)
+      breif <- _parse_subsection_inline(PROP_BREIF, ps)
+      summary <- _parse_subsection_inline(PROP_SUMMARY, ps)
+      `abstract` <- _parse_subsection_inline(PROP_ABSTRACT, ps)
       description <- _parse_subsection(PROP_DESCRIPTION, ps)
-      remarks <-  _parse_subsection(PROP_REMARKS, ps)
+      remarks <-  _parse_subsection_inline(PROP_REMARKS, ps)
     } yield Explanation(
       headline,
       breif,
@@ -141,6 +169,17 @@ object Explanation {
     )
 
   private def _parse_subsection(
+    key: String,
+    ps: Seq[Dox]
+  ): Consequence[Option[I18NFragment]] = Consequence {
+    val k = key.toUpperCase
+    val a = ps.toStream.collect {
+      case m: Section if m.nameForModel == k => m
+    }.headOption
+    a.map(x => I18NFragment.create(x.contents))
+  }
+
+  private def _parse_subsection_inline(
     key: String,
     ps: Seq[Dox]
   ): Consequence[Option[I18NFragment]] = Consequence {

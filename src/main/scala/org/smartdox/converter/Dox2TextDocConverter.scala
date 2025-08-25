@@ -7,7 +7,7 @@ import org.smartdox._
  * @since   Jun. 12, 2025
  *  version Jun. 20, 2025
  *  version Jul. 15, 2025
- * @version Aug.  7, 2025
+ * @version Aug. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -67,6 +67,21 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     if (r)
       sb_println()
   }
+
+  override final protected def enter_Body(p: Body): Unit =
+    p.contents.headOption match {
+      case Some(s) => s match {
+        case m: Section => get_metadata match {
+          case Some(meta) => meta.getLead match {
+            case Some(lead) => lead.traverse(this)
+            case None => Unit
+          }
+          case None => Unit
+        }
+        case _ => Unit
+      }
+      case None => Unit
+    }
 
   override protected def enter_Section(p: Section): Unit = {
     sb_section_title(to_text(p.title))
