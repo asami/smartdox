@@ -1,7 +1,7 @@
 package org.smartdox
 
 import scala.language.implicitConversions
-import scalaz._, Scalaz._, WriterT._, Show._, Validation._
+import scalaz.{Value => _, _}, Scalaz._, WriterT._, Show._, Validation._
 import java.net.URI
 import java.net.URL
 import java.util.Locale
@@ -28,6 +28,7 @@ import org.goldenport.hocon.HoconUtils
 import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
+import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.xml.XmlUtils
@@ -89,7 +90,8 @@ import org.smartdox.util.DoxUtils
  *  version May.  2, 2025
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
- * @version Aug. 25, 2025
+ *  version Aug. 31, 2025
+ * @version Sep.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -607,7 +609,7 @@ object Dox extends UseDox {
 
   def toDox(p: NonEmptyVector[Dox]): Dox = toDox(p.vector)
 
-  def toDox(p: I18NString): Dox =
+  def toDox(p: I18NString): Inline =
     if (p.isSimple)
       Text(p.en)
     else
@@ -970,6 +972,39 @@ object Dox extends UseDox {
     case m: I18NFragment => m.trimSingleLine
     case m: Text => Text(DoxUtils.trimSingleLine(m.contents))
     case m => m
+  }
+
+  def toDescriptionAsI18NFragment(p: Block): I18NFragment =
+    I18NFragment.buildDescription(p)
+
+  def toValueOrValuesAsI18NFragment(p: Block): I18NFragment =
+    I18NFragment.buildValueOrValues(p)
+
+  def toValueOrValues(p: Block): Value = {
+    val ulopt = p.elements.collectFirst { case m: Ul => m }
+    ulopt match {
+      case Some(ul) => Ul.toValues(ul)
+      case None => toValue(p)
+    }
+  }
+
+  def toValue(p: Block): Value.Single = Value.Single(p.toText)
+
+  private def toValuesAsInlineContents(p: Block): List[InlineContents] = {
+    val ulopt = p.elements.collectFirst { case m: Ul => m }
+    ulopt match {
+      case Some(ul) => Ul.toValuesAsInlineContents(ul)
+      case None => List(toValueAsInlineContents(p))
+    }
+  }
+
+  private def toValueAsInlineContents(p: Block): InlineContents = {
+    val xs = p.elements
+    val a = xs.toStream.map {
+      case m: Block => toValueAsInlineContents(m)
+      case m: Inline => List(m)
+    }.headOption
+    a getOrElse List(Text(""))
   }
 
   def getHead(p: Dox): Option[Head] = p match {
@@ -1439,6 +1474,9 @@ case class Section(
   lazy val titleName = Dox.toText(title)
   lazy val keyForModel: String = titleName.trim.toLowerCase
   lazy val nameForModel: String = titleName.trim
+
+  def titleI18NFragment: I18NFragment = I18NFragment.create(title)
+
   override val elements = contents
   override def show_Open(buf: StringBuilder) {
     val showh = "h" + (level + 1) 
@@ -1500,6 +1538,21 @@ object Section {
 
   def apply(title: I18NFragment, ps: Seq[Dox]): Section =
     Section(List(title), ps.toList)
+
+  def create(title: I18NString, p: Option[Dox]): Section =
+    Section(List(I18NFragment.create(title)), p.toList)
+
+  def create(title: I18NString, p: I18NFragment): Section =
+    Section(List(I18NFragment.create(title)), List(p))
+
+  // def toKeyValues(p: Section): (String, List[InlineContents]) =
+  //   (p.keyForModel, Dox.toValuesAsInlineContents(p))
+
+  def toKeyValueOrValues(p: Section): (String, Value) =
+    (p.keyForModel, Value.buildValueOrValuesI18N(p))
+
+  def toKeyDescription(p: Section): (String, I18NFragment) =
+    (p.keyForModel, Dox.toDescriptionAsI18NFragment(p))
 }
 
 case class Div(
@@ -1523,10 +1576,13 @@ case class Div(
 object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "div"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Div =
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: org.goldenport.context.DateTimeContext): Div =
     Div(body.toList, attrs)
 
   def apply(d: Dox) = new Div(List(d))
+
+  def create(locale: Locale, body: Dox): Div =
+    Div(List(body), VectorMap("lang" -> locale.toString))
 
   def build(elem: XNode): Div = {
     val cs = PureParser.buildChildren(elem)
@@ -1840,6 +1896,12 @@ object Ul extends Ul(Nil, VectorMap.empty, None) with DoxFactory {
 
   def apply(element: Li) = new Ul(List(element))
   def apply(lis: Seq[Li]) = new Ul(lis.toList)
+
+  def toValuesAsInlineContents(ul: Ul): List[InlineContents] =
+    ul.contents.map(Dox.toInlineContents)
+
+  def toValues(ul: Ul): Value.Multiple =
+    Value.Multiple(ul.contents.map(_.toText).toVector)
 }
 
 case class Ol(
@@ -1967,8 +2029,17 @@ object Hyperlink extends DoxFactory {
   def create(url: String): Hyperlink =
     Hyperlink(List(Text(url)), new URI(url))
 
-  def createGlossary(body: String, href: URI, alt: String): Hyperlink =
-    Hyperlink(List(Text(body)), href, VectorMap("title" -> alt, "class" -> "glossary"))
+  def createCategory(body: Inline, href: URI): Hyperlink =
+    Hyperlink(List(body), href, VectorMap("class" -> "category"))
+
+  def createArticle(body: I18NString, href: URI): Hyperlink =
+    Hyperlink(List(Dox.toDox(body)), href, VectorMap("class" -> "article"))
+
+  def createGlossary(body: String, href: URI, title: String): Hyperlink =
+    Hyperlink(List(Text(body)), href, VectorMap("title" -> title, "class" -> "glossary"))
+
+  def createGlossary(body: String, href: URI): Hyperlink =
+    Hyperlink(List(Text(body)), href, VectorMap("class" -> "glossary"))
 }
 
 case class ReferenceImg(
@@ -2174,14 +2245,19 @@ object Table {
       this
     }
 
-    def withHeaderString(p: Seq[String]) = {
+    def withHeaderString(p: Seq[String]): Builder = {
       _header = Dox.vector(p)
       this
     }
 
+    def withHeaderString(p: String, ps: String*): Builder = withHeaderString(p +: ps)
+
     def append(p: String, ps: String*): Builder = appendString(p +: ps)
 
     def append(p: Dox, ps: Dox*): Builder = append(p +: ps)
+
+    def append(p: I18NString, ps: I18NString*): Builder =
+      append((p +: ps).map(I18NFragment.create))
 
     def appendString(ps: Seq[String]): Builder = append(Dox.vector(ps))
 
@@ -2191,16 +2267,21 @@ object Table {
     }
 
     def apply(): Table = {
-      val h = TR(_header.map(x => TH(x)).toList)
+      val thead: Option[THead] =
+        if (_header.isEmpty) {
+          None
+        } else {
+          val h = TR(_header.map(x => TH(x)).toList)
+          Some(THead(List(h)))
+        }
       val b = for (r <- _data.toList) yield {
         TR(for (f <- r.toList) yield {
           TD(f)
         })
       }
       val c = _caption.map(x => Caption(x))
-      val thead = THead(List(h))
       val tbody = TBody(b)
-      Table(thead.some, tbody, None, None, None, c, _id)
+      Table(thead, tbody, None, None, None, c, _id)
     }
   }
   object Builder {
@@ -2713,6 +2794,9 @@ case class I18NFragment(
 
   def isSimple: Boolean = contents.getIfNoLocale.isDefined
 
+  def distill(locale: Option[Locale]): List[Dox] =
+    locale.fold(contents.default)(distill)
+
   def distill(locale: Locale): List[Dox] = contents.apply(locale)
 
   def distillInline(locale: Locale): List[Inline] =
@@ -2786,6 +2870,23 @@ case class I18NFragment(
     }
     ps.toStream.flatMap(_go_).headOption
   }
+
+  def toVectorMapStringVector: VectorMap[Locale, Vector[String]] = {
+    val a: Vector[(Locale, List[Dox])] = contents.localeVector
+    val b = a.map {
+      case (l, vs) => l -> vs.flatMap(toStringVector).toVector
+    }
+    VectorMap(b)
+  }
+
+  def toVectorMapString: VectorMap[Locale, String] =
+    toVectorMapStringVector.mapValues(_.mkString)
+
+  def toStringVector(p: Dox): Vector[String] = p match {
+    case m: Value.Multiple => m.vs
+    case m: Value.Single => Vector(m.v)
+    case m => Vector(m.toText)
+  }
 }
 object I18NFragment {
   def create(ps: Seq[Dox]): I18NFragment = ps.toList match {
@@ -2858,6 +2959,21 @@ object I18NFragment {
     }
   }
 
+  def createList(ps: List[List[Dox]]): I18NFragment = {
+    val a = ps.map(create)
+    val b: List[Vector[(Locale, List[Dox])]] = a.map(_.contents.localeVector)
+    val locales: List[Locale] = b.flatMap(_.toList).map(_._1).distinct
+    case class Z(xs: Vector[(Locale, List[Dox])] = Vector.empty) {
+      def r = I18NFragment.createDox(xs)
+
+      def +(rhs: Locale) = {
+        val x: List[Dox] = b.flatMap(_.filter(_._1 == rhs).flatMap(_._2))
+        copy(xs = xs :+ (rhs -> x))
+      }
+    }
+    locales.foldLeft(Z())(_+_).r
+  }
+
   def create(p: String): I18NFragment = create(List(Text(p)))
 
   def create(p: I18NString): I18NFragment = {
@@ -2889,6 +3005,30 @@ object I18NFragment {
   Consequence {
     val a = p.mapValue(xs => xs.map(PureParser.build))
     I18NFragment(a)
+  }
+
+  def buildDescription(p: Block): I18NFragment = {
+    val commons = p.elements.takeWhile {
+      case m: Section => false
+      case _ => true
+    }
+    val ss = p.sections
+    ss match {
+      case Nil => create(p.elements)
+      case xs =>
+        val a = xs.map(x => (Locale.of(x.nameForModel), commons ++ x.contents))
+        createDox(a)
+    }
+  }
+
+  def buildValueOrValues(p: Block): I18NFragment = {
+    val ss = p.sections
+    ss match {
+      case Nil => create(p.elements)
+      case xs =>
+        val a = xs.map(x => (Locale.of(x.nameForModel), List(Dox.toValueOrValues(x))))
+        createDox(a)
+    }
   }
 }
 
@@ -3450,4 +3590,131 @@ case class Error(
 ) extends Inline {
   def attributes: VectorMap[String, String] = VectorMap.empty
   override def equals_Value(o: Dox) = o == this
+}
+
+sealed trait Value extends Inline {
+  def toI18NHangar: I18NHangar[String]
+  def values: Vector[String]
+//  def toInlineContentsList: List[InlineContents]
+}
+object Value {
+  case class Single(v: String) extends Value {
+    def attributes: VectorMap[String, String] = VectorMap.empty
+    def location: Option[ParseLocation] = None
+    override def equals_Value(o: Dox) = o == this
+
+//    def toInlineContentsList: List[InlineContents] = List(List(this))
+
+    override protected def to_Text(buf: StringBuilder) {
+      buf.append(v)
+    }
+
+    override protected def to_Plain_Text(buf: StringBuilder) {
+      buf.append(v)
+    }
+
+    override def to_Data(buf: StringBuilder) {
+      buf.append(v)
+    }
+
+    def toI18NHangar: I18NHangar[String] = I18NHangar.createCommons(v)
+    def values: Vector[String] = Vector(v)
+  }
+
+  case class Multiple(vs: Vector[String]) extends Value {
+    def attributes: VectorMap[String, String] = VectorMap.empty
+    def location: Option[ParseLocation] = None
+    override def equals_Value(o: Dox) = o == this
+
+//    def toInlineContentsList: List[InlineContents] = vs.map(x => List(Single(x))).toList
+
+    private def _values = vs.mkString(", ")
+
+    override protected def to_Text(buf: StringBuilder) {
+      buf.append(_values)
+    }
+
+    override protected def to_Plain_Text(buf: StringBuilder) {
+      buf.append(_values)
+    }
+
+    override def to_Data(buf: StringBuilder) {
+      buf.append(_values)
+    }
+
+    def toI18NHangar: I18NHangar[String] = I18NHangar.createCommons(vs)
+    def values: Vector[String] = vs
+  }
+
+  case class I18N(hangar: I18NHangar[String]) extends Value {
+    def attributes: VectorMap[String, String] = VectorMap.empty
+    def location: Option[ParseLocation] = None
+    override def equals_Value(o: Dox) = o == this
+
+    def distill(locale: Locale): Option[Value] = {
+      hangar.get(locale).map(Value.apply)
+    }
+
+    def toI18NHangar: I18NHangar[String] = hangar
+    def values: Vector[String] = hangar.valueVector
+  }
+
+  def apply(p: String): Value = Single(p)
+
+  def apply(ps: Seq[String]): Value = Multiple(ps.toVector)
+
+  def create(ps: Seq[Dox]): Value = {
+    case class Z(
+      map: Map[Locale, Vector[String]] = Map.empty,
+      common: Vector[String] = Vector.empty
+    ) {
+      def r =
+        if (map.isEmpty)
+          Single(common.mkString)
+        else
+          I18N(I18NHangar.createOne(map.mapValues(_.mkString), common.mkString))
+
+      def +(rhs: Dox) = rhs match {
+        case m: I18NFragment => copy(map |+| m.toVectorMapStringVector)
+        case m: Value.I18N => copy(
+          map |+| m.hangar.map,
+          common ++ m.hangar.commons
+        )
+        case m => m.getLanguage match {
+          case Some(l) => copy(map |+| Map(l -> Vector(m.toPlainText)))
+          case None => copy(common = common :+ m.toPlainText)
+        }
+      }
+    }
+    ps.foldLeft(Z())(_+_).r
+  }
+
+  def createMulti(ps: Seq[Seq[Dox]]): Value = {
+    val a = ps.map(create)
+    case class Z(builder: I18NHangar.Builder[String] = I18NHangar.Builder()) {
+      def r = I18N(builder.build())
+
+      def +(rhs: Value) = rhs match {
+        case m: I18NFragment => copy(builder.add(m.toVectorMapString))
+        case m: Value.I18N => copy(builder.add(m.hangar))
+        case m => m.getLanguage match {
+          case Some(l) => copy(builder.add(Map(l -> m.toPlainText)))
+          case None => copy(builder.add(m.toPlainText))
+        }
+      }
+    }
+    a.foldLeft(Z())(_+_).r
+  }
+
+  def buildValueOrValuesI18N(p: Block): Value = {
+    val ss = p.sections
+    ss match {
+      case Nil => Dox.toValueOrValues(p.elements)
+      case xs =>
+        // TODO common
+        val a = xs.map(x => (Locale.of(x.nameForModel), Dox.toValueOrValues(x).values))
+        val b = I18NHangar.create(a.toMap)
+        I18N(b)
+    }
+  }
 }

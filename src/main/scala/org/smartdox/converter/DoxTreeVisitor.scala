@@ -10,7 +10,7 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Apr. 29, 2025
  *  version Jun. 18, 2025
  *  version Jul. 26, 2025
- * @version Aug. 25, 2025
+ * @version Aug. 31, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -102,6 +102,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Document => enter_Document(m)
       case m: Head => enter_head(node, m)
       case m: Body => enter_Body(m)
+      case m: Value.Single => enter_Value(m)
+      case m: Value.Multiple => enter_Value(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
 
@@ -191,6 +193,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Document(p: Document): Unit = {}
   protected def enter_Head(p: Head): Unit = {}
   protected def enter_Body(p: Body): Unit = {}
+  protected def enter_Value(p: Value.Single): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Single: $p")
+  protected def enter_Value(p: Value.Multiple): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Multiple: $p")
 
   override final protected def leaveEnd_Content(node: TreeNode[Dox], content: Dox): Unit =
     _leave_content(node, content)
@@ -233,6 +237,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Document => leave_Document(m)
       case m: Head => leave_head(node, m)
       case m: Body => leave_Body(m)
+      case m: Value.Single => leave_Value(m)
+      case m: Value.Multiple => leave_Value(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
 
@@ -326,4 +332,6 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Document(p: Document): Unit = {}
   protected def leave_Head(p: Head): Unit = {}
   protected def leave_Body(p: Body): Unit = {}
+  protected def leave_Value(p: Value.Single): Unit = {}
+  protected def leave_Value(p: Value.Multiple): Unit = {}
 }

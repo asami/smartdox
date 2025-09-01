@@ -41,7 +41,7 @@ import org.smartdox.parser.PureParser
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
- * @version Aug. 25, 2025
+ * @version Aug. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -55,7 +55,8 @@ case class DocumentMetaData(
   publishedAt: Option[LocalDateOrDateTime] = None,
   modifiedAt: Option[LocalDateOrDateTime] = None,
   kindOption: Option[DocumentMetaData.Kind] = None,
-  statusOption: Option[DocumentMetaData.Status] = None
+  statusOption: Option[DocumentMetaData.Status] = None,
+  properties: Option[Hocon] = None
 ) extends Explanation.Holder {
   import DocumentMetaData._
 
@@ -341,7 +342,8 @@ object DocumentMetaData {
         published,
         modified,
         kind,
-        status
+        status,
+        Some(hocon)
       )
     }
 

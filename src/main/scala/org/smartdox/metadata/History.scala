@@ -9,7 +9,7 @@ import Notices.Notice
 
 /*
  * @since   Aug. 23, 2025
- * @version Aug. 24, 2025
+ * @version Aug. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 case class History(
@@ -30,18 +30,35 @@ case class History(
 object History {
   val empty = History()
 
-  sealed trait ContentKind
+  sealed trait ContentKind {
+    def title: I18NString
+  }
   object ContentKind {
-    case object Article extends ContentKind
-    case object Glossary extends ContentKind
-    case object Keyword extends ContentKind
-    case object Tag extends ContentKind
+    case object Article extends ContentKind {
+      val title = I18NString("Article", "記事")
+    }
+    case object Glossary extends ContentKind {
+      val title = I18NString("Glossary", "用語集")
+    }
+    case object Keyword extends ContentKind {
+      val title = I18NString("Keyword", "キーワード")
+
+    }
+    case object Tag extends ContentKind {
+      val title = I18NString("Tag", "タグ")
+    }
   }
 
-  sealed trait EventKind
+  sealed trait EventKind {
+    def title: I18NString
+  }
   object EventKind {
-    case object Created extends EventKind
-    case object Updated extends EventKind
+    case object Created extends EventKind {
+      val title = I18NString("New", "新規")
+    }
+    case object Updated extends EventKind {
+      val title = I18NString("Update", "更新")
+    }
   }
 
   case class Slot(
@@ -53,6 +70,8 @@ object History {
     def year: Int = date.getYear
     def title: I18NString = notice.title
     def summary: I18NString = notice.summary
+    def uri = notice.uri
+    def category = notice.category
   }
 
   case class HistoryCollection(

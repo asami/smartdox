@@ -17,7 +17,7 @@ import org.smartdox.metadata.CategoryCollection
  *  version Apr. 30, 2025
  *  version Jun. 29, 2025
  *  version Jul. 22, 2025
- * @version Aug. 24, 2025
+ * @version Aug. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -110,9 +110,9 @@ class NoticeCollector(
 
   private def _make_event_kind(p: Notice): Option[(History.EventKind, LocalDate)] =
     p.updated match {
-      case Some(s) => Some((History.EventKind.Created, s))
+      case Some(s) => Some((History.EventKind.Updated, s))
       case None => p.published match {
-        case Some(ss) => Some((History.EventKind.Updated, ss))
+        case Some(ss) => Some((History.EventKind.Created, ss))
         case None => None
       }
     }

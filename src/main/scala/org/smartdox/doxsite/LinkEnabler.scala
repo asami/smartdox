@@ -3,6 +3,7 @@ package org.smartdox.doxsite
 import java.io._
 import org.goldenport.RAISE
 import org.goldenport.tree._
+import org.goldenport.i18n.LocaleUtils
 import org.smartdox._
 import org.smartdox.transformer._
 import org.smartdox.metadata._
@@ -14,7 +15,8 @@ import org.smartdox.metadata._
  *  version May. 21, 2025
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
- * @version Aug. 23, 2025
+ *  version Aug. 23, 2025
+ * @version Sep.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -100,8 +102,21 @@ object LinkEnabler {
                 case m if m == term =>
                   //                      val pagenode = context.pageNode getOrElse RAISE.noReachDefect
                   val href = create_href(pageNode, definition.page, definition.getId)
-                  val title = definition.description.toPlainText.trim
-                  Hyperlink.createGlossary(m, href, title)
+                  val titleoption = definition.term.summary
+                  titleoption match {
+                    case Some(title) => 
+                      if (title.isSimple) {
+                        Hyperlink.createGlossary(m, href, title.en)
+                      } else {
+                        I18NFragment.createDox(
+                          List(
+                            LocaleUtils.ja -> List(Hyperlink.createGlossary(m, href, title.ja)),
+                            LocaleUtils.en -> List(Hyperlink.createGlossary(m, href, title.en))
+                          )
+                        )
+                      }
+                    case None => Hyperlink.createGlossary(m, href)
+                  }
                 case m => Text(m)
               }
             }

@@ -59,7 +59,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug. 24, 2025
+ * @version Aug. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -931,14 +931,25 @@ object DoxSite {
   private def _deploy_year(base: TreeNode[Node], year: Int, h: History.HistoryCollection): Unit = {
     val tb = new Table.Builder()
     tb.withCaption(year.toString)
-    tb.withHeaderString(List("Date", "Kind", "Event", "Title", "Summary"))
+    tb.withHeaderString(List("Date", "Kind", "Event", "Category", "Title", "Summary"))
     for (x <- h.desc) {
       val date = Dox.text(x.date.toString)
-      val ckind = Dox.text(x.contentKind.toString) // TODO
-      val evt = Dox.text(x.eventKind.toString) // TODO
-      val title = Dox.toDox(x.title)
+      val ckind = Dox.toDox(x.contentKind.title)
+      val evt = Dox.toDox(x.eventKind.title)
+      val corner = {
+        x.category match {
+          case Some(s) =>
+            val title = s.title.map(_.title) match {
+              case Some(s) => Dox.toDox(s)
+              case None => Dox.text(s.name.name)
+            }
+            Hyperlink.createCategory(title, new URI(s"../${s.uri}"))
+          case None => Dox.text("-")
+        }
+      }
+      val title = Hyperlink.createArticle(x.title, new URI(s"../${x.uri}"))
       val summary = Dox.toDox(x.summary)
-      tb.append(date, ckind, evt, title, summary)
+      tb.append(date, ckind, evt, corner, title, summary)
     }
     val t = tb.apply()
     val title = year.toString

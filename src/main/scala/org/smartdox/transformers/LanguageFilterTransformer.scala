@@ -14,7 +14,7 @@ import org.smartdox.transformer._
  *  version May. 21, 2025
  *  version Jun. 12, 2025
  *  version Jul.  3, 2025
- * @version Aug. 25, 2025
+ * @version Aug. 31, 2025
  * @author  ASAMI, Tomoharu
  */
 class LanguageFilterTransformer(
@@ -35,6 +35,16 @@ class LanguageFilterTransformer(
     case m: Head =>
       val meta = m.metadata.distillLocale(_locale_option)
       directive_node(m.withDocumentMetaData(meta))
+    case m: I18NFragment =>
+      val xs = m.distill(_locale_option)
+      directive_nodes(xs)
+    case m: Value.I18N => _locale_option match {
+      case Some(l) => m.distill(l) match {
+        case Some(s) => directive_node(s)
+        case None => directive_empty
+      }
+      case None => directive_empty
+    }
     case m =>
       if (_is_accept(m))
         directive_default
