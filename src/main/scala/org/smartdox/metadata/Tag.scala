@@ -17,7 +17,8 @@ import org.goldenport.util.CirceUtils.Codec._
 
 /*
  * @since   Jul. 22, 2025
- * @version Aug. 17, 2025
+ *  version Aug. 17, 2025
+ * @version Sep.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Tag(
@@ -52,6 +53,7 @@ object Tag {
 case class TagCollection(
   tags: Tree[Tag] = Tree.create()
 ) {
+  def toHistory: History = History.empty // TODO
 }
 
 object TagCollection {

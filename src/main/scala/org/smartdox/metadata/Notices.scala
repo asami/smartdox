@@ -13,17 +13,23 @@ import io.circe.generic.extras._
 import io.circe.generic.extras.semiauto._
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.I18NString
+import org.goldenport.tree.TreeNode
 import org.goldenport.util.InstantUtils
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.CirceUtils.Codec._
+import org.goldenport.util.StringUtils
 import org.smartdox._
+import org.smartdox.doxsite.Node
+import org.smartdox.doxsite.Page
+import org.smartdox.doxsite.CategoryMetaData
 
 /*
  * @since   Apr. 28, 2025
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 26, 2025
- * @version Aug. 16, 2025
+ *  version Aug. 16, 2025
+ * @version Sep.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -150,6 +156,50 @@ object Notices {
       None,
       None
     )
+
+    def createOption(node: TreeNode[Node], content: Node): Option[Notice] =
+      content match {
+        case m: Page => for {
+          md <- m.getMetadata
+          title <- md.getTitleI18NString
+        } yield {
+          val pathname = StringUtils.changeSuffix(node.pathnameRelative, "html")
+          val uri = new URI(pathname)
+          val category = _find_category(node, md.category)
+          Notice(
+            title,
+            md.titleImage,
+            category,
+            uri,
+            md.getSummaryI18NString getOrElse I18NString.empty,
+            md.getDescriptionI18NString getOrElse I18NString.empty,
+            md.keywords,
+            md.publishedAt.map(_.toLocalDate),
+            md.modifiedAt.map(_.toLocalDate),
+            md.kindOption,
+            md.statusOption,
+            m.lastModified
+          )
+        }
+        case _ => None
+      }
+
+    private def _find_category(
+      node: TreeNode[Node],
+      p: Option[String]
+    ): Option[Category] = _get_category(node.parent)
+
+    private def _get_category(p: TreeNode[Node]): Option[Category] = {
+      val a = p.children.flatMap(_.getContent) collect {
+        case m: CategoryMetaData => m.category
+      }
+      a.headOption orElse {
+        if (p.isRoot)
+          None
+        else
+          _get_category(p.parent)
+      }
+    }
 
 //    import Category.categoryDecoder
 

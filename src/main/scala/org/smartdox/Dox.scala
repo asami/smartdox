@@ -91,7 +91,7 @@ import org.smartdox.util.DoxUtils
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep.  1, 2025
+ * @version Sep.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1051,11 +1051,12 @@ object Dox extends UseDox {
 case class Document(
   head: Head,
   body: Body,
+  foot: Option[Foot] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Dox {
   def isVisialBlock: Boolean = false
-  override val elements = List(head, body)
+  override val elements = List(head, body) ::: foot.toList
   override def showTerm = "html"
   override def showOpenText = "<!DOCTYPE html><html>"
   override def showCloseText = "</html>"
@@ -1461,6 +1462,24 @@ object Body extends DoxFactory {
   def apply(node: Dox) = node match {
     case m: Fragment => new Body(m.contents)
     case m => new Body(List(m))
+  }
+}
+
+case class Foot(
+  contents: List[Dox] = Nil,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Block {
+  override def showTerm = "foot"
+  override val elements = contents
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Foot => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    Success(copy(cs, location = get_location(location, cs)))
   }
 }
 
@@ -2038,8 +2057,14 @@ object Hyperlink extends DoxFactory {
   def createGlossary(body: String, href: URI, title: String): Hyperlink =
     Hyperlink(List(Text(body)), href, VectorMap("title" -> title, "class" -> "glossary"))
 
+  def createGlossary(body: List[Inline], href: URI, title: String): Hyperlink =
+    Hyperlink(body, href, VectorMap("title" -> title, "class" -> "glossary"))
+
   def createGlossary(body: String, href: URI): Hyperlink =
     Hyperlink(List(Text(body)), href, VectorMap("class" -> "glossary"))
+
+  def createGlossary(body: List[Inline], href: URI): Hyperlink =
+    Hyperlink(body, href, VectorMap("class" -> "glossary"))
 }
 
 case class ReferenceImg(

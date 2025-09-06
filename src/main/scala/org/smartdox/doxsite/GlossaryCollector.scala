@@ -11,7 +11,8 @@ import org.smartdox.metadata._
 
 /*
  * @since   Aug. 11, 2025
- * @version Aug. 22, 2025
+ *  version Aug. 22, 2025
+ * @version Sep.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class GlossaryCollector(
@@ -23,28 +24,28 @@ class GlossaryCollector(
 
   override protected def enter_Content(node: TreeNode[Node], content: Node): Unit = {
     content match {
-      case m: Page => _collect_glossary(node.pathnameValue, m)
+      case m: Page => _collect_glossary(node, node.pathnameValue, m)
       case _ => {}
     }
   }
 
-  private def _collect_glossary(pathname: PathName, p: Page): Unit = {
+  private def _collect_glossary(node: TreeNode[Node], pathname: PathName, p: Page): Unit = {
     pathname.components match {
       case Nil => Unit
-      case _ :: leaf :: Nil => _collect_glossary(leaf, p)
-      case _ :: (xs :+ leaf) => _collect_glossary(xs, leaf, p)
+      case _ :: leaf :: Nil => _collect_glossary(node, leaf, p)
+      case _ :: (xs :+ leaf) => _collect_glossary(node, xs, leaf, p)
     }
   }
 
-  private def _collect_glossary(leaf: String, p: Page) = {
+  private def _collect_glossary(node: TreeNode[Node], leaf: String, p: Page) = {
     val name = StringUtils.toPathnameBody(leaf)
-    _builder.register(name, p.dox)
+    _builder.register(node, name, p.dox)
   }
 
-  private def _collect_glossary(tagpath: List[String], leaf: String, p: Page) = {
+  private def _collect_glossary(node: TreeNode[Node], tagpath: List[String], leaf: String, p: Page) = {
     val name = StringUtils.toPathnameBody(leaf)
     val tag = Tag.TagName(tagpath)
-    _builder.register(name, tag, p.dox)
+    _builder.register(node, name, tag, p.dox)
   }
 
   def glossary(): Glossary = _builder.build()

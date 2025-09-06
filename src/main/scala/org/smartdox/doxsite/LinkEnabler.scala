@@ -1,8 +1,11 @@
 package org.smartdox.doxsite
 
 import java.io._
+import java.net.URI
+import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.tree._
+import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.LocaleUtils
 import org.smartdox._
 import org.smartdox.transformer._
@@ -16,7 +19,7 @@ import org.smartdox.metadata._
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
- * @version Sep.  1, 2025
+ * @version Sep.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -24,13 +27,21 @@ class LinkEnabler(
 ) extends DoxSiteTransformer {
   import LinkEnabler._
 
+  private var _definitions: Set[Glossary.Definition] = Set.empty
+
+  def addGlossary(ps: Set[Glossary.Definition]): Unit = {
+    _definitions = _definitions ++ ps
+  }
+
+  def usedDefinitions = _definitions
+
   override protected def dox_Transformers(
     context: DoxSiteTransformer.Context,
     node: TreeNode[Node],
     p: Page
   ): List[HomoTreeTransformer[Dox]] =
     if (context.config.doxsiteConfig.fold(true)(_.isLinkEnable(p)))
-      List(new LinkEmbeder(context, node))
+      List(new LinkEmbeder(context, node, this))
     else
       Nil
 
@@ -67,7 +78,8 @@ object LinkEnabler {
 
   class LinkEmbeder(
     val context: DoxSiteTransformer.Context,
-    pageNode: TreeNode[Node]
+    pageNode: TreeNode[Node],
+    enabler: LinkEnabler
   ) extends DoxInSiteTransformer {
     override protected def make_Node(
       node: TreeNode[Dox],
@@ -80,7 +92,24 @@ object LinkEnabler {
       }
     }
 
-    private def _transform(m: Text) = {
+    private def _transform(m: Text) = _transform_simple(m)
+
+    private def _transform_simple(m: Text): TreeTransformer.Directive[Dox] = {
+      def _create_href_(definition: Glossary.Definition): URI =
+        create_href(pageNode, definition.page, definition.getId)
+
+      val candidates = context.metadata.glossary.definitions
+      val used = enabler.usedDefinitions
+      val x = candidates.foldLeft(TextLinkProcessor(_create_href_, Vector(m), used))(_+_)
+      enabler.addGlossary(x.definitions)
+      x.dox match {
+        case Vector() => TreeTransformer.Directive.Empty()
+        case Vector(m) => directive_node(m)
+        case ms => directive_nodes(ms)
+      }
+    }
+
+    private def _transform_kuromoji(m: Text): TreeTransformer.Directive[Dox] = {
       val tokens0 = _to_tokens(_tokenize(m.contents))
       val tokens = Glossary.Term.Tokens(tokens0.map(_.text))
       val candidates = context.metadata.glossary.candidates(tokens)
@@ -190,6 +219,267 @@ object LinkEnabler {
       else
         TokenKind.AllNonAlphabet
     }
+  }
+
+  case class TextLinkProcessor(
+    createhref: Glossary.Definition => URI,
+    dox: Vector[Dox],
+    definitions: Set[Glossary.Definition] = Set.empty
+  ) {
+    import TextLinkProcessor._
+
+    def +(candidate: Glossary.Definition) = {
+      val tokens = candidate.candidates
+
+      case class Z(holder: Holder = Holder.definitions(definitions)) {
+        def r = TextLinkProcessor(createhref, holder.xs, holder.ds)
+
+        def +(rhs: Dox) = {
+          case class ZZ(zzholder: Holder) {
+            def +(token: String) = {
+              case class ZZZ(zzzholder: Holder) {
+                def r = ZZ(zzzholder)
+
+                def +(rhs: Dox) = rhs match {
+                  case m: Text =>
+                    val used = zzzholder.isUsed(candidate) // || zzzholder.isTokenUsed(token)
+                    _split_and_link(candidate, m, token, used) match {
+                      case Some(parts) =>
+                        copy(zzzholder = zzzholder.add(parts, candidate))
+                      case None => copy(zzzholder = zzzholder.add(m))
+                    }
+                  case m => copy(zzzholder = zzzholder.add(m))
+                }
+              }
+              zzholder.xs.foldLeft(ZZZ(Holder(Vector.empty, zzholder.ds)))(_+_).r
+            }
+          }
+
+          rhs match {
+            case m: Text =>
+              val start = Holder(Vector(m), holder.ds)
+              val zz = tokens.foldLeft(ZZ(start))(_+_)
+              copy(holder = holder.add(zz.zzholder))
+            case m => copy(holder = holder.add(rhs))
+          }
+        }
+      }
+      dox.foldLeft(Z())(_+_).r
+    }
+
+    private def _split_and_link(
+      definition: Glossary.Definition,
+      t: Text,
+      token: String,
+      used: Boolean
+    ): Option[Vector[Dox]] = {
+      val s = t.contents
+      if (token.isEmpty || s.isEmpty)
+        return None
+      val buf = Vector.newBuilder[Dox]
+      var idx = 0
+      var count = if (used) 1 else 0
+      var hit = false
+      var found = s.indexOf(token, idx)
+      while (found >= 0) {
+        val pre = s.substring(idx, found)
+        if (pre.nonEmpty)
+          buf += Dox.text(pre)
+        val canaux = if (count == 0)
+          _can_aux(s, found + token.length)
+        else
+          false
+        buf += _make_glossary_link(definition, token, canaux)
+        hit = true
+        count = count + 1
+        idx = found + token.length
+        found = s.indexOf(token, idx)
+      }
+      val tail = s.substring(idx)
+      if (tail.nonEmpty)
+        buf += Dox.text(tail)
+      if (hit)
+        Some(buf.result())
+      else
+        None
+    }
+
+    private def _can_aux(p: String, i: Int): Boolean = {
+      var k = i
+      val n = p.length
+      while (k < n && p.charAt(k).isWhitespace)
+        k += 1
+      k < n && (p.charAt(k) match {
+        case '(' => false
+        case '（' => false
+        case _ => true
+      })
+    }
+
+    private def _make_glossary_link(
+      definition: Glossary.Definition,
+      token: String,
+      canaux: Boolean
+    ) = {
+      val href = createhref(definition)
+      val titleoption = definition.term.summary
+      titleoption match {
+        case Some(title) =>
+          if (title.isSimple) {
+            Hyperlink.createGlossary(_make_label(definition, token, canaux), href, title.en)
+          } else {
+            I18NFragment.createDox(
+              List(
+                LocaleUtils.ja -> List(Hyperlink.createGlossary(_make_label_ja(definition, token, canaux), href, title.ja)),
+                LocaleUtils.en -> List(Hyperlink.createGlossary(_make_label_en(definition, token, canaux), href, title.en))
+              )
+            )
+          }
+        case None => Hyperlink.createGlossary(_make_label(definition, token, canaux), href)
+      }
+    }
+
+    private def _make_label(
+      definition: Glossary.Definition,
+      token: String,
+      canaux: Boolean
+    ): List[Inline] = {
+      val a = definition.term.wordsWithoutWord(token)
+      a match {
+        case Left(l) => _create_label(definition, token, l, canaux)
+        case Right(r) => _create_label(definition, token, r, canaux)
+      }
+    }
+
+    private def _make_label_en(
+      definition: Glossary.Definition,
+      token: String,
+      canaux: Boolean
+    ): List[Inline] = {
+      val a = definition.term.wordsWithoutWord(token)
+      a match {
+        case Left(l) => _create_label(definition, token, l, canaux)
+        case Right(r) => _create_label(definition, token, r.get(LocaleUtils.en), canaux)
+      }
+    }
+
+    private def _make_label_ja(
+      definition: Glossary.Definition,
+      token: String,
+      canaux: Boolean
+    ): List[Inline] = {
+      val a = definition.term.wordsWithoutWord(token)
+      a match {
+        case Left(l) =>
+          _create_label(definition, token, l, canaux)
+        case Right(r) =>
+          val ja: Vector[String] = r.get(LocaleUtils.ja).toVector.flatten
+          val en: Vector[String] =
+            if (token == definition.term.name.en)
+              Vector.empty
+            else
+              Vector(definition.term.name.en)
+          _create_label(definition, token, ja ++ en, canaux)
+      }
+    }
+
+    private def _create_label(
+      definition: Glossary.Definition,
+      token: String,
+      p: Option[Vector[String]],
+      canaux: Boolean
+    ): List[Inline] = {
+      val b = definition.term.acronym.toVector ++ p.toVector.flatten
+      _create_label(token, b, canaux)
+    }
+
+    private def _create_label(
+      definition: Glossary.Definition,
+      token: String,
+      p: Vector[String],
+      canaux: Boolean
+    ): List[Inline] = {
+      val b = definition.term.acronym.toVector ++ p
+      _create_label(token, b, canaux)
+    }
+
+    private def _create_label(
+      definition: Glossary.Definition,
+      token: String,
+      p: I18NHangar[String],
+      canaux: Boolean
+    ): List[Inline] = {
+      val b = p.mapValueCollection(x => definition.term.acronym.toVector ++ x)
+      _create_label(token, b, canaux)
+    }
+
+    private def _create_label(
+      token: String,
+      p: Option[Vector[String]],
+      canaux: Boolean
+    ): List[Inline] =
+      _create_label(token, p.toVector.flatten, canaux)
+
+    private def _create_label(
+      token: String,
+      ps: Vector[String],
+      canaux: Boolean
+    ): List[Inline] =
+      List(Text(_create_label_text(token, ps, canaux)))
+
+    private def _create_label(
+      token: String,
+      p: I18NHangar[String],
+      canaux: Boolean
+    ): List[Inline] =
+      p.unify match {
+        case Left(l) => _create_label(token, l, canaux)
+        case Right(r) => _create_label(token, r, canaux)
+      }
+
+    private def _create_label(
+      token: String,
+      p: Map[Locale, Vector[String]],
+      canaux: Boolean
+    ): List[Inline] =
+      p.toList.map {
+        case (k, v) => Span.create(k, List(Text(_create_label_text(token, v, canaux))))
+      }
+
+    private def _create_label_text(
+      token: String,
+      ps: Vector[String],
+      canaux: Boolean
+    ): String =
+      if (ps.isEmpty || !canaux)
+        token
+      else
+        s"""$token (${ps.mkString(", ")})"""
+  }
+  object TextLinkProcessor {
+    case class Holder(
+      xs: Vector[Dox],
+      ds: Set[Glossary.Definition]
+    ) {
+      def isUsed(p: Glossary.Definition): Boolean = ds.contains(p)
+      // def isTokenUsed(token: String): Boolean =
+      //   ds.exists(_.candidates.exists(_ equalsIgnoreCase token))
+
+      def add(p: Holder) = copy(xs = xs ++ p.xs, ds = ds ++ p.ds)
+      def add(p: Dox) = copy(xs = xs :+ p)
+      def add(ps: Seq[Dox], candidate: Glossary.Definition) =
+        copy(xs = xs ++ ps, ds = ds + candidate)
+    }
+    object Holder {
+      val empty = Holder(Vector.empty, Set.empty)
+
+      def definitions(ps: Set[Glossary.Definition]) = empty.copy(ds = ps)
+    }
+
+    // case class Result(
+    //   dox: Vector[Dox],
+    //   definitions: Vector[Glossary.Definition] = Vector.empty
+    // )
   }
 
   private def _tokenize(p: String): Vector[Token] = {

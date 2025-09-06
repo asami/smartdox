@@ -1,15 +1,16 @@
 package org.smartdox.metadata
 
-import scalaz._, Scalaz._
+import scalaz.{Ordering => _, _}, Scalaz._
 import org.joda.time.LocalDate
 import org.goldenport.i18n.I18NString
 import org.goldenport.collection.VectorMap
-import org.goldenport.util.LocalDateUtils.Implicits.ordering
+import org.goldenport.util.LocalDateUtils.Implicits._
 import Notices.Notice
 
 /*
  * @since   Aug. 23, 2025
- * @version Aug. 27, 2025
+ *  version Aug. 27, 2025
+ * @version Sep.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class History(
@@ -24,6 +25,14 @@ case class History(
       def +(rhs: History.Slot) = copy(map = map |+| VectorMap(rhs.year -> HistoryCollection(rhs)))
     }
     slots.foldLeft(Z())(_+_).r
+  }
+
+  def add(p: History, ps: History*): History = add(p +: ps)
+
+  def add(ps: Seq[History]): History = {
+    val xs = slots ++ ps.toVector.flatMap(_.slots)
+    val a = xs.sorted
+    History(a)
   }
 }
 
@@ -47,6 +56,13 @@ object History {
     case object Tag extends ContentKind {
       val title = I18NString("Tag", "タグ")
     }
+
+    implicit val contentKindOrdering: Ordering[ContentKind] = Ordering.by {
+      case Article  => 0
+      case Glossary => 1
+      case Keyword  => 2
+      case Tag      => 3
+    }
   }
 
   sealed trait EventKind {
@@ -58,6 +74,11 @@ object History {
     }
     case object Updated extends EventKind {
       val title = I18NString("Update", "更新")
+    }
+
+    implicit val eventKindOrdering: Ordering[EventKind] = Ordering.by {
+      case Created => 0
+      case Updated => 1
     }
   }
 
@@ -73,11 +94,18 @@ object History {
     def uri = notice.uri
     def category = notice.category
   }
+  object Slot {
+    implicit val slotOrdering: Ordering[Slot] = Ordering.Tuple3(
+      Ordering[LocalDate].reverse,
+      Ordering[EventKind],
+      Ordering[ContentKind]
+    ).on(s => (s.date, s.eventKind, s.contentKind))
+  }
 
   case class HistoryCollection(
     slots: Vector[History.Slot] = Vector.empty
   ) {
-    def desc: Vector[History.Slot] = slots.sortBy(_.date)(ordering.reverse)
+    def desc: Vector[History.Slot] = slots.sorted // slots.sortBy(_.date)(ordering.reverse)
 
     def +(rhs: HistoryCollection) = copy(slots = slots ++ rhs.slots)
   }

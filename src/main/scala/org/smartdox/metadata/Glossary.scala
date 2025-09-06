@@ -8,8 +8,11 @@ import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.collection.VectorMap
+import org.goldenport.tree.TreeNode
 import org.goldenport.util.StringUtils
 import org.smartdox._
+import org.smartdox.metadata.Notices.Notice
+import org.smartdox.doxsite.Node
 import org.smartdox.doxsite.Page
 import org.smartdox.structure.StructureObject
 
@@ -18,7 +21,7 @@ import org.smartdox.structure.StructureObject
  *  version Feb. 24, 2025
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
- * @version Sep.  1, 2025
+ * @version Sep.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -30,6 +33,11 @@ case class Glossary(
 
   def candidates(tokens: Term.Tokens): Vector[Definition] =
     definitions.filter(_.isAvailable(tokens))
+
+  def toHistory: History = {
+    val slots = definitions.flatMap(_.toHistorySlot)
+    History(slots)
+  }
 }
 
 object Glossary {
@@ -66,6 +74,40 @@ object Glossary {
         List(Text(name.en))
       else
         List(I18NFragment.create(name))
+
+    def words: Either[Vector[String], I18NHangar[String]] = {
+      (name.getIfNoLocale, aliases.unify) match {
+        case (Some(s), Left(vs)) => Left(s +: vs)
+        case (Some(s), Right(map)) => Right(_unify(s, map))
+        case (None, Left(vs)) => Right(_unify(name, vs))
+        case (None, Right(map)) => Right(_unify(name, map))
+      }
+    }
+
+    private def _unify(s: String, a: Map[Locale, Vector[String]]): I18NHangar[String] = {
+      val x: Map[Locale, Vector[String]] = a.mapValues(x => s +: x)
+      I18NHangar.create(x)
+    }
+
+    private def _unify(s: I18NString, a: Vector[String]): I18NHangar[String] = {
+      val x0 = s.localeMapWithoutC
+      val x = x0.mapValues(_ +: a)
+      I18NHangar.create(x)
+    }
+
+    private def _unify(s: I18NString, a: Map[Locale, Vector[String]]): I18NHangar[String] = {
+      val x0 = s.localeMapWithoutC
+      val x: Map[Locale, Vector[String]] = x0.map {
+        case (k, v) => k -> (v +: a.get(k).toVector.flatten)
+      }
+      I18NHangar.create(x)
+    }
+
+    def wordsWithoutWord(word: String): Either[Vector[String], I18NHangar[String]] =
+      words match {
+        case Left(l) => Left(l.filterNot(_ == word))
+        case Right(r) => Right(r.filterNot(_ == word))
+      }
   }
   object Term {
     case class Tokens(tokens: Vector[String]) {
@@ -84,6 +126,7 @@ object Glossary {
     def page: URI
     def getId: Option[Dox.Id]
     def description: Dox
+    def toHistorySlot: Vector[History.Slot]
 
     def isAvailable(tokens: Term.Tokens): Boolean = {
       term.isAvailable(tokens)
@@ -104,6 +147,8 @@ object Glossary {
     }
   }
   object Definition {
+    import History._
+
     case class Ingredients(
       term: Term,
       page: URI,
@@ -123,13 +168,33 @@ object Glossary {
       ingredients: Ingredients
     ) extends Definition with Ingredients.Holder {
       def getId = Some(id)
+
+      def toHistorySlot: Vector[History.Slot] = Vector.empty
     }
 
     case class InGlossary(
       ingredients: Ingredients,
-      status: DocumentMetaData.Status
+      node: TreeNode[Node],
+      metadata: DocumentMetaData
     ) extends Definition with Ingredients.Holder {
       def getId = None
+      def status = metadata.status
+      def publishedAt = metadata.publishedAt
+      def modifiedAt = metadata.modifiedAt
+
+      private def _notice_option =
+        Option(node.content).flatMap(Notice.createOption(node, _))
+
+      def toHistorySlot: Vector[History.Slot] =
+        _notice_option.toVector.flatMap(n =>
+          modifiedAt match {
+            case Some(s) => Vector(Slot(EventKind.Updated, s.toLocalDate, ContentKind.Glossary, n))
+            case None => publishedAt match {
+              case Some(s) => Vector(Slot(EventKind.Created, s.toLocalDate, ContentKind.Glossary, n))
+              case None => Vector.empty
+            }
+          }
+        )
     }
   }
 
@@ -157,23 +222,23 @@ object Glossary {
       _slots = _slots |+| Map(term -> Vector(s))
     }
 
-    def register(name: String, p: Document): Unit =
+    def register(node: TreeNode[Node], name: String, p: Document): Unit =
       for (term <- _make_term(p)) {
         val title = p.head.title
         val uri = new URI(s"glossary/$name.html")
-        val status = p.head.metadata.status
+        val meta = p.head.metadata
         val dox = p.body.elements
-        val d = Definition.InGlossary(Definition.Ingredients(term, uri, dox), status)
+        val d = Definition.InGlossary(Definition.Ingredients(term, uri, dox), node, meta)
         add(name, d)
       }
 
-    def register(name: String, tag: Tag.TagName, p: Document): Unit = {
+    def register(node: TreeNode[Node], name: String, tag: Tag.TagName, p: Document): Unit = {
       for (so <- _make_structure(p)) {
         val term = _make_term(so)
         val uri = new URI(s"""glossary/${tag.name.replace(".", "/")}/$name.html""")
-        val status = p.head.metadata.status
+        val meta = p.head.metadata
         val dox = _make_description(term, so)
-        val d = Definition.InGlossary(Definition.Ingredients(term, uri, dox), status)
+        val d = Definition.InGlossary(Definition.Ingredients(term, uri, dox), node, meta)
         add(name, d)
       }
     }

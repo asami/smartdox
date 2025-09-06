@@ -14,7 +14,8 @@ import org.smartdox.converter._
  *  version Apr. 29, 2025
  *  version Jun. 20, 2025
  *  version Jul. 28, 2025
- * @version Aug. 31, 2025
+ *  version Aug. 31, 2025
+ * @version Sep.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -158,6 +159,10 @@ class Dox2AsciidocConverter(
 
   override protected def leave_Program(p: Program): Unit = {
     sb_println("----")
+  }
+
+  override protected def enter_Foot(p: Foot): Unit = {
+    sb_println("'''")
   }
 }
 

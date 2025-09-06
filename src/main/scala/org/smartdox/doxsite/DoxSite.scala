@@ -59,7 +59,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
- * @version Aug. 27, 2025
+ *  version Aug. 27, 2025
+ * @version Sep.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -444,7 +445,7 @@ object DoxSite {
         p.status match {
           case Status.Published => DocumentStrategy.Draft
           case Status.WorkInProgress => DocumentStrategy.Full
-          case Status.Draft => DocumentStrategy.Draft
+          case Status.Draft => DocumentStrategy.Skip
           case Status.InPreparation => DocumentStrategy.Skip
           case Status.Inactive => DocumentStrategy.Skip
           case Status.Test => DocumentStrategy.Skip
@@ -697,6 +698,8 @@ object DoxSite {
           case "png" => s"${p.nameBody}.png"
         }
       }
+      override def isIgnore(p: TreeNode[Realm.Data]): Boolean =
+        p.name.endsWith(".d")
     }
     object Rule {
       def apply(p: TreeTransformer.Config): Rule = Rule(Config(inputTreeTransformerConfig = Some(p)))
@@ -801,11 +804,12 @@ object DoxSite {
     val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
     val a = a1.transform(new DoxSitePreTransformer(ctx))
     val categories = _collect_category(config, context, a)
-    val (notices, history) = _collect_notice_history(config, context, categories, a)
+    val (notices, history0) = _collect_notice_history(config, context, categories, a)
     val atoms = _build_atom_feed(notices)
     val (b, glossary) = _build_glossary(ctx, a)
     val keywords = _collect_keywords()
     val tags = _collect_tags()
+    val history = _build_history(history0, glossary, keywords, tags)
     val metadata = MetaData(
       glossary = glossary,
       categories = categories,
@@ -850,6 +854,13 @@ object DoxSite {
   private def _collect_keywords(): KeywordCollection = KeywordCollection.empty
 
   private def _collect_tags(): TagCollection = TagCollection.create()
+
+  private def _build_history(p: History, g: Glossary, k: KeywordCollection, t: TagCollection): History = {
+    val a = g.toHistory
+    val b = k.toHistory
+    val c = t.toHistory
+    p.add(a, b, c)
+  }
 
   private def _build_atom_feed(p: Notices): Option[AtomFeedBag] = {
     val ja = p.toAtomFeed(LocaleUtils.ja)

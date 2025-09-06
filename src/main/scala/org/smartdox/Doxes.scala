@@ -26,7 +26,8 @@ import org.smartdox.structure.Statement
  *  version Sep.  5, 2024
  *  version Oct. 28, 2024
  *  version Nov. 21, 2024
- * @version Jun.  9, 2025
+ *  version Jun.  9, 2025
+ * @version Sep.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -77,7 +78,7 @@ trait Doxes {
   protected def dox_inline(d: Dox): List[Inline] = {
     d match {
       case x: Inline => List(x)
-      case Document(_, body, _, _) => dox_inline(body.contents)
+      case Document(_, body, _, _, _) => dox_inline(body.contents)
     }
   }
 
@@ -96,7 +97,7 @@ trait Doxes {
   protected def dox_block(d: Dox): List[Dox] = {
     d match {
       case x: Inline => List(x)
-      case Document(_, body, _, _) => body.contents
+      case Document(_, body, _, _, _) => body.contents
     }
   }
 
