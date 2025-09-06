@@ -21,7 +21,7 @@ import org.smartdox.structure.StructureObject
  *  version Feb. 24, 2025
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
- * @version Sep.  6, 2025
+ * @version Sep.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -182,8 +182,13 @@ object Glossary {
       def publishedAt = metadata.publishedAt
       def modifiedAt = metadata.modifiedAt
 
-      private def _notice_option =
-        Option(node.content).flatMap(Notice.createOption(node, _))
+      private def _notice_option: Option[Notices.Notice] =
+        for {
+          c <- Option(node.content)
+          n <- Notice.createOption(node, c)
+        } yield {
+          n.withSummaryDescription(ingredients.term.summary, ingredients.description)
+        }
 
       def toHistorySlot: Vector[History.Slot] =
         _notice_option.toVector.flatMap(n =>

@@ -29,7 +29,7 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Jun. 26, 2025
  *  version Jul. 26, 2025
  *  version Aug. 16, 2025
- * @version Sep.  3, 2025
+ * @version Sep.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -135,6 +135,12 @@ object Notices {
     }
 
     private def _to_instant(p: LocalDate) = InstantUtils.toInstant(p)
+
+    def withSummaryDescription(s: Option[I18NString], d: Dox) = {
+      val desc = I18NFragment.create(d).toI18NString
+      val summary = s getOrElse desc
+      copy(summary = summary, description = desc)
+    }
 
     def yamlString(ctx: I18NContext): String = {
       val json = this.asJson(noticeEncoder(ctx))

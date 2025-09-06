@@ -91,7 +91,7 @@ import org.smartdox.util.DoxUtils
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep.  6, 2025
+ * @version Sep.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2922,6 +2922,8 @@ object I18NFragment {
     }
     case xs => _create_distill(xs)
   }
+
+  def create(p: Dox): I18NFragment = create(List(p))
 
   case class Z(
     xs: Vector[Dox] = Vector.empty,
