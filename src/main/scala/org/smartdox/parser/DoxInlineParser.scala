@@ -17,7 +17,8 @@ import org.smartdox._
  *  version Nov. 22, 2024
  *  version Jan.  1, 2025
  *  version Jun. 10, 2025
- * @version Jul. 29, 2025
+ *  version Jul. 29, 2025
+ * @version Sep.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -67,7 +68,8 @@ object DoxInlineParser {
     isDebug: Boolean = false,
     isLocation: Boolean = true,
     markdown: Config.MarkDown = Config.MarkDown.none,
-    orgmode: Config.OrgMode = Config.OrgMode.none
+    orgmode: Config.OrgMode = Config.OrgMode.none,
+    asciidoc: Config.Asciidoc = Config.Asciidoc.none
   ) extends ParseConfig {
     def isSpace(c: Char): Boolean = Character.isWhitespace(c)
 
@@ -76,7 +78,7 @@ object DoxInlineParser {
     def useBrace: Boolean = false
     def useAsterisc: Boolean = markdown.isBold || markdown.isBold2 || orgmode.isBold
     def useUnderscore: Boolean = markdown.isItalic || markdown.isItalic2 || orgmode.isUnderline
-    def useBackQuote: Boolean = false
+    def useBackQuote: Boolean = markdown.isBackQuote
     def useTilde: Boolean = orgmode.isVerbatim
     def useColon: Boolean = false
     def useEqual: Boolean = orgmode.isCode
@@ -90,7 +92,11 @@ object DoxInlineParser {
   object Config {
     val default = Config()
     val debug = Config(true)
-    val smartdox = default
+    val smartdox = default.copy(
+      orgmode = Config.OrgMode.smartdox,
+      markdown = Config.MarkDown.smartdox,
+      asciidoc = Config.Asciidoc.smartdox
+    )
     val orgmode = default.copy(orgmode = Config.OrgMode.full)
     val markdown = default.copy(markdown = Config.MarkDown.full)
     val literateModel = default.copy(
@@ -106,10 +112,13 @@ object DoxInlineParser {
       isCode: Boolean, // `code`
       isStrikeThrough: Boolean, // ~~strike through~~
       isEmoji: Boolean // :emoji:
-    )
+    ) {
+      def isBackQuote = isCode
+    }
     object MarkDown {
       val none = MarkDown(false, false, false, false, false, false, false)
       val full = MarkDown(true, true, true, true, true, true, true)
+      val smartdox = none.copy(isCode = true)
       val model = none
     }
 
@@ -124,6 +133,16 @@ object DoxInlineParser {
     object OrgMode {
       val none = OrgMode(false, false, false, false, false, false)
       val full = OrgMode(true, true, true, true, true, true)
+      val smartdox = none.copy(isVerbatim = true)
+      val model = none
+    }
+
+    case class Asciidoc(
+    )
+    object Asciidoc {
+      val none = Asciidoc()
+      val full = Asciidoc()
+      val smartdox = Asciidoc()
       val model = none
     }
   }
@@ -386,7 +405,7 @@ object DoxInlineParser {
       backquote_State(evt.c)
 
     protected def backquote_State(c: Char): DoxInlineParseState =
-      RAISE.notImplementedYetDefect
+      InlineState(CodeState(config, this), '`')
 
     protected final def handle_tilde(evt: CharEvent): Transition =
       handle_Tilde(evt)
@@ -397,7 +416,8 @@ object DoxInlineParser {
     protected def tilde_State(evt: CharEvent): DoxInlineParseState =
       tilde_State(evt.c)
 
-    protected def tilde_State(c: Char): DoxInlineParseState = PreState(config, this, '~')
+    protected def tilde_State(c: Char): DoxInlineParseState =
+      InlineState(CodeState.console(config, this), '~')
 
     protected final def handle_colon(evt: CharEvent): Transition =
       handle_Colon(evt)
@@ -1127,10 +1147,17 @@ object DoxInlineParser {
 
   case class CodeState(
     config: Config,
-    parent: DoxInlineParseState
+    parent: DoxInlineParseState,
+    kind: Option[Code.Kind] = None
   ) extends ChildDoxInlineParseState {
     override def returnInlineFrom(dox: Seq[Inline]): DoxInlineParseState =
-      leave_to(Code(dox.toList))
+      leave_to(Code(dox.toList, kind))
+  }
+  object CodeState {
+    def console(
+      config: Config,
+      parent: DoxInlineParseState
+    ): CodeState = CodeState(config, parent, Some(Code.Kind.Console))
   }
 
   case class StrikeThroughState(

@@ -19,7 +19,7 @@ import org.smartdox.metadata._
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
- * @version Sep.  7, 2025
+ * @version Sep. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -27,13 +27,13 @@ class LinkEnabler(
 ) extends DoxSiteTransformer {
   import LinkEnabler._
 
-  private var _definitions: Set[Glossary.Definition] = Set.empty
+  // private var _definitions: Set[Glossary.Definition] = Set.empty
 
-  def addGlossary(ps: Set[Glossary.Definition]): Unit = {
-    _definitions = _definitions ++ ps
-  }
+  // def addGlossary(ps: Set[Glossary.Definition]): Unit = {
+  //   _definitions = _definitions ++ ps
+  // }
 
-  def usedDefinitions = _definitions
+  // def usedDefinitions = _definitions
 
   override protected def dox_Transformers(
     context: DoxSiteTransformer.Context,
@@ -81,6 +81,14 @@ object LinkEnabler {
     pageNode: TreeNode[Node],
     enabler: LinkEnabler
   ) extends DoxInSiteTransformer {
+    private var _definitions: Set[Glossary.Definition] = Set.empty
+
+    def addGlossary(ps: Set[Glossary.Definition]): Unit = {
+      _definitions = _definitions ++ ps
+    }
+
+    def usedDefinitions = _definitions
+
     override protected def make_Node(
       node: TreeNode[Dox],
       content: Dox
@@ -88,6 +96,8 @@ object LinkEnabler {
       content match {
         case m: Text => _transform(m)
         case m: Dfn => directive_node(m)
+        case m: Hyperlink => directive_node(m)
+        case m: Preserve => directive_node(m)
         case m => directive_container_content(m)
       }
     }
@@ -99,9 +109,9 @@ object LinkEnabler {
         create_href(pageNode, definition.page, definition.getId)
 
       val candidates = context.metadata.glossary.definitions
-      val used = enabler.usedDefinitions
+      val used = usedDefinitions
       val x = candidates.foldLeft(TextLinkProcessor(_create_href_, Vector(m), used))(_+_)
-      enabler.addGlossary(x.definitions)
+      addGlossary(x.definitions)
       x.dox match {
         case Vector() => TreeTransformer.Directive.Empty()
         case Vector(m) => directive_node(m)
@@ -309,11 +319,13 @@ object LinkEnabler {
       val n = p.length
       while (k < n && p.charAt(k).isWhitespace)
         k += 1
-      k < n && (p.charAt(k) match {
+      val a = k == n
+      val b = k < n && (p.charAt(k) match {
         case '(' => false
         case '（' => false
         case _ => true
       })
+      a || b
     }
 
     private def _make_glossary_link(
@@ -344,11 +356,12 @@ object LinkEnabler {
       token: String,
       canaux: Boolean
     ): List[Inline] = {
-      val a = definition.term.wordsWithoutWord(token)
-      a match {
-        case Left(l) => _create_label(definition, token, l, canaux)
-        case Right(r) => _create_label(definition, token, r, canaux)
-      }
+      // val a = definition.term.wordsWithoutWord(token)
+      // a match {
+      //   case Left(l) => _create_label(definition, token, l, canaux)
+      //   case Right(r) => _create_label(definition, token, r, canaux)
+      // }
+      _make_label_en(definition, token, canaux)
     }
 
     private def _make_label_en(
@@ -356,11 +369,19 @@ object LinkEnabler {
       token: String,
       canaux: Boolean
     ): List[Inline] = {
-      val a = definition.term.wordsWithoutWord(token)
-      a match {
-        case Left(l) => _create_label(definition, token, l, canaux)
-        case Right(r) => _create_label(definition, token, r.get(LocaleUtils.en), canaux)
+      // val a = definition.term.wordsWithoutWord(token)
+      // a match {
+      //   case Left(l) => _create_label(definition, token, l, canaux)
+      //   case Right(r) => _create_label(definition, token, r.get(LocaleUtils.en), canaux)
+      // }
+      val text = if (canaux) {
+        val wr = definition.term.wordRelation(token)
+        val xs = wr.en
+        _create_label(token, xs)
+      } else{
+        token
       }
+      List(Text(text))
     }
 
     private def _make_label_ja(
@@ -368,93 +389,107 @@ object LinkEnabler {
       token: String,
       canaux: Boolean
     ): List[Inline] = {
-      val a = definition.term.wordsWithoutWord(token)
-      a match {
-        case Left(l) =>
-          _create_label(definition, token, l, canaux)
-        case Right(r) =>
-          val ja: Vector[String] = r.get(LocaleUtils.ja).toVector.flatten
-          val en: Vector[String] =
-            if (token == definition.term.name.en)
-              Vector.empty
-            else
-              Vector(definition.term.name.en)
-          _create_label(definition, token, ja ++ en, canaux)
+      // val a = definition.term.wordsWithoutWord(token)
+      // a match {
+      //   case Left(l) =>
+      //     _create_label(definition, token, l, canaux)
+      //   case Right(r) =>
+      //     val ja: Vector[String] = r.get(LocaleUtils.ja).toVector.flatten
+      //     val en: Vector[String] =
+      //       if (token == definition.term.name.en)
+      //         Vector.empty
+      //       else
+      //         Vector(definition.term.name.en)
+      //     _create_label(definition, token, ja ++ en, canaux)
+      // }
+      val text = if (canaux) {
+        val wr = definition.term.wordRelation(token)
+        val xs = wr.ja
+        _create_label(token, xs)
+      } else {
+        token
       }
+      List(Text(text))
     }
 
-    private def _create_label(
-      definition: Glossary.Definition,
-      token: String,
-      p: Option[Vector[String]],
-      canaux: Boolean
-    ): List[Inline] = {
-      val b = definition.term.acronym.toVector ++ p.toVector.flatten
-      _create_label(token, b, canaux)
-    }
-
-    private def _create_label(
-      definition: Glossary.Definition,
-      token: String,
-      p: Vector[String],
-      canaux: Boolean
-    ): List[Inline] = {
-      val b = definition.term.acronym.toVector ++ p
-      _create_label(token, b, canaux)
-    }
-
-    private def _create_label(
-      definition: Glossary.Definition,
-      token: String,
-      p: I18NHangar[String],
-      canaux: Boolean
-    ): List[Inline] = {
-      val b = p.mapValueCollection(x => definition.term.acronym.toVector ++ x)
-      _create_label(token, b, canaux)
-    }
-
-    private def _create_label(
-      token: String,
-      p: Option[Vector[String]],
-      canaux: Boolean
-    ): List[Inline] =
-      _create_label(token, p.toVector.flatten, canaux)
-
-    private def _create_label(
-      token: String,
-      ps: Vector[String],
-      canaux: Boolean
-    ): List[Inline] =
-      List(Text(_create_label_text(token, ps, canaux)))
-
-    private def _create_label(
-      token: String,
-      p: I18NHangar[String],
-      canaux: Boolean
-    ): List[Inline] =
-      p.unify match {
-        case Left(l) => _create_label(token, l, canaux)
-        case Right(r) => _create_label(token, r, canaux)
-      }
-
-    private def _create_label(
-      token: String,
-      p: Map[Locale, Vector[String]],
-      canaux: Boolean
-    ): List[Inline] =
-      p.toList.map {
-        case (k, v) => Span.create(k, List(Text(_create_label_text(token, v, canaux))))
-      }
-
-    private def _create_label_text(
-      token: String,
-      ps: Vector[String],
-      canaux: Boolean
-    ): String =
-      if (ps.isEmpty || !canaux)
+    private def _create_label(token: String, ps: Seq[String]): String =
+      if (ps.isEmpty)
         token
       else
         s"""$token (${ps.mkString(", ")})"""
+
+    // private def _create_label(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   p: Option[Vector[String]],
+    //   canaux: Boolean
+    // ): List[Inline] = {
+    //   val b = definition.term.acronym.toVector ++ p.toVector.flatten
+    //   _create_label(token, b, canaux)
+    // }
+
+    // private def _create_label(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   p: Vector[String],
+    //   canaux: Boolean
+    // ): List[Inline] = {
+    //   val b = definition.term.acronym.toVector ++ p
+    //   _create_label(token, b, canaux)
+    // }
+
+    // private def _create_label(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   p: I18NHangar[String],
+    //   canaux: Boolean
+    // ): List[Inline] = {
+    //   val b = p.mapValueCollection(x => definition.term.acronym.toVector ++ x)
+    //   _create_label(token, b, canaux)
+    // }
+
+    // private def _create_label(
+    //   token: String,
+    //   p: Option[Vector[String]],
+    //   canaux: Boolean
+    // ): List[Inline] =
+    //   _create_label(token, p.toVector.flatten, canaux)
+
+    // private def _create_label(
+    //   token: String,
+    //   ps: Vector[String],
+    //   canaux: Boolean
+    // ): List[Inline] =
+    //   List(Text(_create_label_text(token, ps, canaux)))
+
+    // private def _create_label(
+    //   token: String,
+    //   p: I18NHangar[String],
+    //   canaux: Boolean
+    // ): List[Inline] =
+    //   p.unify match {
+    //     case Left(l) => _create_label(token, l, canaux)
+    //     case Right(r) => _create_label(token, r, canaux)
+    //   }
+
+    // private def _create_label(
+    //   token: String,
+    //   p: Map[Locale, Vector[String]],
+    //   canaux: Boolean
+    // ): List[Inline] =
+    //   p.toList.map {
+    //     case (k, v) => Span.create(k, List(Text(_create_label_text(token, v, canaux))))
+    //   }
+
+    // private def _create_label_text(
+    //   token: String,
+    //   ps: Vector[String],
+    //   canaux: Boolean
+    // ): String =
+    //   if (ps.isEmpty || !canaux)
+    //     token
+    //   else
+    //     s"""$token (${ps.mkString(", ")})"""
   }
   object TextLinkProcessor {
     case class Holder(

@@ -14,7 +14,8 @@ import Dox._
  *  version Apr. 27, 2025
  *  version Jun. 18, 2025
  *  version Jul. 15, 2025
- * @version Aug. 31, 2025
+ *  version Aug. 31, 2025
+ * @version Sep. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
@@ -25,14 +26,14 @@ trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
   }
 
   override protected def enter_Text(p: Text): Unit = {
-    sb_print(p.toPlainText())
+    sb_print(to_text(p))
   }
 
   override protected def enter_Value(p: Value.Single): Unit = 
-    sb_print(p.toPlainText())
+    sb_print(to_text(p))
 
   override protected def enter_Value(p: Value.Multiple): Unit =
-    sb_print(p.toPlainText())
+    sb_print(to_text(p))
 
   protected final def sb_section_title(mark: String, title: String): Unit = {
     sb_println(s"${section_bar(mark)} $title")
@@ -40,8 +41,8 @@ trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
   }
 
   protected final def sb_print(p: InlineContents): Unit =
-    sb_print(Dox.toPlainText(p))
+    sb_print(to_text(p))
 
   protected final def sb_println(p: InlineContents): Unit =
-    sb_println(Dox.toPlainText(p))
+    sb_println(to_text(p))
 }

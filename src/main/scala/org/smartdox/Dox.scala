@@ -25,6 +25,7 @@ import org.goldenport.tree.TreeNode
 import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.hocon.HoconUtils
+import org.goldenport.value._
 import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
@@ -91,7 +92,7 @@ import org.smartdox.util.DoxUtils
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep.  7, 2025
+ * @version Sep. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -245,6 +246,7 @@ trait Dox extends IDocument {
     showContentsElements.foreach(_.to_Text(buf))
   }
 
+  // escape XML literal
   def toPlainText(): String = {
     val buf = new StringBuilder
     to_Plain_Text(buf)
@@ -492,6 +494,9 @@ trait Inline extends Dox with ListContent {
 }
 
 trait ListContent extends Dox {  
+}
+
+trait Preserve { Dox =>
 }
 
 trait Directive extends Dox {
@@ -1465,6 +1470,7 @@ object Body extends DoxFactory {
   }
 }
 
+// 2025-09-06
 case class Foot(
   contents: List[Dox] = Nil,
   attributes: VectorMap[String, String] = VectorMap.empty,
@@ -1836,9 +1842,12 @@ object Underline extends Underline(Nil, VectorMap.empty, None) with DoxFactory {
 case class Code(
   contents: List[Inline],
   attributes: VectorMap[String, String] = VectorMap.empty,
+  kind: Option[Code.Kind] = None,
   location: Option[ParseLocation] = None
-) extends Inline {
+) extends Inline with Preserve {
   override val elements = contents
+
+  override def showParams = ListUtils.buildTupleList("class" -> kind.map(_.name))
 
   override def equals_Value(o: Dox) = o match {
     case m: Code => contents == m.contents && attributes == m.attributes
@@ -1850,13 +1859,25 @@ case class Code(
   }
 }
 
-object Code extends Code(Nil, VectorMap.empty, None) with DoxFactory {
+object Code extends Code(Nil, VectorMap.empty, None, None) with DoxFactory {
   val label = "code"
+
+  sealed trait Kind extends NamedValueInstance {
+  }
+  object Kind extends EnumerationClass[Kind] {
+    val elements = Vector(Console)
+
+    case object Console extends Kind {
+      val name = "console"
+    }
+  }
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Code =
     Code(body.toList)
 
-  def apply(element: Inline) = new Code(List(element))
+  def apply(content: Inline) = new Code(List(content))
+
+  def apply(content: Inline, kind: Option[Kind]) = new Code(List(content), kind = kind)
 
   def build(elem: XNode): Code = {
     val cs = PureParser.buildInline(elem)
@@ -1869,7 +1890,7 @@ case class Pre(
   contents: String,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
-) extends Inline {
+) extends Inline with Preserve {
   override val elements = List(Text(contents))
 //  override def showParams = attributes.list
 
@@ -3256,7 +3277,7 @@ case class Program private(
   contents: String,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
-) extends Block {
+) extends Block with Preserve {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
   override def showParams = attributes.list ++ List("class" -> "program")
@@ -3315,7 +3336,7 @@ case class Console(
   contents: String,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
-) extends Block {
+) extends Block with Preserve {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
   override def showParams = attributes.list ++ List("class" -> "console")
@@ -3611,6 +3632,7 @@ object Include {
   def create(p: URI): Include = Include(BlockMacro.Include.create(p))
 }
 
+// 2025-07-17
 case class Error(
   conclusion: Conclusion,
   location: Option[ParseLocation] = None
@@ -3619,6 +3641,7 @@ case class Error(
   override def equals_Value(o: Dox) = o == this
 }
 
+// 2025-09-01
 sealed trait Value extends Inline {
   def toI18NHangar: I18NHangar[String]
   def values: Vector[String]
@@ -3745,3 +3768,36 @@ object Value {
     }
   }
 }
+
+// 2025-09-09
+// case class Verbatim(
+//   contents: List[Inline],
+//   attributes: VectorMap[String, String] = VectorMap.empty,
+//   location: Option[ParseLocation] = None
+// ) extends Inline {
+//   override val elements = contents
+
+//   override def equals_Value(o: Dox) = o match {
+//     case m: Verbatim => contents == m.contents && attributes == m.attributes
+//     case _ => false
+//   }
+
+//   override def copyV(cs: List[Dox]) = {
+//     to_inline(cs).map(copy(_, location = get_location(location, cs)))
+//   }
+// }
+
+// object Verbatim extends Verbatim(Nil, VectorMap.empty, None) with DoxFactory {
+//   val label = "verbatim"
+
+//   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Verbatim =
+//     Verbatim(body.toList)
+
+//   def apply(element: Inline) = new Verbatim(List(element))
+
+//   def build(elem: XNode): Verbatim = {
+//     val cs = PureParser.buildInline(elem)
+//     val attrs = PureParser.getAttributes(elem)
+//     Verbatim(cs, attrs)
+//   }
+// }

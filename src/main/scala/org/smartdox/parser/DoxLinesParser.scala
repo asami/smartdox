@@ -35,7 +35,8 @@ import org.smartdox.util.DoxUtils
  *  version May. 24, 2025
  *  version Jun. 16, 2025
  *  version Jul. 29, 2025
- * @version Aug.  9, 2025
+orgmode *  version Aug.  9, 2025
+orgmode * @version Sep.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -75,6 +76,9 @@ object DoxLinesParser {
   object Config {
     val default = Config()
     val debug = Config(true)
+    val smartdox = default.copy(
+      inlineConfig = DoxInlineParser.Config.smartdox
+    )
     val orgmode = default.copy(
       inlineConfig = DoxInlineParser.Config.orgmode
     )

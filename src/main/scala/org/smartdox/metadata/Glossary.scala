@@ -21,7 +21,7 @@ import org.smartdox.structure.StructureObject
  *  version Feb. 24, 2025
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
- * @version Sep.  7, 2025
+ * @version Sep. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -43,6 +43,7 @@ case class Glossary(
 object Glossary {
   final val PROP_DEFINITION = "definition"
   final val PROP_ALIASES = "aliases"
+  final val PROP_ABBREVIATION = "abbreviation"
   final val PROP_ACRONYM = "acronym"
   final val PROP_REFERENCE = "reference"
 
@@ -54,26 +55,34 @@ object Glossary {
   }
 
   case class Term(
+    kind: Term.Kind,
     name: I18NString,
     aliases: I18NHangar[String] = I18NHangar.empty,
-    acronym: Option[String] = None,
+    abbreviation: Option[String] = None,
     summary: Option[I18NString] = None
   ) {
     val key: String = name.en
 
     val candidates: Vector[String] = {
       val a = name.terms
-      val b = aliases.valueVector
-      (a ++ b).distinct
+      val b = abbreviation.toVector
+      val c = aliases.valueVector
+      (a ++ b ++ c).distinct
     }
 
     def isAvailable(tokens: Term.Tokens): Boolean = tokens.contains(candidates)
 
     def toTitle: List[Inline] =
       if (name.isSimple)
-        List(Text(name.en))
+        List(Text(StringUtils.makeTitle(name.en)))
       else
-        List(I18NFragment.create(name))
+        List(I18NFragment.create(name.map(_to_title(_))))
+
+    private def _to_title(p: (Locale, String)): (Locale, String) = {
+      val (locale, s) = p
+      locale -> StringUtils.makeTitle(s)
+    }
+
 
     def words: Either[Vector[String], I18NHangar[String]] = {
       (name.getIfNoLocale, aliases.unify) match {
@@ -108,8 +117,34 @@ object Glossary {
         case Left(l) => Left(l.filterNot(_ == word))
         case Right(r) => Right(r.filterNot(_ == word))
       }
+
+    def wordRelation(word: String): Term.WordRelation = {
+      val a = abbreviation match {
+        case Some(s) =>
+          if (s == word)
+            Some(name.en)
+          else
+            Some(s)
+        case None => None
+      }
+      Term.WordRelation(word, a, name, aliases)
+    }
   }
   object Term {
+    sealed trait Kind
+    object Kind {
+      case object CommonNoun extends Kind
+      case object ProperNoun extends Kind
+
+      def make(p: String): Kind =
+        if (StringUtils.isAsciiAlphabetString(p) && p.forall(_.isLower))
+          CommonNoun
+        else
+          ProperNoun
+
+      def make(p: I18NString): Kind = make(p.en)
+    }
+
     case class Tokens(tokens: Vector[String]) {
       def contains(ps: Vector[String]) =
         if (tokens.isEmpty || ps.isEmpty)
@@ -118,7 +153,59 @@ object Glossary {
           tokens.exists(x => tokens.exists(y => x.equalsIgnoreCase(y)))
     }
 
-    def create(name: String): Term = Term(I18NString(name))
+    case class WordRelation(
+      word: String,
+      abbreviation: Option[String],
+      name: I18NString,
+      aliases: I18NHangar[String]
+    ) {
+      def en: Vector[String] = {
+        val a = abbreviation.toVector
+        val b = Vector(name.en)
+        val c = aliases.valueVectorEn
+        val d: Vector[String] = a ++ b ++ c
+        d.filterNot(_ equalsIgnoreCase word)
+      }
+
+      def ja: Vector[String] = abbreviation match {
+        case Some(s) => _ja_appreviation(s)
+        case None => _ja_simple
+      }
+
+      private def _ja_appreviation(abbreviation: String) = {
+        val a = Vector(abbreviation)
+        val b = name.en match {
+          case m if m == abbreviation => Vector.empty
+          case m => Vector(m)
+        }
+        val c = Vector(name.ja)
+        val d = aliases.valueVectorJa
+        val z: Vector[String] = a ++ b ++ c ++ d
+        z.filterNot(_ equalsIgnoreCase word)
+      }
+
+      private def _ja_simple = {
+        val b = Vector(name.ja)
+        val c = aliases.valueVectorJa
+        val z: Vector[String] = b ++ c
+        z.filterNot(_ equalsIgnoreCase word)
+      }
+    }
+
+    def make(name: String): Term = Term(
+      Kind.make(name),
+      I18NString(name)
+    )
+
+    def make(
+      name: I18NString,
+      aliases: I18NHangar[String] = I18NHangar.empty,
+      abbreviation: Option[String] = None,
+      summary: Option[I18NString] = None
+    ): Term = {
+      val kind = Kind.make(name)
+      Term(kind, name, aliases, abbreviation, summary)
+    }
   }
 
   sealed trait Definition {
@@ -201,6 +288,13 @@ object Glossary {
           }
         )
     }
+
+    sealed trait TokenKind
+    object TokenKind {
+      case class LocaleToken(locale: Locale) extends TokenKind
+      case object AbbreviationPrimary extends TokenKind
+      case object AbbreviationSecondary extends TokenKind
+    }
   }
 
   class Builder() {
@@ -217,7 +311,7 @@ object Glossary {
     }
 
     def add(term: String, uri: URI, id: Dox.Id, description: Dox): Unit = {
-      val t = Term.create(term)
+      val t = Term.make(term)
       val d = Definition.InDocument(id, Definition.Ingredients(t, uri, description))
       add(term, d)
     }
@@ -251,7 +345,7 @@ object Glossary {
     private def _make_structure(p: Document): Option[StructureObject] = {
       val config = StructureObject.Builder.Config(
         StructureObject.Builder.Config.Schema.create(
-          List(PROP_ALIASES, PROP_ACRONYM),
+          List(PROP_ALIASES, PROP_ABBREVIATION, PROP_ACRONYM),
           List(PROP_DEFINITION, PROP_REFERENCE)
         )
       )
@@ -262,19 +356,19 @@ object Glossary {
     private def _make_term(p: StructureObject): Term = {
       val title = p.title
       val aliases = p.getAsI18NValue(PROP_ALIASES)
-      val acronym = p.getAsI18NValue(PROP_ACRONYM)
+      val abbreviation = p.getAsI18NValue(PROP_ABBREVIATION) orElse p.getAsI18NValue(PROP_ACRONYM)
       val summary = p.getAsI18NFragment(PROP_DEFINITION).map(_.toI18NString)
-      Term(
+      Term.make(
         title.contents.toI18NString,
         aliases.map(_.toI18NHangar) getOrElse I18NHangar.empty,
-        acronym.map(_.toPlainText),
+        abbreviation.map(_.toPlainText),
         summary
       )
     }
 
     private def _make_term(p: Document): Option[Term] =
       for (title <- p.head.title) yield {
-        Term(title.toI18NString)
+        Term.make(title.toI18NString)
       }
 
     private def _make_description(term: Term, so: StructureObject): Dox = {
@@ -295,8 +389,8 @@ object Glossary {
       val tb = new Table.Builder()
       tb.append("Term", term.name.en)
       tb.append("Aliases", aliasesen)
-      term.acronym.map(acronym =>
-        tb.append("Acronym", acronym)
+      term.abbreviation.map(abbreviation =>
+        tb.append("Abbreviation", abbreviation)
       )
       tb.apply()
     }
@@ -312,7 +406,7 @@ object Glossary {
       aliasesen.foreach(x =>
         tb.append("別名(英)", x)
       )
-      term.acronym.foreach(x =>
+      term.abbreviation.foreach(x =>
         tb.append("略語", x)
       )
       tb.apply()

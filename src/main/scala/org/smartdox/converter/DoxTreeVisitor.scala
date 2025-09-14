@@ -11,10 +11,11 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Jun. 18, 2025
  *  version Jul. 26, 2025
  *  version Aug. 31, 2025
- * @version Sep.  3, 2025
+ * @version Sep. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
+  protected def is_xml: Boolean = false
   protected def is_ignore_table_children: Boolean = false
   protected def is_ignore_img_in_figure: Boolean = false
   private var _section: Int = 0
@@ -60,7 +61,17 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected final def list_indent(mark: String, depth: Int, space: String): String =
     space * depth + mark
 
-  protected final def to_text(ps: Seq[Dox]): String = Dox.toText(ps)
+  protected def to_text(p: Dox): String =
+    if (is_xml)
+      p.toPlainText
+    else
+      p.toText
+
+  protected def to_text(p: Seq[Dox]): String =
+    if (is_xml)
+      Dox.toPlainText(p)
+    else
+      Dox.toText(p)
 
   protected final def get_text(ps: Seq[Dox]): Option[String] = Dox.getText(ps)
 
@@ -79,6 +90,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Span => enter_Span(m)
       case m: Bold => enter_Bold(m)
       case m: Italic => enter_Italic(m)
+      case m: Code => enter_Code(m)
+//      case m: Verbatim => enter_Verbatim(m)
       case m: Ul => enter_ul(m)
       case m: Ol => enter_ol(m)
       case m: Li => enter_Li(m)
@@ -171,6 +184,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Span(p: Span): Unit = {}
   protected def enter_Bold(p: Bold): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Bold: $p")
   protected def enter_Italic(p: Italic): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Italic: $p")
+  protected def enter_Code(p: Code): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Code: $p")
+//  protected def enter_Verbatim(p: Verbatim): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Verbatim: $p")
   protected def enter_Ul(p: Ul): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ul: $p")
   protected def enter_Ol(p: Ol): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ol: $p")
   protected def enter_Li(p: Li): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Li: $p")
@@ -216,6 +231,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Span => leave_Span(m)
       case m: Bold => leave_Bold(m)
       case m: Italic => leave_Italic(m)
+      case m: Code => leave_Code(m)
+//      case m: Verbatim => leave_Verbatim(m)
       case m: Ul => leave_ul(m)
       case m: Ol => leave_ol(m)
       case m: Li => leave_Li(m)
@@ -312,6 +329,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Span(p: Span): Unit = {}
   protected def leave_Bold(p: Bold): Unit = {}
   protected def leave_Italic(p: Italic): Unit = {}
+  protected def leave_Code(p: Code): Unit = {}
+//  protected def leave_Verbatim(p: Verbatim): Unit = {}
   protected def leave_Ul(p: Ul): Unit = {}
   protected def leave_Ol(p: Ol): Unit = {}
   protected def leave_Li(p: Li): Unit = {}

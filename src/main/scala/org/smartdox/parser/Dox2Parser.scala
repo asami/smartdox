@@ -45,7 +45,8 @@ import Dox._
  *  version May. 24, 2025
  *  version Jun. 24, 2025
  *  version Jul. 29, 2025
- * @version Aug. 18, 2025
+ *  version Aug. 18, 2025
+ * @version Sep.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -325,7 +326,10 @@ object Dox2Parser {
       DoxStyle.SmartDox
     )
     val debug = default.copy(true)
-    val smartdox = default
+    val smartdox = default.copy(
+      linesConfig = DoxLinesParser.Config.smartdox,
+      style = DoxStyle.SmartDox
+    )
     val orgmodeInline = default.copy(
       linesConfig = DoxLinesParser.Config.orgmode,
       style = DoxStyle.OrgMode

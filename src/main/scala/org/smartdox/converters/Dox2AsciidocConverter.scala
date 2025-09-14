@@ -15,7 +15,7 @@ import org.smartdox.converter._
  *  version Jun. 20, 2025
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
- * @version Sep.  3, 2025
+ * @version Sep. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -35,6 +35,14 @@ class Dox2AsciidocConverter(
   protected def italic_close = "_"
   protected def bolditalic_open = "*_"
   protected def bolditalic_close = "_*"
+  protected def code_open = "`"
+  protected def code_close = "`"
+
+  override protected def is_space_required_in_stay(p: Dox): Boolean = p match {
+    case _: Code => true
+//    case _: Verbatim => true
+    case _ => false
+  }
 
   override protected def enter_Head(p: Head): Unit =
     p.titleDefault match {
@@ -52,10 +60,17 @@ class Dox2AsciidocConverter(
   }
 
   override protected def enter_Hyperlink(p: Hyperlink) = {
-    sb_print(s"link:${p.href.toString}[")
+    sb_print(s"""link:${p.href.toString}[""")
+    if (_use_quotation(p))
+      sb_print("\"")
   }
 
+  private def _use_quotation(p: Hyperlink) =
+    p.getTitle.isDefined || p.getHtmlClass.isDefined
+
   override protected def leave_Hyperlink(p: Hyperlink) = {
+    if (_use_quotation(p))
+      sb_print("\"")
     p.getTitle foreach { x =>
       sb_print(""" ,title="""")
       sb_print(x)
@@ -161,8 +176,27 @@ class Dox2AsciidocConverter(
     sb_println("----")
   }
 
+  override protected def enter_Code(p: Code): Unit = {
+    p.kind match {
+      case Some(s) =>
+        val role = s match {
+          case Code.Kind.Console => "filename"
+        }
+        sb_print("[.")
+        sb_print(role)
+        sb_print("]#")
+      case None => super.enter_Code(p)
+    }
+  }
+
+  override protected def leave_Code(p: Code): Unit = {
+    p.kind match {
+      case Some(s) => sb_print("#")
+      case None => super.leave_Code(p)
+    }
+  }
+
   override protected def enter_Foot(p: Foot): Unit = {
-    sb_println("'''")
   }
 }
 

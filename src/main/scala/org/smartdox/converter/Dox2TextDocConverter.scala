@@ -7,7 +7,8 @@ import org.smartdox._
  * @since   Jun. 12, 2025
  *  version Jun. 20, 2025
  *  version Jul. 15, 2025
- * @version Aug. 25, 2025
+ *  version Aug. 25, 2025
+ * @version Sep.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -27,6 +28,8 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   protected def italic_close: String
   protected def bolditalic_open: String
   protected def bolditalic_close: String
+  protected def code_open: String
+  protected def code_close: String
 
   private var _list_stack: List[ListKind] = Nil
 
@@ -51,7 +54,10 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     sb_print_space()
   }
 
-  override def stay(node: TreeNode[Dox], index: Int, prev: TreeNode[Dox], next: TreeNode[Dox]): Unit = {
+  override def stay(node: TreeNode[Dox], index: Int, prev: TreeNode[Dox], next: TreeNode[Dox]): Unit =
+    stay_list(node, index, prev, next) || stay_space(node, index, prev, next)
+
+  protected def stay_list(node: TreeNode[Dox], index: Int, prev: TreeNode[Dox], next: TreeNode[Dox]): Boolean = {
     val a = _list_stack.isEmpty
     def b = (prev.getContent, next.getContent) match {
       case (Some(p), Some(n)) => (p, n) match {
@@ -64,9 +70,27 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     }
     // val r = a && b
     val r = b
-    if (r)
+    if (r) {
       sb_println()
+      true
+    } else {
+      false
+    }
   }
+
+  protected def stay_space(node: TreeNode[Dox], index: Int, prev: TreeNode[Dox], next: TreeNode[Dox]): Boolean =
+    (prev.getContent, next.getContent) match {
+      case (Some(p), Some(n)) =>
+        if (is_space_required_in_stay(p) || is_space_required_in_stay(n)) {
+          sb_print(" ")
+          true
+        } else {
+          false
+        }
+      case _ => false
+    }
+
+  protected def is_space_required_in_stay(p: Dox): Boolean = false
 
   override final protected def enter_Body(p: Body): Unit =
     p.contents.headOption match {
@@ -103,6 +127,14 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
 
   override protected def leave_Italic(p: Italic) = {
     sb_print(italic_close)
+  }
+
+  override protected def enter_Code(p: Code) = {
+    sb_print(code_open)
+  }
+
+  override protected def leave_Code(p: Code) = {
+    sb_print(code_close)
   }
 
   override protected def enter_Ul(p: Ul) = {
