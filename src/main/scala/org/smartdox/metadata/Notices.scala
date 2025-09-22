@@ -29,7 +29,7 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Jun. 26, 2025
  *  version Jul. 26, 2025
  *  version Aug. 16, 2025
- * @version Sep.  7, 2025
+ * @version Sep. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -109,6 +109,7 @@ object Notices {
     titleImage: Option[URI],
     category: Option[Category],
     uri: URI,
+    brief: Option[I18NString],
     summary: I18NString,
     description: I18NString,
     keywords: List[String],
@@ -138,9 +139,11 @@ object Notices {
 
     def withSummaryDescription(s: Option[I18NString], d: Dox) = {
       val desc = I18NFragment.create(d).toI18NString
-      val summary = s getOrElse desc
+      val summary = s getOrElse desc // TODO
       copy(summary = summary, description = desc)
     }
+
+    def withBrief(s: Option[I18NString]) = copy(brief = s)
 
     def yamlString(ctx: I18NContext): String = {
       val json = this.asJson(noticeEncoder(ctx))
@@ -153,6 +156,7 @@ object Notices {
       None,
       None,
       new URI("nolink"),
+      None,
       I18NString("No article"),
       I18NString("No article"),
       Nil,
@@ -177,6 +181,7 @@ object Notices {
             md.titleImage,
             category,
             uri,
+            md.getBriefI18NString,
             md.getSummaryI18NString getOrElse I18NString.empty,
             md.getDescriptionI18NString getOrElse I18NString.empty,
             md.keywords,

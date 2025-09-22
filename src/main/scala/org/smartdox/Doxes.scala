@@ -27,7 +27,7 @@ import org.smartdox.structure.Statement
  *  version Oct. 28, 2024
  *  version Nov. 21, 2024
  *  version Jun.  9, 2025
- * @version Sep.  3, 2025
+ * @version Sep. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Doxes {
@@ -170,15 +170,24 @@ trait Doxes {
   // protected final def dox_parse(c: Dox2Parser.Config, p: LogicalSection): Dox =
   //   Dox2Parser.parse(c, p)
 
+  protected final def make_description(c: Dox2Parser.Config, p: LogicalSection): Description =
+    make_description(ParseContext.now(c), p)
+
   protected final def make_description(ctx: ParseContext, p: LogicalSection): Description = {
     val dox = Dox2Parser.parse(ctx, p)
     make_description(dox)
   }
 
+  protected final def make_sections(c: Dox2Parser.Config, p: LogicalSection): List[Section] =
+    make_sections(ParseContext.now(c), p)
+
   protected final def make_sections(ctx: ParseContext, p: LogicalSection): List[Section] = {
     val dox = Dox2Parser.parse(ctx, p)
     make_sections(dox)
   }
+
+  protected final def make_description_sections(c: Dox2Parser.Config, p: LogicalSection): (Description, List[Section]) =
+    make_description_sections(ParseContext.now(c), p)
 
   protected final def make_description_sections(ctx: ParseContext, p: LogicalSection): (Description, List[Section]) = {
     val dox = Dox2Parser.parse(ctx, p)

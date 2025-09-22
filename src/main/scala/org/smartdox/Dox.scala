@@ -33,6 +33,7 @@ import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.xml.XmlUtils
+import org.goldenport.util.StringUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
 import org.smartdox.metadata.DocumentMetaData
@@ -92,7 +93,7 @@ import org.smartdox.util.DoxUtils
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep. 14, 2025
+ * @version Sep. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -113,8 +114,17 @@ trait Dox extends IDocument {
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
 
-  def effectiveAttributes: VectorMap[String, String] =
+  lazy val effectiveAttributes: VectorMap[String, String] =
     attributes ++ VectorMap(showParams)
+
+  lazy val strategy: Set[String] = effectiveAttributes.get("strategy").
+    map(StringUtils.eagerCommaForm).
+    getOrElse(Nil).toSet
+
+  def isStable: Boolean = this match {
+    case _: Preserve => true
+    case _ => strategy.contains("stable")
+  }
 
   lazy val showParamsText = effectiveAttributes.map {
     case (k, v) => """%s="%s"""".format(k, v) 
@@ -3721,6 +3731,8 @@ object Value {
       def r =
         if (map.isEmpty)
           Single(common.mkString)
+        else if (common.isEmpty)
+          I18N(I18NHangar.createOne(map.mapValues(_.mkString)))
         else
           I18N(I18NHangar.createOne(map.mapValues(_.mkString), common.mkString))
 

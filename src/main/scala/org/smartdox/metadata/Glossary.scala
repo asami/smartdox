@@ -21,7 +21,7 @@ import org.smartdox.structure.StructureObject
  *  version Feb. 24, 2025
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
- * @version Sep. 14, 2025
+ * @version Sep. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -42,9 +42,11 @@ case class Glossary(
 
 object Glossary {
   final val PROP_DEFINITION = "definition"
+  final val PROP_BRIEF = "brief"
   final val PROP_ALIASES = "aliases"
   final val PROP_ABBREVIATION = "abbreviation"
   final val PROP_ACRONYM = "acronym"
+  final val PROP_REMARKS = "remarks"
   final val PROP_REFERENCE = "reference"
 
   val empty = Glossary()
@@ -59,7 +61,8 @@ object Glossary {
     name: I18NString,
     aliases: I18NHangar[String] = I18NHangar.empty,
     abbreviation: Option[String] = None,
-    summary: Option[I18NString] = None
+    summary: Option[I18NString] = None,
+    brief: Option[I18NString] = None
   ) {
     val key: String = name.en
 
@@ -168,11 +171,11 @@ object Glossary {
       }
 
       def ja: Vector[String] = abbreviation match {
-        case Some(s) => _ja_appreviation(s)
+        case Some(s) => _ja_abbreviation(s)
         case None => _ja_simple
       }
 
-      private def _ja_appreviation(abbreviation: String) = {
+      private def _ja_abbreviation(abbreviation: String) = {
         val a = Vector(abbreviation)
         val b = name.en match {
           case m if m == abbreviation => Vector.empty
@@ -180,14 +183,15 @@ object Glossary {
         }
         val c = Vector(name.ja)
         val d = aliases.valueVectorJa
-        val z: Vector[String] = a ++ b ++ c ++ d
+        val z: Vector[String] = (a ++ b ++ c ++ d).distinct
         z.filterNot(_ equalsIgnoreCase word)
       }
 
       private def _ja_simple = {
+        val a = Vector(name.en)
         val b = Vector(name.ja)
         val c = aliases.valueVectorJa
-        val z: Vector[String] = b ++ c
+        val z: Vector[String] = (a ++ b ++ c).distinct
         z.filterNot(_ equalsIgnoreCase word)
       }
     }
@@ -201,7 +205,9 @@ object Glossary {
       name: I18NString,
       aliases: I18NHangar[String] = I18NHangar.empty,
       abbreviation: Option[String] = None,
-      summary: Option[I18NString] = None
+      summary: Option[I18NString] = None,
+      brief: Option[I18NString] = None,
+      remarks: Option[I18NString] = None
     ): Term = {
       val kind = Kind.make(name)
       Term(kind, name, aliases, abbreviation, summary)
@@ -274,7 +280,8 @@ object Glossary {
           c <- Option(node.content)
           n <- Notice.createOption(node, c)
         } yield {
-          n.withSummaryDescription(ingredients.term.summary, ingredients.description)
+          n.withSummaryDescription(ingredients.term.summary, ingredients.description).
+            withBrief(ingredients.term.brief)
         }
 
       def toHistorySlot: Vector[History.Slot] =
@@ -346,7 +353,7 @@ object Glossary {
       val config = StructureObject.Builder.Config(
         StructureObject.Builder.Config.Schema.create(
           List(PROP_ALIASES, PROP_ABBREVIATION, PROP_ACRONYM),
-          List(PROP_DEFINITION, PROP_REFERENCE)
+          List(PROP_DEFINITION, PROP_REFERENCE, PROP_BRIEF, PROP_REMARKS)
         )
       )
       val a = StructureObject.create(config, p)
@@ -358,11 +365,15 @@ object Glossary {
       val aliases = p.getAsI18NValue(PROP_ALIASES)
       val abbreviation = p.getAsI18NValue(PROP_ABBREVIATION) orElse p.getAsI18NValue(PROP_ACRONYM)
       val summary = p.getAsI18NFragment(PROP_DEFINITION).map(_.toI18NString)
+      val brief = p.getAsI18NFragment(PROP_BRIEF).map(_.toI18NString)
+      val remarks = p.getAsI18NFragment(PROP_REMARKS).map(_.toI18NString)
       Term.make(
         title.contents.toI18NString,
         aliases.map(_.toI18NHangar) getOrElse I18NHangar.empty,
         abbreviation.map(_.toPlainText),
-        summary
+        summary,
+        brief,
+        remarks
       )
     }
 
@@ -377,10 +388,13 @@ object Glossary {
       val definition = so.getAsI18NFragment(PROP_DEFINITION).map { s =>
         Section.create(_enja("Definition", "定義"), s)
       }.toList
+      val remarks = so.getAsI18NFragment(PROP_REMARKS).map { s =>
+        Section.create(_enja("Remarks", "備考"), s)
+      }.toList
       val reference = so.getAsI18NFragment(PROP_REFERENCE).map { s =>
         Section.create(_enja("Reference", "参照"), s)
       }.toList
-      val rs = ja +: en +: definition ::: so.contents
+      val rs = ja +: en +: definition ::: so.contents ++ reference ++ reference
       Fragment(rs)
     }
 

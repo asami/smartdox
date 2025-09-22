@@ -41,7 +41,8 @@ import org.smartdox.parser.PureParser
  *  version Apr. 30, 2025
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
- * @version Aug. 29, 2025
+ *  version Aug. 29, 2025
+ * @version Sep. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -82,6 +83,8 @@ case class DocumentMetaData(
   def getTitleI18NString: Option[I18NString] = title.map(_.toI18NString)
 
   private def getDescriptionStringDefault: Option[String] = description.map(_.distillStringDefault)
+
+  def getBriefI18NString: Option[I18NString] = brief.map(_.toI18NString)
 
   def getSummaryI18NString: Option[I18NString] = summary.map(_.toI18NString)
 

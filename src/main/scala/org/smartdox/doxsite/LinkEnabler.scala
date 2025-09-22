@@ -19,7 +19,7 @@ import org.smartdox.metadata._
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
- * @version Sep. 14, 2025
+ * @version Sep. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -96,8 +96,10 @@ object LinkEnabler {
       content match {
         case m: Text => _transform(m)
         case m: Dfn => directive_node(m)
+        case m: Dt => directive_node(m)
         case m: Hyperlink => directive_node(m)
         case m: Preserve => directive_node(m)
+        case m if m.isStable => directive_node(m)
         case m => directive_container_content(m)
       }
     }
@@ -290,7 +292,7 @@ object LinkEnabler {
       var idx = 0
       var count = if (used) 1 else 0
       var hit = false
-      var found = s.indexOf(token, idx)
+      var found = _next(s, token, idx)
       while (found >= 0) {
         val pre = s.substring(idx, found)
         if (pre.nonEmpty)
@@ -303,7 +305,7 @@ object LinkEnabler {
         hit = true
         count = count + 1
         idx = found + token.length
-        found = s.indexOf(token, idx)
+        found = _next(s, token, idx)
       }
       val tail = s.substring(idx)
       if (tail.nonEmpty)
@@ -312,6 +314,14 @@ object LinkEnabler {
         Some(buf.result())
       else
         None
+    }
+
+    private def _next(s: String, token: String, idx: Int): Int = {
+      val n = s.indexOf(token, idx)
+      if (n > 0 && s.charAt(n - 1) == '.')
+        _next(s, token, idx + token.length)
+      else
+        n
     }
 
     private def _can_aux(p: String, i: Int): Boolean = {
@@ -334,7 +344,7 @@ object LinkEnabler {
       canaux: Boolean
     ) = {
       val href = createhref(definition)
-      val titleoption = definition.term.summary
+      val titleoption = Option(definition.term.name)
       titleoption match {
         case Some(title) =>
           if (title.isSimple) {

@@ -60,7 +60,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
- * @version Sep.  6, 2025
+ * @version Sep. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -959,7 +959,7 @@ object DoxSite {
         }
       }
       val title = Hyperlink.createArticle(x.title, new URI(s"../${x.uri}"))
-      val summary = Dox.toDox(x.summary)
+      val summary = Dox.toDox(x.summary) // Brief
       tb.append(date, ckind, evt, corner, title, summary)
     }
     val t = tb.apply()

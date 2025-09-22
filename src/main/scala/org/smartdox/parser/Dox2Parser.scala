@@ -46,7 +46,7 @@ import Dox._
  *  version Jun. 24, 2025
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
- * @version Sep.  9, 2025
+ * @version Sep. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -370,6 +370,9 @@ object Dox2Parser {
       DateTimeContext.now()
     )
   }
+
+  def create(c: Dox2Parser.Config): Dox2Parser =
+    new Dox2Parser(ParseContext.now(c))
 
   def parse(in: String): Dox = parse(Config.default, in)
 
