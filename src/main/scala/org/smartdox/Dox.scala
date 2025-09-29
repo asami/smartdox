@@ -93,7 +93,7 @@ import org.smartdox.util.DoxUtils
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep. 22, 2025
+ * @version Sep. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -121,9 +121,20 @@ trait Dox extends IDocument {
     map(StringUtils.eagerCommaForm).
     getOrElse(Nil).toSet
 
-  def isStable: Boolean = this match {
-    case _: Preserve => true
-    case _ => strategy.contains("stable")
+  def isStable: Boolean = getStable getOrElse false
+
+  def getStable: Option[Boolean] = this match {
+    case _: Preserve => Some(true)
+    case _ =>
+      effectiveAttributes.get("strategy_stable").
+        map(_.equalsIgnoreCase("true")) orElse {
+          if (strategy.contains("stable"))
+            Some(true)
+          else if (strategy.contains("unstable"))
+            Some(false)
+          else
+            None
+        }
   }
 
   lazy val showParamsText = effectiveAttributes.map {

@@ -42,7 +42,7 @@ import org.smartdox.parser.PureParser
  *  version Jun. 26, 2025
  *  version Jul. 27, 2025
  *  version Aug. 29, 2025
- * @version Sep. 22, 2025
+ * @version Sep. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -57,6 +57,7 @@ case class DocumentMetaData(
   modifiedAt: Option[LocalDateOrDateTime] = None,
   kindOption: Option[DocumentMetaData.Kind] = None,
   statusOption: Option[DocumentMetaData.Status] = None,
+  strategy: Set[DocumentMetaData.Strategy] = Set.empty,
   properties: Option[Hocon] = None
 ) extends Explanation.Holder {
   import DocumentMetaData._
@@ -73,6 +74,8 @@ case class DocumentMetaData(
     else
       DocumentMetaData.Status.InPreparation
   }
+
+  def isStable: Boolean = strategy.contains(Strategy.Stable)
 
   def getTitleStringDefault: Option[String] = title.map(_.distillStringDefault)
 
@@ -155,7 +158,8 @@ case class DocumentMetaData(
       publishedAt orElse rhs.publishedAt,
       modifiedAt orElse rhs.modifiedAt,
       lastOption(kindOption, rhs.kindOption),
-      lastOption(statusOption, rhs.statusOption)
+      lastOption(statusOption, rhs.statusOption),
+      strategy ++ rhs.strategy
     )
 
   def distillLocale(p: Option[Locale]): DocumentMetaData =
@@ -230,6 +234,7 @@ object DocumentMetaData {
   final val PROP_MODIFIED_AT = "modified_at"
   final val PROP_KIND = "kind"
   final val PROP_STATUS = "status"
+  final val PROP_STRATEGY = "strategy"
 
   val empty = DocumentMetaData()
 
@@ -318,6 +323,16 @@ object DocumentMetaData {
         OptionUtils.compareAscOption(lhs.map(_.noticePriorityDraft), rhs.map(_.noticePriorityDraft))
   }
 
+  sealed trait Strategy extends NamedValueInstance {
+  }
+  object Strategy extends EnumerationClass[Strategy] {
+    val elements = Vector(Stable)
+
+    case object Stable extends Strategy {
+      val name = "stable"
+    }
+  }
+
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
     createC(hocon).take
 
@@ -333,6 +348,7 @@ object DocumentMetaData {
       modified <- hocon.cLocalDateOrDateTimeOption(PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
+      strategy <- hocon.cValueList(Strategy, PROP_STRATEGY)
     } yield {
       val inlinetitle = title.map(x => I18NFragment.create(List(Text(x))))
       DocumentMetaData(
@@ -346,6 +362,7 @@ object DocumentMetaData {
         modified,
         kind,
         status,
+        strategy.toSet,
         Some(hocon)
       )
     }

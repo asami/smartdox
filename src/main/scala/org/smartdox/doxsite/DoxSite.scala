@@ -60,7 +60,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
- * @version Sep. 22, 2025
+ * @version Sep. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -403,7 +403,7 @@ object DoxSite {
     private def _metadata(p: Dox) = Dox.getMetadata(p) getOrElse DocumentMetaData.empty
   }
   object Strategy extends EnumerationClass[Strategy] {
-    import DocumentMetaData._
+    import DocumentMetaData.Status
 
     val elements = Vector(Production, ProductionPreview, Full, WorkInProgress, Draft, Preparation, Overview, Test)
 

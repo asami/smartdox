@@ -19,7 +19,7 @@ import org.smartdox.metadata._
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
- * @version Sep. 22, 2025
+ * @version Sep. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -83,6 +83,21 @@ object LinkEnabler {
   ) extends DoxInSiteTransformer {
     private var _definitions: Set[Glossary.Definition] = Set.empty
 
+    private val _is_document_stable = pageNode.getContent.fold(false) {
+      case m: Page => m.dox.head.metadata.isStable
+      case _ => false
+    }
+
+    private def _is_unstable(p: Dox): Boolean = !_is_stable(p)
+
+    private def _is_stable(p: Dox): Boolean =
+      if (p.isStable)
+        true
+      else
+        stack.toStream.flatMap(_.getContent).flatMap(_.getStable).headOption getOrElse {
+          _is_document_stable
+        }
+
     def addGlossary(ps: Set[Glossary.Definition]): Unit = {
       _definitions = _definitions ++ ps
     }
@@ -94,12 +109,16 @@ object LinkEnabler {
       content: Dox
     ): TreeTransformer.Directive[Dox] = {
       content match {
-        case m: Text => _transform(m)
+        case m: Text =>
+          if (_is_unstable(m))
+            _transform(m)
+          else
+            directive_node(m)
         case m: Dfn => directive_node(m)
         case m: Dt => directive_node(m)
         case m: Hyperlink => directive_node(m)
         case m: Preserve => directive_node(m)
-        case m if m.isStable => directive_node(m)
+        case m if m.isStable => directive_node(m) // CAUTION
         case m => directive_container_content(m)
       }
     }
