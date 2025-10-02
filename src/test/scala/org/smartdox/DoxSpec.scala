@@ -16,7 +16,8 @@ import scala.util.parsing.input.Reader
  * @since   Jan. 12, 2012
  *  version Feb.  5, 2014
  *  version Jun. 17, 2025
- * @version Aug. 16, 2025
+ *  version Aug. 16, 2025
+ * @version Oct.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -25,6 +26,10 @@ class DoxSpec extends AnyWordSpec with Matchers with ScalazMatchers {
   val in2 = "* Hello\nworld"
   val out = "List(<!DOCTYPE html><html><head/><body><section><h2>OK</h2></section></body></html>, <head/>, <body><section><h2>OK</h2></section></body>, <section><h2>OK</h2></section>)"
   "Dox" should {
+    "Program" in {
+      val a = Program.create("a // <> A\nb // <> B\n")
+      println(a)
+    }
 /*
     "provides scalaz tree" which {
       "plain" in {

@@ -40,6 +40,7 @@ import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.DoxCacheControl
 import org.smartdox.generator.Context
 import org.smartdox.converter.DoxTreeVisitor
+import org.smartdox.parser.Dox2Parser
 import org.smartdox.parser.DoxLinesParser.BlockMacro
 import org.smartdox.parser.PureParser
 import org.smartdox.util.DoxUtils
@@ -93,7 +94,8 @@ import org.smartdox.util.DoxUtils
  *  version Jun. 26, 2025
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep. 29, 2025
+ *  version Sep. 29, 2025
+ * @version Oct.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -589,6 +591,26 @@ object Dox extends UseDox {
   type TreeDoxWV = Writer[List[String], TreeDoxV]
 
   case class Id(id: String) extends AnyVal
+
+  case class Callouts(slots: Vector[Callouts.Callout] = Vector.empty) {
+  }
+  object Callouts {
+    val empty = Callouts()
+
+    case class Callout(num: Int, content: I18NFragment)
+
+    class Builder() {
+      var slots: Vector[Callout] = Vector.empty
+
+      def add(num: Int, desc: String): Builder = {
+        val dox = Dox2Parser.parseI18NFragment(desc)
+        slots = slots :+ Callout(num, dox)
+        this
+      }
+
+      def build(): Callouts = Callouts(slots)
+    }
+  }
 
   val empty = Fragment.empty
 
@@ -2965,7 +2987,11 @@ object I18NFragment {
     case xs => _create_distill(xs)
   }
 
-  def create(p: Dox): I18NFragment = create(List(p))
+  def create(p: Dox): I18NFragment = p match {
+    case m: I18NFragment => m
+    case m: Fragment => create(m.contents)
+    case m => create(List(m))
+  }
 
   case class Z(
     xs: Vector[Dox] = Vector.empty,
@@ -3085,7 +3111,7 @@ object I18NFragment {
     ss match {
       case Nil => create(p.elements)
       case xs =>
-        val a = xs.map(x => (Locale.of(x.nameForModel), commons ++ x.contents))
+        val a = xs.map(x => (Locale.forLanguageTag(x.nameForModel), commons ++ x.contents))
         createDox(a)
     }
   }
@@ -3095,7 +3121,7 @@ object I18NFragment {
     ss match {
       case Nil => create(p.elements)
       case xs =>
-        val a = xs.map(x => (Locale.of(x.nameForModel), List(Dox.toValueOrValues(x))))
+        val a = xs.map(x => (Locale.forLanguageTag(x.nameForModel), List(Dox.toValueOrValues(x))))
         createDox(a)
     }
   }
@@ -3297,7 +3323,8 @@ case class Html5(
 case class Program private(
   contents: String,
   attributes: VectorMap[String, String] = VectorMap.empty,
-  location: Option[ParseLocation] = None
+  location: Option[ParseLocation] = None,
+  callouts: Dox.Callouts = Dox.Callouts.empty
 ) extends Block with Preserve {
   override val elements = List(new Text(contents))
   override def showTerm = "pre"
@@ -3325,22 +3352,24 @@ case class Program private(
 }
 object Program {
   def create(p: String): Program =
-    Program(_normalize(p), VectorMap.empty[String, String])
+    create(p, VectorMap.empty[String, String], None)
 
   def create(p: String, attrs: Map[String, String]): Program =
-    Program(_normalize(p), VectorMap(attrs))
+    create(p, VectorMap(attrs), None)
 
   def create(p: String, attrs: Seq[(String, String)]): Program =
-    create(p, VectorMap(attrs))
+    create(p, VectorMap(attrs), None)
 
-  def create(p: String, attrs: Map[String, String], location: Option[ParseLocation]): Program =
-    Program(_normalize(p), VectorMap(attrs), location)
+  def create(p: String, attrs: Map[String, String], location: Option[ParseLocation]): Program = {
+    val (s, cs) = _extract_callouts(_normalize(p))
+    Program(s, VectorMap(attrs), location, cs)
+  }
 
   def create(p: String, attr: (String, String), attrs: (String, String)*): Program =
-    Program(_normalize(p), VectorMap(attr +: attrs))
+    create(p, VectorMap(attr +: attrs))
 
   def create(p: Seq[String], attr: (String, String), attrs: (String, String)*): Program =
-    Program(_normalize(p.mkString("\n")), VectorMap(attr +: attrs))
+    create(p.mkString("\n"), VectorMap(attr +: attrs))
 
 
   def create(p: String, kind: Option[String], caption: Option[String]): Program =
@@ -3351,6 +3380,44 @@ object Program {
       p
     else
       p + "\n"
+
+  private def _extract_callouts(p: String): (String, Dox.Callouts) = {
+    val Explicit = """<(\d+)>\s*(.*)""".r
+    val Auto = """<>\s*(.*)""".r
+    val callouts = new Dox.Callouts.Builder()
+    val taken = scala.collection.mutable.Set[Int]()
+    val lines = p.linesIterator.toVector
+    val result = new StringBuilder
+    var auto = 1
+
+    for (line <- lines) {
+      val commentIndex = line.indexOf("//")
+      if (commentIndex >= 0) {
+        val code = line.substring(0, commentIndex)
+        val comment = line.substring(commentIndex + 2).trim
+        comment match {
+          case Explicit(n, desc) =>
+            val num = n.toInt
+            taken += num
+            callouts.add(num, desc.trim)
+            result.append(code + s"<$num>")
+          case Auto(desc) =>
+            while (taken.contains(auto)) auto += 1
+            val num = auto
+            taken += num
+            callouts.add(num, desc.trim)
+            result.append(code + s"<$num>")
+          case _ =>
+            result.append(line)
+        }
+      } else {
+        result.append(line)
+      }
+      result.append("\n")
+    }
+
+    (_normalize(result.toString), callouts.build())
+  }
 }
 
 case class Console(
@@ -3785,7 +3852,7 @@ object Value {
       case Nil => Dox.toValueOrValues(p.elements)
       case xs =>
         // TODO common
-        val a = xs.map(x => (Locale.of(x.nameForModel), Dox.toValueOrValues(x).values))
+        val a = xs.map(x => (Locale.forLanguageTag(x.nameForModel), Dox.toValueOrValues(x).values))
         val b = I18NHangar.create(a.toMap)
         I18N(b)
     }

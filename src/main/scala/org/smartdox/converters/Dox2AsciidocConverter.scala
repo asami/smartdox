@@ -15,11 +15,12 @@ import org.smartdox.converter._
  *  version Jun. 20, 2025
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
- * @version Sep. 15, 2025
+ *  version Sep. 15, 2025
+ * @version Oct.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
-  context: Context
+  val context: Context
 ) extends Dox2TextDocConverter {
   import Dox2AsciidocConverter._
 
@@ -37,6 +38,7 @@ class Dox2AsciidocConverter(
   protected def bolditalic_close = "_*"
   protected def code_open = "`"
   protected def code_close = "`"
+  protected def target_locale = context.targetI18NContext.locale
 
   override protected def is_space_required_in_stay(p: Dox): Boolean = p match {
     case _: Code => true
@@ -174,6 +176,10 @@ class Dox2AsciidocConverter(
 
   override protected def leave_Program(p: Program): Unit = {
     sb_println("----")
+    for (c <- p.callouts.slots) {
+      val s = c.content.distillString(target_locale)
+      sb_println(s"<${c.num}> ${s}")
+    }
   }
 
   override protected def enter_Code(p: Code): Unit = {

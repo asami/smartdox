@@ -46,7 +46,8 @@ import Dox._
  *  version Jun. 24, 2025
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
- * @version Sep. 15, 2025
+ *  version Sep. 15, 2025
+ * @version Oct.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -260,7 +261,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   private def _program(p: LogicalVerbatim) = {
     val cs = p.lines.text
     val attrs = VectorMap.empty[String, String]
-    Program(cs, attrs, p.location)
+    Program.create(cs, attrs, p.location)
   }
 
   private def _resolve(p: Document): Document = {
@@ -441,6 +442,16 @@ object Dox2Parser {
       case ParseSuccess(dox, _) => Fragment(dox.body.elements)
       case ParseFailure(_, _) => RAISE.notImplementedYetDefect
       case EmptyParseResult() => RAISE.notImplementedYetDefect
+    }
+  }
+
+  def parseI18NFragment(in: String): I18NFragment = {
+    val config = Config.default
+    if (config.isAutoI18n && in.contains(config.autoI18nDelimiter)) {
+      val (en, ja) = _make_en_ja(config, in)
+      I18NFragment.enja(en, ja)
+    } else {
+      I18NFragment.create(parseFragment(config, in))
     }
   }
 
