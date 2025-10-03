@@ -16,7 +16,7 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct.  2, 2025
+ * @version Oct.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -68,14 +68,14 @@ class Dox2AsciidocConverter(
   }
 
   private def _use_quotation(p: Hyperlink) =
-    p.getTitle.isDefined || p.getHtmlClass.isDefined
+    p.title.isDefined || p.getHtmlClass.isDefined
 
   override protected def leave_Hyperlink(p: Hyperlink) = {
     if (_use_quotation(p))
       sb_print("\"")
-    p.getTitle foreach { x =>
+    p.title foreach { x =>
       sb_print(""" ,title="""")
-      sb_print(x)
+      sb_print(x.as(target_locale))
       sb_print("\"")
     }
     p.getHtmlClass foreach { x =>

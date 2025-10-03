@@ -18,7 +18,8 @@ import org.smartdox._
  *  version Jan.  1, 2025
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
- * @version Sep.  9, 2025
+ *  version Sep.  9, 2025
+ * @version Oct.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -1091,6 +1092,9 @@ object DoxInlineParser {
     parent: DoxInlineParseState,
     urn: Seq[Inline] = Vector.empty
   ) extends ChildDoxInlineParseState {
+    override protected def handle_End(): Transition =
+      leave_to_urn(urn).apply(config, EndEvent)
+
     override protected def handle_char_event(evt: CharEvent): Transition =
       evt.c match {
         case '(' => to_transition(InlineState(MarkdownLinkLabelState(config, parent, urn), ')'))

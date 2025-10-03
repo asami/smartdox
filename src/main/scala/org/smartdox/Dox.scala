@@ -95,7 +95,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct.  2, 2025
+ * @version Oct.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1759,11 +1759,18 @@ case class Text(
 
   override def getTextIfOnly = Some(this)
 
+  def prepend(p: String): Text = copy(contents = p ++ contents)
+
+  def prepend(p: Char): Text = copy(contents = p +: contents)
+
   def append(p: String): Text = copy(contents = contents ++ p)
 
   def xmlString: String = XmlUtils.escape(contents)
 
   def isBlank: Boolean = Strings.blankp(contents)
+}
+object Text {
+  def apply(p: Char): Text = Text(p.toString)
 }
 
 case class Bold(
@@ -2075,6 +2082,7 @@ object Del extends Del(Nil, VectorMap.empty, None) with DoxFactory {
 case class Hyperlink(
   contents: List[Inline],
   href: URI,
+  title: Option[I18NString] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Inline {
@@ -2091,7 +2099,6 @@ case class Hyperlink(
     to_inline(cs).map(copy(_, href, location = get_location(location, cs)))
   }
 
-  def getTitle: Option[String] = attributes.get("title")
   def getHtmlClass: Option[String] = attributes.get("class")
 }
 object Hyperlink extends DoxFactory {
@@ -2104,31 +2111,46 @@ object Hyperlink extends DoxFactory {
     Hyperlink(c.toList, new URI(href))
 
   def apply(c: Seq[Inline], href: String, location: Option[ParseLocation]): Hyperlink =
-    Hyperlink(c.toList, new URI(href), VectorMap.empty, location)
+    Hyperlink(c.toList, new URI(href), None, VectorMap.empty, location)
 
   def create(body: String, href: URI, alt: String): Hyperlink =
-    Hyperlink(List(Text(body)), href, VectorMap("title" -> alt))
+    Hyperlink(List(Text(body)), href, Some(I18NString(alt)))
 
   def create(url: String): Hyperlink =
     Hyperlink(List(Text(url)), new URI(url))
 
   def createCategory(body: Inline, href: URI): Hyperlink =
-    Hyperlink(List(body), href, VectorMap("class" -> "category"))
+    Hyperlink(List(body), href, None, VectorMap("class" -> "category"))
 
   def createArticle(body: I18NString, href: URI): Hyperlink =
-    Hyperlink(List(Dox.toDox(body)), href, VectorMap("class" -> "article"))
+    Hyperlink(List(Dox.toDox(body)), href, None, VectorMap("class" -> "article"))
+
+  def createArticle(body: I18NFragment, href: URI, tooltip: Option[I18NString]): Hyperlink =
+    createArticle(List(body), href, tooltip)
+
+  def createArticle(body: InlineContents, href: URI, tooltip: Option[I18NString]): Hyperlink =
+    tooltip match {
+      case Some(s) => createArticle(body, href, s)
+      case None => createArticle(body, href)
+    }
+
+  def createArticle(body: InlineContents, href: URI, tooltip: I18NString): Hyperlink =
+    Hyperlink(body, href, Some(tooltip), VectorMap("class" -> "article"))
+
+  def createArticle(body: InlineContents, href: URI): Hyperlink =
+    Hyperlink(body, href, None, VectorMap("class" -> "article"))
 
   def createGlossary(body: String, href: URI, title: String): Hyperlink =
-    Hyperlink(List(Text(body)), href, VectorMap("title" -> title, "class" -> "glossary"))
+    Hyperlink(List(Text(body)), href, Some(I18NString(title)), VectorMap("class" -> "glossary"))
 
   def createGlossary(body: List[Inline], href: URI, title: String): Hyperlink =
-    Hyperlink(body, href, VectorMap("title" -> title, "class" -> "glossary"))
+    Hyperlink(body, href, Some(I18NString(title)), VectorMap("class" -> "glossary"))
 
   def createGlossary(body: String, href: URI): Hyperlink =
-    Hyperlink(List(Text(body)), href, VectorMap("class" -> "glossary"))
+    Hyperlink(List(Text(body)), href, None, VectorMap("class" -> "glossary"))
 
   def createGlossary(body: List[Inline], href: URI): Hyperlink =
-    Hyperlink(body, href, VectorMap("class" -> "glossary"))
+    Hyperlink(body, href, None, VectorMap("class" -> "glossary"))
 }
 
 case class ReferenceImg(
@@ -2937,6 +2959,23 @@ case class I18NFragment(
     contents.localeVector.foldLeft(Z())(_+_).r
   }
 
+  def +:(p: Char): I18NFragment = copy(contents = contents.mapValues {
+    case Nil => List(Text(p))
+    case x :: xs => x match {
+      case m: Text => m.prepend(p) :: xs
+      case m => Text(p) :: x :: xs
+    }
+  })
+
+
+  def +:(p: String): I18NFragment = copy(contents = contents.mapValues {
+    case Nil => List(Text(p))
+    case x :: xs => x match {
+      case m: Text => m.prepend(p) :: xs
+      case m => Text(p) :: x :: xs
+    }
+  })
+
   def trimSingleLine: I18NFragment = {
     val lv = contents.localeVector
     val r = lv.map(_trim_single_line)
@@ -3098,7 +3137,7 @@ object I18NFragment {
 
   private def _make_i18nfragment(p: I18NContainer[List[XNode]]): Consequence[I18NFragment] =
   Consequence {
-    val a = p.mapValue(xs => xs.map(PureParser.build))
+    val a = p.mapValues(xs => xs.map(PureParser.build))
     I18NFragment(a)
   }
 

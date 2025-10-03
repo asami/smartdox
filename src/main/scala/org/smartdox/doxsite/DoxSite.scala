@@ -60,7 +60,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jun. 28, 2025
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
- * @version Sep. 28, 2025
+ *  version Sep. 28, 2025
+ * @version Oct.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -910,7 +911,7 @@ object DoxSite {
     p: Tree[Node]
   ): Tree[Node] =
     if (ctx.config.isLinkEnable)
-      p.transform(new LinkEnabler(ctx))
+      p.transform(new LinkEnabler(ctx, p))
     else
       p
 

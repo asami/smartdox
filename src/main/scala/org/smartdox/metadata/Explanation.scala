@@ -11,12 +11,14 @@ import org.smartdox._
 /*
  * @since   Aug. 16, 2025
  *  version Aug. 25, 2025
- * @version Sep. 22, 2025
+ *  version Sep. 22, 2025
+ * @version Oct.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
   headline: Option[I18NFragment] = None,
   brief: Option[I18NFragment] = None,
+  tooltip: Option[I18NFragment] = None,
   summary: Option[I18NFragment] = None,
   `abstract`: Option[I18NFragment] = None,
   description: Option[I18NFragment] = None,
@@ -24,7 +26,7 @@ case class Explanation(
 ) {
   import Explanation._
 
-  def isEmpty = headline.isEmpty && brief.isEmpty && summary.isEmpty &&
+  def isEmpty = headline.isEmpty && brief.isEmpty && tooltip.isEmpty && summary.isEmpty &&
   `abstract`.isEmpty && description.isEmpty && remarks.isEmpty
 
   def withSummary(p: InlineContents) = {
@@ -56,10 +58,11 @@ case class Explanation(
     Explanation(
       _distill_(headline),
       _distill_(brief),
+      _distill_(tooltip),
       _distill_(summary),
       _distill_(`abstract`),
       _distill_(description),
-      _distill_(remarks),
+      _distill_(remarks)
     )
   }
 
@@ -68,16 +71,20 @@ case class Explanation(
     Explanation(
       _distill_(headline),
       _distill_(brief),
+      _distill_(tooltip),
       _distill_(summary),
       _distill_(`abstract`),
       _distill_(description),
-      _distill_(remarks),
+      _distill_(remarks)
     )
   }
+
+  def getEffectiveTooltip: Option[I18NFragment] = tooltip orElse brief orElse headline orElse summary orElse `abstract`
 
   def printFlat(buf: StringBuilder): Unit = {
     Dox.printI18NFragment(buf, PROP_HEADLINE, headline)
     Dox.printI18NFragment(buf, PROP_BRIEF, brief)
+    Dox.printI18NFragment(buf, PROP_TOOLTIP, tooltip)
     Dox.printI18NFragment(buf, PROP_SUMMARY, summary)
     Dox.printI18NFragment(buf, PROP_ABSTRACT, `abstract`)
     Dox.printI18NFragment(buf, PROP_DESCRIPTION, description)
@@ -87,6 +94,7 @@ case class Explanation(
 object Explanation {
   final val PROP_HEADLINE = "headline"
   final val PROP_BRIEF = "brief"
+  final val PROP_TOOLTIP = "tooltip"
   final val PROP_SUMMARY = "summary"
   final val PROP_ABSTRACT = "abstract"
   final val PROP_DESCRIPTION = "description"
@@ -97,6 +105,7 @@ object Explanation {
 
     def headline = explanation.headline
     def brief = explanation.brief
+    def tooltip = explanation.tooltip
     def summary = explanation.summary
     def `abstract` = explanation.`abstract`
     def description = explanation.description
@@ -109,6 +118,7 @@ object Explanation {
     for {
       headline <- _parse_hocon(PROP_HEADLINE, hocon)
       brief <- _parse_hocon(PROP_BRIEF, hocon)
+      tooltip <- _parse_hocon(PROP_TOOLTIP, hocon)
       summary <- _parse_hocon(PROP_SUMMARY, hocon)
       `abstract` <- _parse_hocon(PROP_ABSTRACT, hocon)
       description <- _parse_hocon(PROP_DESCRIPTION, hocon)
@@ -116,6 +126,7 @@ object Explanation {
     } yield Explanation(
       headline,
       brief,
+      tooltip,
       summary,
       `abstract`,
       description,

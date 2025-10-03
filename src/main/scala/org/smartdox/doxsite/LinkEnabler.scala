@@ -2,11 +2,13 @@ package org.smartdox.doxsite
 
 import java.io._
 import java.net.URI
+import java.nio.file.Paths
 import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.tree._
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.LocaleUtils
+import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.transformer._
 import org.smartdox.metadata._
@@ -19,21 +21,15 @@ import org.smartdox.metadata._
  *  version Jun. 16, 2025
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
- * @version Sep. 28, 2025
+ *  version Sep. 28, 2025
+ * @version Oct.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
-  val context: DoxSiteTransformer.Context
+  val context: DoxSiteTransformer.Context,
+  val site: Tree[Node]
 ) extends DoxSiteTransformer {
   import LinkEnabler._
-
-  // private var _definitions: Set[Glossary.Definition] = Set.empty
-
-  // def addGlossary(ps: Set[Glossary.Definition]): Unit = {
-  //   _definitions = _definitions ++ ps
-  // }
-
-  // def usedDefinitions = _definitions
 
   override protected def dox_Transformers(
     context: DoxSiteTransformer.Context,
@@ -45,29 +41,11 @@ class LinkEnabler(
     else
       Nil
 
-  // override protected def make_Page(
-  //   node: TreeNode[Node],
-  //   page: Page
-  // ): TreeNode[Node] = _get_cache(node) match {
-  //   case Some(s) => TreeNode.create(node.name, Page(node.name, s))
-  //   case None =>
-  //     val r = super.make_Page(node, page)
-  //     _set_cache(node, page.dox)
-  //     r
-  // }
-
-  // private def _get_cache(
-  //   node: TreeNode[Node]
-  // ): Option[Dox] = {
-  //   context.cache.get(node.pathname)
-  // }
-
-  // private def _set_cache(
-  //   node: TreeNode[Node],
-  //   dox: Dox
-  // ): Unit = {
-  //   context.cache.set(node.pathname, dox)
-  // }
+  def getMetaData(path: String): Option[DocumentMetaData] =
+    site.getContent(path).flatMap {
+      case m: Page => Dox.getMetadata(m.dox)
+      case _ => None
+    }
 }
 
 object LinkEnabler {
@@ -81,6 +59,17 @@ object LinkEnabler {
     pageNode: TreeNode[Node],
     enabler: LinkEnabler
   ) extends DoxInSiteTransformer {
+//    private val _link_mark = "▸" // 軽量で自然: [▸ Glossary]
+//    private val _link_mark = "⮕" // 見出し: [⮕ Error Concept]
+    private val _link_mark = "📄" // Markdown/記事リンク: [📄ドメイン・モデル構成要素]
+
+//    private val _link_mark = "📝" // 文書リンク: [📝定義済みデータ型]
+
+//    private val _link_mark = "🔗" // 文中リンク例: [🔗エンティティ]
+//    private val _link_mark = "🡒 " // [?] 文中: [🡒 Value Object]
+//    private val _link_mark = "🔍" // 詳細記事: [🔍現象と観測記録]
+//    private val _link_mark = "↳" // ネスト構造: [↳ サブモデル]
+
     private var _definitions: Set[Glossary.Definition] = Set.empty
 
     private val _is_document_stable = pageNode.getContent.fold(false) {
@@ -116,7 +105,7 @@ object LinkEnabler {
             directive_node(m)
         case m: Dfn => directive_node(m)
         case m: Dt => directive_node(m)
-        case m: Hyperlink => directive_node(m)
+        case m: Hyperlink => _transform_hyperlink(m)
         case m: Preserve => directive_node(m)
         case m if m.isStable => directive_node(m) // CAUTION
         case m => directive_container_content(m)
@@ -200,6 +189,38 @@ object LinkEnabler {
         candidates.foldLeft(Z(Vector(m)))(_+_).r
       }
     }
+
+    private def _transform_hyperlink(p: Hyperlink): TreeTransformer.Directive[Dox] = {
+      Option(p.href.getScheme) match {
+        case Some(s) =>
+          if (s == "file")
+            _transform_hyperlink(p, p.href)
+          else
+            directive_node(p)
+        case None => _transform_hyperlink(p, p.href)
+      }
+    }
+
+    private def _transform_hyperlink(dox: Hyperlink, href: URI): TreeTransformer.Directive[Dox] =
+      Option(href.getPath) match {
+        case Some(s) =>
+          val base = pageNode.pathname
+          val path = StringUtils.resolvePathSafe(base, s)
+          enabler.getMetaData(path) match {
+            case Some(s) => s.title match {
+              case Some(title0) =>
+                val title = _link_mark +: title0
+                val relpath0 = StringUtils.relativizePathSafe(base, path)
+                val relpath = StringUtils.changeSuffix(relpath0, "html")
+                val tooltip = s.getEffectiveTooltip
+                val r = Hyperlink.createArticle(title, new URI(relpath), tooltip)
+                directive_node(r)
+              case None => directive_node(dox)
+            }
+            case None => directive_node(dox)
+          }
+        case None => directive_node(dox)
+      }
   }
 
   case class DoxSiteToken(text: String) {

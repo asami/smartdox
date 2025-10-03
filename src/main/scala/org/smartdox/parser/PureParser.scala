@@ -23,7 +23,8 @@ import Dox._, Doxes._
  *  version Oct. 28, 2024
  *  version Jun. 16, 2025
  *  version Jul. 28, 2025
- * @version Aug. 23, 2025
+ *  version Aug. 23, 2025
+ * @version Oct.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 object PureParser {
@@ -236,7 +237,7 @@ object PureParser {
   def buildHyperlink(elem: XNode): Hyperlink = {
     val attrs = getAttributes(elem).without("href")
     val href = getAttribute(elem, "href") | ""
-    Hyperlink(buildInline(elem), new URI(href), attrs)
+    Hyperlink(buildInline(elem), new URI(href), None, attrs)
   }
 
   def buildReferenceImg(elem: XNode): ReferenceImg = {
