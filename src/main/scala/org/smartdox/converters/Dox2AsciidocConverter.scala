@@ -16,7 +16,7 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct.  4, 2025
+ * @version Oct.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -74,12 +74,12 @@ class Dox2AsciidocConverter(
     if (_use_quotation(p))
       sb_print("\"")
     p.title foreach { x =>
-      sb_print(""" ,title="""")
+      sb_print(""", title="""")
       sb_print(x.as(target_locale))
       sb_print("\"")
     }
     p.getHtmlClass foreach { x =>
-      sb_print(""" ,role="""")
+      sb_print(""", role="""")
       sb_print(x)
       sb_print("\"")
     }

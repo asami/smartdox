@@ -8,7 +8,8 @@ import org.smartdox._
  *  version Jun. 20, 2025
  *  version Jul. 15, 2025
  *  version Aug. 25, 2025
- * @version Sep.  9, 2025
+ *  version Sep.  9, 2025
+ * @version Oct.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -166,7 +167,16 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   }
 
   override protected def leave_Li(p: Li) = {
-    if (p.contents.length <= 1)
+    val a = p.contents match {
+      case Nil => true
+      case x :: Nil => true
+      case x :: y :: _ => y match {
+        case m: Ul => false
+        case m: Ol => false
+        case _ => true
+      }
+    }
+    if (a)
       sb_println()
   }
 
