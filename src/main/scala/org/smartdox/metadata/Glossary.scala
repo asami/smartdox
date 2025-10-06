@@ -21,7 +21,8 @@ import org.smartdox.structure.StructureObject
  *  version Feb. 24, 2025
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
- * @version Sep. 22, 2025
+ *  version Sep. 22, 2025
+ * @version Oct.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -166,7 +167,7 @@ object Glossary {
         val a = abbreviation.toVector
         val b = Vector(name.en)
         val c = aliases.valueVectorEn
-        val d: Vector[String] = a ++ b ++ c
+        val d: Vector[String] = (a ++ b ++ c).distinct
         d.filterNot(_ equalsIgnoreCase word)
       }
 
