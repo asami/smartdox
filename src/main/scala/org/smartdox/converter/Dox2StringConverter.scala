@@ -7,6 +7,7 @@ import org.goldenport.context.Consequence
 import org.goldenport.tree._
 import org.goldenport.util.StringBuildFeature
 import org.smartdox._
+import org.smartdox.metadata.DocumentMetaData
 import Dox._
 
 /*
@@ -15,11 +16,16 @@ import Dox._
  *  version Jun. 18, 2025
  *  version Jul. 15, 2025
  *  version Aug. 31, 2025
- * @version Sep. 14, 2025
+ *  version Sep. 14, 2025
+ * @version Oct.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
+  private var _head: Option[Head] = None
+  protected final def dox_metadata: Option[DocumentMetaData] = _head.map(_.metadata)
+
   def convert(dox: Dox): Consequence[String] = Consequence {
+    _head = Dox.getHead(dox)
     val tree = Dox.toTree(dox)
     tree.traverse(this)
     sb_to_string()

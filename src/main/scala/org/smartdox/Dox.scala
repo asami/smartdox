@@ -95,7 +95,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct.  4, 2025
+ * @version Oct.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2880,6 +2880,8 @@ case class I18NFragment(
   override def showTerm = "i18n"
 
   override def isOpenClose = false
+
+  override def show_Contents(buf: StringBuilder) = print_Contents(buf)
 
   override def printDox(buf: StringBuilder): Unit = 
     contents.getIfNoLocale match {

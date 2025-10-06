@@ -12,17 +12,18 @@ import org.smartdox._
  * @since   Aug. 16, 2025
  *  version Aug. 25, 2025
  *  version Sep. 22, 2025
- * @version Oct.  4, 2025
+ * @version Oct.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
   headline: Option[I18NFragment] = None,
   brief: Option[I18NFragment] = None,
-  tooltip: Option[I18NFragment] = None,
   summary: Option[I18NFragment] = None,
-  `abstract`: Option[I18NFragment] = None,
   description: Option[I18NFragment] = None,
-  remarks: Option[I18NFragment] = None
+  lead: Option[I18NFragment] = None,
+  `abstract`: Option[I18NFragment] = None,
+  remarks: Option[I18NFragment] = None,
+  tooltip: Option[I18NFragment] = None
 ) {
   import Explanation._
 
@@ -42,9 +43,11 @@ case class Explanation(
       _plus(headline, rhs.headline),
       _plus(brief, rhs.brief),
       _plus(summary, rhs.summary),
-      _plus(`abstract`, rhs.`abstract`),
       _plus(description, rhs.description),
-      _plus(remarks, rhs.remarks)
+      _plus(lead, rhs.lead),
+      _plus(`abstract`, rhs.`abstract`),
+      _plus(remarks, rhs.remarks),
+      _plus(tooltip, rhs.tooltip)
     )
 
   private def _plus(l: Option[I18NFragment], r: Option[I18NFragment]): Option[I18NFragment] =
@@ -58,11 +61,12 @@ case class Explanation(
     Explanation(
       _distill_(headline),
       _distill_(brief),
-      _distill_(tooltip),
       _distill_(summary),
-      _distill_(`abstract`),
       _distill_(description),
-      _distill_(remarks)
+      _distill_(lead),
+      _distill_(`abstract`),
+      _distill_(remarks),
+      _distill_(tooltip)
     )
   }
 
@@ -71,11 +75,12 @@ case class Explanation(
     Explanation(
       _distill_(headline),
       _distill_(brief),
-      _distill_(tooltip),
       _distill_(summary),
-      _distill_(`abstract`),
       _distill_(description),
-      _distill_(remarks)
+      _distill_(lead),
+      _distill_(`abstract`),
+      _distill_(remarks),
+      _distill_(tooltip)
     )
   }
 
@@ -84,32 +89,35 @@ case class Explanation(
   def printFlat(buf: StringBuilder): Unit = {
     Dox.printI18NFragment(buf, PROP_HEADLINE, headline)
     Dox.printI18NFragment(buf, PROP_BRIEF, brief)
-    Dox.printI18NFragment(buf, PROP_TOOLTIP, tooltip)
     Dox.printI18NFragment(buf, PROP_SUMMARY, summary)
-    Dox.printI18NFragment(buf, PROP_ABSTRACT, `abstract`)
     Dox.printI18NFragment(buf, PROP_DESCRIPTION, description)
+    Dox.printI18NFragment(buf, PROP_LEAD, lead)
+    Dox.printI18NFragment(buf, PROP_ABSTRACT, `abstract`)
     Dox.printI18NFragment(buf, PROP_REMARKS, remarks)
+    Dox.printI18NFragment(buf, PROP_TOOLTIP, tooltip)
   }
 }
 object Explanation {
   final val PROP_HEADLINE = "headline"
   final val PROP_BRIEF = "brief"
-  final val PROP_TOOLTIP = "tooltip"
   final val PROP_SUMMARY = "summary"
-  final val PROP_ABSTRACT = "abstract"
   final val PROP_DESCRIPTION = "description"
+  final val PROP_LEAD = "lead"
+  final val PROP_ABSTRACT = "abstract"
   final val PROP_REMARKS = "remarks"
+  final val PROP_TOOLTIP = "tooltip"
 
   trait Holder {
     def explanation: Explanation
 
     def headline = explanation.headline
     def brief = explanation.brief
-    def tooltip = explanation.tooltip
     def summary = explanation.summary
-    def `abstract` = explanation.`abstract`
     def description = explanation.description
+    def lead = explanation.lead
+    def `abstract` = explanation.`abstract`
     def remarks = explanation.remarks
+    def tooltip = explanation.tooltip
   }
 
   val empty = Explanation()
@@ -118,19 +126,21 @@ object Explanation {
     for {
       headline <- _parse_hocon(PROP_HEADLINE, hocon)
       brief <- _parse_hocon(PROP_BRIEF, hocon)
-      tooltip <- _parse_hocon(PROP_TOOLTIP, hocon)
       summary <- _parse_hocon(PROP_SUMMARY, hocon)
-      `abstract` <- _parse_hocon(PROP_ABSTRACT, hocon)
       description <- _parse_hocon(PROP_DESCRIPTION, hocon)
+      lead <- _parse_hocon(PROP_LEAD, hocon)
+      `abstract` <- _parse_hocon(PROP_ABSTRACT, hocon)
       remarks <-  _parse_hocon(PROP_REMARKS, hocon)
+      tooltip <- _parse_hocon(PROP_TOOLTIP, hocon)
     } yield Explanation(
       headline,
       brief,
-      tooltip,
       summary,
-      `abstract`,
       description,
-      remarks
+      lead,
+      `abstract`,
+      remarks,
+      tooltip
     )
 
   private def _parse_hocon(
@@ -143,16 +153,20 @@ object Explanation {
       headline <- _parse_node(PROP_HEADLINE, p)
       brief <- _parse_node(PROP_BRIEF, p)
       summary <- _parse_node(PROP_SUMMARY, p)
-      `abstract` <- _parse_node(PROP_ABSTRACT, p)
       description <- _parse_node(PROP_DESCRIPTION, p)
+      lead <- _parse_node(PROP_LEAD, p)
+      `abstract` <- _parse_node(PROP_ABSTRACT, p)
       remarks <-  _parse_node(PROP_REMARKS, p)
+      tooltip <- _parse_node(PROP_TOOLTIP, p)
     } yield Explanation(
       headline,
       brief,
       summary,
-      `abstract`,
       description,
-      remarks
+      lead,
+      `abstract`,
+      remarks,
+      tooltip
     )
 
   private def _parse_node(
@@ -168,16 +182,20 @@ object Explanation {
       headline <- _parse_subsection_inline(PROP_HEADLINE, ps)
       brief <- _parse_subsection_inline(PROP_BRIEF, ps)
       summary <- _parse_subsection_inline(PROP_SUMMARY, ps)
-      `abstract` <- _parse_subsection_inline(PROP_ABSTRACT, ps)
       description <- _parse_subsection(PROP_DESCRIPTION, ps)
+      lead <- _parse_subsection(PROP_LEAD, ps)
+      `abstract` <- _parse_subsection_inline(PROP_ABSTRACT, ps)
       remarks <-  _parse_subsection_inline(PROP_REMARKS, ps)
+      tooltip <- _parse_subsection_inline(PROP_TOOLTIP, ps)
     } yield Explanation(
       headline,
       brief,
       summary,
-      `abstract`,
       description,
-      remarks
+      lead,
+      `abstract`,
+      remarks,
+      tooltip
     )
 
   private def _parse_subsection(

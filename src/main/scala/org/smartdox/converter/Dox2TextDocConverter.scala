@@ -9,7 +9,7 @@ import org.smartdox._
  *  version Jul. 15, 2025
  *  version Aug. 25, 2025
  *  version Sep.  9, 2025
- * @version Oct.  5, 2025
+ * @version Oct.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -97,13 +97,19 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     p.contents.headOption match {
       case Some(s) => s match {
         case m: Section => get_metadata match {
+          case Some(meta) => meta.getEffectiveLead match {
+            case Some(lead) => lead.traverse(this)
+            case None => Unit
+          }
+          case None => Unit
+        }
+        case _ => get_metadata match {
           case Some(meta) => meta.getLead match {
             case Some(lead) => lead.traverse(this)
             case None => Unit
           }
           case None => Unit
         }
-        case _ => Unit
       }
       case None => Unit
     }

@@ -43,7 +43,7 @@ import org.smartdox.parser.PureParser
  *  version Jul. 27, 2025
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
- * @version Oct.  4, 2025
+ * @version Oct.  7, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -96,7 +96,9 @@ case class DocumentMetaData(
 
   def getHtmlDescriptionI18NString: Option[I18NString] = (summary orElse description).map(_.toI18NString)
 
-  def getLead: Option[I18NFragment] = description
+  def getLead: Option[I18NFragment] = lead
+
+  def getEffectiveLead: Option[I18NFragment] = lead orElse summary orElse description
 
   def getEffectiveTooltip: Option[I18NString] =
     explanation.getEffectiveTooltip.map(_.toI18NString)
