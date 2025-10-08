@@ -95,7 +95,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct.  6, 2025
+ * @version Oct.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1093,6 +1093,20 @@ object Dox extends UseDox {
     XmlUtils.printOpenTag(buf, name)
     dox.printDox(buf)
     XmlUtils.printCloseTag(buf, name)
+  }
+
+  def parseInlineContentsInclusion(p: String): List[Inline] =
+    I18NFragment.parseInclusion(p).toInlines
+
+  def parseInlineContentsInclusion(p: Inline): List[Inline] = p match {
+    case m: Text => parseInlineContentsInclusion(m.contents)
+    case m => List(m)
+  }
+
+  def parseInlineContentsInclusion(ps: Seq[Inline]): List[Inline] = ps.toList match {
+    case Nil => Nil
+    case x :: Nil => parseInlineContentsInclusion(x)
+    case xs => xs
   }
 }
 
@@ -2104,26 +2118,53 @@ case class Hyperlink(
 object Hyperlink extends DoxFactory {
   val label = "a"
 
-  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Hyperlink =
-    Hyperlink(ensure_inline(body), attrs.applyIgnoreCase("href"))
+   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Hyperlink =
+     apply(ensure_inline(body), attrs.applyIgnoreCase("href"))
 
   def apply(c: Seq[Inline], href: String): Hyperlink =
-    Hyperlink(c.toList, new URI(href))
+    new Hyperlink(c.toList, new URI(href))
 
   def apply(c: Seq[Inline], href: String, location: Option[ParseLocation]): Hyperlink =
-    Hyperlink(c.toList, new URI(href), None, VectorMap.empty, location)
+    new Hyperlink(c.toList, new URI(href), None, VectorMap.empty, location)
+
+  def apply(label: Inline, href: URI): Hyperlink =
+    new Hyperlink(List(label), href)
+
+  def apply(label: Inline, href: URI, attrs: VectorMap[String, String]): Hyperlink =
+    new Hyperlink(List(label), href, None, attrs)
+
+  def apply(label: Seq[Inline], href: URI): Hyperlink =
+    new Hyperlink(label.toList, href)
+
+  def apply(label: Seq[Inline], href: URI, title: Option[I18NString]): Hyperlink =
+    new Hyperlink(label.toList, href, title)
+
+  def apply(label: Seq[Inline], href: URI, title: Option[I18NString], attrs: VectorMap[String, String]): Hyperlink =
+    Hyperlink(label.toList, href, title, attrs, None)
+
+  def create(body: String, href: String): Hyperlink =
+    create(body, new URI(href))
+
+  def create(body: String, href: URI): Hyperlink =
+    apply(Dox.parseInlineContentsInclusion(body), href)
 
   def create(body: String, href: URI, alt: String): Hyperlink =
-    Hyperlink(List(Text(body)), href, Some(I18NString(alt)))
+    apply(Dox.parseInlineContentsInclusion(body), href, Some(I18NString(alt)))
+
+  def create(body: Inline, href: String): Hyperlink =
+    Hyperlink(Dox.parseInlineContentsInclusion(body), new URI(href))
+ 
+   def create(body: Seq[Inline], href: String): Hyperlink =
+    Hyperlink(Dox.parseInlineContentsInclusion(body), new URI(href))
 
   def create(url: String): Hyperlink =
     Hyperlink(List(Text(url)), new URI(url))
 
   def createCategory(body: Inline, href: URI): Hyperlink =
-    Hyperlink(List(body), href, None, VectorMap("class" -> "category"))
+    Hyperlink(body, href, VectorMap("class" -> "category"))
 
   def createArticle(body: I18NString, href: URI): Hyperlink =
-    Hyperlink(List(Dox.toDox(body)), href, None, VectorMap("class" -> "article"))
+    Hyperlink(List(Dox.toDox(body)), href, VectorMap("class" -> "article"))
 
   def createArticle(body: I18NFragment, href: URI, tooltip: Option[I18NString]): Hyperlink =
     createArticle(List(body), href, tooltip)
@@ -2961,6 +3002,12 @@ case class I18NFragment(
     contents.localeVector.foldLeft(Z())(_+_).r
   }
 
+  def toInlines: List[Inline] =
+    contents.getIfNoLocale match {
+      case Some(s) => Dox.toInlineContents(s)
+      case None => List(this)
+    }
+
   def +:(p: Char): I18NFragment = copy(contents = contents.mapValues {
     case Nil => List(Text(p))
     case x :: xs => x match {
@@ -3130,6 +3177,12 @@ object I18NFragment {
   def enja(en: String, ja: String) = I18NFragment(
     I18NContainer.enja(List(Text(en)), List(Text(ja)))
   )
+
+  def parseInclusion(p: String): I18NFragment =
+    Dox2Parser.parseI18NFragmentC(p).foldConclusion(c => I18NFragment.create(c.message))
+
+  def parseOptionInclusion(p: String): Option[I18NFragment] =
+    Dox2Parser.parseI18NFragmentOptionC(p).foldConclusion(c => Some(I18NFragment.create(c.message)))
 
   def getC(name: String, p: XNode): Consequence[Option[I18NFragment]] =
     for {

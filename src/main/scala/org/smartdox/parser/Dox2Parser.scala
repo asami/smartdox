@@ -47,7 +47,7 @@ import Dox._
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
- * @version Oct.  2, 2025
+ * @version Oct.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -165,23 +165,6 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     (xs1, meta)
   }
 
-  // private def _parse_head(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {
-  //   def _is_head(p: Section) = p.titleName.trim == "HEAD"
-
-  //   val a = VectorUtils.findMapSplit(ps) {
-  //     case m: Section if _is_head(m) => Some(m)
-  //     case _ => None
-  //   }
-  //   a match {
-  //     case Some((prologe, x, epilogue)) =>
-  //       val (xs, meta0) = _distill_meta(prologe)
-  //       val meta1 = _parse_head(x)
-  //       val meta = meta0 + meta1
-  //       (epilogue, meta)
-  //     case None => _distill_meta(ps)
-  //   }
-  // }
-
   private def _parse_head(p: Section): DocumentMetaData = {
     val (_, meta) = _distill_meta(p.contents.toVector)
     val a = for {
@@ -201,22 +184,32 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       case Vector() => (ps, None)
       case Vector(x, xs @ _*) =>
         _parse_properties(x) match {
-          case Some(s) => (xs.toVector, Some(s))
-          case None => (ps, None)
+          case Right(r) => r match {
+            case Some(s) => (xs.toVector, Some(s))
+            case None => (ps, None)
+          }
+          case Left(l) =>
+            val r = Paragraph(List(Text(l))) +: xs
+            (r.toVector, None)
         }
     }
 
-  private def _parse_properties(p: Dox): Option[Hocon] =
-    _get_text_data_in_simple_paragraph(p).flatMap { s =>
-      val in = InputSource(s)
-      ConfigLoader.loadConfigHocon(in).toOption
+  private def _parse_properties(p: Dox): Either[String, Option[Hocon]] =
+    _get_text_data_in_simple_paragraph(p) match {
+      case Some(s) =>
+        val in = InputSource(s)
+        ConfigLoader.loadConfigHocon(in).map(Some.apply).toEitherString
+      case None => Right(None)
     }
 
   private def _get_text_data_in_simple_paragraph(p: Dox): Option[String] = p match {
     case m: Paragraph => m.contents match {
       case Nil => None
       case x :: Nil => x match {
-        case _: Text => Some(m.toData)
+        case _: Text => m.toData match {
+          case m if (m.contains('=')) => Some(m)
+          case _ => None
+        }
         case _ => None
       }
       case _ => None
@@ -445,8 +438,30 @@ object Dox2Parser {
     }
   }
 
+  def parseI18NFragmentOptionC(in: String): Consequence[Option[I18NFragment]] =
+    Consequence {
+      if (in.isEmpty)
+        None
+      else
+        Some(parseI18NFragment(in))
+    }
+
+  def parseI18NFragmentOption(in: String): Option[I18NFragment] =
+    if (in.isEmpty)
+      None
+    else
+      Some(parseI18NFragment(in))
+
+  def parseI18NFragmentC(in: String): Consequence[I18NFragment] = Consequence {
+    parseI18NFragment(in)
+  }
+
   def parseI18NFragment(in: String): I18NFragment = {
     val config = Config.default
+    parseI18NFragment(config, in)
+  }
+
+  def parseI18NFragment(config: Config, in: String): I18NFragment = {
     if (config.isAutoI18n && in.contains(config.autoI18nDelimiter)) {
       val (en, ja) = _make_en_ja(config, in)
       I18NFragment.enja(en, ja)

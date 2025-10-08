@@ -2,6 +2,7 @@ package org.smartdox.parser
 
 import java.net.URI
 import org.goldenport.RAISE
+import org.goldenport.context.Consequence
 import org.goldenport.parser._
 import org.goldenport.io.MimeType
 import org.smartdox._
@@ -19,7 +20,7 @@ import org.smartdox._
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
- * @version Oct.  3, 2025
+ * @version Oct.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -520,10 +521,14 @@ object DoxInlineParser {
     protected final def leave_to_urn(urn: Seq[Inline]): DoxInlineParseState = {
       // XXX annotation, block, figure
       val uri = make_text(urn)
-      if (config.isImageFile(uri))
-        leave_to(ReferenceImg(uri))
-      else
-        leave_to(Hyperlink(urn, uri))
+      Consequence(new URI(uri)) match {
+        case Consequence.Success(x, _) =>
+          if (config.isImageFile(uri))
+            leave_to(ReferenceImg(uri))
+          else
+            leave_to(Hyperlink(urn, x))
+        case m: Consequence.Error[_] => leave_to(Text(m.message))
+      }
     }
 
     protected final def leave_to_urn(urn: Seq[Inline], label: Seq[Inline]): DoxInlineParseState = {

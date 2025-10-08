@@ -35,8 +35,9 @@ import org.smartdox.util.DoxUtils
  *  version May. 24, 2025
  *  version Jun. 16, 2025
  *  version Jul. 29, 2025
-orgmode *  version Aug.  9, 2025
-orgmode * @version Sep.  9, 2025
+ *  version Aug.  9, 2025
+ *  version Sep.  9, 2025
+ * @version Oct.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -458,6 +459,7 @@ object DoxLinesParser {
       //   p.location
       // )
     }
+
     case class Include(
       target: String,
       attrs: Map[String, String] = Map.empty,
@@ -467,153 +469,25 @@ object DoxLinesParser {
     }
     object Include {
       def create(p: URI): Include = Include(p.toString)
+    }
 
-    //   case class Parameters(
-    //     leveloffset: Option[Int],
-    //     lines: Option[NumberRange],
-    //     tag: Option[String],
-    //     tags: Option[NonEmptyVector[String]],
-    //     indent: Option[String],
-    //     encoding: Option[String],
-    //     options: Option[NonEmptyVector[Opt]],
-    //     substitutes: Option[NonEmptyVector[Sub]]
-    //   )
-    //   object Parameters {
-    //     def parse(attrs: Map[String, String]): Consequence[Parameters] = {
-    //       for {
-    //         leveloffset <- _parse_int(attrs.get("lineoffset"))
-    //         lines <- _parse_range(attrs.get("lines"))
-    //         tag <- _parse_string(attrs.get("tag"))
-    //         tags <- _parse_string_list(attrs.get("tags"))
-    //         indent <- _parse_string(attrs.get("indent"))
-    //         encoding <- _parse_string(attrs.get("encoding"))
-    //         options <- _parse_options(attrs.get("opts"))
-    //         substitutes <- _parse_substitutes(attrs.get("subs"))
-    //       } yield Parameters(
-    //         leveloffset,
-    //         lines,
-    //         tag,
-    //         tags,
-    //         indent,
-    //         encoding,
-    //         options,
-    //         substitutes
-    //       )
-    //     }
+    case class Link(
+      target: String,
+      label: Option[I18NFragment] = None,
+      attrs: Map[String, String] = Map.empty,
+      location: Option[ParseLocation] = None
+    ) extends BlockMacro {
+    }
+    object Link {
+      def create(p: URI): Link = Link(p.toString)
+    }
 
-    //     private def _parse_int(p: Option[String]): Consequence[Option[Int]] =
-    //       p match {
-    //         case Some(s) => NumberUtils.consequenceInt(s).map(Some(_))
-    //         case None => Consequence.none[Option[Int]]
-    //       }
-
-    //     private def _parse_string(p: Option[String]): Consequence[Option[String]] =
-    //       p match {
-    //         case Some(s) => Consequence.success(Some(s))
-    //         case None => Consequence.none[Option[String]]
-    //       }
-
-    //     private def _parse_string_list(p: Option[String]): Consequence[Option[NonEmptyVector[String]]] =
-    //       p match {
-    //         case Some(s) => Consequence(StringUtils.makeOptionNonEmptyVectorToken(s))
-    //         case None => Consequence.none[Option[NonEmptyVector[String]]]
-    //       }
-
-    //     private def _parse_range(p: Option[String]): Consequence[Option[NumberRange]] =
-    //       Consequence.runOptionMap(p)(NumberRange.parseC)
-
-    //     private def _parse_options(p: Option[String]): Consequence[Option[NonEmptyVector[Opt]]] =
-    //       Consequence.runOptionMap(p)(Opt.parseNonEmptyVector(_, "+"))
-
-    //     private def _parse_substitutes(p: Option[String]): Consequence[Option[NonEmptyVector[Sub]]] =
-    //       Consequence.runOptionMap(p)(Sub.parseNonEmptyVector(_, "+"))
-    //   }
-
-    //   sealed trait Opt extends NamedValueInstance
-    //   object Opt extends EnumerationClass[Opt] {
-    //     val elements = Vector(
-    //       Optional,
-    //       Inline,
-    //       Default,
-    //       Nowrap,
-    //       Noheader,
-    //       Header,
-    //       Unbreakable,
-    //       Autowidth,
-    //       Breakable
-    //     )
-
-    //     case object Optional extends Opt {
-    //       val name = "optional"
-    //     }
-    //     case object Inline extends Opt {
-    //       val name = "inline"
-    //     }
-    //     case object Default extends Opt {
-    //       val name = "default"
-    //     }
-    //     case object Nowrap extends Opt {
-    //       val name = "nowrap"
-    //     }
-    //     case object Noheader extends Opt {
-    //       val name = "noheader"
-    //     }
-    //     case object Header extends Opt {
-    //       val name = "header"
-    //     }
-    //     case object Unbreakable extends Opt {
-    //       val name = "unbreakable"
-    //     }
-    //     case object Autowidth extends Opt {
-    //       val name = "autowidth"
-    //     }
-    //     case object Breakable extends Opt {
-    //       val name = "breakable"
-    //     }
-    //   }
-
-    //   sealed trait Sub extends NamedValueInstance
-    //   object Sub extends EnumerationClass[Sub] {
-    //     val elements = Vector(
-    //       Attributes,
-    //       Macros,
-    //       Quotes,
-    //       Replacements,
-    //       Specialcharacters,
-    //       Callouts,
-    //       Normal,
-    //       Verbatim,
-    //       NoneSub
-    //     )
-
-    //     case object Attributes extends Sub {
-    //       val name = "attributes"
-    //     }
-    //     case object Macros extends Sub {
-    //       val name = "macos"
-    //     }
-    //     case object Quotes extends Sub {
-    //       val name = "quotes"
-    //     }
-    //     case object Replacements extends Sub {
-    //       val name = "replacements"
-    //     }
-    //     case object Specialcharacters extends Sub {
-    //       val name = "specialcharacters"
-    //     }
-    //     case object Callouts extends Sub {
-    //       val name = "callouts"
-    //     }
-    //     case object Normal extends Sub {
-    //       val name = "normal"
-    //     }
-    //     case object Verbatim extends Sub {
-    //       val name = "verbatim"
-    //     }
-    //     case object NoneSub extends Sub {
-    //       val name = "none"
-    //     }
-    //   }
+    case class XRef(
+      target: String,
+      label: Option[I18NFragment] = None,
+      attrs: Map[String, String] = Map.empty,
+      location: Option[ParseLocation] = None
+    ) extends BlockMacro {
     }
 
     private val _block_macro_regex = """(?x)  # Enable verbose mode
@@ -642,7 +516,7 @@ object DoxLinesParser {
     private def _get(config: Config, p: LogicalLine): Option[BlockMacro] =
       p.text match {
         case _block_macro_regex(name, target, attrstr) =>
-          val attrs = _parse_attributes(attrstr)
+          val (labelopt, attrs) = _parse_label_and_attrs(attrstr)
           def _broken_(): BlockMacro = BlockMacro.Broken(name, target, attrs, p.location)
           val r = name match {
             case "include" =>
@@ -650,11 +524,26 @@ object DoxLinesParser {
               params.toOption.fold(_broken_) { x =>
                 BlockMacro.Include(target, attrs, x, p.location)
               }
+            case "link" => BlockMacro.Link(target, labelopt, attrs, p.location)
+            case "xref" => BlockMacro.XRef(target, labelopt, attrs, p.location)
             case _ => _broken_
           }
           Some(r)
         case _ => None
       }
+
+    private def _parse_label_and_attrs(attrString: String): (Option[I18NFragment], Map[String, String]) = {
+      val commaIndex = attrString.indexOf(',')
+      if (commaIndex < 0) {
+        if (attrString.contains("=")) (None, _parse_attributes(attrString))
+        else (I18NFragment.parseOptionInclusion(attrString.trim), Map.empty)
+      } else {
+        val label = attrString.substring(0, commaIndex).trim
+        val attrsPart = attrString.substring(commaIndex + 1)
+        val attrs = _parse_attributes(attrsPart)
+        (I18NFragment.parseOptionInclusion(label), attrs)
+      }
+    }
 
     private def _parse_attributes(attrString: String): Map[String, String] =
       _attr_regex.findAllMatchIn(attrString).map { m =>
@@ -913,6 +802,8 @@ object DoxLinesParser {
       BlockMacro.get(config, evt).map { x =>
         val r = x match {
           case m: BlockMacro.Include => _include(m)
+          case m: BlockMacro.Link => _link(m)
+          case m: BlockMacro.XRef => _xref(m)
           case m: BlockMacro.Broken => _broken(m)
         }
         transit_next(copy(lines = lines ++ r))
@@ -920,6 +811,16 @@ object DoxLinesParser {
 
     private def _include(p: BlockMacro.Include): Vector[Dox] =
       Vector(org.smartdox.Include(p))
+
+    private def _link(p: BlockMacro.Link): Vector[Dox] = {
+      val label = p.attrs.get("label").orElse(p.attrs.get("text")).getOrElse(p.target)
+      Vector(Hyperlink.create(label, p.target))
+    }
+
+    private def _xref(p: BlockMacro.XRef): Vector[Dox] = {
+      val label = p.label.getOrElse(I18NFragment.create(p.target))
+      Vector(Hyperlink.create(label, p.target))
+    }
 
     private def _broken(p: BlockMacro.Broken): Vector[Dox] =
       RAISE.notImplementedYetDefect
