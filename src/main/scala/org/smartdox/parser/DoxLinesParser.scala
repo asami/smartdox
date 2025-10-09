@@ -37,7 +37,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug.  9, 2025
  *  version Sep.  9, 2025
- * @version Oct.  8, 2025
+ * @version Oct.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -272,6 +272,8 @@ object DoxLinesParser {
       // println(s"${getClass.getSimpleName}($tagName): ${p.text} => $r")
       r
     }
+
+    def getKind = None // TODO
   }
   object VerbatimAnnotationMark {
     val elements = Vector(

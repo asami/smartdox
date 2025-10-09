@@ -28,7 +28,7 @@ import org.goldenport.util.CirceUtils
 import org.goldenport.util.ListUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
-import org.smartdox.generator._
+import org.smartdox.generator.{Context => GeneratorContext, _}
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page, MetaDataNode}
 import org.smartdox.doxsite.ImageNode
@@ -44,11 +44,12 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version May. 23, 2025
  *  version Jun. 29, 2025
  *  version Jul. 27, 2025
- * @version Aug. 17, 2025
+ *  version Aug. 17, 2025
+ * @version Oct.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
-  val context: Context,
+  val context: GeneratorContext,
   val config: DoxSite.Config
 ) extends GeneratorBase {
   import AntoraGenerator._
@@ -61,13 +62,28 @@ class AntoraGenerator(
     site.traverse(builder)
     val antora = builder.build()
     // record_message("YYY")
-    val out = antora.toRealm(context)
+    val actx = Context(context, config)
+    val out = antora.toRealm(actx)
     val r = Realm.create() // .withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)
   }
 }
 
 object AntoraGenerator {
+  case class Context(
+    context: GeneratorContext,
+    config: DoxSite.Config
+  ) {
+    def targetI18NContext = context.targetI18NContext
+    def targetI18NContextOption = context.targetI18NContextOption
+    def realmContext = context.realmContext
+    def doxContext = context.doxContext
+    def isDiagramGeneration(p: Page): Boolean = config.strategy.isDiagramGeneration(p)
+
+    def withTargetI18NContext(locale: Locale) =
+      copy(context = context.withTargetI18NContext(locale))
+  }
+
   case class Antora(
     playbook: Antora.Playbook,
     components: List[Antora.Component]
@@ -147,6 +163,7 @@ object AntoraGenerator {
     import io.circe.Encoder
     import io.circe.Json
     import io.circe.syntax._
+    import io.circe.generic.semiauto._
     import cats.syntax.either._
     import CirceUtils.Codec._
 
@@ -220,7 +237,7 @@ object AntoraGenerator {
 //          redirects <- c.downField("redirects").as[Playbook.Redirects]
           ui <- c.downField("ui").as[Playbook.Ui]
           output <- c.downField("output").as[Playbook.Output]
-        } yield Playbook(site, content, ui, output)
+        } yield Playbook(site, content, ui, output, Playbook.Asciidoc())
     }
 
     implicit val siteEncoder: Encoder[Playbook.Site] = new Encoder[Playbook.Site] {
@@ -275,13 +292,16 @@ object AntoraGenerator {
         )
     }
 
+    implicit val asciidocEncoder: Encoder[Playbook.Asciidoc] = deriveEncoder
+
     implicit val playbookEncoder: Encoder[Playbook] = new Encoder[Playbook] {
       def apply(p: Playbook): Json = Json.obj(
         "site" -> p.site.asJson,
         "content" -> p.content.asJson,
 //        "redirects" -> p.redirects.asJson,
         "ui" -> p.ui.asJson,
-        "output" -> p.output.asJson
+        "output" -> p.output.asJson,
+        "asciidoc" -> p.asciidoc.asJson
       )
     }
 
@@ -292,7 +312,8 @@ object AntoraGenerator {
       content: Playbook.Content,
 //      redirects: Playbook.Redirects,
       ui: Playbook.Ui,
-      output: Playbook.Output
+      output: Playbook.Output,
+      asciidoc: Playbook.Asciidoc
     ) {
       def serialize(): String = CirceUtils.toYamlString(this.asJson)
     }
@@ -340,6 +361,15 @@ object AntoraGenerator {
       object Output {
         val default = Output(Paths.get("./build/site"))
       }
+
+      case class Asciidoc(
+        extensions: List[String] = List("asciidoctor-kroki"),
+        attributes: Map[String, String] = Map(
+          "kroki-server-url" -> "https://kroki.io",
+          "kroki-default-format" -> "svg",
+          "kroki-fetch-diagram" -> "true"
+        )
+      )
     }
 
     case class Component(
@@ -359,8 +389,9 @@ object AntoraGenerator {
         c: Realm.Cursor
       )(implicit context: Context): Unit = ExportFunction(context).apply(c)
 
-      case class ExportFunction(context: Context)
-          extends Function1[Realm.Cursor, Unit] with Context.Holder {
+      case class ExportFunction(
+        context: Context
+      ) extends Function1[Realm.Cursor, Unit] {
 
         private def _newline = "\n"
         private def _locale = context.targetI18NContextOption.map(_.locale) getOrElse LocaleUtils.C
@@ -392,13 +423,15 @@ object AntoraGenerator {
 
         private def _export_pages(c: Realm.Cursor, p: Module.Ingredient.Pages) = {
           val tf = new RealmMaker.Transformer[Page] {
-            def treeTransformerContext = context_realm
+            def treeTransformerContext = context.realmContext
 
             override protected def make_Node(
               node: TreeNode[Page],
               content: Page
             ): TreeTransformer.Directive[Realm.Data] = {
-              val da = new Dox2AsciidocConverter(context)
+              val isdiagram = context.isDiagramGeneration(content)
+              val ctx = Dox2AsciidocConverter.Context(context, isdiagram)
+              val da = new Dox2AsciidocConverter(ctx)
               val r = da.convert(content.dox)
               val s = r.fold(_.message, identity)
               val name = StringUtils.changeSuffix(node.name, "adoc")
@@ -411,7 +444,7 @@ object AntoraGenerator {
 
         private def _export_images(c: Realm.Cursor, p: Module.Ingredient.Images) = {
           val tf = new RealmMaker.Transformer[ImageNode] {
-            def treeTransformerContext = context_realm
+            def treeTransformerContext = context.realmContext
 
             override protected def make_Node(
               node: TreeNode[ImageNode],
@@ -718,7 +751,7 @@ object AntoraGenerator {
 //        val redirects = Playbook.Redirects(false)
         val ui = Playbook.Ui.default
         val output = Playbook.Output.default
-        Playbook(site, content, ui, output)
+        Playbook(site, content, ui, output, Playbook.Asciidoc())
       }
 
       private def _sources(comps: List[Component]): List[Playbook.Content.Source] = {

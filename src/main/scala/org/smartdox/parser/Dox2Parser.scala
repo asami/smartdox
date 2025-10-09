@@ -47,7 +47,7 @@ import Dox._
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
- * @version Oct.  8, 2025
+ * @version Oct.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -252,8 +252,9 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   }
 
   private def _program(p: LogicalVerbatim) = {
+    val kind = p.getKind
     val cs = p.lines.text
-    val attrs = VectorMap.empty[String, String]
+    val attrs: Map[String, String] = VectorMap.create("kind" -> kind)
     Program.create(cs, attrs, p.location)
   }
 

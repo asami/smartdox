@@ -61,7 +61,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
- * @version Oct.  3, 2025
+ * @version Oct.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -393,6 +393,7 @@ object DoxSite {
     def isGlossaryInDocument: Boolean = false
     def isLinkEnable: Boolean = true
     def isLinkEnable(p: Page): Boolean = documentStrategy(p).isLinkEnable
+    def isDiagramGeneration(p: Page): Boolean = documentStrategy(p).isDiagramGeneration
     def isActive(p: Dox): Boolean =
       documentStrategy(p).isActive
     def documentStrategy(p: Page): DocumentStrategy =
@@ -508,6 +509,7 @@ object DoxSite {
     def isNotice: Boolean = true
     def isGlossary: Boolean = true
     def isLinkEnable: Boolean = true
+    def isDiagramGeneration: Boolean = true
 //    def targetStatus: List[DocumentMetaData.Status]
   }
   object DocumentStrategy extends EnumerationClass[DocumentStrategy] {
@@ -537,6 +539,7 @@ object DoxSite {
       override def isAutoWire: Boolean = false
       override def isGlossary: Boolean = false
       override def isLinkEnable: Boolean = false
+      override def isDiagramGeneration: Boolean = false
 //      def targetStatus = List(Status.Draft, Status.WorkInProgress)
     }
 
@@ -548,6 +551,7 @@ object DoxSite {
       override def isNotice: Boolean = false
       override def isGlossary: Boolean = false
       override def isLinkEnable: Boolean = false
+      override def isDiagramGeneration: Boolean = false
     }
 
     case object Test extends DocumentStrategy {

@@ -6,7 +6,7 @@ import org.goldenport.RAISE
 import org.goldenport.tree._
 import org.goldenport.util.ListUtils
 import org.smartdox._
-import org.smartdox.generator.Context
+import org.smartdox.generators.AntoraGenerator
 import org.smartdox.converter._
 
 /*
@@ -16,11 +16,11 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct.  5, 2025
+ * @version Oct.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
-  val context: Context
+  val context: Dox2AsciidocConverter.Context,
 ) extends Dox2TextDocConverter {
   import Dox2AsciidocConverter._
 
@@ -39,6 +39,8 @@ class Dox2AsciidocConverter(
   protected def code_open = "`"
   protected def code_close = "`"
   protected def target_locale = context.targetI18NContext.locale
+
+  private def _is_diagram_generation: Boolean = context.isDiagramGeneration
 
   override protected def is_space_required_in_stay(p: Dox): Boolean = p match {
     case _: Code => true
@@ -165,7 +167,7 @@ class Dox2AsciidocConverter(
   override protected def enter_Program(p: Program): Unit = {
     val caption = p.caption
     val kind = p.kind getOrElse "text"
-    val directive = s"[source,$kind]"
+    val directive = _directive(kind)
     caption.foreach { x =>
       sb_print(".")
       sb_println(x)
@@ -173,6 +175,18 @@ class Dox2AsciidocConverter(
     sb_println(directive)
     sb_println("----")
   }
+
+  private def _directive(kind: String): String =
+    if (_is_diagram_generation) {
+      kind match {
+        case m if (use_kroki(kind)) => s"[$kind,svg]"
+        case _ => s"[source,$kind]"
+      }
+    } else {
+      s"[source,text]"
+    }
+
+  protected def use_kroki(kind: String): Boolean = KrokiSource.contains(kind)
 
   override protected def leave_Program(p: Program): Unit = {
     sb_println("----")
@@ -207,4 +221,12 @@ class Dox2AsciidocConverter(
 }
 
 object Dox2AsciidocConverter {
+  val KrokiSource = Vector("plantuml")
+
+  case class Context(
+    context: AntoraGenerator.Context,
+    isDiagramGeneration: Boolean
+  ) {
+    def targetI18NContext = context.targetI18NContext
+  }
 }
