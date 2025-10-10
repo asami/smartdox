@@ -20,7 +20,7 @@ import org.smartdox._
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
- * @version Oct.  8, 2025
+ * @version Oct. 10, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -407,7 +407,7 @@ object DoxInlineParser {
       backquote_State(evt.c)
 
     protected def backquote_State(c: Char): DoxInlineParseState =
-      InlineState(CodeState(config, this), '`')
+      RawState(CodeState(config, this), '`')
 
     protected final def handle_tilde(evt: CharEvent): Transition =
       handle_Tilde(evt)
@@ -443,7 +443,7 @@ object DoxInlineParser {
       equal_State(evt.c)
 
     protected def equal_State(c: Char): DoxInlineParseState =
-      InlineState(CodeState(config, this), '=')
+      RawState(CodeState(config, this), '=')
 
     protected final def handle_plus(evt: CharEvent): Transition =
       handle_Plus(evt)
@@ -813,6 +813,31 @@ object DoxInlineParser {
     //   closeChar1: Char,
     //   closeChar2: Char
     // ): DoxInlineParseState = SkipOneState(InlineState(parent, closeChar1, closeChar2), closeChar2)
+  }
+
+  case class RawState(
+    config: Config,
+    parent: DoxInlineParseState,
+    closeChar1: Char,
+    closeChar2: Option[Char] = None,
+    cs: Vector[Char] = Vector.empty
+  ) extends ChildDoxInlineParseState with RawFeature {
+    private def _is_close(evt: CharEvent) =
+      evt.c == closeChar1 && closeChar2.fold(true) { c =>
+        evt.next.fold(true)(_ == c)
+      }
+
+    override protected def character_State(evt: CharEvent): DoxInlineParseState =
+      if (_is_close(evt))
+        leave_inline_to(List(Text(cs.mkString)))
+      else
+        copy(cs = cs :+ evt.c)
+  }
+  object RawState {
+    def apply(
+      parent: DoxInlineParseState,
+      closeChar: Char
+    ): RawState = RawState(parent.config, parent, closeChar)
   }
 
   case class XmlState(
