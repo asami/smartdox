@@ -17,7 +17,8 @@ import org.smartdox.service
  *  version Apr. 30, 2025
  *  version May.  2, 2025
  *  version Jun.  7, 2025
- * @version Jul. 27, 2025
+ *  version Jul. 27, 2025
+ * @version Oct. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Context(
@@ -45,6 +46,8 @@ case class Context(
 
   object log {
     def error(msg: String) = observabilityContext.log.error(msg)
+    def info(msg: String) = observabilityContext.log.info(msg)
+    def debug(msg: String) = observabilityContext.log.debug(msg)
   }
 }
 

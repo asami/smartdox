@@ -2,11 +2,13 @@ package org.smartdox.converters
 
 import scalaz._, Scalaz._
 import java.net.URI
+import java.io.File
 import org.goldenport.RAISE
 import org.goldenport.tree._
 import org.goldenport.util.ListUtils
 import org.smartdox._
 import org.smartdox.generators.AntoraGenerator
+import org.smartdox.generators.KrokiGenerator
 import org.smartdox.converter._
 
 /*
@@ -16,7 +18,7 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct.  9, 2025
+ * @version Oct. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -41,6 +43,12 @@ class Dox2AsciidocConverter(
   protected def target_locale = context.targetI18NContext.locale
 
   private def _is_diagram_generation: Boolean = context.isDiagramGeneration
+
+  private lazy val _kroki_generator = KrokiGenerator(
+    context.context.context,
+    new File("kroki-cache.d"),
+    false
+  )
 
   override protected def is_space_required_in_stay(p: Dox): Boolean = p match {
     case _: Code => true
@@ -164,10 +172,18 @@ class Dox2AsciidocConverter(
     }
   }
 
-  override protected def enter_Program(p: Program): Unit = {
+  override protected def enter_program(node: TreeNode[Dox], p: Program): Unit =
+    p.kind match {
+      case Some(s) if _is_diagram_generation && use_kroki(s) =>
+        done_traverse(node)
+        _embed_diagram(s, p)
+      case _ => _enter_program(p)
+    }
+
+  private def _enter_program(p: Program): Unit = {
     val caption = p.caption
     val kind = p.kind getOrElse "text"
-    val directive = _directive(kind)
+    val directive = s"[source,$kind]" // _directive(kind)
     caption.foreach { x =>
       sb_print(".")
       sb_println(x)
@@ -176,17 +192,56 @@ class Dox2AsciidocConverter(
     sb_println("----")
   }
 
-  private def _directive(kind: String): String =
-    if (_is_diagram_generation) {
-      kind match {
-        case m if (use_kroki(kind)) => s"[$kind,svg]"
-        case _ => s"[source,$kind]"
-      }
-    } else {
-      s"[source,text]"
-    }
+  // private def _directive(kind: String): String =
+  //   if (_is_diagram_generation) {
+  //     kind match {
+  //       case m if (use_kroki(kind)) => s"[$kind,svg]"
+  //       case _ => s"[source,$kind]"
+  //     }
+  //   } else {
+  //     s"[source,text]"
+  //   }
 
   protected def use_kroki(kind: String): Boolean = KrokiSource.contains(kind)
+
+  /**
+   * Embeds a Kroki diagram as inline SVG HTML.
+   *
+   * This version uses KrokiGenerator.generateSvgString to obtain the SVG
+   * directly and embeds it into the AsciiDoc output. This avoids
+   * filesystem path dependency and works inside Antora without asset copying.
+   */
+  private def _embed_diagram(kind: String, p: Program): Unit = {
+    val caption = p.caption
+    val source = p.contents
+
+    try {
+      // Generate SVG string from Kroki
+      val svg = _kroki_generator.generateSvgString(kind, source).take
+
+      // Print embedded HTML block
+      sb_println("++++")
+      sb_println("<div class=\"diagram\" role=\"diagram\">")
+      caption.foreach { x =>
+        sb_println(s"""<div class="diagram-caption">${x}</div>""")
+      }
+      sb_println(svg.trim)
+      sb_println("</div>")
+      sb_println("++++")
+      sb_println()
+
+    } catch {
+      case e: Throwable =>
+        context.context.context.log.error(s"Kroki embedding failed: ${e.getMessage}")
+        // Fallback to text source
+        caption.foreach(x => sb_println("." + x))
+        sb_println(s"[source,$kind]")
+        sb_println("----")
+        sb_print(p.contents)
+        sb_println("----")
+        sb_println()
+    }
+  }
 
   override protected def leave_Program(p: Program): Unit = {
     sb_println("----")

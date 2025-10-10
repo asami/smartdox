@@ -45,7 +45,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Jun. 29, 2025
  *  version Jul. 27, 2025
  *  version Aug. 17, 2025
- * @version Oct.  9, 2025
+ * @version Oct. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -120,8 +120,10 @@ object AntoraGenerator {
     private def _build_locale(
       implicit context: Context
     ) = {
+      val locale = context.targetI18NContext.locale
+      val pb = playbook.withAntoraCacheDir(s"../../antora-cache.d/${locale}").withKrokiCacheDir(s"../../kroki-cache.d")
       val realm = Realm.create()
-      realm.setContent("antora-playbook.yml", playbook.serialize())
+      realm.setContent("antora-playbook.yml", pb.serialize())
       realm.setNode("docs")
       val xs = components.map(_.canonize(context))
       val cursor = realm.takeCursor("docs")
@@ -131,31 +133,31 @@ object AntoraGenerator {
       realm.withGitInitAndCommit("docs")
     }
 
-    private def _build_en(
-      implicit context: Context
-    ) = {
-      val realm = Realm.create()
-      realm.setContent("antora-playbook.yml", playbook.serialize())
-      realm.setNode("docs")
-      val cursor = realm.takeCursor("docs")
-      for (c <- components) {
-        c.export(cursor)
-      }
-      realm.withGitInitAndCommit("docs")
-    }
+    // private def _build_en(
+    //   implicit context: Context
+    // ) = {
+    //   val realm = Realm.create()
+    //   realm.setContent("antora-playbook.yml", playbook.serialize())
+    //   realm.setNode("docs")
+    //   val cursor = realm.takeCursor("docs")
+    //   for (c <- components) {
+    //     c.export(cursor)
+    //   }
+    //   realm.withGitInitAndCommit("docs")
+    // }
 
-    private def _build_ja(
-      implicit context: Context
-    ) = {
-      val realm = Realm.create()
-      realm.setContent("antora-playbook.yml", playbook.serialize())
-      realm.setNode("docs")
-      val cursor = realm.takeCursor("docs")
-      for (c <- components) {
-        c.export(cursor)
-      }
-      realm.withGitInitAndCommit("docs")
-    }
+    // private def _build_ja(
+    //   implicit context: Context
+    // ) = {
+    //   val realm = Realm.create()
+    //   realm.setContent("antora-playbook.yml", playbook.serialize())
+    //   realm.setNode("docs")
+    //   val cursor = realm.takeCursor("docs")
+    //   for (c <- components) {
+    //     c.export(cursor)
+    //   }
+    //   realm.withGitInitAndCommit("docs")
+    // }
   }
   object Antora {
     import io.circe.Decoder
@@ -229,6 +231,10 @@ object AntoraGenerator {
         } yield Playbook.Output(Paths.get(dir))
     }
 
+    implicit val asciidocDecoder: Decoder[Playbook.Asciidoc] = deriveDecoder[Playbook.Asciidoc]
+
+    implicit val runtimeDecoder: Decoder[Playbook.Runtime] = deriveDecoder[Playbook.Runtime]
+
     implicit val playbookDecoder: Decoder[Playbook] = new Decoder[Playbook] {
       def apply(c: HCursor): Decoder.Result[Playbook] =
         for {
@@ -237,7 +243,9 @@ object AntoraGenerator {
 //          redirects <- c.downField("redirects").as[Playbook.Redirects]
           ui <- c.downField("ui").as[Playbook.Ui]
           output <- c.downField("output").as[Playbook.Output]
-        } yield Playbook(site, content, ui, output, Playbook.Asciidoc())
+          asciidoc <- c.downField("asciidoc").as[Playbook.Asciidoc]
+          runtime <- c.downField("runtime").as[Option[Playbook.Runtime]]
+        } yield Playbook(site, content, ui, output, asciidoc, runtime)
     }
 
     implicit val siteEncoder: Encoder[Playbook.Site] = new Encoder[Playbook.Site] {
@@ -294,6 +302,8 @@ object AntoraGenerator {
 
     implicit val asciidocEncoder: Encoder[Playbook.Asciidoc] = deriveEncoder
 
+    implicit val runtimeEncoder: Encoder[Playbook.Runtime] = deriveEncoder
+
     implicit val playbookEncoder: Encoder[Playbook] = new Encoder[Playbook] {
       def apply(p: Playbook): Json = Json.obj(
         "site" -> p.site.asJson,
@@ -301,7 +311,8 @@ object AntoraGenerator {
 //        "redirects" -> p.redirects.asJson,
         "ui" -> p.ui.asJson,
         "output" -> p.output.asJson,
-        "asciidoc" -> p.asciidoc.asJson
+        "asciidoc" -> p.asciidoc.asJson,
+        "runtime" -> p.runtime.asJson
       )
     }
 
@@ -313,8 +324,20 @@ object AntoraGenerator {
 //      redirects: Playbook.Redirects,
       ui: Playbook.Ui,
       output: Playbook.Output,
-      asciidoc: Playbook.Asciidoc
+      asciidoc: Playbook.Asciidoc,
+      runtime: Option[Playbook.Runtime]
     ) {
+      def withAntoraCacheDir(p: String): Playbook = {
+        val a = runtime match {
+          case Some(s) => s.withCacheDir(p)
+          case None => Playbook.Runtime(Some(p))
+        }
+        copy(runtime = Some(a))
+      }
+
+      def withKrokiCacheDir(p: String): Playbook =
+        copy(asciidoc = asciidoc.withKrokiCacheDir(p))
+
       def serialize(): String = CirceUtils.toYamlString(this.asJson)
     }
     object Playbook {
@@ -369,7 +392,16 @@ object AntoraGenerator {
           "kroki-default-format" -> "svg",
           "kroki-fetch-diagram" -> "true"
         )
-      )
+      ) {
+        def withKrokiCacheDir(p: String): Asciidoc =
+          copy(attributes = attributes + ("kroki-fetch-diagram-dir" -> p))
+      }
+
+      case class Runtime(
+        cache_dir: Option[String]
+      ) {
+        def withCacheDir(p: String) = copy(cache_dir = Some(p))
+      }
     }
 
     case class Component(
@@ -751,7 +783,7 @@ object AntoraGenerator {
 //        val redirects = Playbook.Redirects(false)
         val ui = Playbook.Ui.default
         val output = Playbook.Output.default
-        Playbook(site, content, ui, output, Playbook.Asciidoc())
+        Playbook(site, content, ui, output, Playbook.Asciidoc(), None)
       }
 
       private def _sources(comps: List[Component]): List[Playbook.Content.Source] = {
