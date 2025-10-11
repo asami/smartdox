@@ -43,7 +43,7 @@ import org.smartdox.parser.PureParser
  *  version Jul. 27, 2025
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
- * @version Oct.  7, 2025
+ * @version Oct. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -350,8 +350,8 @@ object DocumentMetaData {
       exp <- Explanation.parse(hocon)
       auth <- hocon.cStringOption(PROP_AUTHOR)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
-      published <- hocon.cLocalDateOrDateTimeOption(PROP_PUBLISHED_AT)
-      modified <- hocon.cLocalDateOrDateTimeOption(PROP_MODIFIED_AT)
+      published <- _get_localdateordatetime(hocon, PROP_PUBLISHED_AT)
+      modified <- _get_localdateordatetime(hocon, PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
       strategy <- hocon.cValueList(Strategy, PROP_STRATEGY)
@@ -372,6 +372,12 @@ object DocumentMetaData {
         Some(hocon)
       )
     }
+
+  private def _get_localdateordatetime(
+    hocon: Hocon,
+    key: String
+  )(implicit ctx: DateTimeContext): Consequence[Option[LocalDateOrDateTime]] =
+    Consequence(hocon.cLocalDateOrDateTimeOption(key).toOption.flatten)
 
   def create(title: Inline): DocumentMetaData =
     DocumentMetaData(Some(I18NFragment.create(List(title))))
@@ -434,7 +440,7 @@ object DocumentMetaData {
     XmlUtils.getUriC(p, name)
 
   private def _get_localdateordatetime(p: XNode, name: String)(implicit ctx: DateTimeContext): Consequence[Option[LocalDateOrDateTime]] =
-    XmlUtils.getLocalDateOrDateTimeC(p, name)
+    Consequence(XmlUtils.getLocalDateOrDateTimeC(p, name).toOption.flatten)
 
   private def _get_i18nfragment(p: XNode, name: String): Consequence[Option[I18NFragment]] =
     I18NFragment.getC(name, p)

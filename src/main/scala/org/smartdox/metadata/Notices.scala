@@ -29,7 +29,8 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Jun. 26, 2025
  *  version Jul. 26, 2025
  *  version Aug. 16, 2025
- * @version Sep. 22, 2025
+ *  version Sep. 22, 2025
+ * @version Oct. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -218,12 +219,15 @@ object Notices {
       withDefaults.withSnakeCaseMemberNames
 
     def noticeEncoderRaw(implicit ctx: I18NContext): Encoder.AsObject[Notice] = Encoder.AsObject.instance { n =>
+      val effectivebrief = n.brief getOrElse n.summary
       io.circe.JsonObject.fromMap(
         Map(
           "title" -> n.title.distill(ctx).asJson,
           "title_image" -> n.titleImage.asJson,
           "category" -> n.category.asJson(Encoder.encodeOption(Category.categoryEncoderWithLocale(ctx.locale))),
           "uri" -> n.uri.asJson,
+          "brief" -> effectivebrief.distill(ctx).asJson,
+          "summary" -> n.summary.distill(ctx).asJson,
           "description" -> n.description.distill(ctx).asJson,
           "keywords" -> n.keywords.asJson,
           "published" -> n.published.asJson(Encoder.encodeOption(localdateFormatEncoder)),
