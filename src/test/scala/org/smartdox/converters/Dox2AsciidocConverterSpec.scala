@@ -15,17 +15,24 @@ import org.goldenport.realm.Realm
 import org.smartdox.parser.UseDox2Parser
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.generator._
+import org.smartdox.generators.AntoraGenerator
 
 /*
  * @since   Jun. 20, 2025
  *  version Jul.  1, 2025
  *  version Aug. 16, 2025
- * @version Oct.  5, 2025
+ * @version Oct. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class Dox2AsciidocConverterSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser with ConsequenceMatchers {
-  val context = Context.create()
+  val context = Dox2AsciidocConverter.Context(
+    AntoraGenerator.Context(
+      Context.create(),
+      DoxSite.Config.default
+    ),
+    true
+  )
 
   protected def make_asciidoc(s: String): Consequence[String] = {
     val c = new Dox2AsciidocConverter(context)
