@@ -37,7 +37,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug.  9, 2025
  *  version Sep.  9, 2025
- * @version Oct.  9, 2025
+ * @version Oct. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -71,8 +71,11 @@ object DoxLinesParser {
   case class Config(
     isDebug: Boolean = false,
     isLocation: Boolean = true,
+    isComplementParagraph: Boolean = true,
     inlineConfig: DoxInlineParser.Config = DoxInlineParser.Config.default
   ) extends ParseConfig {
+    def withoutComplementParagraph() = copy(isComplementParagraph = false)
+    def withInlineConfig(p: DoxInlineParser.Config) = copy(inlineConfig = p)
   }
   object Config {
     val default = Config()
@@ -272,8 +275,6 @@ object DoxLinesParser {
       // println(s"${getClass.getSimpleName}($tagName): ${p.text} => $r")
       r
     }
-
-    def getKind = None // TODO
   }
   object VerbatimAnnotationMark {
     val elements = Vector(
@@ -314,6 +315,7 @@ object DoxLinesParser {
     location: Option[ParseLocation]
   ) extends VerbatimAnnotationMark {
     def name = BeginSrcAnnotationClass.name
+    def getKind = None // TODO
   }
   case class EndSrcAnnotation(
     location: Option[ParseLocation]
@@ -330,6 +332,7 @@ object DoxLinesParser {
     location: Option[ParseLocation]
   ) extends VerbatimAnnotationMark {
     def name = BeginExampleAnnotationClass.name
+    def getKind = None // TODO
   }
   case class EndExampleAnnotation(
     location: Option[ParseLocation]
@@ -355,6 +358,7 @@ object DoxLinesParser {
     location: Option[ParseLocation]
   ) extends VerbatimAnnotationMark {
     def name = key
+    def getKind = None // TODO
   }
   case class GenericEndAnnotation(
     key: String,
@@ -840,12 +844,15 @@ object DoxLinesParser {
           val p = contents match {
             case Nil => Fragment.empty
             case x :: Nil =>
-              if (_is_inline(x))
+              if (config.isComplementParagraph && _is_inline(x))
                 Paragraph(List(x), evt.line)
               else
                 x
-            case xs if _is_inline(xs) => Paragraph(xs, evt.line)
-            case xs => Paragraph(xs, evt.line)
+            case xs =>
+              if (config.isComplementParagraph && _is_inline(xs))
+                Paragraph(xs, evt.line)
+              else
+                Fragment(xs)
           }
           (msgs :++ ws, ParseResult.empty, copy(lines = lines :+ p))
         case ParseFailure(es, ws) => (msgs :++ es :++ ws, ParseResult.empty, this)

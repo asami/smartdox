@@ -95,7 +95,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct.  8, 2025
+ * @version Oct. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -619,6 +619,7 @@ object Dox extends UseDox {
     Head,
     Body,
     Div,
+    Paragraph,
     Bold,
     Italic,
     Underline,
@@ -922,6 +923,12 @@ object Dox extends UseDox {
       buf.toString // ensuring {x => println("ESCAPE: " + string + " => " + x);true}
     }
   }
+
+  def create(name: String, attrs: Seq[(String, String)], p: Dox)(implicit ctx: DateTimeContext): Dox =
+    p match {
+      case m: Fragment => create(name, attrs, m.contents)
+      case m => create(name, attrs, List(m))
+    }
 
   def create(name: String, attrs: Seq[(String, String)], body: Seq[Dox])(implicit ctx: DateTimeContext): Dox =
     create(name, VectorMap(attrs), body)
@@ -1656,6 +1663,7 @@ case class Div(
 }
 
 object Div extends Div(Nil, VectorMap.empty, None) with DoxFactory {
+
   val label = "div"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: org.goldenport.context.DateTimeContext): Div =
@@ -1715,7 +1723,12 @@ case class Paragraph(
 
   def append(p: Dox): Paragraph = copy(contents = contents :+ p)
 }
-object Paragraph {
+object Paragraph extends DoxFactory {
+  val label = "p"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: org.goldenport.context.DateTimeContext): Paragraph =
+    Paragraph(body.toList, attrs)
+
   def apply(p: List[Dox], ll: LogicalLine): Paragraph =
     Paragraph(p, logicalLine = Some(ll))
 

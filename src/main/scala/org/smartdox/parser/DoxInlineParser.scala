@@ -20,7 +20,7 @@ import org.smartdox._
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
- * @version Oct. 10, 2025
+ * @version Oct. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -850,7 +850,21 @@ object DoxInlineParser {
     private val _ctx = Dox2Parser.ParseContext.now() // TODO
     implicit def dtctx = _ctx.dateTimeContext
 
-    override def returnCharsFrom(p: Seq[Char]): DoxInlineParseState = {
+    override def returnCharsFrom(p: Seq[Char]): DoxInlineParseState =
+      if (true)
+        _return_chars_from_block(p)
+      else
+        _return_chars_from_inline(p)
+
+    private def _return_chars_from_block(p: Seq[Char]): DoxInlineParseState = {
+      val s = (cs ++ p).mkString
+      val c = Dox2Parser.Config.smartdox.withInlineConfig(config).withoutComplementParagraph()
+      val xs = Dox2Parser.parseFragment(c, s)
+      val dox = Dox.create(tagName, attrs, xs)
+      leave_to(dox)
+    }
+
+    private def _return_chars_from_inline(p: Seq[Char]): DoxInlineParseState = {
       val s = (cs ++ p).mkString
       val c = DoxLinesParser.Config(inlineConfig = config)
       val ll = LogicalLines.parse(LogicalLines.Config.easyHtml, s)
@@ -878,6 +892,12 @@ object DoxInlineParser {
         case Some(s) if s == '/' => SkipOneState(XmlState.XmlCloseState(config, this), s)
         case _ => XmlState.TagOpenState(config, this)
       }
+
+    override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+      if (XmlState._is_in_escape(cs))
+        character_State(evt)
+      else
+        super.close_Angle_Bracket_State(evt)
   }
   object XmlState {
     case class XmlCloseState(
@@ -905,10 +925,10 @@ object DoxInlineParser {
       override protected def character_State(c: Char) = copy(cs = cs :+ c)
 
       override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
-        TextState(config, copy(cs = cs :+ '>'))
+        ContentState(config, copy(cs = cs :+ '>'))
     }
 
-    case class TextState(
+    case class ContentState(
       config: Config,
       parent: DoxInlineParseState,
       cs: Vector[Char] = Vector.empty
@@ -925,6 +945,32 @@ object DoxInlineParser {
           case Some(s) if s == '/' => SkipOneState(TagCloseState(config, this), s)
           case _ => TagOpenState(config, this)
         }
+
+      override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
+        if (_is_in_escape(cs))
+          character_State(evt)
+        else
+          super.close_Angle_Bracket_State(evt)
+    }
+
+    private def _is_in_escape(cs: Vector[Char]): Boolean = {
+      @annotation.tailrec
+      def loop(xs: List[Char], tripleCount: Int, singleCount: Int): Boolean = xs match {
+        case '`' :: '`' :: '`' :: rest =>
+          // Found a triple backtick: toggle code block mode
+          loop(rest, tripleCount + 1, singleCount)
+        case '`' :: rest if tripleCount % 2 == 0 =>
+          // Found a single backtick outside a code block
+          loop(rest, tripleCount, singleCount + 1)
+        case _ :: rest =>
+          // Other characters: continue scanning
+          loop(rest, tripleCount, singleCount)
+        case Nil =>
+          // Escaping if inside a code block or inline code
+          (tripleCount % 2 == 1) || (singleCount % 2 == 1)
+      }
+
+      loop(cs.toList, 0, 0)
     }
 
     case class TagCloseState(

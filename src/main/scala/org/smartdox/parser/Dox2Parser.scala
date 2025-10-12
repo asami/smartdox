@@ -47,7 +47,7 @@ import Dox._
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
- * @version Oct.  9, 2025
+ * @version Oct. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -291,6 +291,11 @@ object Dox2Parser {
       val pn = StringUtils.toRelative(pathname)
       copy(file = Some(new URI(pn)))
     }
+
+    def withInlineConfig(p: DoxInlineParser.Config) =
+      copy(linesConfig = linesConfig.withInlineConfig(p))
+
+    def withoutComplementParagraph() = copy(linesConfig = linesConfig.withoutComplementParagraph())
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
@@ -421,7 +426,7 @@ object Dox2Parser {
       case ParseSuccess(dox, _) => dox.body.elements match {
         case Nil => EmptyDox
         case x :: Nil => x
-        case xs => SyntaxErrorFault("${xs.mkstring}").RAISE
+        case xs => Fragment(xs) // SyntaxErrorFault("${xs.mkstring}").RAISE
       }
       case ParseFailure(_, _) => RAISE.notImplementedYetDefect
       case EmptyParseResult() => RAISE.notImplementedYetDefect
