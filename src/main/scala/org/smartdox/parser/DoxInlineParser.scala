@@ -20,7 +20,7 @@ import org.smartdox._
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
- * @version Oct. 13, 2025
+ * @version Oct. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -866,8 +866,9 @@ object DoxInlineParser {
 
     private def _return_chars_from_inline(p: Seq[Char]): DoxInlineParseState = {
       val s = (cs ++ p).mkString
+      val lc = LogicalLines.Config.easyHtml.copy(useBackQuote = true)
+      val ll = LogicalLines.parse(lc, s)
       val c = DoxLinesParser.Config(inlineConfig = config)
-      val ll = LogicalLines.parse(LogicalLines.Config.easyHtml, s)
       val a = DoxLinesParser.parse(c, ll)
       val dox = Dox.create(tagName, attrs, _normalize(a))
       leave_to(dox)
