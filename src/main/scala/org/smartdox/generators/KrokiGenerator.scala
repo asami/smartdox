@@ -15,13 +15,13 @@ import scala.util.control.NonFatal
  * in a local cache using KrokiCache.
  *
  * @since   Oct. 12, 2025
- * @version Oct. 12, 2025
+ * @version Oct. 15, 2025
  * @author  ASAMI
  */
 class KrokiGenerator(
   context: Context,
   cache: KrokiCache,
-  krokiServerUrl: String = "https://kroki.io",
+  krokiServerUrl: String = "http://localhost:9609", // "https://kroki.io",
   defaultFormat: String = "svg"
 ) {
 

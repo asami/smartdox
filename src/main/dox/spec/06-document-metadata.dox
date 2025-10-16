@@ -1,0 +1,214 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDoxのメタデータ仕様
+
+## BRIEF
+SmartDox文書の先頭に記述されるメタデータ（HEADセクション）の構造と意味、変換規則を定義します。
+
+## TOOLTIP
+SmartDoxのHEAD構造・メタ情報項目・変換ポリシーの正式定義
+
+## SUMMARY
+SmartDoxは、文書ごとに明示的なメタデータブロック（HEADセクション）を持ちます。  
+この情報は、Antora、ModelDox、Cozy、BoKの各層で共通して利用されます。  
+本章ではHEAD構造の文法、フィールド仕様、抽出と変換の仕組みを定義します。
+
+## DESCRIPTION
+SmartDox文書は常に `# HEAD` セクションで開始します。  
+このブロックには、文書の状態、発行日、作成者、概要、要約など、  
+文書管理・抽出・生成に必要なメタ情報を記述します。
+
+SmartDoxのHEADは**YAML風のキーバリューペア構造**を採用しています。  
+これにより、人間にとって読みやすく、パーサでの解析も容易です。
+
+---
+
+# Syntax｜構文
+
+SmartDox文書の冒頭に、必ず `# HEAD` ブロックを置きます。  
+その後に、複数のメタ項目を改行区切りで定義します。
+
+```
+# HEAD
+status=draft
+published_at=2025-10-16
+author=Tomoharu Asami
+headline=SmartDoxのメタデータ仕様
+brief=文書のメタ情報を定義する章です。
+```
+
+### 書式ルール
+
+| 項目 | 内容 |
+|------|------|
+| 開始行 | `# HEAD` で始まる |
+| 行構造 | `key=value` |
+| 区切り | 改行単位で複数行 |
+| コメント | `#` で始まる行はコメント |
+| 文字コード | UTF-8 |
+| 値中の改行 | 禁止（複数行値は将来拡張） |
+
+---
+
+# Core Fields｜基本フィールド
+
+SmartDox仕様で定義される標準フィールドを以下に示します。
+
+| フィールド | 意味 | 型 | 必須 | 用途 |
+|-------------|------|----|------|------|
+| `status` | 文書の状態 | String | ○ | `draft` / `work-in-progress` / `published` |
+| `published_at` | 発行日 | Date | ○ | AntoraやBoKでの公開日時 |
+| `author` | 著者名 | String | 任意 | 文書の作成者 |
+| `headline` | 記事の主要見出し | String | 任意 | Antora記事タイトル |
+| `brief` | 短い要約 | String | 任意 | 記事リストなどの概要 |
+| `tooltip` | ホバー時説明文 | String | 任意 | UI用短文 |
+| `summary` | 概要説明 | String | 任意 | 記事全体の要約 |
+| `abstract` | 構造的要約 | String | 任意 | 技術的サマリ |
+| `description` | 冒頭説明 | String | 任意 | リード文（LEAD） |
+| `remarks` | 備考 | String | 任意 | 補足メモ |
+| `tags` | キーワード群 | List | 任意 | BoK分類・検索用タグ |
+| `language` | 記述言語 | String | 任意 | `"ja"`, `"en"`, `"bilingual"` |
+| `version` | 文書バージョン | String | 任意 | バージョン管理用 |
+| `license` | ライセンス情報 | String | 任意 | BoK配布条件 |
+| `source` | 元文書パス | String | 任意 | トレース用 |
+| `related` | 関連記事 | List | 任意 | 内部リンク群 |
+
+---
+
+# Derived Fields｜派生フィールド
+
+AntoraやModelDox変換時に自動的に生成・補完されるフィールドがあります。
+
+| フィールド | 内容 | 生成元 |
+|-------------|------|--------|
+| `id` | 文書識別子 | ファイル名またはAntoraページID |
+| `path` | ファイルパス | ビルド時自動付与 |
+| `lang` | 言語コード | ファイル配置またはspan属性 |
+| `updated_at` | 更新日時 | Gitまたは生成時刻 |
+
+これらは明示的に記述する必要はありません。
+
+---
+
+# Field Categories｜フィールド分類
+
+| カテゴリ | 代表項目 | 用途 |
+|-----------|-----------|------|
+| **Publication Metadata** | `status`, `published_at`, `version` | 文書公開・履歴管理 |
+| **Identification Metadata** | `id`, `path`, `lang` | ファイル識別 |
+| **Descriptive Metadata** | `headline`, `brief`, `summary`, `description` | 内容説明 |
+| **Authorship Metadata** | `author`, `license` | 著者・権利情報 |
+| **Knowledge Metadata** | `tags`, `related` | BoK連携・分類 |
+
+---
+
+# Example｜例
+
+```
+# HEAD
+status=published
+published_at=2025-10-20
+author=Tomoharu Asami
+headline=SmartDox仕様書 第6章：メタデータ仕様
+brief=SmartDoxのHEAD構造と変換ポリシー
+tags=smartdox, metadata, antora, bok
+license=CC-BY-4.0
+```
+
+Antoraでは上記がドキュメントヘッダとして変換され、  
+BoK抽出では以下のメタ情報として登録されます：
+
+```
+{
+  "type": "SmartDoxDocument",
+  "id": "smartdox-metadata",
+  "status": "published",
+  "headline": "SmartDox仕様書 第6章：メタデータ仕様",
+  "tags": ["smartdox", "metadata", "bok"]
+}
+```
+
+---
+
+# Integration with Extraction Model｜抽出モデルとの統合
+
+HEADセクションはSmartDox抽出パイプラインの最初の解析対象です。  
+各変換器はHEAD情報を以下のように利用します：
+
+| 出力 | 利用項目 | 目的 |
+|------|-----------|------|
+| **Antora** | `headline`, `brief`, `tooltip`, `published_at` | ページヘッダとサイト情報 |
+| **ModelDox** | `status`, `author`, `version` | モデルメタ属性 |
+| **Cozy** | `license`, `author` | コードコメントやライセンスヘッダ |
+| **BoK** | `tags`, `related`, `headline` | 知識分類と相互参照 |
+
+---
+
+# Validation Rules｜検証規則
+
+SmartDoxビルド時、HEAD情報は以下のルールで検証されます。
+
+| チェック項目 | 条件 |
+|---------------|------|
+| `status` が未定義 | 警告（`draft` に補完） |
+| `published_at` が未定義 | ビルド日時を自動補完 |
+| `headline` が空 | Antoraタイトルに警告表示 |
+| 不明キー出現 | Warning。保持はするが出力対象外。 |
+| 改行入り値 | パースエラーとして拒否 |
+
+---
+
+# Recommended Values｜推奨値一覧
+
+| 項目 | 推奨記述例 |
+|------|------------|
+| `status` | `draft`, `review`, `published` |
+| `license` | `CC-BY-4.0`, `MIT`, `All Rights Reserved` |
+| `language` | `ja`, `en`, `bilingual` |
+| `tags` | カンマ区切り、英小文字推奨 |
+
+---
+
+# HEAD vs YAML Front Matter｜比較
+
+SmartDoxのHEADはAsciidocやMarkdownのYAMLフロントマターに似ていますが、  
+以下の点で異なります。
+
+| 項目 | YAML Front Matter | SmartDox HEAD |
+|------|-------------------|---------------|
+| 書式 | `---` ブロック | `# HEAD` セクション |
+| フォーマット | YAML | シンプルKey-Value |
+| ネスト構造 | 可能 | 不可（単層） |
+| 目的 | ページ情報 | モデル・BoK抽出共通メタ |
+
+SmartDoxは、BoKおよび構造抽出での安定性を優先し、  
+単層Key-Value形式を採用しています。
+
+---
+
+# Extension Fields｜拡張フィールド
+
+プロジェクト固有のフィールドは `x-` プレフィックスを推奨します。
+
+例：
+```
+x-project=simplemodeling
+x-phase=analysis
+x-model-type=domain
+```
+
+これらはModelDox/BoKにそのまま転送され、  
+将来的なメタデータスキーマ拡張を容易にします。
+
+---
+
+# REMARKS
+SmartDoxのHEAD仕様は、文書を「識別可能な知識オブジェクト」として扱うための基盤です。  
+単一のメタデータ構造を共有することで、  
+AntoraのWeb公開、ModelDoxの構造抽出、Cozyのコード生成、BoKの知識体系登録を統一的に実現します。

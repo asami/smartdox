@@ -1,0 +1,200 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDox仕様書 付録
+
+## BRIEF
+SmartDox仕様書の参考情報、関連標準、用語、今後の拡張方針をまとめます。
+
+## TOOLTIP
+SmartDox仕様書の付録・参照資料・外部標準対応表
+
+## SUMMARY
+SmartDox仕様書における関連仕様や参考資料を体系的に整理し、  
+HTML・Markdown・Asciidocとの対応、今後の拡張方向性を示します。  
+本章はSmartDoxを他の文書形式や標準仕様と統合的に理解するための付録として位置づけられます。
+
+---
+
+# 1. Related Standards｜関連標準
+
+SmartDoxは既存の文書およびWeb標準の上に構築されています。  
+以下は設計上の主な参照仕様です。
+
+| 分類 | 名称 | バージョン／発行元 | 参照目的 |
+|------|------|--------------------|-----------|
+| 軽量マークアップ | Markdown | CommonMark 0.30 | 基本構文の簡潔さ |
+| 軽量マークアップ | Org-mode | GNU Emacs Org 9.x | 表記の柔軟性と属性表 |
+| 文書標準 | AsciiDoc | Asciidoctor 2.x | 構造・出版モデル |
+| Web標準 | HTML Living Standard | WHATWG | タグ意味論とDOM互換 |
+| モデル定義 | CML（Component Modeling Language） | SimpleModeling.org | 文芸モデル構造定義 |
+| モデル変換 | ModelDox | SimpleModeling.org | 構造抽出と変換規約 |
+| コード生成 | Cozy | SimpleModeling.org | モデル駆動生成仕様 |
+| ナレッジ表現 | JSON-LD | W3C | BoK知識モデル表現 |
+| 図表記法 | PlantUML / Mermaid | kroki.io | 図の生成・キャッシュ統合 |
+
+---
+
+# 2. Format Comparison｜文書形式比較表
+
+SmartDoxはMarkdown・Org-mode・Asciidocの相互変換を意識して設計されています。  
+主要な記法の対応関係は次の通りです。
+
+| 機能 | Markdown | Org-mode | Asciidoc | SmartDox |
+|------|-----------|----------|-----------|-----------|
+| 見出し | `#`構文 | `*`構文 | `=`下線または`==` | `#`構文（英日併記対応） |
+| 表 | `|---|` | `|`行 | `|===` | `|===`（Org/Ascii互換） |
+| コードブロック | ``` | `#+BEGIN_SRC` | `[source]` | ```（必ず言語指定） |
+| メタ情報 | YAML Front Matter | `#+TITLE`等 | Document Header | `# HEAD` |
+| 強調 | `*text*` | `/text/` | `*text*` | `<b>` |
+| 用語定義 | — | — | `[term]#text#` | `<dfn>` |
+| リンク | `[text](url)` | `[[url][text]]` | `link:url[text]` | `<link href>` またはAsciidoc互換構文 |
+| 図 | HTML `<img>` | `[[file.svg]]` | `image::[]` | `<figure>` またはKroki連携 |
+
+---
+
+# 3. SmartDox Ecosystem｜SmartDoxエコシステム
+
+SmartDoxは単体の文書仕様ではなく、以下の3層エコシステムを構成します。
+
+| 層 | 名称 | 説明 |
+|----|------|------|
+| 1. **SmartDox** | 文書仕様 | Markdown/Org/Ascii統合文法。人とAIが共に扱う記述形式。 |
+| 2. **ModelDox** | モデル抽出仕様 | SmartDoxから構造情報を抽出し、CML/JSON形式に変換。 |
+| 3. **Cozy** | コード生成仕様 | ModelDox構造からScala/TypeScriptコードを生成。 |
+
+さらに、これらを横断的に管理する知識基盤としてBoK（Body of Knowledge）があります。  
+BoKはSmartDoxから `<dfn>` や `<term>` を自動抽出し、知識体系を構築します。
+
+---
+
+# 4. HTML Tag Mapping｜HTMLタグ対応表
+
+SmartDoxタグとHTML標準タグの対応は次の通りです。
+
+| SmartDoxタグ | HTMLタグ | 意味 | 備考 |
+|---------------|-----------|------|------|
+| `<entity>` | `<section>`に準ずる | モデル構造 | ModelDox抽出対象 |
+| `<value>` | `<section>`に準ずる | 値オブジェクト | ModelDox抽出対象 |
+| `<attribute>` | `<var>`類似 | 属性定義 | Cozy変換対象 |
+| `<state>` | `<div role="state">` | 状態ノード | 状態機械生成対象 |
+| `<transition>` | `<link>`類似 | 状態遷移 | FSMエッジ変換対象 |
+| `<rule>` | `<blockquote>`類似 | 制約・方針 | BoK登録対象 |
+| `<service>` | `<section role="service">` | ドメインサービス | Cozy変換対象 |
+| `<dfn>` | `<dfn>` | 定義語 | BoK語彙抽出対象 |
+| `<term>` | `<a href>`類似 | 用語参照 | BoK語彙リンク |
+| `<note>` | `<aside>` | 注記 | BoK補足情報 |
+| `<figure>` | `<figure>` | 図 | Krokiキャッシュ統合 |
+| `<table>` | `<table>` | 表 | Asciidoc変換互換 |
+
+SmartDoxはHTMLの意味論的整合性を維持しながら、構造・抽出用のタグを補完しています。
+
+---
+
+# 5. Conversion Pipelines｜変換パイプライン
+
+SmartDoxは単一ソースから複数成果物を生成する統合変換モデルを持ちます。
+
+```
+SmartDox (.dox)
+ ├──► Antora (Asciidoc)
+ │     └──► Web / PDF / ePub
+ ├──► ModelDox (YAML/JSON)
+ │     └──► Cozy (Scala/TypeScript)
+ └──► BoK (JSON-LD)
+       └──► Knowledge Graph
+```
+
+この変換系は「単一記述・多出力 (Single Source, Multi Target)」を基本思想とします。
+
+---
+
+# 6. BoK Integration Model｜BoK統合モデル
+
+BoK（Body of Knowledge）はSmartDoxの語彙要素を集約する知識ベースです。  
+SmartDoxタグとBoKエンティティの対応は次の通りです。
+
+| SmartDox要素 | BoKエンティティ | 説明 |
+|---------------|------------------|------|
+| `<dfn>` | GlossaryEntry | 用語定義 |
+| `<term>` | TermReference | 用語参照 |
+| `<note>` | Note | 注釈・補足 |
+| `<rule>` | Policy | 方針・原則 |
+| `<service>` | ServiceDefinition | サービス定義 |
+| `<state>` | LifecycleState | 状態情報 |
+| `<event>` | DomainEvent | ドメインイベント |
+| `<component>` | SoftwareComponent | ソフトウェア構成要素 |
+
+BoKはAntoraサイトに統合され、用語集・相互参照・知識グラフを自動生成します。
+
+---
+
+# 7. Future Extensions｜将来拡張
+
+SmartDoxは今後、次の方向に拡張される予定です。
+
+| 分類 | 拡張内容 | 目的 |
+|------|-----------|------|
+| 文書構造 | `<scenario>`, `<actor>`, `<step>` | ユースケース・シナリオ記述統合 |
+| 図表構造 | `<diagram>`タグ | Kroki, PlantUML, Mermaidの直接埋込 |
+| 意味表現 | `<concept>`, `<relation>` | セマンティックWeb連携強化 |
+| コード構造 | `<function>`, `<param>`, `<return>` | Cozy生成精度向上 |
+| メタデータ | `# META`セクション | 拡張メタ情報記述 |
+| AI連携 | `<prompt>`, `<response>` | AIモデル入出力の再現と解析 |
+
+これらはSmartDoxのBoK連携を基盤に、  
+「AIが読めるモデル文書」という新しいナレッジ・スタイルの確立を目指します。
+
+---
+
+# 8. Example Repository｜参考リポジトリ
+
+SmartDox仕様の実装・利用例は以下のリポジトリにまとめられています。
+
+| プロジェクト | URL | 説明 |
+|---------------|-----|------|
+| smartdox | https://github.com/simplemodeling/smartdox | SmartDox本体（Scala実装） |
+| modeldox | https://github.com/simplemodeling/modeldox | モデル抽出・構造変換ツール |
+| cozy | https://github.com/simplemodeling/cozy | Cozyコード生成エンジン |
+| simplemodeling.org | https://github.com/simplemodeling/simplemodeling.org | Antoraサイト構成・BoK統合 |
+| goldenport-scala-lib | https://github.com/goldenport/goldenport-scala-lib | 基盤ライブラリ |
+
+---
+
+# 9. License｜ライセンス
+
+SmartDox仕様書および参照コードは以下の条件で公開されます。
+
+| 項目 | 内容 |
+|------|------|
+| ライセンス | Creative Commons Attribution 4.0 (CC-BY-4.0) |
+| 著作権者 | © 2025 Tomoharu Asami / SimpleModeling.org |
+| 商用利用 | 可（帰属明記が必要） |
+| 改変・再配布 | 許可（派生物に明示） |
+
+---
+
+# 10. Acknowledgements｜謝辞
+
+SmartDox仕様の策定には、以下の思想・技術の影響を受けています。
+
+- Donald Knuth, *Literate Programming* (1984)  
+- Ward Cunningham, *Wiki and Lightweight Markup*  
+- Martin Fowler, *Domain-Specific Languages*  
+- IEEE 830, ISO/IEC/IEEE 42010 (Architecture Description)  
+- CommonMark, Asciidoctor, Org-mode  
+- The Scala Language (Odersky et al.)
+
+SmartDoxはこれら先人の思想を現代のAI・BoK文脈に再定義した成果です。
+
+---
+
+# REMARKS
+SmartDox仕様書の付録は、文書設計・モデル駆動・知識工学を横断的に結ぶための参照点です。  
+SmartDoxはWeb標準とモデリング技術の橋渡しとして、  
+**人間・AI・ツールが同じ文書を理解し操作できる世界**を目指しています。

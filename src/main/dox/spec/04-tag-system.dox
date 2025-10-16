@@ -1,0 +1,231 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDoxのタグ体系
+
+## BRIEF
+SmartDoxで使用できるHTML準拠タグおよび拡張タグの分類と意味定義を示します。
+
+## TOOLTIP
+HTML互換タグ＋SmartDox拡張タグの正式な体系と設計指針
+
+## SUMMARY
+SmartDoxはHTML Living Standardを尊重し、既存タグを構造化文書記述に再利用します。  
+その上で、ソフトウェア開発・モデリング・BoK抽出に必要な意味表現を追加タグとして定義します。  
+本章ではSmartDox文書内で利用できる全タグを分類し、設計方針・使用目的・抽出対象を明確にします。
+
+## DESCRIPTION
+SmartDoxのタグ体系は、HTMLの意味論的枠組みを基盤に、  
+ソフトウェアモデリング・ドキュメント生成・BoK知識抽出を意識した構造を採用しています。  
+タグの入れ子による意味の変化はサポートせず、各タグは**単独で一義的な意味**を持ちます。
+
+---
+
+# Design Principles｜設計方針
+
+1. **HTML互換性の維持**  
+   - HTML Living Standard準拠タグを優先採用。  
+   - 意味が明確なタグを再利用。
+
+2. **ネスト意味論の排除**  
+   - タグの意味は単独で完結。  
+   - `<kbd>` 内の `<samp>` など、文脈依存の入れ子を禁止。
+
+3. **ソフトウェア開発支援の拡張**  
+   - モデル・エンティティ・属性・状態・ルールなどを明示できる拡張タグを定義。
+
+4. **BoK抽出との整合性**  
+   - 各タグは抽出時に「知識クラス（Knowledge Category）」に対応。
+
+---
+
+# Tag Categories｜タグ分類体系
+
+SmartDoxで利用できるタグは、以下の6カテゴリに分類されます。
+
+| 分類 | 説明 |
+|------|------|
+| 1. 記述要素（Descriptive Elements） | 通常文書構造 |
+| 2. コード・入出力要素（Code and I/O Elements） | ソースコード・入力・出力 |
+| 3. モデル構成要素（Model Elements） | エンティティ・属性・ルールなど |
+| 4. 構造・表現要素（Structural Elements） | 表・図・節など |
+| 5. インタフェース要素（Interface Elements） | API・サービスなど |
+| 6. ナレッジ要素（Knowledge Elements） | 用語・注記・参照など |
+
+---
+
+# 1. Descriptive Elements｜記述要素
+
+HTML標準の文書構造を表すタグ群です。
+
+| タグ | 意味 | 用途 | 抽出カテゴリ |
+|------|------|------|---------------|
+| `<p>` | 段落 | 一般的な文書段落 | Paragraph |
+| `<section>` | 節 | モジュール・章構造 | Section |
+| `<h1>`〜`<h6>` | 見出し | 見出し階層 | Heading |
+| `<blockquote>` | 引用 | 書籍・文献引用 | Quotation |
+| `<cite>` | 出典 | 書名・論文名 | Citation |
+| `<ul>`, `<ol>`, `<li>` | リスト | 箇条書き | List |
+| `<mark>` | 強調 | 重要語句 | Highlight |
+| `<b>` | 強調（視覚的） | 補助的強調 | Emphasis |
+| `<span lang>` | 言語区分 | 英日併記など | I18NSpan |
+
+SmartDoxでは、これらは文芸モデル中の説明部を形成します。
+
+---
+
+# 2. Code and I/O Elements｜コード・入出力要素
+
+ソースコードやCLI入出力を示すHTML準拠タグ群です。
+
+| タグ | 意味 | 用途 | 抽出カテゴリ |
+|------|------|------|---------------|
+| `<code>` | コード断片 | ソースコード、DSLシンボル | CodeLiteral |
+| `<pre>` | 整形コード | コードブロック、ログ | CodeBlock |
+| `<kbd>` | ユーザー入力 | CLIコマンド、キー操作 | UserInput |
+| `<samp>` | 出力例 | コンソール出力 | SystemOutput |
+| `<var>` | 変数・属性名 | プログラム識別子 | Variable |
+| `<command>` | コマンド | OS/CLIコマンド明示 | Command |
+| `<path>` | パス | ファイル・URL指定 | Path |
+| `<config>` | 設定項目 | 設定ファイル項目 | Configuration |
+| `<env>` | 環境変数 | `$PATH`, `$HOME`など | EnvironmentVariable |
+
+---
+
+# 3. Model Elements｜モデル構成要素
+
+SmartDox独自の拡張タグであり、ソフトウェアやドメインモデルを記述します。
+
+| タグ | 意味 | 用途例 | 抽出カテゴリ |
+|------|------|--------|---------------|
+| `<model>` | モデル要素 | 文芸モデル全体・局所モデル | Model |
+| `<entity>` | エンティティ | `User`, `Order`など | Entity |
+| `<value>` | 値オブジェクト | `NameAttributes`, `Amount` | ValueObject |
+| `<attribute>` | 属性 | `title`, `id`, `created_at` | Attribute |
+| `<relation>` | 関係 | エンティティ間の関連 | Relationship |
+| `<state>` | 状態 | 状態機械の状態 | State |
+| `<transition>` | 状態遷移 | 状態間の変化 | Transition |
+| `<event>` | イベント | ドメインイベント | Event |
+| `<rule>` | ルール・制約 | Validation, Policy | Rule |
+| `<service>` | ドメインサービス | アプリケーションロジック | Service |
+| `<component>` | コンポーネント | システム構成要素 | Component |
+| `<subsystem>` | サブシステム | コンポーネント群 | Subsystem |
+
+これらは ModelDox への構造抽出において主軸となるタグ群です。
+
+---
+
+# 4. Structural Elements｜構造・表現要素
+
+SmartDox文書の構造を形成するブロック要素です。
+
+| タグ | 意味 | 用途 | 抽出カテゴリ |
+|------|------|------|---------------|
+| `<figure>` | 図表 | Kroki, PlantUML等の図 | Figure |
+| `<figcaption>` | 図説明 | 図表キャプション | Caption |
+| `<table>` | 表 | 属性一覧など | Table |
+| `<thead>`, `<tbody>` | 表構造 | 表頭・表体 | TablePart |
+| `<tr>`, `<td>`, `<th>` | 行・セル | データ定義 | TableCell |
+
+SmartDoxではOrg-modeスタイル表（`|===`）をHTML構造に変換します。
+
+---
+
+# 5. Interface Elements｜インタフェース要素
+
+外部システム・API・操作フローなどを定義する拡張タグ群です。
+
+| タグ | 意味 | 用途例 | 抽出カテゴリ |
+|------|------|--------|---------------|
+| `<api>` | APIエンドポイント | REST, GraphQL, RPCなど | API |
+| `<param>` | パラメータ | API入力値 | Parameter |
+| `<return>` | 戻り値 | API出力値 | ReturnValue |
+| `<error>` | エラー・例外 | ErrorResponse | Exception |
+| `<interface>` | インタフェース | 外部接続点定義 | Interface |
+| `<usecase>` | ユースケース | アクターと目的 | UseCase |
+| `<scenario>` | シナリオ | シナリオステップ | Scenario |
+| `<actor>` | アクター | ユーザー・システム | Actor |
+| `<step>` | ステップ | シナリオ中の手順 | Step |
+
+これらはユースケース記述、テストシナリオ、API仕様書の生成に利用されます。
+
+---
+
+# 6. Knowledge Elements｜ナレッジ要素
+
+BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタグ群です。
+
+| タグ | 意味 | 用途 | 抽出カテゴリ |
+|------|------|------|---------------|
+| `<dfn>` | 定義語 | 用語定義 | GlossaryEntry |
+| `<term>` | 用語参照 | Glossaryリンク | TermReference |
+| `<abbr>` | 略語 | 用語展開 | Abbreviation |
+| `<note>` | 注記 | 解説・補足 | Note |
+| `<todo>` | 保留項目 | Draft管理 | Todo |
+| `<ref>` | 参照 | 内部リンク | Reference |
+| `<link>` | 外部リンク | 外部文書URL | ExternalReference |
+
+---
+
+# SmartDox Extraction Mapping｜抽出マッピング一覧
+
+| タグカテゴリ | ModelDox変換種別 | Cozy変換対象 | BoK抽出クラス |
+|---------------|------------------|----------------|----------------|
+| 記述要素 | Section / Paragraph | None | Narrative |
+| コード・入出力要素 | Code / IO | Source / Command | DeveloperAction |
+| モデル構成要素 | Model / Entity / Attribute | DomainModel | StructuralKnowledge |
+| 構造・表現要素 | Figure / Table | None | DocumentationArtifact |
+| インタフェース要素 | API / UseCase / Scenario | IntegrationPoint | BehavioralKnowledge |
+| ナレッジ要素 | Term / Note / Reference | None | KnowledgeNode |
+
+---
+
+# Tag Usage Policy｜タグ使用方針
+
+1. **SmartDox拡張タグはネームスペース不要。**  
+   HTML互換パーサで処理できるタグ名を使用。
+
+2. **タグ名はすべて小文字。**  
+   モデル抽出時に安定した解析を保証。
+
+3. **タグは構造と意味を明確に分離。**  
+   構造タグ（table, figure）と意味タグ（entity, rule）を混用しない。
+
+4. **拡張タグはHTMLタグと衝突しない範囲で定義。**  
+   SmartDox専用タグは`<model>`系に限定。
+
+---
+
+# Example｜使用例
+
+```
+<entity name="User">
+  <attribute name="id" type="String"/>
+  <attribute name="name" type="String"/>
+  <rule>idは一意でなければならない。</rule>
+</entity>
+
+<usecase>
+  <actor>User</actor>
+  <scenario>
+    <step>User logs in.</step>
+    <step>System validates credentials.</step>
+  </scenario>
+</usecase>
+```
+
+上記はSmartDox文書内で直接構造化モデルを定義する例です。  
+ModelDox変換時にはCML/JSON形式で抽出されます。
+
+---
+
+# REMARKS
+SmartDoxのタグ体系は、HTMLを基盤としながらも、  
+ドメインモデリング・API仕様・ユースケース記述・BoK抽出といったソフトウェア開発の実務に最適化されています。  
+タグは文芸モデルの「形式的構造要素」として位置づけられ、  
+自然言語との融合を通じて人とAIの共同理解を支えます。

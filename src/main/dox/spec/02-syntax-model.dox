@@ -1,0 +1,86 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDoxの文法モデル
+
+## BRIEF
+SmartDoxはMarkdown、Org-mode、Asciidocを統合し、人間が読めて機械が解析可能な文法体系を提供します。
+
+## TOOLTIP
+Markdown/Org/Asciidocの統合文法とSmartDox独自拡張の定義
+
+## SUMMARY
+SmartDoxの構文は、既存の軽量マークアップ言語の長所を統合しつつ、ソフトウェア開発・モデル記述・BoK抽出に適した拡張を行っています。  
+節構造・表構造・コードブロック・インライン要素をすべてHTML互換で統一し、単一パスでAntoraやModelDoxへ変換可能な構文設計を採用しています。
+
+## DESCRIPTION
+SmartDoxは、以下の三つの記法体系を基盤として統合構文を形成します。
+
+1. **Markdown**：可読性が高く、軽量な文書構造表現に優れる。  
+2. **Org-mode**：表や属性記法の柔軟性を採用。  
+3. **Asciidoc**：高度な出版・構造表現機能を継承。  
+
+SmartDoxはこれらの相互運用を実現し、単一ソースから構造化ドキュメントとモデルデータを同時に生成します。
+
+---
+
+# Syntax Integration Model｜統合構文モデル
+
+SmartDoxの文法は、次の4階層に整理されます。
+
+| 層 | 内容 | 例 |
+|----|------|----|
+| 1. Document構造 | 節・章・見出しの構造 | `#` 見出し構文 |
+| 2. Block構造 | 段落・表・コードブロック | `|===` / `` ``` `` |
+| 3. Inline構造 | インラインタグとテキスト装飾 | `<code>`, `<kbd>` など |
+| 4. Attribute構造 | 属性指定やメタ情報 | `# HEAD` セクション、表の列属性など |
+
+---
+
+# Section Syntax｜節構文
+
+SmartDoxでは、見出しの階層構造を「#」記号で表します。  
+これはMarkdownの構文に準拠しつつ、Asciidocの文書構造にも対応しています。
+
+```
+# 見出しレベル1
+## 見出しレベル2
+### 見出しレベル3
+```
+
+節タイトルは英日併記が可能です：
+
+```
+# Architecture Overview｜アーキテクチャ概要
+```
+
+`｜`（U+FF5C FULLWIDTH VERTICAL LINE）を使用し、左に英語、右に日本語を記述します。
+
+---
+
+# Table Syntax｜表構文
+
+SmartDoxは、Org-mode形式の簡潔な表構文を採用します。  
+表の区切りには `|===` を使用し、Asciidoc変換と互換性を持たせます。
+
+```
+|===
+| 項目 | 説明
+| name | エンティティの名前
+| type | データ型
+|===
+```
+
+Antora変換時には自動的にHTML `<table>` に変換され、ModelDoxでは構造化データとして抽出されます。
+
+---
+
+# Code Block Syntax｜コードブロック構文
+
+SmartDoxでは、Markdownと同様に `` ``` `` によるブロックコード構文を使用します。  
+ただし、SmartDoxでは**実行言語指定**を推奨し、抽出時にプログラム要素を識別します。

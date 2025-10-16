@@ -45,7 +45,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Jun. 29, 2025
  *  version Jul. 27, 2025
  *  version Aug. 17, 2025
- * @version Oct. 11, 2025
+ * @version Oct. 15, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -388,7 +388,7 @@ object AntoraGenerator {
       case class Asciidoc(
         extensions: List[String] = List("asciidoctor-kroki"),
         attributes: Map[String, String] = Map(
-          "kroki-server-url" -> "https://kroki.io",
+          "kroki-server-url" -> "http://localhost:9609", // "https://kroki.io",
           "kroki-default-format" -> "svg",
           "kroki-fetch-diagram" -> "true"
         )

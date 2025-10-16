@@ -1,0 +1,241 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDoxの抽出モデル
+
+## BRIEF
+SmartDox文書をModelDox・Cozy・BoKに変換する際の抽出階層・マッピング規則を定義します。
+
+## TOOLTIP
+SmartDoxから構造・コード・知識を抽出する統合モデル
+
+## SUMMARY
+SmartDoxの抽出モデルは、文書中の構造化要素を解析し、三つの出力層に変換します。  
+ModelDoxは構造モデル、Cozyはコード生成、BoKは知識体系登録を目的とします。  
+本章ではその抽出手順・マッピング表・処理方針を明確化します。
+
+## DESCRIPTION
+SmartDox文書は単なるテキストではなく、構文的・意味的に構造化された情報源です。  
+抽出モデル（Extraction Model）は、文書内の各要素を**抽出対象オブジェクト（Extractable Element）**として扱い、  
+文書全体をデータ変換パイプラインに通して、  
+ModelDox（構造モデル）・Cozy（コード）・BoK（知識ベース）の三出力を生成します。
+
+---
+
+# Extraction Layers｜抽出階層
+
+| 層 | 出力対象 | 説明 |
+|----|-----------|------|
+| 1. **Structural Layer** | ModelDox | エンティティ、属性、ルールなどの構造情報 |
+| 2. **Behavioral Layer** | Cozy | コード生成や状態・振る舞い定義 |
+| 3. **Knowledge Layer** | BoK | 用語、定義、説明文などの知識要素 |
+
+抽出は文書→要素→意味階層の順に評価されます。
+
+---
+
+# 1. Structural Layer｜構造層（ModelDox）
+
+ModelDoxはSmartDox文書中の**モデル関連タグ**（`<entity>`, `<value>`, `<rule>` など）を抽出し、  
+CML互換の構造データに変換します。
+
+## 抽出対象タグ
+`<model>`, `<entity>`, `<value>`, `<attribute>`, `<relation>`, `<state>`, `<transition>`, `<event>`, `<rule>`, `<service>`, `<component>`, `<subsystem>`
+
+## 抽出モデル例
+```
+<entity name="User">
+  <attribute name="id" type="String"/>
+  <attribute name="name" type="String"/>
+</entity>
+```
+→ ModelDox（YAML形式）
+```
+entity:
+  name: User
+  attributes:
+    - id: String
+    - name: String
+```
+
+ModelDox出力は後段のCozy変換でコード生成に利用されます。
+
+---
+
+# 2. Behavioral Layer｜振る舞い層（Cozy）
+
+CozyはSmartDox文書中の構造情報をプログラミング言語コードへ変換します。  
+抽出対象はModelDoxの構造定義および以下のタグです。
+
+| タグ | 抽出目的 |
+|------|----------|
+| `<service>` | 関数・メソッド生成 |
+| `<state>` `<transition>` | 状態機械生成 |
+| `<rule>` | バリデーションコード |
+| `<param>` `<return>` | API定義 |
+| `<error>` | 例外クラス生成 |
+
+### Cozy抽出フロー
+```
+SmartDox
+ └─► ModelDox
+      └─► Cozy (Scala/TypeScript)
+```
+
+### 生成例
+```
+<service name="UserService">
+  <rule>User must have unique id.</rule>
+</service>
+```
+→ Cozy出力（Scala）
+```scala
+trait UserService {
+  def validate(user: User): Either[Error, User] =
+    if (user.id.isUnique) Right(user)
+    else Left(ValidationError("duplicate id"))
+}
+```
+
+---
+
+# 3. Knowledge Layer｜知識層（BoK）
+
+BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目として登録します。  
+主な対象は `<dfn>`, `<term>`, `<abbr>`, `<note>`, `<ref>` などのタグです。
+
+| タグ | 抽出クラス | 生成対象 |
+|------|-------------|-----------|
+| `<dfn>` | GlossaryEntry | 用語集定義 |
+| `<term>` | TermReference | 用語リンク |
+| `<abbr>` | Abbreviation | 略語辞書 |
+| `<note>` | Note | 注記ノード |
+| `<ref>` | Reference | 関連項目リンク |
+| `<time>` | TemporalValue | 年表・履歴ノード |
+
+抽出結果はBoKレジストリ（JSON-LD形式）へ格納されます。  
+例：
+```
+<dfn>Entity</dfn> represents an object with identity.
+```
+→ BoK登録：
+```
+{
+  "id": "Entity",
+  "type": "GlossaryEntry",
+  "definition": "represents an object with identity"
+}
+```
+
+---
+
+# Extraction Mapping Matrix｜抽出マッピング表
+
+| SmartDoxタグ | ModelDox種別 | Cozy出力 | BoK項目 |
+|---------------|---------------|-----------|----------|
+| `<entity>` | Entity | Case Class | DomainConcept |
+| `<attribute>` | Attribute | Field | Property |
+| `<state>` | State | Enum Value | LifecycleState |
+| `<transition>` | Transition | FSM Edge | StateChange |
+| `<service>` | Service | Trait / Method | ServiceDefinition |
+| `<rule>` | Rule | Validation Code | Policy |
+| `<event>` | Event | Case Class | DomainEvent |
+| `<dfn>` | TermDefinition | — | Glossary |
+| `<note>` | — | — | Annotation |
+| `<code>` | CodeLiteral | CodeFragment | Example |
+| `<kbd>` | — | — | UserAction |
+| `<samp>` | — | — | OutputSample |
+
+---
+
+# Extraction Phases｜抽出処理段階
+
+1. **Parse Phase（構文解析）**  
+   SmartDox文書をAST（抽象構文木）に変換。  
+   - ノード種別：Section, Paragraph, InlineTag など。
+
+2. **Semantic Phase（意味解析）**  
+   タグ属性・文脈を解析し、構造階層へマッピング。
+
+3. **Conversion Phase（変換）**  
+   - ModelDox：構造JSON/YAML生成  
+   - Cozy：テンプレート変換（Scala, TypeScript 等）  
+   - BoK：JSON-LD登録  
+
+4. **Integration Phase（統合）**  
+   各成果物をAntora siteやリポジトリに統合。
+
+---
+
+# Metadata Extraction｜メタデータ抽出
+
+`# HEAD` セクションの属性はすべて抽出対象です。  
+
+| フィールド | ModelDox属性 | BoK属性 | Cozy利用 |
+|-------------|---------------|-----------|-----------|
+| `status` | model.status | publication.status | build flag |
+| `published_at` | model.timestamp | knowledge.date | — |
+| `author` | model.author | contributor.name | license header |
+| `headline` | model.headline | summary.title | doc comment |
+
+---
+
+# Example Pipeline｜処理例
+
+```
+SmartDox Document
+   │
+   ├─► ModelDox Extractor  →  model.yaml
+   ├─► Cozy Generator       →  domain.scala
+   └─► BoK Indexer          →  knowledge.jsonld
+```
+
+それぞれの出力は依存関係を持たず、  
+SmartDoxを唯一の情報源として自動再生成可能です。
+
+---
+
+# Error Handling Policy｜抽出時のエラー処理
+
+| 分類 | 対応方針 |
+|------|-----------|
+| 構文エラー | パーサで例外。文書冒頭に `<error>` ノードを挿入。 |
+| 属性欠落 | Warning発行。Cozy出力時はデフォルト値適用。 |
+| 未知タグ | 無視せず、`<data>`ノードとして保持。 |
+| 循環参照 | ModelDox構築時に検出し警告。 |
+
+---
+
+# Output Formats｜出力フォーマット
+
+| 出力層 | 形式 | 既定拡張子 |
+|--------|------|-------------|
+| ModelDox | YAML / JSON | `.model.yaml` |
+| Cozy | Scala / TypeScript | `.scala`, `.ts` |
+| BoK | JSON-LD | `.bok.json` |
+
+---
+
+# Integration with Antora｜Antora連携
+
+Antora生成フェーズではSmartDox文書をAsciidocに変換し、  
+各出力ファイルへのメタリンクを自動付与します。
+
+例：
+```
+link:../generated/model/user.model.yaml[ModelDox]
+link:../generated/code/user.scala[Cozy]
+link:../bok/user.bok.json[BoK]
+```
+
+---
+
+# REMARKS
+SmartDoxの抽出モデルは、**単一ソースから多層成果物を再現可能にする**設計思想を具現化しています。  
+文書記述・モデル定義・知識体系登録のすべてが同じ文脈で行えることで、  
+ソフトウェア開発とナレッジエンジニアリングの統合を実現します。

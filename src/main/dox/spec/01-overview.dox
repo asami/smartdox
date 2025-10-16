@@ -1,0 +1,117 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDoxの目的と基本設計理念
+
+## BRIEF
+SmartDoxは、Markdown・Org-mode・Asciidocの長所を統合し、文書・モデル・コードを一体化するための記述仕様です。
+
+## TOOLTIP
+文芸モデル駆動開発のための構造化テキスト仕様
+
+## SUMMARY
+SmartDoxは、人間が理解しやすい自然言語表現と、機械が処理可能な構造情報を統合したテキスト形式です。  
+MarkdownやAsciidocの互換性を保ちながら、モデル・プログラム・知識を一貫的に記述・抽出・生成できます。
+
+## DESCRIPTION
+SmartDoxは、文芸モデル駆動開発（Literate Model-Driven Development, LMDD）を支える基礎記述形式です。  
+自然言語で書かれた説明と、構造化されたモデル要素を単一の文書内に共存させ、モデル、コード、知識ベースを自動生成できるよう設計されています。
+
+SmartDoxの設計目標は、以下の三層構造に整理されます。
+
+---
+
+# Three-Layer Architecture｜三層アーキテクチャ
+
+## Presentation Layer｜プレゼンテーション層
+人間が読む文書の可読性を重視し、Markdown・Org-mode・Asciidocの記法を統合しています。  
+段落、リスト、表、図表、リンクなどの表現を自然な書式で記述でき、Antoraを通して静的サイトとして公開できます。
+
+## Model Layer｜モデル層
+文書中のモデル構造をHTML準拠タグとSmartDox拡張タグで明示します。  
+エンティティ、属性、関係、サービス、ルール、状態機械などの要素を構造的に埋め込み、ModelDoxにより抽出できます。
+
+## Transformation Layer｜変換層
+SmartDox文書から次の成果物を生成します：
+
+- Antora文書：HTMLドキュメントとして公開  
+- ModelDox：構造化モデル（CML, JSON-LDなど）  
+- Cozy：Scala/TypeScript等のコード生成  
+- BoK：知識体系（Body of Knowledge）への登録
+
+これにより、設計書・モデル・実装・ナレッジの同期が自動的に保たれます。
+
+---
+
+# Design Goals｜設計目標
+
+| 目標 | 内容 |
+|------|------|
+| 読みやすさ | Markdown互換の軽量文法を採用 |
+| 意味的明確さ | HTML準拠タグにより文意を明確化 |
+| 構造抽出性 | ModelDoxを通じて形式構造を抽出可能 |
+| 多層変換性 | Cozy, Antora, BoKなど各層へ変換可能 |
+| AI親和性 | 機械学習・LLM処理に適した一貫した構文 |
+| 多言語対応 | 英日併記（span lang属性）を正式サポート |
+
+---
+
+# Conceptual Overview｜概念構成
+
+SmartDoxは、以下のコンポーネント群から構成されます。
+
+| コンポーネント | 説明 |
+|----------------|------|
+| SmartDox文書 | `.dox`形式の記述ファイル。人間と機械の共通表現。 |
+| ModelDox | SmartDoxから構造部分を抽出した中間表現（CML対応）。 |
+| Cozy | ModelDoxを元にコードやデータ構造を自動生成。 |
+| Antora Generator | SmartDoxをAsciidocに変換し、HTMLへ展開。 |
+| BoK Extractor | 文書中の知識要素をBoK（Body of Knowledge）に登録。 |
+
+---
+
+# Data Flow｜データフロー
+
+```
+SmartDox (.dox)
+   │
+   ├─► Antora/HTML  ──► Web公開
+   ├─► ModelDox      ──► モデル抽出 (CML/JSON)
+   ├─► Cozy           ──► コード生成 (Scala/TypeScript)
+   └─► BoK            ──► 知識資源登録
+```
+
+このフローにより、1つのSmartDox文書から複数の成果物が自動的に生成され、  
+プロジェクト全体の知識・設計・実装が整合的に管理されます。
+
+---
+
+# Relationship to Literate Modeling｜文芸モデルとの関係
+
+SmartDoxは「文芸モデル（Literate Model）」の基盤仕様です。  
+文芸モデルは、人間が理解できる語り（narrative）と、機械が処理できる構造（structure）を統合した知識表現です。  
+SmartDoxはこれを実現するためのテキストフォーマットとして設計され、  
+ModelDox・CML・Cozyなどのツールチェーンと連携して「文芸モデル駆動開発」を支えます。
+
+---
+
+# Compliance｜準拠方針
+
+SmartDoxは、以下の仕様との整合性を考慮して設計されます。
+
+- HTML Living Standard（WHATWG）  
+- Asciidoc 2.0  
+- Org-mode構文（表構造・属性構文の部分採用）  
+- YAMLメタデータ互換（HEADセクション）
+
+---
+
+# REMARKS
+SmartDoxは、文書構造とモデル構造を分離せず、  
+「**読むドキュメントがそのまま生成源である**」という原則を中核に据えています。  
+この設計は、人とAIが協働して設計・実装・知識化を行う時代に適した形式です。

@@ -1,0 +1,264 @@
+SmartDox Specification｜SmartDox仕様書
+=================================
+
+# HEAD
+status=draft
+published_at=YYYY-MM-DD
+
+## HEADLINE
+SmartDoxのインライン構文の意味論
+
+## BRIEF
+SmartDoxはHTML準拠のインライン要素を採用し、ソフトウェア開発・モデル記述・BoK抽出に必要な意味的精度を確保します。
+
+## TOOLTIP
+HTML互換インラインタグの意味定義とSmartDox拡張規則
+
+## SUMMARY
+SmartDoxでは、HTML Living Standardに準拠したインライン要素を正式にサポートします。  
+特に `code`, `kbd`, `var`, `samp` を中心に、ソフトウェア開発文書での使用意図を明確化し、BoK抽出やModelDox変換での一貫性を保ちます。
+
+## DESCRIPTION
+SmartDoxのインライン構文は、HTMLタグを直接使用し、文書中の要素に明示的な意味を付与します。  
+これにより、自然言語記述とプログラム構造を統合した文芸モデル（Literate Model）の文脈内で、  
+機械が解釈可能な構文的区分を提供します。
+
+SmartDoxでは、**ネストによる意味変化を禁止**し、各要素を一義的に定義します。
+
+---
+
+# Inline Elements Overview｜インライン要素一覧
+
+| 要素 | 意味 | 用途例 | BoK抽出カテゴリ |
+|------|------|--------|----------------|
+| `<code>` | コード断片 | `println("Hello")` | CodeLiteral |
+| `<kbd>` | ユーザー入力操作 | `<kbd>Ctrl+C</kbd>` | UserAction |
+| `<var>` | 変数・属性名 | `<var>user_id</var>` | Symbol |
+| `<samp>` | システム出力 | `<samp>OK</samp>` | Output |
+| `<mark>` | 強調・注目語 | `<mark>重要</mark>` | Highlight |
+| `<dfn>` | 用語定義 | `<dfn>Entity</dfn>` | GlossaryEntry |
+| `<abbr>` | 略語 | `<abbr title="Domain-Driven Design">DDD</abbr>` | Abbreviation |
+| `<time>` | 時刻・日付 | `<time datetime="2025-10-16">Oct 16, 2025</time>` | TemporalValue |
+| `<data>` | 構造化データ | `<data value="User">entity</data>` | StructuredDatum |
+| `<b>` | 重要語（強調） | `<b>required</b>` | Emphasis |
+
+SmartDoxではこれらをHTML互換のまま採用しますが、BoK抽出・ModelDox変換時に意味的ラベルとして機能します。
+
+---
+
+# 1. Code Element｜`<code>`要素
+
+`<code>` は **リテラルなコード断片** を示します。  
+関数名、クラス名、DSLシンボル、構文要素など、実際のソースコードとして扱われる部分に用います。
+
+例：
+```
+<code>case class User(id: String)</code>
+```
+
+抽出時：
+```
+CodeLiteral(name="User", language="Scala")
+```
+
+SmartDoxでは、`<code>` を強調や装飾目的で使用してはいけません。
+
+---
+
+# 2. Keyboard Element｜`<kbd>`要素
+
+`<kbd>` は **ユーザーの入力操作**（キー入力、CLI入力、ボタン押下）を示します。  
+例：
+```
+Press <kbd>Ctrl+C</kbd> to cancel.
+```
+
+CLIの入力例として：
+```
+<kbd>$ npm run build</kbd>
+```
+
+BoK抽出では `UserAction` クラスに分類され、  
+操作手順やターミナル操作の知識要素として登録されます。
+
+---
+
+# 3. Variable Element｜`<var>`要素
+
+`<var>` は **変数・識別子・属性名** を示します。  
+プログラム中の具体的な変数名や設定キーなどに用います。
+
+例：
+```
+<var>user_id</var> uniquely identifies a user.
+```
+
+ModelDox抽出時には `Symbol(name="user_id", kind="Variable")` として表現されます。
+
+---
+
+# 4. Sample Output Element｜`<samp>`要素
+
+`<samp>` は **システムの出力例** を示します。  
+CLI出力、ログメッセージ、コンソール結果など。
+
+例：
+```
+<samp>Compilation succeeded.</samp>
+```
+
+抽出時：
+```
+Output(message="Compilation succeeded.")
+```
+
+SmartDoxでは `<samp>` 内に `<kbd>` をネストしません。  
+入出力の区別は文脈で明示的に分けます。
+
+---
+
+# 5. Mark Element｜`<mark>`要素
+
+`<mark>` は **重要箇所・注目箇所** の強調に使用します。  
+CSSで背景色を指定して視覚的に区別します。
+
+例：
+```
+<mark>SmartDox</mark> unifies document and model.
+```
+
+BoK抽出では `Highlight(term="SmartDox")` として扱われます。
+
+---
+
+# 6. Definition Element｜`<dfn>`要素
+
+`<dfn>` は **用語定義** を表します。  
+文中で最初に定義される語句に使用します。
+
+例：
+```
+<dfn>Entity</dfn> represents a domain object with identity.
+```
+
+BoK抽出では用語辞書（Glossary）に登録され、  
+同一語が出現するたびに自動的にリンクされます。
+
+---
+
+# 7. Abbreviation Element｜`<abbr>`要素
+
+`<abbr>` は **略語** を示します。  
+`title` 属性に展開形を指定します。
+
+例：
+```
+<abbr title="Domain-Driven Design">DDD</abbr>
+```
+
+BoKでは略語辞書の登録要素として扱われます。
+
+---
+
+# 8. Time Element｜`<time>`要素
+
+`<time>` は **日付・時刻** を示します。  
+ISO 8601形式の `datetime` 属性を推奨します。
+
+例：
+```
+<time datetime="2025-10-16">2025年10月16日</time>
+```
+
+抽出時：
+```
+TemporalValue(date="2025-10-16")
+```
+
+---
+
+# 9. Data Element｜`<data>`要素
+
+`<data>` は **構造化データ** を示します。  
+`value` 属性で抽出対象のデータ値を持ちます。
+
+例：
+```
+<data value="User">entity</data>
+```
+
+ModelDox抽出時には：
+```
+StructuredDatum(type="entity", value="User")
+```
+
+---
+
+# 10. Bold Element｜`<b>`要素
+
+SmartDoxでは Markdown の `*` や `_` による強調は非推奨です。  
+代わりに HTML の `<b>` を用います。
+
+例：
+```
+This parameter is <b>required</b>.
+```
+
+スタイルは視覚表現にのみ影響し、BoK抽出では `Emphasis` カテゴリに分類されます。
+
+---
+
+# Extraction Semantics｜抽出セマンティクス
+
+| タグ | ModelDox種別 | Cozy変換カテゴリ | BoK語彙クラス |
+|------|----------------|------------------|----------------|
+| `<code>` | CodeLiteral | ProgramFragment | ProgrammingTerm |
+| `<kbd>` | UserAction | Operation | UserInput |
+| `<var>` | Symbol | Variable | SymbolicConcept |
+| `<samp>` | Output | Result | ExampleOutput |
+| `<dfn>` | TermDefinition | Glossary | Concept |
+| `<mark>` | Highlight | Emphasis | FocusTerm |
+| `<abbr>` | Abbreviation | Alias | Abbreviation |
+| `<time>` | TemporalValue | Timestamp | DateTime |
+| `<data>` | StructuredDatum | Field | StructuredValue |
+
+---
+
+# Usage Rules｜使用ルール
+
+1. 各インラインタグは**ネスト禁止**。  
+   （例：`<samp><kbd>...</kbd></samp>` は不可）
+
+2. HTML標準以外の属性追加は `data-` プレフィックスを用いる。  
+   例：`<code data-role="example">`
+
+3. インライン要素は**段落単位で閉じる**こと。  
+   複数段落にまたがる `<code>` や `<var>` は不可。
+
+4. 英日併記には `<span lang="en">` `<span lang="ja">` を用い、改行しない。
+
+---
+
+# Rendering Notes｜表示上の留意点
+
+SmartDoxの標準CSSでは以下のスタイルを想定します：
+
+| 要素 | 標準スタイル例 |
+|------|----------------|
+| `<code>` | 等幅フォント・淡背景 |
+| `<kbd>` | 角丸枠・薄背景 |
+| `<var>` | イタリック（日本語は等幅） |
+| `<samp>` | 等幅・灰背景 |
+| `<mark>` | 黄色背景 |
+| `<dfn>` | 下線または青文字 |
+| `<abbr>` | 下線＋`title`属性ツールチップ |
+| `<time>` | 通常フォント |
+| `<data>` | 非表示または小文字表示 |
+| `<b>` | 太字 |
+
+---
+
+# REMARKS
+SmartDoxは、HTMLの意味論を尊重しつつ、BoK抽出やModelDox変換に最適化されたタグ使用を規定します。  
+各インライン要素は「人間に読みやすく」「機械が意味を失わず解釈できる」ことを目的としており、  
+ソフトウェア開発の文書・コード・知識の橋渡しを担います。
