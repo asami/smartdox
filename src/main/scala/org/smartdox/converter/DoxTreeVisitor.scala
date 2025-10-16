@@ -11,7 +11,8 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Jun. 18, 2025
  *  version Jul. 26, 2025
  *  version Aug. 31, 2025
- * @version Sep. 14, 2025
+ *  version Sep. 14, 2025
+ * @version Oct. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -89,6 +90,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Div => enter_Div(m)
       case m: Span => enter_Span(m)
       case m: Bold => enter_Bold(m)
+      case m: Em => enter_Em(m)
+      case m: Strong => enter_Strong(m)
       case m: Italic => enter_Italic(m)
       case m: Code => enter_Code(m)
 //      case m: Verbatim => enter_Verbatim(m)
@@ -119,6 +122,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Foot => enter_Foot(m)
       case m: Value.Single => enter_Value(m)
       case m: Value.Multiple => enter_Value(m)
+      case m: Html5 => enter_Html5(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
 
@@ -183,6 +187,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Div(p: Div): Unit = {}
   protected def enter_Span(p: Span): Unit = {}
   protected def enter_Bold(p: Bold): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Bold: $p")
+  protected def enter_Em(p: Em): Unit = enter_Html_Element(p)
+  protected def enter_Strong(p: Strong): Unit = enter_Html_Element(p)
   protected def enter_Italic(p: Italic): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Italic: $p")
   protected def enter_Code(p: Code): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Code: $p")
 //  protected def enter_Verbatim(p: Verbatim): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Verbatim: $p")
@@ -213,6 +219,11 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Foot(p: Foot): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Foot: $p")
   protected def enter_Value(p: Value.Single): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Single: $p")
   protected def enter_Value(p: Value.Multiple): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Multiple: $p")
+  protected def enter_Html5(p: Html5): Unit = enter_Html_Element(p)
+
+  protected def enter_Html_Element(p: Dox): Unit = {
+    RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] HtmlElement: $p")
+  }
 
   override final protected def leaveEnd_Content(node: TreeNode[Dox], content: Dox): Unit =
     _leave_content(node, content)
@@ -230,6 +241,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Div => leave_Div(m)
       case m: Span => leave_Span(m)
       case m: Bold => leave_Bold(m)
+      case m: Em => leave_Em(m)
+      case m: Strong => leave_Strong(m)
       case m: Italic => leave_Italic(m)
       case m: Code => leave_Code(m)
 //      case m: Verbatim => leave_Verbatim(m)
@@ -260,6 +273,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Foot => leave_Foot(m)
       case m: Value.Single => leave_Value(m)
       case m: Value.Multiple => leave_Value(m)
+      case m: Html5 => leave_Html5(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
 
@@ -328,6 +342,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Div(p: Div): Unit = {}
   protected def leave_Span(p: Span): Unit = {}
   protected def leave_Bold(p: Bold): Unit = {}
+  protected def leave_Em(p: Em): Unit = leave_Html_Element(p)
+  protected def leave_Strong(p: Strong): Unit = leave_Html_Element(p)
   protected def leave_Italic(p: Italic): Unit = {}
   protected def leave_Code(p: Code): Unit = {}
 //  protected def leave_Verbatim(p: Verbatim): Unit = {}
@@ -358,4 +374,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Foot(p: Foot): Unit = {}
   protected def leave_Value(p: Value.Single): Unit = {}
   protected def leave_Value(p: Value.Multiple): Unit = {}
+  protected def leave_Html5(p: Html5): Unit = leave_Html_Element(p)
+
+  protected def leave_Html_Element(p: Dox): Unit = {
+  }
 }

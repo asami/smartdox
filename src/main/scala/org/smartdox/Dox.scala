@@ -95,7 +95,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct. 12, 2025
+ * @version Oct. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -621,6 +621,8 @@ object Dox extends UseDox {
     Div,
     Paragraph,
     Bold,
+    Strong,
+    Em,
     Italic,
     Underline,
     Code,
@@ -936,8 +938,13 @@ object Dox extends UseDox {
   def create(name: String, attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dox =
     tags.toStream.flatMap(_.applyOption(name, attrs, body)).headOption.
       getOrElse {
-        RAISE.notImplementedYetDefect(s"$name")
+        if (_is_html5(name))
+          Html5(name, attrs, body.toList)
+        else
+          RAISE.notImplementedYetDefect(s"$name")
       }
+
+  private def _is_html5(name: String) = true // TODO
 
   def text(p: String): Text = {
     require (p != null, "Text should not be null.")
@@ -1830,6 +1837,74 @@ object Bold extends Bold(Nil, VectorMap.empty, None) with DoxFactory {
     val cs = PureParser.buildInline(elem)
     val attrs = PureParser.getAttributes(elem)
     Bold(cs, attrs)
+  }
+}
+
+// 2025-10-16
+case class Strong(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "strong"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Strong => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(x => copy(contents = x, location = get_location(location, cs)))
+  }
+}
+
+object Strong extends Strong(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "strong"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Strong =
+    Strong(ensure_inline(body), attrs)
+
+  def apply(element: Inline) = new Strong(List(element))
+
+  def build(elem: XNode): Strong = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Strong(cs, attrs)
+  }
+}
+
+// 2025-10-16
+case class Em(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "em"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Em => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(x => copy(contents = x, location = get_location(location, cs)))
+  }
+}
+
+object Em extends Em(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "em"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Em =
+    Em(ensure_inline(body), attrs)
+
+  def apply(element: Inline) = new Em(List(element))
+
+  def build(elem: XNode): Em = {
+    val cs = PureParser.buildInline(elem)
+    val attrs = PureParser.getAttributes(elem)
+    Em(cs, attrs)
   }
 }
 
@@ -3965,6 +4040,25 @@ object Value {
     }
   }
 }
+
+// // 2025-10-16
+// case class XmlElement(
+//   name: String,
+//   contents: List[Dox],
+//   attributes: VectorMap[String, String] = VectorMap.empty,
+//   location: Option[ParseLocation] = None
+// ) extends Inline {
+//   override val elements = contents
+//   override def showTerm = name
+
+//   override def equals_Value(o: Dox) = o match {
+//     case m: XmlElement => name == m.name && contents == m.contents && attributes == m.attributes
+//     case _ => false
+//   }
+// }
+
+// object XmlElement {
+// }
 
 // 2025-09-09
 // case class Verbatim(

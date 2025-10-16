@@ -17,7 +17,7 @@ import Dox._
  *  version Jul. 15, 2025
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
- * @version Oct.  7, 2025
+ * @version Oct. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
@@ -40,6 +40,12 @@ trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
 
   override protected def enter_Value(p: Value.Multiple): Unit =
     sb_print(to_text(p))
+
+  override protected def enter_Html_Element(p: Dox): Unit =
+    sb_print(p.showOpenText)
+
+  override protected def leave_Html_Element(p: Dox): Unit =
+    sb_print(p.showCloseText)
 
   protected final def sb_section_title(mark: String, title: String): Unit = {
     sb_println(s"${section_bar(mark)} $title")

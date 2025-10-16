@@ -18,7 +18,7 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct. 11, 2025
+ * @version Oct. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -43,6 +43,9 @@ class Dox2AsciidocConverter(
   protected def target_locale = context.targetI18NContext.locale
 
   private def _is_diagram_generation: Boolean = context.isDiagramGeneration
+
+  private var _is_in_pass_count: Int = 0
+  private def _is_in_pass = _is_in_pass_count > 0
 
   private lazy val _kroki_generator = KrokiGenerator(
     context.context.context,
@@ -71,7 +74,18 @@ class Dox2AsciidocConverter(
     section_down()
   }
 
-  override protected def enter_Hyperlink(p: Hyperlink) = {
+  override protected def enter_Bold(p: Bold) = enter_Html_Element(p)
+  override protected def leave_Bold(p: Bold) = leave_Html_Element(p)
+  override protected def enter_Italic(p: Italic) = enter_Html_Element(p)
+  override protected def leave_Italic(p: Italic) = leave_Html_Element(p)
+
+  override protected def enter_Hyperlink(p: Hyperlink) =
+    if (_is_in_pass)
+      enter_Html_Element(p)
+    else
+      _enter_hyperlink(p)
+
+  private def _enter_hyperlink(p: Hyperlink) = {
     sb_print(s"""link:${p.href.toString}[""")
     if (_use_quotation(p))
       sb_print("\"")
@@ -80,7 +94,13 @@ class Dox2AsciidocConverter(
   private def _use_quotation(p: Hyperlink) =
     p.title.isDefined || p.getHtmlClass.isDefined
 
-  override protected def leave_Hyperlink(p: Hyperlink) = {
+  override protected def leave_Hyperlink(p: Hyperlink) =
+    if (_is_in_pass)
+      leave_Html_Element(p)
+    else
+      _leave_hyperlink(p)
+
+    private def _leave_hyperlink(p: Hyperlink) = {
     if (_use_quotation(p))
       sb_print("\"")
     p.title foreach { x =>
@@ -233,6 +253,10 @@ class Dox2AsciidocConverter(
     } catch {
       case e: Throwable =>
         context.context.context.log.error(s"Kroki embedding failed: ${e.getMessage}")
+        sb_println("[WARNING.error]")
+        sb_println("----")
+        sb_println(e.toString)
+        sb_println("----")
         // Fallback to text source
         caption.foreach(x => sb_println("." + x))
         sb_println(s"[source,$kind]")
@@ -272,6 +296,20 @@ class Dox2AsciidocConverter(
   }
 
   override protected def enter_Foot(p: Foot): Unit = {
+  }
+
+  override protected def enter_Html_Element(p: Dox): Unit = {
+    if (_is_in_pass_count == 0)
+      sb_print("pass:[")
+    _is_in_pass_count = _is_in_pass_count + 1
+    sb_print(p.showOpenText)
+  }
+
+  override protected def leave_Html_Element(p: Dox): Unit = {
+    sb_print(p.showCloseText)
+    _is_in_pass_count = _is_in_pass_count - 1
+    if (_is_in_pass_count == 0)
+      sb_print("]")
   }
 }
 
