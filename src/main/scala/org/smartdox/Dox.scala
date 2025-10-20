@@ -95,7 +95,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct. 16, 2025
+ * @version Oct. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -644,6 +644,8 @@ object Dox extends UseDox {
     Abbr
   )
 
+  val html5InlineNames = Set("mark")
+
   def toDox(ps: Seq[Dox]): Dox =
     _activate(ps) match {
       case Nil => Dox.empty
@@ -938,11 +940,15 @@ object Dox extends UseDox {
   def create(name: String, attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dox =
     tags.toStream.flatMap(_.applyOption(name, attrs, body)).headOption.
       getOrElse {
-        if (_is_html5(name))
+        if (_is_html5_inline(name))
+          Html5Inline(name, attrs, body.toList)
+        else if (_is_html5(name))
           Html5(name, attrs, body.toList)
         else
           RAISE.notImplementedYetDefect(s"$name")
       }
+
+  private def _is_html5_inline(name: String): Boolean = html5InlineNames(name)
 
   private def _is_html5(name: String) = true // TODO
 
@@ -3493,6 +3499,27 @@ case class Html5(
 
   override def equals_Value(o: Dox) = o match {
     case m: Html5 => name == m.name && attributes == m.attributes && contents == m.contents
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    Success(copy(name, attributes, cs))
+  }
+}
+
+// 2025-10-17
+case class Html5Inline(
+  name: String,
+  attributes: VectorMap[String, String],
+  contents: List[Dox],
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = name
+  override def showParams = attributes.toList
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Html5Inline => name == m.name && attributes == m.attributes && contents == m.contents
     case _ => false
   }
 

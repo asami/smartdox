@@ -117,21 +117,7 @@ SmartDoxでは `<samp>` 内に `<kbd>` をネストしません。
 
 ---
 
-# 5. Mark Element｜`<mark>`要素
-
-`<mark>` は **重要箇所・注目箇所** の強調に使用します。  
-CSSで背景色を指定して視覚的に区別します。
-
-例：
-```
-<mark>SmartDox</mark> unifies document and model.
-```
-
-BoK抽出では `Highlight(term="SmartDox")` として扱われます。
-
----
-
-# 6. Definition Element｜`<dfn>`要素
+# 5. Definition Element｜`<dfn>`要素
 
 `<dfn>` は **用語定義** を表します。  
 文中で最初に定義される語句に使用します。
@@ -146,7 +132,7 @@ BoK抽出では用語辞書（Glossary）に登録され、
 
 ---
 
-# 7. Abbreviation Element｜`<abbr>`要素
+# 6. Abbreviation Element｜`<abbr>`要素
 
 `<abbr>` は **略語** を示します。  
 `title` 属性に展開形を指定します。
@@ -160,7 +146,7 @@ BoKでは略語辞書の登録要素として扱われます。
 
 ---
 
-# 8. Time Element｜`<time>`要素
+# 7. Time Element｜`<time>`要素
 
 `<time>` は **日付・時刻** を示します。  
 ISO 8601形式の `datetime` 属性を推奨します。
@@ -177,7 +163,7 @@ TemporalValue(date="2025-10-16")
 
 ---
 
-# 9. Data Element｜`<data>`要素
+# 8. Data Element｜`<data>`要素
 
 `<data>` は **構造化データ** を示します。  
 `value` 属性で抽出対象のデータ値を持ちます。
@@ -194,17 +180,30 @@ StructuredDatum(type="entity", value="User")
 
 ---
 
+# 9. 強調と注目の階層｜Hierarchy of Emphasis and Attention
+
+<span lang="en">This section defines the semantic and visual hierarchy of inline emphasis, clarifying the roles of `<b>`, `<em>`, `<strong>`, and `<mark>` within SmartDox.</span><span lang="ja">この節では、SmartDoxにおけるインライン強調の意味論的・視覚的階層を定義し、`<b>`、`<em>`、`<strong>`、`<mark>` の役割を明確にします。</span>
+
+| タグ | 機能概要 | 英語説明 | 日本語説明 |
+|------|-----------|-----------|------------|
+| `<b>` | 非意味論的強調 | Non-semantic emphasis | 専門用語・キーフレーズ（記憶フック） |
+| `<em>` | 文内の意味論的強調 | Semantic emphasis (sentence-level) | 論理的対比・補足（読むリズムを整える） |
+| `<strong>` | 談話レベルの主張強調 | Core assertion / main claim | 全体主張の中心命題 |
+| `<mark>` | 文脈焦点の視覚補足 | Contextual highlight (AI focus) | AI・生成関連などの文脈的焦点 |
+
+---
+
 # 10. Bold Element｜`<b>`要素
 
-SmartDoxでは Markdown の `*` や `_` による強調は非推奨です。  
-代わりに HTML の `<b>` を用います。
+`<b>` は **非意味論的強調** に用いられます。  
+専門用語やキーフレーズを読者に印象づけるために使用します。  
 
 例：
 ```
-This parameter is <b>required</b>.
+<b>Entity</b> is a domain concept.
 ```
 
-スタイルは視覚表現にのみ影響し、BoK抽出では `Emphasis` カテゴリに分類されます。
+BoK抽出では `Emphasis` カテゴリとして登録されます。
 
 ---
 
@@ -221,6 +220,7 @@ This parameter is <b>required</b>.
 | `<abbr>` | Abbreviation | Alias | Abbreviation |
 | `<time>` | TemporalValue | Timestamp | DateTime |
 | `<data>` | StructuredDatum | Field | StructuredValue |
+| `<b>` | Emphasis | Visual | MemoryAnchor |
 
 ---
 
@@ -253,12 +253,14 @@ SmartDoxの標準CSSでは以下のスタイルを想定します：
 | `<dfn>` | 下線または青文字 |
 | `<abbr>` | 下線＋`title`属性ツールチップ |
 | `<time>` | 通常フォント |
-| `<data>` | 非表示または小文字表示 |
-| `<b>` | 太字 |
+| `<data>` | 小文字・補足表示 |
+| `<b>` | 太字（視覚強調） |
+| `<em>` | 斜体（論理補足） |
+| `<strong>` | 太字＋強調色（中心主張） |
 
 ---
 
 # REMARKS
-SmartDoxは、HTMLの意味論を尊重しつつ、BoK抽出やModelDox変換に最適化されたタグ使用を規定します。  
-各インライン要素は「人間に読みやすく」「機械が意味を失わず解釈できる」ことを目的としており、  
-ソフトウェア開発の文書・コード・知識の橋渡しを担います。
+SmartDoxはHTMLの意味論を尊重しつつ、BoK抽出とModelDox変換に適合する形でインライン構文を定義します。  
+<b>`b` は視覚的記憶補助、`em`・`strong` は意味論的強調、`mark` はAI的焦点強調</b>として運用し、  
+人間読者とAIの両方にとって意味が失われない文書構造を実現します。
