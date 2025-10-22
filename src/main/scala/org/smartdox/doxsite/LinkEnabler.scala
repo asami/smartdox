@@ -22,7 +22,7 @@ import org.smartdox.metadata._
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
- * @version Oct.  4, 2025
+ * @version Oct. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -72,6 +72,9 @@ object LinkEnabler {
 
     private var _definitions: Set[Glossary.Definition] = Set.empty
 
+    // Shared across all glossary terms within the same page
+    private val expandedDefinitions = scala.collection.mutable.Set.empty[Glossary.Definition]
+
     private val _is_document_stable = pageNode.getContent.fold(false) {
       case m: Page => m.dox.head.metadata.isStable
       case _ => false
@@ -114,13 +117,32 @@ object LinkEnabler {
 
     private def _transform(m: Text) = _transform_simple(m)
 
+    private def _is_inside_table: Boolean = {
+      stack.exists { n =>
+        n.getContent.exists {
+          case _: Table => true
+          case _ => false
+        }
+      }
+    }
+
     private def _transform_simple(m: Text): TreeTransformer.Directive[Dox] = {
       def _create_href_(definition: Glossary.Definition): URI =
         create_href(pageNode, definition.page, definition.getId)
 
+      // Always link glossary terms, but only expand outside tables
+      val expand = !_is_inside_table
       val candidates = context.metadata.glossary.definitions
       val used = usedDefinitions
-      val x = candidates.foldLeft(TextLinkProcessor(_create_href_, Vector(m), used))(_+_)
+      val x = candidates.foldLeft(
+        TextLinkProcessor(
+          _create_href_,
+          Vector(m),
+          used,
+          expandedDefinitions = this.expandedDefinitions,
+          expandDefinition = expand
+        )
+      )(_+_)
       addGlossary(x.definitions)
       x.dox match {
         case Vector() => TreeTransformer.Directive.Empty()
@@ -153,7 +175,7 @@ object LinkEnabler {
                   val href = create_href(pageNode, definition.page, definition.getId)
                   val titleoption = definition.term.summary
                   titleoption match {
-                    case Some(title) => 
+                    case Some(title) =>
                       if (title.isSimple) {
                         Hyperlink.createGlossary(m, href, title.en)
                       } else {
@@ -276,7 +298,9 @@ object LinkEnabler {
   case class TextLinkProcessor(
     createhref: Glossary.Definition => URI,
     dox: Vector[Dox],
-    definitions: Set[Glossary.Definition] = Set.empty
+    definitions: Set[Glossary.Definition] = Set.empty,
+    expandedDefinitions: scala.collection.mutable.Set[Glossary.Definition] = scala.collection.mutable.Set.empty,
+    expandDefinition: Boolean = true
   ) {
     import TextLinkProcessor._
 
@@ -284,7 +308,13 @@ object LinkEnabler {
       val tokens = candidate.candidates
 
       case class Z(holder: Holder = Holder.definitions(definitions)) {
-        def r = TextLinkProcessor(createhref, holder.xs, holder.ds)
+        def r = TextLinkProcessor(
+          createhref,
+          holder.xs,
+          holder.ds,
+          expandedDefinitions = expandedDefinitions,
+          expandDefinition = expandDefinition
+        )
 
         def +(rhs: Dox) = {
           case class ZZ(zzholder: Holder) {
@@ -333,6 +363,7 @@ object LinkEnabler {
       var count = if (used) 1 else 0
       var hit = false
       var found = _next(s, token, idx)
+      var expanded = used
       while (found >= 0) {
         val pre = s.substring(idx, found)
         if (pre.nonEmpty)
@@ -341,7 +372,16 @@ object LinkEnabler {
           _can_aux(s, found + token.length)
         else
           false
-        buf += _make_glossary_link(definition, token, canaux)
+        // Only expand if expandDefinition is true and this definition hasn't been expanded yet
+        if (expandDefinition && !expandedDefinitions.contains(definition)) {
+          // First occurrence outside table → expand
+          buf += _make_glossary_link(definition, token, canaux = true, expand = true)
+          expandedDefinitions += definition
+          expanded = true
+        } else {
+          // Table or subsequent → link only
+          buf += _make_glossary_link(definition, token, canaux, expand = false)
+        }
         hit = true
         count = count + 1
         idx = found + token.length
@@ -381,85 +421,74 @@ object LinkEnabler {
     private def _make_glossary_link(
       definition: Glossary.Definition,
       token: String,
-      canaux: Boolean
+      canaux: Boolean,
+      expand: Boolean
     ) = {
       val href = createhref(definition)
       val titleoption = Option(definition.term.name)
       titleoption match {
         case Some(title) =>
           if (title.isSimple) {
-            Hyperlink.createGlossary(_make_label(definition, token, canaux), href, title.en)
+            Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href, title.en)
           } else {
             I18NFragment.createDox(
               List(
-                LocaleUtils.ja -> List(Hyperlink.createGlossary(_make_label_ja(definition, token, canaux), href, title.ja)),
-                LocaleUtils.en -> List(Hyperlink.createGlossary(_make_label_en(definition, token, canaux), href, title.en))
+                LocaleUtils.ja -> List(Hyperlink.createGlossary(_make_label_ja(definition, token, canaux, expand), href, title.ja)),
+                LocaleUtils.en -> List(Hyperlink.createGlossary(_make_label_en(definition, token, canaux, expand), href, title.en))
               )
             )
           }
-        case None => Hyperlink.createGlossary(_make_label(definition, token, canaux), href)
+        case None => Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href)
       }
     }
 
     private def _make_label(
       definition: Glossary.Definition,
       token: String,
-      canaux: Boolean
+      canaux: Boolean,
+      expand: Boolean
     ): List[Inline] = {
-      // val a = definition.term.wordsWithoutWord(token)
-      // a match {
-      //   case Left(l) => _create_label(definition, token, l, canaux)
-      //   case Right(r) => _create_label(definition, token, r, canaux)
-      // }
-      _make_label_en(definition, token, canaux)
+      _make_label_en(definition, token, canaux, expand)
     }
 
     private def _make_label_en(
       definition: Glossary.Definition,
       token: String,
-      canaux: Boolean
+      canaux: Boolean,
+      expand: Boolean
     ): List[Inline] = {
-      // val a = definition.term.wordsWithoutWord(token)
-      // a match {
-      //   case Left(l) => _create_label(definition, token, l, canaux)
-      //   case Right(r) => _create_label(definition, token, r.get(LocaleUtils.en), canaux)
-      // }
-      val text = if (canaux) {
-        val wr = definition.term.wordRelation(token)
-        val xs = wr.en
-        _create_label(token, xs)
-      } else{
-        token
+      if (!expand) {
+        List(Text(token))
+      } else {
+        val text = if (canaux) {
+          val wr = definition.term.wordRelation(token)
+          val xs = wr.en
+          _create_label(token, xs)
+        } else {
+          token
+        }
+        List(Text(text))
       }
-      List(Text(text))
     }
 
     private def _make_label_ja(
       definition: Glossary.Definition,
       token: String,
-      canaux: Boolean
+      canaux: Boolean,
+      expand: Boolean
     ): List[Inline] = {
-      // val a = definition.term.wordsWithoutWord(token)
-      // a match {
-      //   case Left(l) =>
-      //     _create_label(definition, token, l, canaux)
-      //   case Right(r) =>
-      //     val ja: Vector[String] = r.get(LocaleUtils.ja).toVector.flatten
-      //     val en: Vector[String] =
-      //       if (token == definition.term.name.en)
-      //         Vector.empty
-      //       else
-      //         Vector(definition.term.name.en)
-      //     _create_label(definition, token, ja ++ en, canaux)
-      // }
-      val text = if (canaux) {
-        val wr = definition.term.wordRelation(token)
-        val xs = wr.ja
-        _create_label(token, xs)
+      if (!expand) {
+        List(Text(token))
       } else {
-        token
+        val text = if (canaux) {
+          val wr = definition.term.wordRelation(token)
+          val xs = wr.ja
+          _create_label(token, xs)
+        } else {
+          token
+        }
+        List(Text(text))
       }
-      List(Text(text))
     }
 
     private def _create_label(token: String, ps: Seq[String]): String =
