@@ -47,7 +47,7 @@ import Dox._
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
- * @version Oct. 14, 2025
+ * @version Oct. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -355,6 +355,7 @@ object Dox2Parser {
     fileTextResolverContextOption: Option[FileTextResolver.Context] = None
   ) {
     lazy val fileTextResolverContext = fileTextResolverContextOption getOrElse config.fileTextResolverContext
+    def fileResolverContext = fileTextResolverContext.fileResolverContext
 
     def levelUp = copy(level = level + 1)
 

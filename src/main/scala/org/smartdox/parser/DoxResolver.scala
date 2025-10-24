@@ -9,11 +9,13 @@ import org.smartdox.Document
 import org.smartdox.Section
 import org.smartdox.Program
 import org.smartdox.parser.DoxLinesParser.BlockMacro
+import org.smartdox.parser.resolver._
 
 /*
  * @since   Jul. 17, 2025
  *  version Jul. 19, 2025
- * @version Aug. 10, 2025
+ *  version Aug. 10, 2025
+ * @version Oct. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxResolver(context: DoxResolver.Context) {
@@ -21,8 +23,9 @@ class DoxResolver(context: DoxResolver.Context) {
     val path = directive.target
     val params = _adjust(directive.parameters, path)
     val ctx = context.withParameters(params)
-    val ftrc = ctx.fileTextResolverContext
-    _resolve(ftrc, path)
+    // val ftrc = ctx.fileTextResolverContext
+    // _resolve(ftrc, path)
+    _resolve(ctx, path)
   }
 
   private def _adjust(params: FileTextResolver.Parameters, path: String) = {
@@ -40,63 +43,86 @@ class DoxResolver(context: DoxResolver.Context) {
     }
   }
 
-  def resolve(path: String): Consequence[Dox] = {
-    val ftrc = context.fileTextResolverContext
-    _resolve(ftrc, path)
+  private def _resolve(
+    ctx: DoxResolver.Context,
+    path: String
+  ): Consequence[Dox] = {
+    val resolver = StringUtils.getSuffix(path).collect {
+      case "xlsx" => new ExcelResolver(ctx)
+    }.getOrElse(new TextResolver(ctx))
+    resolver.resolve(path)
   }
 
-  private def _resolve(ctx: FileTextResolver.Context, path: String): Consequence[Dox] = {
-    val resolver = new FileTextResolver(ctx)
-    for {
-      s <- resolver.resolve(path)
-      dox <- _parse(path, s)
-    } yield dox
-  }
+  // def resolve(path: String): Consequence[Dox] = {
+  //   val resolver = StringUtils.getSuffix(path) match {
+  //     case "xlsx" => new ExclResolver(context)
+  //     case _ => new TextResolver(context)
+  //   }
+  //   resolver.resolve(path)
+  // }
 
-  private def _parse(path: String, s: String): Consequence[Dox] =
-    StringUtils.getSuffix(path) match {
-      case Some(suffix) => suffix match {
-        case "dox" => _parse_dox(s)
-        case m => _parse_source(path, m, s)
-      }
-      case None => _parse_text(s)
-    }
+  // def resolve(path: String): Consequence[Dox] = {
+  //   val ftrc = context.fileTextResolverContext
+  //   _resolve(ftrc, path)
+  // }
 
-  private def _parse_dox(s: String): Consequence[Dox] = {
-    val parser = new Dox2Parser(context.parseContext)
-    for {
-      a <- Consequence.from(parser.apply(s))
-      r <- _adjust_dox(a)
-    } yield r
-  }
+  // private def _resolve(ctx: FileTextResolver.Context, path: String): Consequence[Dox] = {
+  //   val resolver = new FileTextResolver(ctx)
+  //   for {
+  //     s <- resolver.resolve(path)
+  //     dox <- _parse(path, s)
+  //   } yield dox
+  // }
 
-  private def _adjust_dox(p: Dox): Consequence[Dox] = Consequence {
-    p match {
-      case m: Document => m.head.title match {
-        case Some(s) => Section(s, m.body.contents)
-        case None => m.body.toContent
-      }
-      case m => m
-    }
-  }
+  // private def _parse(path: String, s: String): Consequence[Dox] =
+  //   StringUtils.getSuffix(path) match {
+  //     case Some(suffix) => suffix match {
+  //       case "dox" => _parse_dox(s)
+  //       case m => _parse_source(path, m, s)
+  //     }
+  //     case None => _parse_text(s)
+  //   }
 
-  private def _parse_source(path: String, suffix: String, s: String): Consequence[Dox] = {
-    val kind = suffix
-    val caption = StringUtils.pathLastComponent(path)
-    Consequence.success(Program.create(s, Some(kind), Some(caption)))
-  }
+  // private def _parse_dox(s: String): Consequence[Dox] = {
+  //   val parser = new Dox2Parser(context.parseContext)
+  //   for {
+  //     a <- Consequence.from(parser.apply(s))
+  //     r <- _adjust_dox(a)
+  //   } yield r
+  // }
 
-  private def _parse_text(s: String): Consequence[Dox] =
-    Consequence.success(Text(s))
+  // private def _adjust_dox(p: Dox): Consequence[Dox] = Consequence {
+  //   p match {
+  //     case m: Document => m.head.title match {
+  //       case Some(s) => Section(s, m.body.contents)
+  //       case None => m.body.toContent
+  //     }
+  //     case m => m
+  //   }
+  // }
+
+  // private def _parse_source(path: String, suffix: String, s: String): Consequence[Dox] = {
+  //   val kind = suffix
+  //   val caption = StringUtils.pathLastComponent(path)
+  //   Consequence.success(Program.create(s, Some(kind), Some(caption)))
+  // }
+
+  // private def _parse_text(s: String): Consequence[Dox] =
+  //   Consequence.success(Text(s))
 }
 
 object DoxResolver {
   case class Context(
     parseContext: Dox2Parser.ParseContext
   ) {
+    def fileResolverContext = parseContext.fileResolverContext
     def fileTextResolverContext = parseContext.fileTextResolverContext
 
     def withParameters(params: FileTextResolver.Parameters) =
       copy(parseContext = parseContext.withParameters(params))
+  }
+
+  trait Provider {
+    def resolve(path: String): Consequence[Dox]
   }
 }

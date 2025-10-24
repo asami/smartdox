@@ -33,6 +33,8 @@ import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.xml.XmlUtils
+import org.goldenport.record.v3.{Table => RTable}
+import org.goldenport.record.v3.ITable
 import org.goldenport.util.StringUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.util.ListUtils
@@ -95,7 +97,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct. 17, 2025
+ * @version Oct. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2442,6 +2444,8 @@ object Table {
 
   def apply(h: THead, b: TBody): Table = Table(Some(h), b, None, None, None, None, None)
 
+  def apply(b: TBody): Table = Table(None, b, None, None, None, None, None)
+
   def create(h: Seq[String], data: Seq[IRecord]): Table = {
     val head = THead.create(h)
     val body = TBody.create(head, data)
@@ -2453,6 +2457,23 @@ object Table {
   //   val body = TBody.create(head, data)
   //   Table(head, body)
   // }
+
+  def createC(p: ITable): Consequence[Table] = Consequence(create(p))
+
+  def create(p: ITable): Table =
+    p.head.fold(_create(p.data))(_create(_, p.data))
+
+  private def _create(head: RTable.Head, data: RTable.Data): Table = {
+    val hs = head.names.map(_.text)
+    val thead = THead.create(hs)
+    val tbody = TBody.create(data)
+    Table(thead, tbody)
+  }
+
+  private def _create(data: RTable.Data): Table = {
+    val tbody = TBody.create(data)
+    Table(tbody)
+  }
 
   def create(p: LxsvSequence): Table = {
     case class Z(
@@ -2645,6 +2666,12 @@ object TBody {
       TR(tds)
     }
     TBody(trs.toList)
+  }
+
+  def create(data: RTable.Data): TBody = {
+    val keys = data.columns.map(x => x.key.name)
+    val rs = data.toRecordVector
+    create(keys, rs)
   }
 
   // def create(keys: Seq[String], data: VectorMap[String, String]): TBody = {
