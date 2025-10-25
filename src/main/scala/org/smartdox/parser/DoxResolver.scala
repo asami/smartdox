@@ -15,7 +15,7 @@ import org.smartdox.parser.resolver._
  * @since   Jul. 17, 2025
  *  version Jul. 19, 2025
  *  version Aug. 10, 2025
- * @version Oct. 24, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxResolver(context: DoxResolver.Context) {
@@ -48,7 +48,9 @@ class DoxResolver(context: DoxResolver.Context) {
     path: String
   ): Consequence[Dox] = {
     val resolver = StringUtils.getSuffix(path).collect {
+      case "xls" => new ExcelResolver(ctx)
       case "xlsx" => new ExcelResolver(ctx)
+      case "csv" => new CsvResolver(ctx)
     }.getOrElse(new TextResolver(ctx))
     resolver.resolve(path)
   }

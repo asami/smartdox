@@ -97,7 +97,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct. 24, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -3963,6 +3963,13 @@ case class Error(
 ) extends Inline {
   def attributes: VectorMap[String, String] = VectorMap.empty
   override def equals_Value(o: Dox) = o == this
+  override def isOpenClose = false
+
+  override def show_Contents(buf: StringBuilder): Unit = {
+    buf.append(conclusion.message)
+  }
+
+  def message = conclusion.message
 }
 
 // 2025-09-01

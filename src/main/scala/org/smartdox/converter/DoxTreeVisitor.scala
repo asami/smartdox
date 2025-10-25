@@ -12,7 +12,7 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Jul. 26, 2025
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
- * @version Oct. 17, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -124,6 +124,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Value.Multiple => enter_Value(m)
       case m: Html5Inline => enter_Html5Inline(m)
       case m: Html5 => enter_Html5(m)
+      case m: Error => enter_Error(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
 
@@ -222,6 +223,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Value(p: Value.Multiple): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Multiple: $p")
   protected def enter_Html5(p: Html5): Unit = enter_Html_Element(p)
   protected def enter_Html5Inline(p: Html5Inline): Unit = enter_Html_Element(p)
+  protected def enter_Error(p: Error): Unit = enter_Html_Element(p)
 
   protected def enter_Html_Element(p: Dox): Unit = {
     RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] HtmlElement: $p")
@@ -277,6 +279,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Value.Multiple => leave_Value(m)
       case m: Html5Inline => leave_Html5Inline(m)
       case m: Html5 => leave_Html5(m)
+      case m: Error => leave_Error(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
 
@@ -379,6 +382,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Value(p: Value.Multiple): Unit = {}
   protected def leave_Html5(p: Html5): Unit = leave_Html_Element(p)
   protected def leave_Html5Inline(p: Html5Inline): Unit = leave_Html_Element(p)
+  protected def leave_Error(p: Error): Unit = leave_Html_Element(p)
 
   protected def leave_Html_Element(p: Dox): Unit = {
   }

@@ -31,7 +31,7 @@ import org.smartdox.metadata.web.JsonLd
  *  version Apr. 29, 2025
  *  version Jul.  3, 2025
  *  version Aug.  5, 2025
- * @version Oct. 25, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -245,6 +245,7 @@ class Dox2DomHtmlTransformer(
     case m: Li => _node(m)
 //    case m: Hyperlink => _hyperlink(m)
     case m: Figure => _figure(m)
+    case m: org.smartdox.Error => _error(m)
     case m: Inline => _inline(m)
     case m: Block => _block(m)
   }
@@ -377,6 +378,10 @@ class Dox2DomHtmlTransformer(
   }
 
   private def _calc_h_level: Int = _section_depth + _base_section_header - 1
+
+  private def _error(p: org.smartdox.Error): Node = {
+    _factory.element("ERROR", p.message)
+  }
 }
 
 object Dox2DomHtmlTransformer {
