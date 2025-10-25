@@ -33,7 +33,7 @@ class DoxSiteMarkGenerator(
     val realmcontext = RealmTransformer.Context.default
     val marked = target.transform(new DoxSiteMarker(realmcontext, source))
     val r = Realm.create()
-    r.merge("doxmarksite.d", marked)
+    r.merge("website.d", marked)
   }
 }
 
