@@ -11,7 +11,8 @@ import org.smartdox.service.operations._
  *  version Dec. 31, 2020
  *  version Feb. 28, 2025
  *  version Apr. 18, 2025
- * @version May.  4, 2025
+ *  version May.  4, 2025
+ * @version Oct. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class SmartDoxService(
@@ -37,6 +38,7 @@ object SmartDoxService {
       HtmlOperationClass,
       BloggerOperationClass,
       SiteOperationClass,
+      SiteMarkOperationClass,
       AntoraOperationClass
     )
   }

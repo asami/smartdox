@@ -43,7 +43,7 @@ import org.smartdox.parser.PureParser
  *  version Jul. 27, 2025
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
- * @version Oct. 11, 2025
+ * @version Oct. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -53,6 +53,7 @@ case class DocumentMetaData(
 //  description: Option[I18NFragment] = None,
   explanation: Explanation = Explanation.empty,
   author: Option[I18NFragment] = None,
+  organization: Option[I18NFragment] = None,
   keywords: List[String] = Nil,
   publishedAt: Option[LocalDateOrDateTime] = None,
   modifiedAt: Option[LocalDateOrDateTime] = None,
@@ -102,6 +103,23 @@ case class DocumentMetaData(
 
   def getEffectiveTooltip: Option[I18NString] =
     explanation.getEffectiveTooltip.map(_.toI18NString)
+
+  def getTitleString(locale: Locale): Option[String] =
+    title.map(_.toI18NString.as(locale))
+
+  def getEffectiveHeadlineString(locale: Locale): String =
+    explanation.getEffectiveHeadline.map(_.toI18NString.as(locale)) getOrElse ""
+
+  def getEffectiveSummaryString(locale: Locale): Option[String] =
+    explanation.getEffectiveSummary.map(_.toI18NString.as(locale))
+
+  def getPublishedString(locale: Locale): Option[String] = publishedAt.map(AnyUtils.toPrint)
+
+  def getModifiedString(locale: Locale): Option[String] = modifiedAt.map(AnyUtils.toPrint)
+
+  def getAuthorString(locale: Locale): Option[String] = author.map(_.toI18NString.as(locale))
+
+  def getOrganizationString(locale: Locale): Option[String] = organization.map(_.toI18NString.as(locale))
 
   def withTitle(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)
@@ -160,6 +178,7 @@ case class DocumentMetaData(
       category orElse rhs.category,
       explanation + rhs.explanation,
       author orElse rhs.author,
+      organization orElse rhs.organization,
       (keywords ::: rhs.keywords).distinct,
       publishedAt orElse rhs.publishedAt,
       modifiedAt orElse rhs.modifiedAt,
@@ -235,6 +254,7 @@ object DocumentMetaData {
   final val PROP_CATEGORY = "category"
   final val PROP_DESCRIPTION = "description"
   final val PROP_AUTHOR = "author"
+  final val PROP_ORGANIZATION = "organization"
   final val PROP_KEYWORDS = "keywords"
   final val PROP_PUBLISHED_AT = "published_at"
   final val PROP_MODIFIED_AT = "modified_at"
@@ -349,6 +369,7 @@ object DocumentMetaData {
       category <- hocon.cStringOption(PROP_CATEGORY)
       exp <- Explanation.parse(hocon)
       auth <- hocon.cStringOption(PROP_AUTHOR)
+      organization <- hocon.cStringOption(PROP_ORGANIZATION)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
       published <- _get_localdateordatetime(hocon, PROP_PUBLISHED_AT)
       modified <- _get_localdateordatetime(hocon, PROP_MODIFIED_AT)
@@ -363,6 +384,7 @@ object DocumentMetaData {
         category,
         exp,
         auth.map(I18NFragment.create),
+        organization.map(I18NFragment.create),
         keywords,
         published,
         modified,
@@ -409,6 +431,7 @@ object DocumentMetaData {
       category <- _get_string(p, "category")
       exp <- Explanation.parse(p)
       author <- _get_i18nfragment(p, "author")
+      organization <- _get_i18nfragment(p, "organization")
       keywords <- _get_string_list_eager(p, "keywords")
       publishedat <- _get_localdateordatetime(p, "publishedAt")
       modifiedat <- _get_localdateordatetime(p, "modifiedAt")
@@ -421,6 +444,7 @@ object DocumentMetaData {
         category,
         exp,
         author,
+        organization,
         keywords,
         publishedat,
         modifiedat,

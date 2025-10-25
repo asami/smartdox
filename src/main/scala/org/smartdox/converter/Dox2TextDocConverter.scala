@@ -9,7 +9,7 @@ import org.smartdox._
  *  version Jul. 15, 2025
  *  version Aug. 25, 2025
  *  version Sep.  9, 2025
- * @version Oct.  7, 2025
+ * @version Oct. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -36,6 +36,9 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
 
   protected final def sb_section_title(title: String): Unit =
     sb_section_title(section_Mark, title)
+
+  protected final def sb_section_title(title: String, attachment: Seq[String]): Unit =
+    sb_section_title(section_Mark, title, attachment)
 
   protected final def sb_list_bar(mark: String): Unit = {
     sb_print(list_bar(mark))

@@ -17,7 +17,7 @@ import Dox._
  *  version Jul. 15, 2025
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
- * @version Oct. 16, 2025
+ * @version Oct. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
@@ -49,6 +49,13 @@ trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
 
   protected final def sb_section_title(mark: String, title: String): Unit = {
     sb_println(s"${section_bar(mark)} $title")
+    sb_println()
+  }
+
+  protected final def sb_section_title(mark: String, title: String, attachment: Seq[String]): Unit = {
+    sb_println(s"${section_bar(mark)} $title")
+    for (s <- attachment)
+      sb_println(s)
     sb_println()
   }
 

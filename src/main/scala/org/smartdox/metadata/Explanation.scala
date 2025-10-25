@@ -12,7 +12,7 @@ import org.smartdox._
  * @since   Aug. 16, 2025
  *  version Aug. 25, 2025
  *  version Sep. 22, 2025
- * @version Oct.  7, 2025
+ * @version Oct. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
@@ -29,6 +29,10 @@ case class Explanation(
 
   def isEmpty = headline.isEmpty && brief.isEmpty && tooltip.isEmpty && summary.isEmpty &&
   `abstract`.isEmpty && description.isEmpty && remarks.isEmpty
+
+  def getEffectiveHeadline = headline orElse brief orElse tooltip
+
+  def getEffectiveSummary = summary orElse description orElse brief
 
   def withSummary(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)

@@ -18,7 +18,7 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct. 16, 2025
+ * @version Oct. 24, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -59,19 +59,35 @@ class Dox2AsciidocConverter(
     case _ => false
   }
 
-  override protected def enter_Head(p: Head): Unit =
+  override protected def enter_Head(p: Head): Unit = {
     p.titleDefault match {
       case Nil => // do nothing
-      case xs => enter_asciidoc_section(to_text(xs))
+      case xs => enter_asciidoc_section(p, to_text(xs))
     }
+  }
 
-  protected final def enter_asciidoc_section(title: String): Unit = {
+  protected final def enter_asciidoc_section(head: Head, title: String): Unit = {
     section_up()
-    sb_section_title(title)
+    val attachment = _make_title_attachment(head)
+    sb_section_title(title, attachment)
   }
 
   protected final def leave_asciidoc_section(): Unit = {
     section_down()
+  }
+
+  private def _make_title_attachment(head: Head): Seq[String] = {
+    Vector(_json_ld(head))
+  }
+
+  private def _json_ld(head: Head): String = {
+    Vector(
+      ":jsonld: {",
+      """  "@context": "https://schema.org",""",
+      """  "@type": "Article",""",
+      """  "headline": "AI協調のためのBoK生成アーキテクチャ"""",
+      "}"
+    ).mkString
   }
 
   override protected def enter_Bold(p: Bold) = enter_Html_Element(p)

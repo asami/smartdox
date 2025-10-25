@@ -5,6 +5,7 @@ import java.net.URI
 import scala.util.parsing.input.Reader
 import scala.util.parsing.combinator.Parsers
 import scala.collection.mutable.ArrayBuffer
+import io.circe.syntax._
 import org.w3c.dom.{Node, Element, Comment}
 import org.w3c.dom.{Text => DomText}
 import org.goldenport.RAISE
@@ -14,10 +15,12 @@ import org.goldenport.value._
 import org.goldenport.hocon.HoconUtils
 import org.goldenport.util.ListUtils
 import org.goldenport.util.AnyUtils
+import org.goldenport.i18n.LocaleUtils
 import org.smartdox._
 import Dox._
 import org.smartdox.generator.Context
 import org.smartdox.transformer._
+import org.smartdox.metadata.web.JsonLd
 
 /*
  * @since   Nov.  3, 2020
@@ -27,7 +30,8 @@ import org.smartdox.transformer._
  *  version Feb.  8, 2021
  *  version Apr. 29, 2025
  *  version Jul.  3, 2025
- * @version Aug.  5, 2025
+ *  version Aug.  5, 2025
+ * @version Oct. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -74,7 +78,9 @@ class Dox2DomHtmlTransformer(
         val attrs = Map("name" -> k, "content" -> AnyUtils.toPrint(v))
         create_element("meta", attrs)
     }
-    val xs = xs1 ++ properties
+    val xs2 = xs1 ++ properties
+    val xs3 = xs2 ++ _json_ld(p)
+    val xs = xs3
     create_element("head", p.attributes, xs)
   }
 
@@ -102,6 +108,15 @@ class Dox2DomHtmlTransformer(
     p.csslink.map(style =>
       create_element("link", Map("rel" -> "stylesheet", "type" -> "text/css", "href" -> style))
     )
+
+  private def _json_ld(p: Head): Option[Element] = {
+    val locale = LocaleUtils.en
+    val jsonld = JsonLd.createArticle(locale, p.metadata)
+    val s = jsonld.asJson.spaces2
+    val text = _factory.text(s)
+    val a = create_element("script", Map("type" -> "application/ld+json"), text)
+    Some(a)
+  }
 
   def bodyOut(p: Body, title: Option[Node]): Out = {
     val t = title.map { x =>

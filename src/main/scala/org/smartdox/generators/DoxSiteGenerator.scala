@@ -16,7 +16,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version Mar. 12, 2025
  *  version Apr.  3, 2025
  *  version May. 24, 2025
- * @version Jun.  9, 2025
+ *  version Jun.  9, 2025
+ * @version Oct. 25, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteGenerator(
@@ -41,22 +42,22 @@ class DoxSiteGenerator(
 }
 
 object DoxSiteGenerator {
-  import org.goldenport.tree.{Tree, PlainTree, TreeNode}
-  import org.goldenport.realm.Realm
+  // import org.goldenport.tree.{Tree, PlainTree, TreeNode}
+  // import org.goldenport.realm.Realm
 
-  object DoxSiteRule extends RealmTransformer.Rule {
-    def realmConfig = RealmTransformer.Config.empty
-    override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
-      p.getNameSuffix.collect {
-        case "dox" => s"${p.nameBody}.html"
-        case "org" => s"${p.nameBody}.html"
-        case "md" => s"${p.nameBody}.html"
-        case "markdown" => s"${p.nameBody}.html"
-      }
-    }
+  // object DoxSiteRule extends RealmTransformer.Rule {
+  //   def realmConfig = RealmTransformer.Config.empty
+  //   override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
+  //     p.getNameSuffix.collect {
+  //       case "dox" => s"${p.nameBody}.html"
+  //       case "org" => s"${p.nameBody}.html"
+  //       case "md" => s"${p.nameBody}.html"
+  //       case "markdown" => s"${p.nameBody}.html"
+  //     }
+  //   }
 
-    override def makeContent(oldname: String, newname: String, p: Realm.Data): Option[Realm.Data] = Some(p)
-  }
+  //   override def makeContent(oldname: String, newname: String, p: Realm.Data): Option[Realm.Data] = Some(p)
+  // }
 
   // Unused
   // class DoxSiteTransformer(val context: Context) extends RealmTransformer {
