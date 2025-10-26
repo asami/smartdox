@@ -61,7 +61,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
- * @version Oct.  9, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -626,6 +626,16 @@ object DoxSite {
       node: TreeNode[Realm.Data],
       c: String,
       lastmodified: Option[Instant]
+    ): List[Node] = try {
+      _dox_page_create(node, c, lastmodified)
+    } catch {
+      case NonFatal(e) => _error_page(node, c, lastmodified, e)
+    }
+
+    private def _dox_page_create(
+      node: TreeNode[Realm.Data],
+      c: String,
+      lastmodified: Option[Instant]
     ) = {
       // println(s"_dox_page: $c")
       val dox = context.cache.get(node.pathname, lastmodified) getOrElse {
@@ -635,6 +645,21 @@ object DoxSite {
         }
         Dox2Parser.parseWithFilename(pathname, c)
       }
+      _create_dox(node.name, dox, lastmodified)
+    }
+
+    private def _error_page(
+      node: TreeNode[Realm.Data],
+      c: String,
+      lastmodified: Option[Instant],
+      e: Throwable
+    ) = {
+      val s = s"""Error: ${node.pathname}
+=====
+
+${e}
+"""
+      val dox = Dox2Parser.parse(s)
       _create_dox(node.name, dox, lastmodified)
     }
 

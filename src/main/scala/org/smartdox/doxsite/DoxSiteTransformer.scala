@@ -4,11 +4,12 @@ import scala.util.control.NonFatal
 import scala.util.matching.Regex
 import org.goldenport.RAISE
 import org.goldenport.util.StringUtils
+import org.goldenport.tree._
 import org.smartdox._
 import org.smartdox.generator.{Context => GContext}
 import org.smartdox.transformer._
 import org.smartdox.metadata._
-import org.goldenport.tree._
+import org.smartdox.parser.Dox2Parser
 
 /*
  * @since   Mar.  7, 2025
@@ -17,7 +18,8 @@ import org.goldenport.tree._
  *  version May. 31, 2025
  *  version Jun. 28, 2025
  *  version Jul. 23, 2025
- * @version Aug. 22, 2025
+ *  version Aug. 22, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -57,13 +59,31 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
   ): TreeNode[Node] = {
     dox_Transformers(context, node, page) match {
       case Nil => node
-      case xs => 
-        val a = Dox.toTree(page.dox)
-        val b = xs.foldLeft(a)((z, x) => z.transform(x))
-        val c = Dox.toDox(b)
+      case xs =>
+        val c = _make_dox(page, xs)
         val name = context.normalizeUriName(node.name)
         TreeNode.create(name, page.withDox(c))
     }
+  }
+
+  private def _make_dox(
+    page: Page,
+    xs: List[HomoTreeTransformer[Dox]]
+  ): Dox = try {
+    val a = Dox.toTree(page.dox)
+    val b = xs.foldLeft(a)((z, x) => z.transform(x))
+    Dox.toDox(b)
+  } catch {
+    case NonFatal(e) => _make_error_dox(page, e)
+  }
+
+  private def _make_error_dox(page: Page, e: Throwable) = {
+    val s = s"""Error: ${page.name.name}
+=====
+
+${e}
+"""
+    Dox2Parser.parse(s)
   }
 
   protected def make_image(

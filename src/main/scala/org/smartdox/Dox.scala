@@ -443,8 +443,10 @@ trait Dox extends IDocument {
 
   protected final def to_plain_text(cs: List[Dox]): ValidationNel[String, String] = {
     val (ss, es) = cs.partition(_.isInstanceOf[Text])
-    if (es.nonEmpty) "Not text".failureNel
-    else ss.mkString.success
+    if (es.nonEmpty)
+      "Not text".failureNel
+    else
+      ss.mkString.success
   }
 
   protected def get_location(p: Option[ParseLocation], ps: Seq[Dox]): Option[ParseLocation] =
