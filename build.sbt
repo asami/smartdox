@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.3.15"
+version := "2.4.0"
 
 scalaVersion := "2.12.18"
 
@@ -45,7 +45,9 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.14"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.15"
+
+libraryDependencies += "org.goldenport" %% "goldenport-record" % "2.2.3"
 
 libraryDependencies += "org.goldenport" %% "goldenport-scalaz-lib" % "2.0.0"
 
@@ -55,8 +57,12 @@ libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4" exclude("org
 
 libraryDependencies += "com.atilika.kuromoji" % "kuromoji-ipadic" % "0.9.0"
 
+libraryDependencies += "org.apache.poi" % "poi-ooxml" % "3.12"
+
 // // libraryDependencies += "net.sourceforge.nekohtml" % "nekohtml" % "1.9.15"
 // >>>>>>> origin/master
+
+libraryDependencies += "org.jsoup" % "jsoup" % "1.18.1"
 
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.10.0.202012080955-r"
 
