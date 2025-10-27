@@ -451,6 +451,7 @@ object DoxSite {
           case Status.InPreparation => DocumentStrategy.Skip
           case Status.Inactive => DocumentStrategy.Skip
           case Status.Test => DocumentStrategy.Skip
+          case Status.Error => DocumentStrategy.Draft
         }
     }
     case object Draft extends Strategy {
@@ -463,6 +464,7 @@ object DoxSite {
           case Status.InPreparation => DocumentStrategy.Skip
           case Status.Inactive => DocumentStrategy.Skip
           case Status.Test => DocumentStrategy.Skip
+          case Status.Error => DocumentStrategy.Draft
         }
     }
     case object Preparation extends Strategy {
@@ -470,6 +472,7 @@ object DoxSite {
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
           case Status.InPreparation => DocumentStrategy.Draft
+          case Status.Error => DocumentStrategy.Draft
           case _ => DocumentStrategy.Skip
         }
     }
@@ -483,6 +486,7 @@ object DoxSite {
           case Status.InPreparation => DocumentStrategy.Draft
           case Status.Inactive => DocumentStrategy.Skip
           case Status.Test => DocumentStrategy.Draft
+          case Status.Error => DocumentStrategy.Draft
         }
     }
     case object Test extends Strategy {
@@ -490,6 +494,7 @@ object DoxSite {
       def documentStrategy(p: DocumentMetaData): DocumentStrategy =
         p.status match {
           case Status.Test => DocumentStrategy.Test
+          case Status.Error => DocumentStrategy.Draft
           case _ => DocumentStrategy.Skip
         }
     }
@@ -654,12 +659,7 @@ object DoxSite {
       lastmodified: Option[Instant],
       e: Throwable
     ) = {
-      val s = s"""Error: ${node.pathname}
-=====
-
-${e}
-"""
-      val dox = Dox2Parser.parse(s)
+      val dox = Dox2Parser.errorDocument(node.pathname, e)
       _create_dox(node.name, dox, lastmodified)
     }
 

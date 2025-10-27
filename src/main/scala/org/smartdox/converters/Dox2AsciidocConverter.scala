@@ -18,7 +18,7 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct. 24, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -76,7 +76,9 @@ class Dox2AsciidocConverter(
     section_down()
   }
 
-  private def _make_title_attachment(head: Head): Seq[String] = {
+  private def _make_title_attachment(head: Head): Seq[String] = Nil
+
+  private def _make_title_attachment0(head: Head): Seq[String] = {
     Vector(_json_ld(head))
   }
 

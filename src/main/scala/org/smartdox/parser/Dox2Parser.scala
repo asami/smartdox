@@ -17,6 +17,7 @@ import org.goldenport.io.FileTextResolver
 import org.goldenport.tree._
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.StringUtils
+import org.goldenport.util.ExceptionUtils
 import org.smartdox._
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
@@ -47,7 +48,7 @@ import Dox._
  *  version Jul. 29, 2025
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
- * @version Oct. 24, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -679,4 +680,24 @@ object Dox2Parser {
     } else {
       None
     }
+
+  def errorDocument(title: String, e: Throwable): Document = {
+    val s = s"""Error: ${title}
+=====
+
+status=error
+
+
+```
+Exception :: ${ExceptionUtils.showName(e)}
+Message :: ${ExceptionUtils.showMessage(e)}
+```
+
+```
+${StringUtils.makeStack(e)}
+```
+
+"""
+    Dox.toDocument(parse(s))
+  }
 }

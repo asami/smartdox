@@ -77,14 +77,8 @@ trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
     case NonFatal(e) => _make_error_dox(page, e)
   }
 
-  private def _make_error_dox(page: Page, e: Throwable) = {
-    val s = s"""Error: ${page.name.name}
-=====
-
-${e}
-"""
-    Dox2Parser.parse(s)
-  }
+  private def _make_error_dox(page: Page, e: Throwable) =
+    Dox2Parser.errorDocument(page.name.name, e)
 
   protected def make_image(
     node: TreeNode[Node],

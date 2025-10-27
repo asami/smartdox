@@ -20,7 +20,7 @@ import org.smartdox._
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
- * @version Oct. 16, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -318,7 +318,7 @@ object DoxInlineParser {
       close_Angle_Bracket_State(evt.c)
 
     protected def close_Angle_Bracket_State(c: Char): DoxInlineParseState =
-      RAISE.notImplementedYetDefect
+      RAISE.notImplementedYetDefect(s"close_Angle_Bracket_State(${getClass.getSimpleName}): $c")
 
     protected final def handle_open_bracket(evt: CharEvent): Transition =
       handle_Open_Bracket(evt)

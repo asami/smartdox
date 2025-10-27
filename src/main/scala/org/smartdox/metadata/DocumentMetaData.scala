@@ -43,7 +43,7 @@ import org.smartdox.parser.PureParser
  *  version Jul. 27, 2025
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
- * @version Oct. 25, 2025
+ * @version Oct. 26, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -296,7 +296,7 @@ object DocumentMetaData {
     def noticePriorityDraft: Int = noticePriority
   }
   object Status extends EnumerationClass[Status] {
-    val elements = Vector(Published, WorkInProgress, Draft, InPreparation, Inactive, Test)
+    val elements = Vector(Published, WorkInProgress, Draft, InPreparation, Inactive, Test, Error)
 
     case object Published extends Status {
       val name = "published"
@@ -321,6 +321,10 @@ object DocumentMetaData {
     case object Test extends Status {
       val name = "test"
       def noticePriority = 1
+    }
+    case object Error extends Status {
+      val name = "error"
+      def noticePriority = 999
     }
 
     implicit val statusDecoder: Decoder[Status] = Decoder.decodeString.emap(_create)
