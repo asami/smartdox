@@ -31,6 +31,7 @@ import org.goldenport.util.OptionUtils
 import org.goldenport.util.OptionUtils.lastOption
 import org.goldenport.util.LocalDateUtils
 import org.goldenport.util.InstantUtils.instantOrderingAsc
+import org.goldenport.util.RegexUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
@@ -61,7 +62,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
- * @version Oct. 26, 2025
+ * @version Oct. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -289,7 +290,23 @@ object DoxSite {
     outputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     strategy: Strategy = Strategy.Overview,
     localeSetting: Config.LocaleSetting = Config.LocaleSetting.jaen,
-    origin: Option[File] = None
+    origin: Option[File] = None,
+    includeFilePatterns: Vector[Regex] = Vector(""".*\.(dox|org|md|markdown|ya?ml|png|jpg|jpeg|svg)$""").map(_.r),
+    excludeFilePatterns: Vector[Regex] = Vector(
+      """^_.*""",      // filenames starting with "_" (include-only partials)
+      """.*[~]$""",    // editor temporary files
+      """.*\.bak$""",  // backup files
+      """.*\.tmp$""",  // temporary files
+      """.*\.swp$"""   // swap files (e.g., Vim)
+    ).map(_.r),
+    includePathPatterns: Vector[Regex] = Vector(".*").map(_.r),
+    excludePathPatterns: Vector[Regex] = Vector(
+      """(?x)
+  (?:^|[\\/])_                   # directories starting with "_"
+  | \.d(?:[\\/]|\Z)              # directories ending with ".d"
+  | (?:^|[\\/])(assets|styles|includes)[\\/]  # static resource directories
+"""
+    ).map(_.r)
   ) {
     def isAutoWire(p: Page): Boolean = strategy.isAutoWire(p)
     def isAutoI18n(p: Page): Boolean = strategy.isAutoI18n(p)
@@ -719,15 +736,38 @@ object DoxSite {
 
       override def config = doxSiteConfig.inputTreeTransformerConfig
       override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
-        p.getNameSuffix.collect {
-          case "dox" => s"${p.nameBody}.dox"
-          case "org" => s"${p.nameBody}.dox"
-          case "md" => s"${p.nameBody}.dox"
-          case "markdown" => s"${p.nameBody}.dox"
-          case "yaml" => s"${p.nameBody}.yaml"
-          case "png" => s"${p.nameBody}.png"
+        val filename = p.name
+        val pathname = p.pathname
+        if (_is_available(filename, pathname)) {
+          p.getNameSuffix.collect {
+            case "dox" => s"${p.nameBody}.dox"
+            case "org" => s"${p.nameBody}.dox"
+            case "md" => s"${p.nameBody}.dox"
+            case "markdown" => s"${p.nameBody}.dox"
+            case "yaml" => s"${p.nameBody}.yaml"
+            case "png" => s"${p.nameBody}.png"
+            case "jpg" => s"${p.nameBody}.jpg"
+            case "jpeg" => s"${p.nameBody}.jpeg"
+            case "svg" => s"${p.nameBody}.svg"
+          }
+        } else {
+          None
         }
       }
+
+      private def _is_available(filename: String, pathname: String) =
+        _is_available_filename(filename) && _is_available_pathname(pathname)
+
+      private def _is_available_filename(filename: String) = (
+        RegexUtils.isWholeMatch(doxSiteConfig.includeFilePatterns, filename) &&
+          !RegexUtils.isWholeMatch(doxSiteConfig.excludeFilePatterns, filename)
+      )
+
+      private def _is_available_pathname(pathname: String) = (
+        RegexUtils.isWholeMatch(doxSiteConfig.includePathPatterns, pathname) &&
+          !RegexUtils.isWholeMatch(doxSiteConfig.excludePathPatterns, pathname)
+      )
+
       override def isIgnore(p: TreeNode[Realm.Data]): Boolean =
         p.name.endsWith(".d")
     }
