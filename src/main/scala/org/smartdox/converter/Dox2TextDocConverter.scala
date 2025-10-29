@@ -9,7 +9,7 @@ import org.smartdox._
  *  version Jul. 15, 2025
  *  version Aug. 25, 2025
  *  version Sep.  9, 2025
- * @version Oct. 24, 2025
+ * @version Oct. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -118,6 +118,7 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
     }
 
   override protected def enter_Section(p: Section): Unit = {
+    p.getClassName.foreach(x => sb_println(s"[.$x]"))
     sb_section_title(to_text(p.title))
   }
 

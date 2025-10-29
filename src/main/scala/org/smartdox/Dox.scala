@@ -97,7 +97,7 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct. 26, 2025
+ * @version Oct. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -114,6 +114,7 @@ trait Dox extends IDocument {
   def getId: Option[Dox.Id] = attributeMap.get("id").map(Dox.Id)
   def getLanguage: Option[Locale] = attributeMap.get("lang").
     map(x => Locale.forLanguageTag(x))
+  def getClassName: Option[String] = attributeMap.get("class")
 
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
@@ -673,6 +674,10 @@ object Dox extends UseDox {
       I18NFragment.create(p)
 
   def toDox(p: GTree[Dox]): Dox = untree(p)
+
+  def toInlineContents(p: String): InlineContents = List(Text(p))
+
+  def toInlineContents(p: I18NString): InlineContents = List(toDox(p))
 
   def toInlineContents(ps: Seq[Dox]): List[Inline] =
     _activate(ps).flatMap {
@@ -1648,6 +1653,12 @@ object Section {
   def create(title: I18NString, p: Option[Dox]): Section =
     Section(List(I18NFragment.create(title)), p.toList)
 
+  def create(title: I18NString, p: Seq[Dox]): Section =
+    Section(List(I18NFragment.create(title)), p.toList)
+
+  def create(title: I18NString, attrs: Map[String, String], p: Seq[Dox]): Section =
+    Section(List(I18NFragment.create(title)), p.toList, attributes = VectorMap(attrs))
+
   def create(title: I18NString, p: I18NFragment): Section =
     Section(List(I18NFragment.create(title)), List(p))
 
@@ -2099,6 +2110,8 @@ object Ul extends Ul(Nil, VectorMap.empty, None) with DoxFactory {
   def apply(element: Li) = new Ul(List(element))
   def apply(lis: Seq[Li]) = new Ul(lis.toList)
 
+  def create(ps: Seq[Dox]) = apply(ps.map(Li.make))
+
   def toValuesAsInlineContents(ul: Ul): List[InlineContents] =
     ul.contents.map(Dox.toInlineContents)
 
@@ -2163,6 +2176,34 @@ object Li extends DoxFactory {
   def apply(text: String) = new Li(List(Text(text)))
   def apply(element: ListContent) = new Li(List(element))
   def apply(ps: Seq[ListContent]) = new Li(ps.toList)
+
+  def create(p: Dox): Dox = p match {
+    case m: ListContent => apply(m)
+    case m => Error(s"Li: Illegal list content = $p")
+  }
+
+  def create(ps: Seq[Dox]): Dox = {
+    case class Z(
+      lis: Vector[ListContent] = Vector.empty,
+      errors: Vector[Dox] = Vector.empty
+    ) {
+      def r = if (errors.isEmpty)
+        apply(lis)
+      else
+        Error(s"Li: Illegal list contents = ${errors.mkString}")
+
+      def +(rhs: Dox) = rhs match {
+        case m: ListContent => copy(lis = lis :+ m)
+        case m => copy(errors = errors :+ m)
+      }
+    }
+    ps.foldLeft(Z())(_+_).r
+  }
+
+  def make(p: Dox): Li = p match {
+    case m: ListContent => apply(m)
+    case m => apply(Error(s"Li: Illegal list content = $m"))
+  }
 }
 
 // 2011-12-30
@@ -2934,6 +2975,11 @@ object Dt extends Dt(Nil, VectorMap.empty, None) with DoxFactory {
     case "dt" => Some(PureParser.buildDt(x))
     case _ => None
   }
+
+  def make(p: Dox): Dt = p match {
+    case m: Inline => apply(m)
+    case m => apply(Error(s"Dt: Illegal Dt content = $m"))
+  }
 }
 
 case class Dd(
@@ -2962,6 +3008,8 @@ object Dd extends Dd(Nil, VectorMap.empty, None) with DoxFactory {
     case "dd" => Some(PureParser.buildDd(x))
     case _ => None
   }
+
+  def create(p: I18NString): Dd = Dd(List(I18NFragment.create(p)))
 }
 
 case class Fragment(
@@ -3972,6 +4020,9 @@ case class Error(
   }
 
   def message = conclusion.message
+}
+object Error {
+  def apply(msg: String): Error = Error(Conclusion.syntaxErrorFault(msg))
 }
 
 // 2025-09-01

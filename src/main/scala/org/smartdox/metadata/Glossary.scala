@@ -22,7 +22,7 @@ import org.smartdox.structure.StructureObject
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
  *  version Sep. 22, 2025
- * @version Oct.  5, 2025
+ * @version Oct. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -87,6 +87,9 @@ object Glossary {
       locale -> StringUtils.makeTitle(s)
     }
 
+    def effectiveBrief: Option[I18NString] = brief orElse summary
+
+    def effectiveSummary: Option[I18NString] = summary orElse brief
 
     def words: Either[Vector[String], I18NHangar[String]] = {
       (name.getIfNoLocale, aliases.unify) match {

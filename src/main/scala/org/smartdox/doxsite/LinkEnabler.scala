@@ -1,5 +1,6 @@
 package org.smartdox.doxsite
 
+import scala.collection.immutable.ListSet
 import java.io._
 import java.net.URI
 import java.nio.file.Paths
@@ -7,6 +8,7 @@ import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.tree._
 import org.goldenport.i18n.I18NHangar
+import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.StringUtils
 import org.smartdox._
@@ -22,7 +24,7 @@ import org.smartdox.metadata._
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
- * @version Oct. 22, 2025
+ * @version Oct. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -70,10 +72,14 @@ object LinkEnabler {
 //    private val _link_mark = "🔍" // 詳細記事: [🔍現象と観測記録]
 //    private val _link_mark = "↳" // ネスト構造: [↳ サブモデル]
 
-    private var _definitions: Set[Glossary.Definition] = Set.empty
+    private var _definitions: Vector[Glossary.Definition] = Vector.empty
 
     // Shared across all glossary terms within the same page
     private val expandedDefinitions = scala.collection.mutable.Set.empty[Glossary.Definition]
+
+    private var _internal_links: Vector[Hyperlink] = Vector.empty
+
+    private var _external_links: Vector[Hyperlink] = Vector.empty
 
     private val _is_document_stable = pageNode.getContent.fold(false) {
       case m: Page => m.dox.head.metadata.isStable
@@ -94,7 +100,7 @@ object LinkEnabler {
       _definitions = _definitions ++ ps
     }
 
-    def usedDefinitions = _definitions
+    def usedDefinitions: ListSet[Glossary.Definition] = ListSet(_definitions: _*)
 
     override protected def make_Node(
       node: TreeNode[Dox],
@@ -111,9 +117,131 @@ object LinkEnabler {
         case m: Hyperlink => _transform_hyperlink(m)
         case m: Preserve => directive_node(m)
         case m if m.isStable => directive_node(m) // CAUTION
+        case m: Body => directive_container_content_after(m, _create_references)
         case m => directive_container_content(m)
       }
     }
+
+    private def _create_references(p: TreeNode[Dox]): TreeNode[Dox] = {
+      val xs = Vector(
+        _create_reference_to,
+        _create_reference_from,
+        _create_bibliography
+      ).flatten
+      if (xs.isEmpty) {
+        p
+      } else {
+        for (x <- xs) {
+          val a = Dox.toTreeNode(x)
+          p.addChild(a)
+        }
+        p
+      }
+    }
+
+    private def _create_reference_to: Vector[Dox] = {
+      val xs = Vector(
+        _create_reference_relation,
+        _create_reference_internal,
+        _create_reference_external,
+        _create_reference_glossary
+      ).flatten
+      _create_section(xs, "reference-section", "References", "参照")
+    }
+
+    private def _create_reference_relation: Vector[Dox] =
+      Vector(
+        _create_reference_relation_next,
+        _create_reference_relation_prev,
+        _create_reference_relation_related
+      ).flatten
+
+    private def _create_reference_relation_next: Vector[Dox] = {
+      val xs = Vector.empty
+      _create_section(xs, "Next Article", "次の記事")
+    }
+
+    private def _create_reference_relation_prev: Vector[Dox] = {
+      val xs = Vector.empty
+      _create_section(xs, "Prev Article", "前の記事")
+    }
+
+    private def _create_reference_relation_related: Vector[Dox] = {
+      val xs = Vector.empty
+      _create_section(xs, "Related Articles", "関連記事")
+    }
+
+    private def _create_reference_internal: Vector[Dox] = {
+      val xs = _reference_internal_links
+      _create_section(xs, "In Site", "サイト内")
+    }
+
+    private def _reference_internal_links: Vector[Dox] =
+      _create_ul(_internal_links)
+
+    private def _create_reference_external: Vector[Dox] = {
+      val xs = _reference_external_links
+      _create_section(xs, "External", "外部参照")
+    }
+
+    private def _reference_external_links: Vector[Dox] =
+      _create_ul(_external_links)
+
+    private def _create_reference_glossary: Vector[Dox] = {
+      val xs = _glossary_links
+      _create_section(xs, "Glossary", "用語集")
+    }
+
+    private def _glossary_links: Vector[Dox] = {
+      val xs: Vector[(Dt, Dd)] = _definitions.distinct.map { x =>
+        val l = TextLinkProcessor.makeGlossaryLinkExpand(_create_href, x)
+        val summary = x.term.effectiveBrief getOrElse I18NString("Undefined")
+        (Dt.make(l), Dd.create(summary))
+      }
+      if (xs.isEmpty)
+        Vector.empty
+      else
+        Vector(Dl(xs.toList))
+    }
+
+    private def _create_href(p: Glossary.Definition): URI =
+      create_href(pageNode, p.page, p.getId)
+
+    private def _create_reference_from: Vector[Dox] = {
+      val xs = Vector(
+        _create_reference_internal_from
+      ).flatten
+      _create_section(xs, "References From", "参照元")
+    }
+
+    private def _create_reference_internal_from: Vector[Dox] = {
+      val xs = Vector.empty
+      _create_section(xs, "In Site", "サイト内")
+    }
+
+    private def _create_bibliography: Vector[Dox] = {
+      val xs = Vector(
+      ).flatten
+      _create_section(xs, "Bibliography", "参考文献")
+    }
+
+    private def _create_section(xs: Vector[Dox], classname: String, en: String, ja: String): Vector[Dox] =
+      _create_section(xs, Map("class" -> classname), en, ja)
+
+    private def _create_section(xs: Vector[Dox], en: String, ja: String): Vector[Dox] =
+      _create_section(xs, Map.empty[String, String], en, ja)
+
+    private def _create_section(xs: Vector[Dox], attrs: Map[String, String], en: String, ja: String): Vector[Dox] =
+      if (xs.isEmpty)
+        Vector.empty
+      else
+        Vector(Section.create(I18NString.enja(en, ja), attrs, xs))
+
+    private def _create_ul(xs: Vector[ListContent]): Vector[Dox] =
+      if (xs.isEmpty)
+        Vector.empty
+      else
+        Vector(Ul.create(xs))
 
     private def _transform(m: Text) = _transform_simple(m)
 
@@ -218,7 +346,7 @@ object LinkEnabler {
           if (s == "file")
             _transform_hyperlink(p, p.href)
           else
-            directive_node(p)
+            _external_link(p)
         case None => _transform_hyperlink(p, p.href)
       }
     }
@@ -236,13 +364,19 @@ object LinkEnabler {
                 val relpath = StringUtils.changeSuffix(relpath0, "html")
                 val tooltip = s.getEffectiveTooltip
                 val r = Hyperlink.createArticle(title, new URI(relpath), tooltip)
+                _internal_links = _internal_links :+ r
                 directive_node(r)
-              case None => directive_node(dox)
+              case None => _external_link(dox)
             }
-            case None => directive_node(dox)
+            case None => _external_link(dox)
           }
-        case None => directive_node(dox)
+        case None => _external_link(dox)
       }
+
+    private def _external_link(p: Hyperlink): TreeTransformer.Directive[Dox] = {
+      _external_links = _external_links :+ p
+      directive_node(p)
+    }
   }
 
   case class DoxSiteToken(text: String) {
@@ -298,7 +432,7 @@ object LinkEnabler {
   case class TextLinkProcessor(
     createhref: Glossary.Definition => URI,
     dox: Vector[Dox],
-    definitions: Set[Glossary.Definition] = Set.empty,
+    definitions: ListSet[Glossary.Definition] = ListSet.empty,
     expandedDefinitions: scala.collection.mutable.Set[Glossary.Definition] = scala.collection.mutable.Set.empty,
     expandDefinition: Boolean = true
   ) {
@@ -423,79 +557,86 @@ object LinkEnabler {
       token: String,
       canaux: Boolean,
       expand: Boolean
-    ) = {
-      val href = createhref(definition)
-      val titleoption = Option(definition.term.name)
-      titleoption match {
-        case Some(title) =>
-          if (title.isSimple) {
-            Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href, title.en)
-          } else {
-            I18NFragment.createDox(
-              List(
-                LocaleUtils.ja -> List(Hyperlink.createGlossary(_make_label_ja(definition, token, canaux, expand), href, title.ja)),
-                LocaleUtils.en -> List(Hyperlink.createGlossary(_make_label_en(definition, token, canaux, expand), href, title.en))
-              )
-            )
-          }
-        case None => Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href)
-      }
-    }
+    ) = makeGlossaryLink(createhref, definition, token, canaux, expand)
 
-    private def _make_label(
-      definition: Glossary.Definition,
-      token: String,
-      canaux: Boolean,
-      expand: Boolean
-    ): List[Inline] = {
-      _make_label_en(definition, token, canaux, expand)
-    }
+    // private def _make_glossary_link(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   canaux: Boolean,
+    //   expand: Boolean
+    // ) = {
+    //   val href = createhref(definition)
+    //   val titleoption = Option(definition.term.name)
+    //   titleoption match {
+    //     case Some(title) =>
+    //       if (title.isSimple) {
+    //         Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href, title.en)
+    //       } else {
+    //         I18NFragment.createDox(
+    //           List(
+    //             LocaleUtils.ja -> List(Hyperlink.createGlossary(_make_label_ja(definition, token, canaux, expand), href, title.ja)),
+    //             LocaleUtils.en -> List(Hyperlink.createGlossary(_make_label_en(definition, token, canaux, expand), href, title.en))
+    //           )
+    //         )
+    //       }
+    //     case None => Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href)
+    //   }
+    // }
 
-    private def _make_label_en(
-      definition: Glossary.Definition,
-      token: String,
-      canaux: Boolean,
-      expand: Boolean
-    ): List[Inline] = {
-      if (!expand) {
-        List(Text(token))
-      } else {
-        val text = if (canaux) {
-          val wr = definition.term.wordRelation(token)
-          val xs = wr.en
-          _create_label(token, xs)
-        } else {
-          token
-        }
-        List(Text(text))
-      }
-    }
+    // private def _make_label(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   canaux: Boolean,
+    //   expand: Boolean
+    // ): List[Inline] = {
+    //   _make_label_en(definition, token, canaux, expand)
+    // }
 
-    private def _make_label_ja(
-      definition: Glossary.Definition,
-      token: String,
-      canaux: Boolean,
-      expand: Boolean
-    ): List[Inline] = {
-      if (!expand) {
-        List(Text(token))
-      } else {
-        val text = if (canaux) {
-          val wr = definition.term.wordRelation(token)
-          val xs = wr.ja
-          _create_label(token, xs)
-        } else {
-          token
-        }
-        List(Text(text))
-      }
-    }
+    // private def _make_label_en(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   canaux: Boolean,
+    //   expand: Boolean
+    // ): List[Inline] = {
+    //   if (!expand) {
+    //     List(Text(token))
+    //   } else {
+    //     val text = if (canaux) {
+    //       val wr = definition.term.wordRelation(token)
+    //       val xs = wr.en
+    //       _create_label(token, xs)
+    //     } else {
+    //       token
+    //     }
+    //     List(Text(text))
+    //   }
+    // }
 
-    private def _create_label(token: String, ps: Seq[String]): String =
-      if (ps.isEmpty)
-        token
-      else
-        s"""$token (${ps.mkString(", ")})"""
+    // private def _make_label_ja(
+    //   definition: Glossary.Definition,
+    //   token: String,
+    //   canaux: Boolean,
+    //   expand: Boolean
+    // ): List[Inline] = {
+    //   if (!expand) {
+    //     List(Text(token))
+    //   } else {
+    //     val text = if (canaux) {
+    //       val wr = definition.term.wordRelation(token)
+    //       val xs = wr.ja
+    //       _create_label(token, xs)
+    //     } else {
+    //       token
+    //     }
+    //     List(Text(text))
+    //   }
+    // }
+
+    // private def _create_label(token: String, ps: Seq[String]): String =
+    //   if (ps.isEmpty)
+    //     token
+    //   else
+    //     s"""$token (${ps.mkString(", ")})"""
 
     // private def _create_label(
     //   definition: Glossary.Definition,
@@ -573,7 +714,7 @@ object LinkEnabler {
   object TextLinkProcessor {
     case class Holder(
       xs: Vector[Dox],
-      ds: Set[Glossary.Definition]
+      ds: ListSet[Glossary.Definition]
     ) {
       def isUsed(p: Glossary.Definition): Boolean = ds.contains(p)
       // def isTokenUsed(token: String): Boolean =
@@ -585,15 +726,112 @@ object LinkEnabler {
         copy(xs = xs ++ ps, ds = ds + candidate)
     }
     object Holder {
-      val empty = Holder(Vector.empty, Set.empty)
+      val empty = Holder(Vector.empty, ListSet.empty)
 
-      def definitions(ps: Set[Glossary.Definition]) = empty.copy(ds = ps)
+      def definitions(ps: ListSet[Glossary.Definition]) = empty.copy(ds = ps)
     }
 
     // case class Result(
     //   dox: Vector[Dox],
     //   definitions: Vector[Glossary.Definition] = Vector.empty
     // )
+
+    def makeGlossaryLinkExpand(
+      createhref: Glossary.Definition => URI,
+      definition: Glossary.Definition
+    ): Dox = makeGlossaryLink(
+      createhref, definition, definition.term.name, true, true
+    )
+
+    def makeGlossaryLink(
+      createhref: Glossary.Definition => URI,
+      definition: Glossary.Definition,
+      token: String,
+      canaux: Boolean,
+      expand: Boolean
+    ): Dox = makeGlossaryLink(
+      createhref, definition, I18NString(token), canaux, expand
+    )
+
+    def makeGlossaryLink(
+      createhref: Glossary.Definition => URI,
+      definition: Glossary.Definition,
+      token: I18NString,
+      canaux: Boolean,
+      expand: Boolean
+    ): Dox = {
+      val href = createhref(definition)
+      val titleoption = Option(definition.term.name)
+      titleoption match {
+        case Some(title) =>
+          if (title.isSimple) {
+            Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href, title.en)
+          } else {
+            I18NFragment.createDox(
+              List(
+                LocaleUtils.ja -> List(Hyperlink.createGlossary(_make_label_ja(definition, token, canaux, expand), href, title.ja)),
+                LocaleUtils.en -> List(Hyperlink.createGlossary(_make_label_en(definition, token, canaux, expand), href, title.en))
+              )
+            )
+          }
+        case None => Hyperlink.createGlossary(_make_label(definition, token, canaux, expand), href)
+      }
+    }
+
+    private def _make_label(
+      definition: Glossary.Definition,
+      token: I18NString,
+      canaux: Boolean,
+      expand: Boolean
+    ): List[Inline] = {
+      _make_label_en(definition, token, canaux, expand)
+    }
+
+    private def _make_label_en(
+      definition: Glossary.Definition,
+      token: I18NString,
+      canaux: Boolean,
+      expand: Boolean
+    ): List[Inline] = {
+      if (!expand) {
+        Dox.toInlineContents(token.ja)
+      } else {
+        val text = if (canaux) {
+          val wr = definition.term.wordRelation(token.en)
+          val xs = wr.en
+          _create_label(token.en, xs)
+        } else {
+          token.en
+        }
+        Dox.toInlineContents(text)
+      }
+    }
+
+    private def _make_label_ja(
+      definition: Glossary.Definition,
+      token: I18NString,
+      canaux: Boolean,
+      expand: Boolean
+    ): List[Inline] = {
+      if (!expand) {
+        Dox.toInlineContents(token.ja)
+      } else {
+        val text = if (canaux) {
+          val wr = definition.term.wordRelation(token.ja)
+          val xs = wr.ja
+          _create_label(token.ja, xs)
+        } else {
+          token.ja
+        }
+        Dox.toInlineContents(text)
+      }
+    }
+
+    private def _create_label(token: String, ps: Seq[String]): String =
+      if (ps.isEmpty)
+        token
+      else
+        s"""$token (${ps.mkString(", ")})"""
   }
 
   private def _tokenize(p: String): Vector[Token] = {
