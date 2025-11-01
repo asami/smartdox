@@ -9,7 +9,8 @@ import org.smartdox._
  *  version Jul. 15, 2025
  *  version Aug. 25, 2025
  *  version Sep.  9, 2025
- * @version Oct. 28, 2025
+ *  version Oct. 28, 2025
+ * @version Nov.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -96,26 +97,26 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
 
   protected def is_space_required_in_stay(p: Dox): Boolean = false
 
-  override final protected def enter_Body(p: Body): Unit =
-    p.contents.headOption match {
-      case Some(s) => s match {
-        case m: Section => get_metadata match {
-          case Some(meta) => meta.getEffectiveLead match {
-            case Some(lead) => lead.traverse(this)
-            case None => Unit
-          }
-          case None => Unit
-        }
-        case _ => get_metadata match {
-          case Some(meta) => meta.getLead match {
-            case Some(lead) => lead.traverse(this)
-            case None => Unit
-          }
-          case None => Unit
-        }
-      }
-      case None => Unit
-    }
+  // override final protected def enter_Body(p: Body): Unit =
+  //   p.contents.headOption match {
+  //     case Some(s) => s match {
+  //       case m: Section => get_metadata match {
+  //         case Some(meta) => meta.getEffectiveLead match {
+  //           case Some(lead) => lead.traverse(this)
+  //           case None => Unit
+  //         }
+  //         case None => Unit
+  //       }
+  //       case _ => get_metadata match {
+  //         case Some(meta) => meta.getLead match {
+  //           case Some(lead) => lead.traverse(this)
+  //           case None => Unit
+  //         }
+  //         case None => Unit
+  //       }
+  //     }
+  //     case None => Unit
+  //   }
 
   override protected def enter_Section(p: Section): Unit = {
     p.getClassName.foreach(x => sb_println(s"[.$x]"))
