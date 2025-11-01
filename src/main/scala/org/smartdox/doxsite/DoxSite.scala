@@ -62,7 +62,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Jul. 26, 2025
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
- * @version Oct. 30, 2025
+ *  version Oct. 30, 2025
+ * @version Nov.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -237,15 +238,15 @@ class DoxSite(
 
   private def _compare_default(lhs: Notice, rhs: Notice): Boolean = (
     _compare_status_option(lhs, rhs) orElse
-    _compare_updated_option(lhs, rhs) orElse
     _compare_published_option(lhs, rhs) orElse
+    _compare_updated_option(lhs, rhs) orElse
     _compare_lastmodified_option(lhs, rhs) getOrElse false
   )
 
   private def _compare_draft(lhs: Notice, rhs: Notice): Boolean = (
     _compare_status_option(lhs, rhs) orElse
-    _compare_updated_option(lhs, rhs) orElse
     _compare_published_option(lhs, rhs) orElse
+    _compare_updated_option(lhs, rhs) orElse
     _compare_lastmodified_option(lhs, rhs) getOrElse false
   )
 
@@ -253,10 +254,10 @@ class DoxSite(
       DocumentMetaData.Status.compareDraftOption(lhs.status, rhs.status)
 
   private def _compare_updated_option(lhs: Notice, rhs: Notice): Option[Boolean] =
-    if (lhs.updated == rhs.updated)
+    if (lhs.updateds == rhs.updateds)
       None
     else
-      LocalDateUtils.compareDescOption(lhs.updated, rhs.updated)
+      LocalDateUtils.compareDescOption(lhs.lastUpdated, rhs.lastUpdated)
 
   private def _compare_published_option(lhs: Notice, rhs: Notice): Option[Boolean] =
     if (lhs.published == rhs.published)
@@ -515,7 +516,7 @@ object DoxSite {
           case _ => DocumentStrategy.Skip
         }
     }
-
+l
     implicit val strategyDecoder: Decoder[Strategy] = Decoder.decodeString.emap(_create)
 
     implicit val strategyEncoder: Encoder[Strategy] = Encoder.encodeString.contramap(_.name)

@@ -4,6 +4,7 @@ import java.net.URI
 import org.joda.time.LocalDate
 import org.goldenport.i18n.I18NString
 import org.goldenport.tree.TreeNode
+import org.goldenport.collection.NonEmptyVector
 import org.smartdox.generator.Context
 import org.smartdox.metadata.Notices
 import org.smartdox.metadata.Notices.Notice
@@ -17,7 +18,8 @@ import org.smartdox.metadata.CategoryCollection
  *  version Jun. 29, 2025
  *  version Jul. 22, 2025
  *  version Aug. 27, 2025
- * @version Sep.  3, 2025
+ *  version Sep.  3, 2025
+ * @version Nov.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -46,10 +48,12 @@ class NoticeCollector(
   private def _record_notice(p: Notice): Unit = {
     if (_is_notice(p))
       _notices = _notices :+ p
-    for ((evt, d) <- _make_event_kind(p)) {
-      val ckind = _make_content_kind(p)
-      val slot = History.Slot(evt, d, ckind, p)
-      _history_slots = _history_slots :+ slot
+    for (xs <- _make_event_kind(p)) {
+      for ((evt, d) <- xs.vector) {
+        val ckind = _make_content_kind(p)
+        val slot = History.Slot(evt, d, ckind, p)
+        _history_slots = _history_slots :+ slot
+      }
     }
   }
 
@@ -67,14 +71,12 @@ class NoticeCollector(
       History.ContentKind.Article
   }
 
-  private def _make_event_kind(p: Notice): Option[(History.EventKind, LocalDate)] =
-    p.updated match {
-      case Some(s) => Some((History.EventKind.Updated, s))
-      case None => p.published match {
-        case Some(ss) => Some((History.EventKind.Created, ss))
-        case None => None
-      }
-    }
+  private def _make_event_kind(p: Notice): Option[NonEmptyVector[(History.EventKind, LocalDate)]] = {
+    val a = p.published.map(x => (History.EventKind.Created, x))
+    val b = p.updateds.toVector.map(x => (History.EventKind.Updated, x))
+    val c = a.toVector ++ b
+    NonEmptyVector.createOption(c)
+  }
 }
 
 object NoticeCollector {

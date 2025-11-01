@@ -1,5 +1,6 @@
 package org.smartdox.metadata
 
+import scala.collection.immutable.SortedSet
 import java.net.URI
 import java.time.Instant
 import java.time.ZoneId
@@ -15,6 +16,7 @@ import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.I18NString
 import org.goldenport.tree.TreeNode
 import org.goldenport.util.InstantUtils
+import org.goldenport.util.LocalDateUtils.Implicits._
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.CirceUtils.Codec._
 import org.goldenport.util.StringUtils
@@ -30,7 +32,8 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Jul. 26, 2025
  *  version Aug. 16, 2025
  *  version Sep. 22, 2025
- * @version Oct. 12, 2025
+ *  version Oct. 12, 2025
+ * @version Nov.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -115,7 +118,7 @@ object Notices {
     description: I18NString,
     keywords: List[String],
     published: Option[LocalDate],
-    updated: Option[LocalDate],
+    updateds: SortedSet[LocalDate],
     kind: Option[DocumentMetaData.Kind],
     status: Option[DocumentMetaData.Status],
     lastModified: Option[Instant]
@@ -124,12 +127,12 @@ object Notices {
 
     def id = s"id:urn:${uri}"
 
+    def lastUpdated: Option[LocalDate] = updateds.lastOption
+
     def getTimestamp: Option[Instant] = {
-      val a = Vector(
-        published.map(_to_instant),
-        updated.map(_to_instant),
-        lastModified
-      ).flatten
+      val a = published.map(_to_instant).toVector ++
+      updateds.map(_to_instant).toVector ++
+      lastModified.toVector
       a match {
         case Vector() => None
         case xs => Some(xs.max)
@@ -162,7 +165,7 @@ object Notices {
       I18NString("No article"),
       Nil,
       None,
-      None,
+      SortedSet.empty[LocalDate],
       None,
       None,
       None
@@ -187,7 +190,7 @@ object Notices {
             md.getDescriptionI18NString getOrElse I18NString.empty,
             md.keywords,
             md.publishedAt.map(_.toLocalDate),
-            md.modifiedAt.map(_.toLocalDate),
+            md.modifiedAtHistory.map(_.toLocalDate),
             md.kindOption,
             md.statusOption,
             m.lastModified
@@ -231,7 +234,7 @@ object Notices {
           "description" -> n.description.distill(ctx).asJson,
           "keywords" -> n.keywords.asJson,
           "published" -> n.published.asJson(Encoder.encodeOption(localdateFormatEncoder)),
-          "updated" -> n.updated.asJson(Encoder.encodeOption(localdateFormatEncoder)),
+          "updateds" -> n.updateds.asJson,
           "kind" -> n.kind.asJson,
           "status" -> n.status.asJson
         )

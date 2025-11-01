@@ -1,6 +1,7 @@
 package org.smartdox.metadata
 
 import scalaz._, Scalaz._
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 import scala.xml.{Node => XNode, Text => XText, _}
 import java.net.URI
@@ -43,7 +44,8 @@ import org.smartdox.parser.PureParser
  *  version Jul. 27, 2025
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Nov.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -56,7 +58,7 @@ case class DocumentMetaData(
   organization: Option[I18NFragment] = None,
   keywords: List[String] = Nil,
   publishedAt: Option[LocalDateOrDateTime] = None,
-  modifiedAt: Option[LocalDateOrDateTime] = None,
+  modifiedAtHistory: SortedSet[LocalDateOrDateTime] = SortedSet.empty,
   kindOption: Option[DocumentMetaData.Kind] = None,
   statusOption: Option[DocumentMetaData.Status] = None,
   strategy: Set[DocumentMetaData.Strategy] = Set.empty,
@@ -67,6 +69,8 @@ case class DocumentMetaData(
   def isEmpty = title.isEmpty && explanation.isEmpty && author.isEmpty && keywords.isEmpty && publishedAt.isEmpty && modifiedAt.isEmpty
 
   def toOption = if (isEmpty) None else Some(this)
+
+  def modifiedAt: Option[LocalDateOrDateTime] = modifiedAtHistory.lastOption
 
   def kind: DocumentMetaData.Kind = kindOption getOrElse DocumentMetaData.Kind.Article
 
@@ -152,7 +156,7 @@ case class DocumentMetaData(
     copy(
       title = t,
       publishedAt = dp,
-      modifiedAt = dm
+      modifiedAtHistory = modifiedAtHistory ++ dm
     )
   }
 
@@ -181,7 +185,7 @@ case class DocumentMetaData(
       organization orElse rhs.organization,
       (keywords ::: rhs.keywords).distinct,
       publishedAt orElse rhs.publishedAt,
-      modifiedAt orElse rhs.modifiedAt,
+      modifiedAtHistory ++ rhs.modifiedAtHistory,
       lastOption(kindOption, rhs.kindOption),
       lastOption(statusOption, rhs.statusOption),
       strategy ++ rhs.strategy
@@ -376,7 +380,7 @@ object DocumentMetaData {
       organization <- hocon.cStringOption(PROP_ORGANIZATION)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
       published <- _get_localdateordatetime(hocon, PROP_PUBLISHED_AT)
-      modified <- _get_localdateordatetime(hocon, PROP_MODIFIED_AT)
+      modified <- _take_localdateordatetime_set(hocon, PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
       strategy <- hocon.cValueList(Strategy, PROP_STRATEGY)
@@ -404,6 +408,12 @@ object DocumentMetaData {
     key: String
   )(implicit ctx: DateTimeContext): Consequence[Option[LocalDateOrDateTime]] =
     Consequence(hocon.cLocalDateOrDateTimeOption(key).toOption.flatten)
+
+  private def _take_localdateordatetime_set(
+    hocon: Hocon,
+    key: String
+  )(implicit ctx: DateTimeContext): Consequence[SortedSet[LocalDateOrDateTime]] =
+    hocon.cLocalDateOrDateTimeSet(key)
 
   def create(title: Inline): DocumentMetaData =
     DocumentMetaData(Some(I18NFragment.create(List(title))))
@@ -438,7 +448,7 @@ object DocumentMetaData {
       organization <- _get_i18nfragment(p, "organization")
       keywords <- _get_string_list_eager(p, "keywords")
       publishedat <- _get_localdateordatetime(p, "publishedAt")
-      modifiedat <- _get_localdateordatetime(p, "modifiedAt")
+      modifiedat <- _take_localdateordatetime_set(p, "modifiedAt")
       kind <- _get_powertype(p, Kind, "kind")
       status <- _get_powertype(p, Status, "status")
     } yield {
@@ -469,6 +479,9 @@ object DocumentMetaData {
 
   private def _get_localdateordatetime(p: XNode, name: String)(implicit ctx: DateTimeContext): Consequence[Option[LocalDateOrDateTime]] =
     Consequence(XmlUtils.getLocalDateOrDateTimeC(p, name).toOption.flatten)
+
+  private def _take_localdateordatetime_set(p: XNode, name: String)(implicit ctx: DateTimeContext): Consequence[SortedSet[LocalDateOrDateTime]] =
+    XmlUtils.takeLocalDateOrDateTimeSetC(p, name)
 
   private def _get_i18nfragment(p: XNode, name: String): Consequence[Option[I18NFragment]] =
     I18NFragment.getC(name, p)
