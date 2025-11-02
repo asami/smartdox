@@ -516,7 +516,7 @@ object DoxSite {
           case _ => DocumentStrategy.Skip
         }
     }
-l
+
     implicit val strategyDecoder: Decoder[Strategy] = Decoder.decodeString.emap(_create)
 
     implicit val strategyEncoder: Encoder[Strategy] = Encoder.encodeString.contramap(_.name)

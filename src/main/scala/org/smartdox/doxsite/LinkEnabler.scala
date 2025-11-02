@@ -24,7 +24,8 @@ import org.smartdox.metadata._
  *  version Jul. 26, 2025
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
- * @version Oct. 28, 2025
+ *  version Oct. 28, 2025
+ * @version Nov.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -61,6 +62,8 @@ object LinkEnabler {
     pageNode: TreeNode[Node],
     enabler: LinkEnabler
   ) extends DoxInSiteTransformer {
+    import LinkEmbeder._
+
 //    private val _link_mark = "▸" // 軽量で自然: [▸ Glossary]
 //    private val _link_mark = "⮕" // 見出し: [⮕ Error Concept]
     private val _link_mark = "📄" // Markdown/記事リンク: [📄ドメイン・モデル構成要素]
@@ -79,7 +82,7 @@ object LinkEnabler {
 
     private var _internal_links: Vector[Hyperlink] = Vector.empty
 
-    private var _external_links: Vector[Hyperlink] = Vector.empty
+    private var _external_links: LinkHolder = LinkHolder()
 
     private val _is_document_stable = pageNode.getContent.fold(false) {
       case m: Page => m.dox.head.metadata.isStable
@@ -106,6 +109,7 @@ object LinkEnabler {
       node: TreeNode[Dox],
       content: Dox
     ): TreeTransformer.Directive[Dox] = {
+      def _locale_ = Dox.getLocale(node)
       content match {
         case m: Text =>
           if (_is_unstable(m))
@@ -114,10 +118,11 @@ object LinkEnabler {
             directive_node(m)
         case m: Dfn => directive_node(m)
         case m: Dt => directive_node(m)
-        case m: Hyperlink => _transform_hyperlink(m)
+        case m: Hyperlink => _transform_hyperlink(_locale_, m)
         case m: Preserve => directive_node(m)
         case m if m.isStable => directive_node(m) // CAUTION
         case m: Body => directive_container_content_after(m, _create_references)
+        case m: I18NFragment => _transform_i18nfragment(m)
         case m => directive_container_content(m)
       }
     }
@@ -180,12 +185,13 @@ object LinkEnabler {
       _create_ul(_internal_links)
 
     private def _create_reference_external: Vector[Dox] = {
-      val xs = _reference_external_links
+//      val xs = _reference_external_links
+      val xs = Vector.empty
       _create_section(xs, "External", "外部参照")
     }
 
     private def _reference_external_links: Vector[Dox] =
-      _create_ul(_external_links)
+      _create_ul(_external_links.toListContents)
 
     private def _create_reference_glossary: Vector[Dox] = {
       val xs = _glossary_links
@@ -340,18 +346,25 @@ object LinkEnabler {
       }
     }
 
-    private def _transform_hyperlink(p: Hyperlink): TreeTransformer.Directive[Dox] = {
+    private def _transform_hyperlink(
+      locale: Option[Locale],
+      p: Hyperlink
+    ): TreeTransformer.Directive[Dox] = {
       Option(p.href.getScheme) match {
         case Some(s) =>
           if (s == "file")
-            _transform_hyperlink(p, p.href)
+            _transform_hyperlink(locale, p, p.href)
           else
-            _external_link(p)
-        case None => _transform_hyperlink(p, p.href)
+            _external_link(locale, p)
+        case None => _transform_hyperlink(locale, p, p.href)
       }
     }
 
-    private def _transform_hyperlink(dox: Hyperlink, href: URI): TreeTransformer.Directive[Dox] =
+    private def _transform_hyperlink(
+      locale: Option[Locale],
+      dox: Hyperlink,
+      href: URI
+    ): TreeTransformer.Directive[Dox] =
       Option(href.getPath) match {
         case Some(s) =>
           val base = pageNode.pathname
@@ -366,16 +379,93 @@ object LinkEnabler {
                 val r = Hyperlink.createArticle(title, new URI(relpath), tooltip)
                 _internal_links = _internal_links :+ r
                 directive_node(r)
-              case None => _external_link(dox)
+              case None => _external_link(locale, dox)
             }
-            case None => _external_link(dox)
+            case None => _external_link(locale, dox)
           }
-        case None => _external_link(dox)
+        case None => _external_link(locale, dox)
       }
 
-    private def _external_link(p: Hyperlink): TreeTransformer.Directive[Dox] = {
-      _external_links = _external_links :+ p
-      directive_node(p)
+    private def _external_link(
+      locale: Option[Locale],
+      p: Hyperlink
+    ): TreeTransformer.Directive[Dox] = {
+      val ref = _normalize_title(p)
+      locale match {
+        case Some(s) => _external_links.add(s, ref)
+        case None => _external_links = _external_links.add(ref)
+      }
+      directive_node(ref)
+    }
+
+    private def _normalize_title(p: Hyperlink) = 
+      p.title match {
+        case Some(s) => p
+        case None => p.withTitle(p.href.toString)
+      }
+
+    private def _transform_i18nfragment(p: I18NFragment): TreeTransformer.Directive[Dox] = {
+      val r = p.mapValues(_transform_dox_list)
+      directive_node(r)
+    }
+
+    private def _transform_dox_list(ps: List[Dox]): List[Dox] =
+      ps.map(_transform_dox)
+
+    private def _transform_dox(p: Dox) = {
+      val a = Dox.toTreeNode(p)
+      val b: Tree[Dox] = apply(a)
+      Dox.toDox(b)
+    }
+  }
+  object LinkEmbeder {
+    case class LinkHolder(links: Vector[Link] = Vector.empty) {
+      def add(hyperlink: Hyperlink) =
+        links.find(_.href == hyperlink.href) match {
+          case Some(s) =>
+            val a = s.add(hyperlink)
+            val b = links.map(x =>
+              if (x.href == hyperlink.href)
+                s
+              else
+                x
+            )
+            copy(links = b)
+          case None => copy(links = links :+ Link(hyperlink))
+        }
+
+      def add(locale: Locale, hyperlink: Hyperlink) =
+        links.find(_.href == hyperlink.href) match {
+          case Some(existing) =>
+            val updated = existing.add(locale, hyperlink)
+            val newLinks = links.map {
+              case x if x.href == hyperlink.href => updated
+              case x => x
+            }
+            copy(links = newLinks)
+          case None =>
+            val link = Link(hyperlink).add(locale, hyperlink)
+            copy(links = links :+ link)
+        }
+
+      def toListContents: Vector[ListContent] = links.map(_.toListContent)
+    }
+    case class Link(href: URI, slots: I18NHangar[Link.Slot]) {
+      def add(p: Hyperlink) = copy(slots = slots.add(Link.Slot(p)))
+      def add(locale: Locale, p: Hyperlink) = copy(slots = slots.add(locale, Link.Slot(p)))
+
+      def toListContent: I18NFragment = {
+        slots.valueVector
+        I18NFragment.create(slots.mapValueCollection(_.map(_.link)))
+      }
+    }
+    object Link {
+      case class Slot(link: Hyperlink)
+
+      def apply(hyperlink: Hyperlink): Link = Link(
+        hyperlink.href,
+        I18NHangar.createCommons(Slot(hyperlink))
+      )
     }
   }
 

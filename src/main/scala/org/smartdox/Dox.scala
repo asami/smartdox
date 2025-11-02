@@ -97,7 +97,8 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
- * @version Oct. 28, 2025
+ *  version Oct. 28, 2025
+ * @version Nov.  2, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1137,6 +1138,11 @@ object Dox extends UseDox {
     case x :: Nil => parseInlineContentsInclusion(x)
     case xs => xs
   }
+
+  def getLocale(p: TreeNode[Dox]): Option[Locale] =
+    p.getContent.flatMap(getLocale)
+
+  def getLocale(p: Dox): Option[Locale] = p.getLanguage
 }
 
 case class Document(
@@ -2252,6 +2258,8 @@ case class Hyperlink(
     to_inline(cs).map(copy(_, href, location = get_location(location, cs)))
   }
 
+  def withTitle(p: String): Hyperlink = copy(title = Some(I18NString(p)))
+
   def getHtmlClass: Option[String] = attributes.get("class")
 }
 object Hyperlink extends DoxFactory {
@@ -3187,7 +3195,6 @@ case class I18NFragment(
     }
   })
 
-
   def +:(p: String): I18NFragment = copy(contents = contents.mapValues {
     case Nil => List(Text(p))
     case x :: xs => x match {
@@ -3235,6 +3242,9 @@ case class I18NFragment(
     case m: Value.Single => Vector(m.v)
     case m => Vector(m.toText)
   }
+
+  def mapValues(f: List[Dox] => List[Dox]): I18NFragment =
+    I18NFragment(contents.mapValues(f))
 }
 object I18NFragment {
   def create(ps: Seq[Dox]): I18NFragment = ps.toList match {
@@ -3336,6 +3346,13 @@ object I18NFragment {
     }
     I18NFragment(I18NContainer.create(a))
   }
+
+  def create[A <: Dox](p: I18NHangar[A]): I18NFragment = {
+    I18NFragment(I18NContainer.createList(p))
+  }
+
+  def create[A <: Dox](p: I18NContainer[A]): I18NFragment =
+    I18NFragment(p.mapValues(x => List(x)))
 
   def createString(p: Map[Locale, String]): I18NFragment = {
     val a = p.mapValues(x => List(Text(x)))
@@ -4090,7 +4107,7 @@ object Value {
     }
 
     def toI18NHangar: I18NHangar[String] = hangar
-    def values: Vector[String] = hangar.valueVector
+    def values: Vector[String] = hangar.valueVector // XXX
   }
 
   def apply(p: String): Value = Single(p)
