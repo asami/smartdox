@@ -45,7 +45,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Jun. 29, 2025
  *  version Jul. 27, 2025
  *  version Aug. 17, 2025
- * @version Oct. 15, 2025
+ *  version Oct. 15, 2025
+ * @version Nov.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -79,6 +80,8 @@ object AntoraGenerator {
     def realmContext = context.realmContext
     def doxContext = context.doxContext
     def isDiagramGeneration(p: Page): Boolean = config.strategy.isDiagramGeneration(p)
+
+    def locale = targetI18NContext.locale
 
     def withTargetI18NContext(locale: Locale) =
       copy(context = context.withTargetI18NContext(locale))
@@ -121,7 +124,10 @@ object AntoraGenerator {
       implicit context: Context
     ) = {
       val locale = context.targetI18NContext.locale
-      val pb = playbook.withAntoraCacheDir(s"../../antora-cache.d/${locale}").withKrokiCacheDir(s"../../kroki-cache.d")
+      val pb = playbook.
+        withLang(context.locale).
+        withAntoraCacheDir(s"../../antora-cache.d/${locale}").
+        withKrokiCacheDir(s"../../kroki-cache.d")
       val realm = Realm.create()
       realm.setContent("antora-playbook.yml", pb.serialize())
       realm.setNode("docs")
@@ -327,6 +333,8 @@ object AntoraGenerator {
       asciidoc: Playbook.Asciidoc,
       runtime: Option[Playbook.Runtime]
     ) {
+      def withLang(p: Locale): Playbook = copy(site = site.withLang(p))
+
       def withAntoraCacheDir(p: String): Playbook = {
         val a = runtime match {
           case Some(s) => s.withCacheDir(p)
@@ -345,7 +353,9 @@ object AntoraGenerator {
         title: I18NTitle,
         start_page: Reference,
         url: Option[URL] = None
-      )
+      ) {
+        def withLang(p: Locale) = this // FUTURE
+      }
       object Site {
       }
 
