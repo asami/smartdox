@@ -2,6 +2,7 @@ package org.smartdox.generators
 
 import scala.collection.JavaConverters._
 import java.io.File
+import java.util.Locale
 import org.jsoup.Jsoup
 import org.jsoup.nodes.{Document => JDocument, Element => JElement}
 import org.goldenport.realm.Realm
@@ -10,6 +11,7 @@ import org.goldenport.realm.RealmTransformer
 import org.goldenport.tree.TreeNode
 import org.goldenport.tree.TreeTransformer
 import org.goldenport.xml.dom.DomUtils
+import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.generator._
@@ -17,7 +19,8 @@ import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Oct. 25, 2025
- * @version Oct. 25, 2025
+ *  version Oct. 25, 2025
+ * @version Nov.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteMarkGenerator(
@@ -124,7 +127,8 @@ object DoxSiteMarkGenerator {
             source.get(pathname) match {
               case Some(s) =>
 //                println(s" => $pathname")
-                _mark(content, s) match {
+                val locale = _locale(pathname)
+                _mark(locale, content, s) match {
                   case Some(ss) => directive_leaf(ss)
                   case None => directive_empty()
                 }
@@ -136,13 +140,29 @@ object DoxSiteMarkGenerator {
       }
     }
 
-    private def _mark(content: Realm.Data, source: Realm.Data): Option[Realm.Data] =
+    private def _locale(pathname: String) =
+      if (pathname.contains("/ja/"))
+        Some(LocaleUtils.ja)
+      else if (pathname.contains("/en/"))
+        Some(LocaleUtils.en)
+      else
+        None
+
+    private def _mark(
+      locale: Option[Locale],
+      content: Realm.Data,
+      source: Realm.Data
+    ): Option[Realm.Data] =
       (content, source) match {
-        case (c: Realm.StringData, s: Realm.StringData) => _mark(c.string, s.string)
+        case (c: Realm.StringData, s: Realm.StringData) => _mark(locale, c.string, s.string)
         case _ => None
       }
 
-    private def _mark(target: String, source: String): Option[Realm.StringData] = {
+    private def _mark(
+      locale: Option[Locale],
+      target: String,
+      source: String
+    ): Option[Realm.StringData] = {
       // --- Parse both documents ---
       val sourcedoc = Jsoup.parse(source)
       val targetdoc = Jsoup.parse(target)
