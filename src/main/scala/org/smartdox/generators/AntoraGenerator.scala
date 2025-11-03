@@ -23,6 +23,7 @@ import org.goldenport.collection.NonEmptyVector
 import org.goldenport.i18n.I18NContext
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
+import org.goldenport.io.UrlUtils
 import org.goldenport.util.StringUtils
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.ListUtils
@@ -354,7 +355,10 @@ object AntoraGenerator {
         start_page: Reference,
         url: Option[URL] = None
       ) {
-        def withLang(p: Locale) = this // FUTURE
+        def withLang(p: Locale) = url match {
+          case Some(s) => copy(url = Some(UrlUtils.addPathAuto(s, p.toString)))
+          case None => this
+        }
       }
       object Site {
       }
