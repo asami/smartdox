@@ -25,7 +25,7 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov.  4, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -185,9 +185,8 @@ object LinkEnabler {
       _create_ul(_internal_links)
 
     private def _create_reference_external: Vector[Dox] = {
-//      val xs = _reference_external_links
-      val xs = Vector.empty
-      _create_section(xs, "External", "外部参照")
+      val xs = _reference_external_links
+      _create_section(xs, "External Links", "外部参照")
     }
 
     private def _reference_external_links: Vector[Dox] =
