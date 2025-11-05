@@ -12,7 +12,8 @@ import org.smartdox._
  * @since   Aug. 16, 2025
  *  version Aug. 25, 2025
  *  version Sep. 22, 2025
- * @version Oct. 25, 2025
+ *  version Oct. 25, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
@@ -36,11 +37,19 @@ case class Explanation(
 
   def withSummary(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)
-    copy(summary = Some(I18NFragment.create(x)))
+    val a = I18NFragment.create(x)
+    copy(summary = Some(a))
   }
 
   def withSummary(p: String) =
     copy(summary = Some(I18NFragment.create(p)))
+
+  def withSummaryIfRequired(p: InlineContents) = {
+    if (getEffectiveSummary.isEmpty)
+      withSummary(p)
+    else
+      this
+  }
 
   def +(rhs: Explanation): Explanation =
     Explanation(

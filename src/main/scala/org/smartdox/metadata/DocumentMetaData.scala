@@ -45,7 +45,7 @@ import org.smartdox.parser.PureParser
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
- * @version Nov.  1, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -137,6 +137,9 @@ case class DocumentMetaData(
 
   def withSummary(p: String) =
     copy(explanation = explanation.withSummary(p))
+
+  def withSummaryIfRequired(p: InlineContents) =
+    copy(explanation = explanation.withSummaryIfRequired(p))
 
   def withExplanation(p: Explanation) =
     copy(explanation = p)

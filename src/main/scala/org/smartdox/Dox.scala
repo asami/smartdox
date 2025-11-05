@@ -1341,6 +1341,8 @@ case class Head(
 
   def withSummary(ps: InlineContents) = copy(metadata = metadata.withSummary(ps))
 
+  def withSummaryIfRequired(ps: InlineContents) = copy(metadata = metadata.withSummaryIfRequired(ps))
+
   private def withSummary(p: String) = copy(metadata = metadata.withSummary(p))
 
   def merge(p: Head): Head = Head(
@@ -3240,11 +3242,37 @@ case class I18NFragment(
   }
 
   private def _trim_single_line(p: (Locale, List[Dox])): (Locale, List[Dox]) = {
-    val (k, v) = p
-    val r = _find_text(v) match {
-      case Some(s) => List(Text(DoxUtils.trimSingleLine(s.contents)))
-      case None => Nil
+    val (k, vs) = p
+    case class Z(
+      xs: Vector[Dox] = Vector.empty,
+      isdone: Boolean = false
+    ) {
+      def r = xs.toList
+
+      def +(rhs: Dox) =
+        if (isdone)
+          this
+        else
+          rhs match {
+            case m: Text =>
+              val s = m.contents
+              if (s.contains("\n") || s.contains("\r"))
+                copy(xs = xs :+ Text(DoxUtils.trimSingleLine(s)), isdone = true)
+              else
+                copy(xs = xs :+ m)
+            case m: Paragraph =>
+              if (xs.isEmpty)
+                copy(xs = xs :+ rhs, isdone = true)
+              else
+                copy(isdone = true)
+            case m => copy(xs = xs :+ rhs)
+          }
     }
+    val r = vs.foldLeft(Z())(_+_).r
+    // val r = _find_text(v) match {
+    //   case Some(s) => List(Text(DoxUtils.trimSingleLine(s.contents)))
+    //   case None => Nil
+    // }
     k -> r
   }
 
