@@ -98,7 +98,7 @@ import org.smartdox.util.DoxUtils
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
- * @version Nov.  2, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -693,6 +693,11 @@ object Dox extends UseDox {
     case m: Inline => List(m)
     case m: Block => toInlineContents(p.elements)
     case m => RAISE.illegalStateFault(s"No inline: $m")
+  }
+
+  def toParagraphs(p: Dox): List[Paragraph] = p match {
+    case m: Paragraph => List(m)
+    case m => List(Paragraph(List(p)))
   }
 
   def toTree(p: Dox): GTree[Dox] = {
@@ -1767,6 +1772,11 @@ object Paragraph extends DoxFactory {
     Paragraph(p, logicalLine = Some(ll))
 
   def apply(p: Dox, ll: LogicalLine): Paragraph = apply(List(p), ll)
+
+  def create(locale: Locale, p: List[Dox]): Paragraph = Paragraph(
+    p,
+    VectorMap("lang" -> locale.toLanguageTag)
+  )
 
   def text(p: String): Paragraph = Paragraph(List(Text(p)))
 
@@ -3187,6 +3197,26 @@ case class I18NFragment(
       case None => List(this)
     }
 
+  def makeParagraphs: List[Paragraph] = contents.getIfNoLocale match {
+    case Some(s) => Dox.toParagraphs(s)
+    case None => _make_paragraphs
+  }
+
+  private def _make_paragraphs: List[Paragraph] = {
+    case class Z(ls: Map[Locale, List[Dox]] = Map.empty) {
+      def r = {
+        ls.toList map {
+          case (l, xs) => Paragraph.create(l, xs)
+        }
+      }
+
+      def +(rhs: (Locale, List[Dox])) = {
+        copy(ls + rhs)
+      }
+    }
+    contents.localeVector.foldLeft(Z())(_+_).r
+  }
+
   def +:(p: Char): I18NFragment = copy(contents = contents.mapValues {
     case Nil => List(Text(p))
     case x :: xs => x match {
@@ -4172,6 +4202,113 @@ object Value {
   }
 }
 
+// 2025-11-05
+case class HorizontalRule(
+  location: Option[ParseLocation] = None
+) extends Block {
+  override def showTerm = "hr"
+  def attributes: VectorMap[String, String] = VectorMap.empty
+  override def equals_Value(o: Dox) = o == this
+  override def isOpenClose = true 
+
+  override def show_Contents(buf: StringBuilder): Unit = {
+  }
+}
+
+// 2025-11-05
+sealed trait Quotation extends Block {
+  override def showTerm = "blockquote"
+}
+object Quotation {
+  case class SimpleQuote(
+    contents: List[Dox],
+    location: Option[ParseLocation] = None
+  ) extends Quotation {
+    override val elements = contents
+
+    def attributes: VectorMap[String, String] = VectorMap.empty
+
+    override def equals_Value(o: Dox) = o match {
+      case m: SimpleQuote => contents.equals(m.contents)
+      case _ => false
+    }
+
+    override def copyV(cs: List[Dox]) = {
+      val r = copy(cs, location = get_location(location, cs))
+      // println(s"Paragraph#copyV: $cs => $r")
+      Success(r)
+    }
+  }
+
+  case class BlockQuote(
+    contents: List[Dox],
+    author: Option[InlineContents],
+    source: Option[InlineContents],
+    location: Option[ParseLocation] = None
+  ) extends Quotation {
+    override val elements = contents
+
+    def attributes: VectorMap[String, String] = VectorMap.empty
+
+    override def equals_Value(o: Dox) = o match {
+      case m: BlockQuote => contents.equals(m.contents) && author.equals(m.author) && source.equals(m.source)
+      case _ => false
+    }
+
+    override def copyV(cs: List[Dox]) = {
+      val r = copy(cs, location = get_location(location, cs))
+      // println(s"Paragraph#copyV: $cs => $r")
+      Success(r)
+    }
+  }
+}
+
+// 2025-11-05
+case class Admonition(
+  contents: List[Dox],
+  kind: Admonition.Kind,
+  location: Option[ParseLocation] = None
+) extends Block {
+  override val elements = contents
+  override def showTerm = kind.name
+
+  def attributes: VectorMap[String, String] = VectorMap.empty
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Admonition => kind == m.kind && contents.equals(m.contents)
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    val r = copy(cs, location = get_location(location, cs))
+    // println(s"Paragraph#copyV: $cs => $r")
+    Success(r)
+  }
+}
+object Admonition {
+  sealed trait Kind extends NamedValueInstance {
+  }
+  object Kind extends EnumerationClass[Kind] {
+    val elements = Vector(Note, Tip, Important, Caution, Warning)
+
+    case object Note extends Kind {
+      val name = "note"
+    }
+    case object Tip extends Kind {
+      val name = "tip"
+    }
+    case object Important extends Kind {
+      val name = "important"
+    }
+    case object Caution extends Kind {
+      val name = "caution"
+    }
+    case object Warning extends Kind {
+      val name = "warning"
+    }
+  }
+}
+
 // // 2025-10-16
 // case class XmlElement(
 //   name: String,
@@ -4223,3 +4360,4 @@ object Value {
 //     Verbatim(cs, attrs)
 //   }
 // }
+

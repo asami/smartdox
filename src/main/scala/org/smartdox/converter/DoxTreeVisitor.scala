@@ -12,7 +12,8 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Jul. 26, 2025
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -120,6 +121,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Head => enter_head(node, m)
       case m: Body => enter_Body(m)
       case m: Foot => enter_Foot(m)
+      case m: HorizontalRule => enter_HorizontalRule(m)
+      case m: Quotation.SimpleQuote => enter_Quotation_SimpleQuote(m)
+      case m: Quotation.BlockQuote => enter_Quotation_BlockQuote(m)
       case m: Value.Single => enter_Value(m)
       case m: Value.Multiple => enter_Value(m)
       case m: Html5Inline => enter_Html5Inline(m)
@@ -219,6 +223,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Head(p: Head): Unit = {}
   protected def enter_Body(p: Body): Unit = {}
   protected def enter_Foot(p: Foot): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Foot: $p")
+  protected def enter_HorizontalRule(p: HorizontalRule): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] HorizontalRule: $p")
+  protected def enter_Quotation_SimpleQuote(p: Quotation.SimpleQuote): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Quotation.SimpleQuote: $p")
+  protected def enter_Quotation_BlockQuote(p: Quotation.BlockQuote): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Quotation.BlockQuote: $p")
   protected def enter_Value(p: Value.Single): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Single: $p")
   protected def enter_Value(p: Value.Multiple): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Value.Multiple: $p")
   protected def enter_Html5(p: Html5): Unit = enter_Html_Element(p)
@@ -275,6 +282,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Head => leave_head(node, m)
       case m: Body => leave_Body(m)
       case m: Foot => leave_Foot(m)
+      case m: HorizontalRule => leave_HorizontalRule(m)
+      case m: Quotation.SimpleQuote => leave_Quotation_SimpleQuote(m)
+      case m: Quotation.BlockQuote => leave_Quotation_BlockQuote(m)
       case m: Value.Single => leave_Value(m)
       case m: Value.Multiple => leave_Value(m)
       case m: Html5Inline => leave_Html5Inline(m)
@@ -378,6 +388,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Head(p: Head): Unit = {}
   protected def leave_Body(p: Body): Unit = {}
   protected def leave_Foot(p: Foot): Unit = {}
+  protected def leave_HorizontalRule(p: HorizontalRule): Unit = {}
+  protected def leave_Quotation_SimpleQuote(p: Quotation.SimpleQuote): Unit = {}
+  protected def leave_Quotation_BlockQuote(p: Quotation.BlockQuote): Unit = {}
   protected def leave_Value(p: Value.Single): Unit = {}
   protected def leave_Value(p: Value.Multiple): Unit = {}
   protected def leave_Html5(p: Html5): Unit = leave_Html_Element(p)

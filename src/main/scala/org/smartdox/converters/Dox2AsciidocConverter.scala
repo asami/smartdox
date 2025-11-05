@@ -18,7 +18,8 @@ import org.smartdox.converter._
  *  version Jul. 28, 2025
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -32,6 +33,7 @@ class Dox2AsciidocConverter(
   protected def orderd_List_Mark = "."
   protected def definition_List_Term_Mark = ""
   protected def definition_List_Definition_Mark = "::"
+  protected def horizontal_Rule_Mark: String = "pass:[<hr/>]"
   protected def bold_open = "*"
   protected def bold_close = "*"
   protected def italic_open = "_"
@@ -205,8 +207,8 @@ class Dox2AsciidocConverter(
     if (a.nonEmpty) {
       for (x <- a)
         x.traverse(this)
-      sb_println()
-      sb_println()
+//      sb_println()
+//      sb_println()
     }
   }
 
@@ -272,9 +274,10 @@ class Dox2AsciidocConverter(
       case e: Throwable =>
         context.context.context.log.error(s"Kroki embedding failed: ${e.getMessage}")
         sb_println("[WARNING.error]")
-        sb_println("----")
+        sb_println("====")
         sb_println(e.toString)
-        sb_println("----")
+        sb_println("====")
+        sb_println()
         // Fallback to text source
         caption.foreach(x => sb_println("." + x))
         sb_println(s"[source,$kind]")
@@ -328,6 +331,16 @@ class Dox2AsciidocConverter(
     _is_in_pass_count = _is_in_pass_count - 1
     if (_is_in_pass_count == 0)
       sb_print("]")
+  }
+
+  override protected def enter_Quotation_SimpleQuote(p: Quotation.SimpleQuote) = {
+    sb_println("[quote]")
+    sb_println("____")
+  }
+
+  override protected def leave_Quotation_SimpleQuote(p: Quotation.SimpleQuote) = {
+    sb_println_if_required()
+    sb_println("____")
   }
 }
 

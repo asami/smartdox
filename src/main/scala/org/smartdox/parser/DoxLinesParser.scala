@@ -37,7 +37,8 @@ import org.smartdox.util.DoxUtils
  *  version Jul. 29, 2025
  *  version Aug.  9, 2025
  *  version Sep.  9, 2025
- * @version Oct. 13, 2025
+ *  version Oct. 13, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -595,7 +596,9 @@ object DoxLinesParser {
       get_table_transition(config, evt) orElse
       get_image_transition(config, evt) orElse
       get_annotation_transition(config, evt) orElse
-      get_block_macro_transition(config, evt) getOrElse
+      get_block_macro_transition(config, evt) orElse
+      get_horizontal_rule_transition(config, evt) orElse
+      get_quotation_transition(config, evt) getOrElse
       text_transition(config, evt)
     }
 
@@ -648,6 +651,20 @@ object DoxLinesParser {
 
     protected def get_Block_Macro_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       RAISE.noReachDefect(this, "get_Block_Macro_Transition")
+
+    protected def get_horizontal_rule_transition(config: Config, evt: LogicalLineEvent): Option[Transition] = {
+      get_Horizontal_Rule_Transition(config, evt.line)
+    }
+
+    protected def get_Horizontal_Rule_Transition(config: Config, evt: LogicalLine): Option[Transition] =
+      RAISE.noReachDefect(this, "get_Horizontal_Rule_Transition")
+
+    protected def get_quotation_transition(config: Config, evt: LogicalLineEvent): Option[Transition] = {
+      get_Quotation_Transition(config, evt.line)
+    }
+
+    protected def get_Quotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
+      RAISE.noReachDefect(this, "get_Quotation_Transition")
 
     protected def text_transition(config: Config, evt: LogicalLineEvent): Transition = {
       text_Transition(config, evt.line)
@@ -830,6 +847,24 @@ object DoxLinesParser {
 
     private def _broken(p: BlockMacro.Broken): Vector[Dox] =
       RAISE.notImplementedYetDefect
+
+    override protected def get_Horizontal_Rule_Transition(config: Config, evt: LogicalLine): Option[Transition] =
+      if (evt.text == "---" || evt.text == "----")
+        Some(transit_next(copy(lines = lines :+ HorizontalRule())))
+      else
+        None
+
+    override protected def get_Quotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
+      if (evt.text.startsWith("> "))
+        Some(transit_next(copy(lines = lines :+ _create_simple_quote(config, evt.text)))) // TODO
+      else
+        None
+
+    private def _create_simple_quote(config: Config, p: String): Quotation.SimpleQuote = {
+      val (_, x) = parse_inline(config, p)
+      val q = x getOrElse Text("")
+      Quotation.SimpleQuote(List(q))
+    }
 
     override protected def text_transition(config: Config, evt: LogicalLineEvent): Transition =
       _text_transition_inline(config, evt)

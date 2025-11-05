@@ -20,7 +20,8 @@ import org.smartdox._
  *  version Jun. 10, 2025
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -587,6 +588,9 @@ object DoxInlineParser {
         ParseSuccess(Dox.toDox(doxes))
       else
         ParseSuccess(Dox.toDox(doxes :+ Text(cs.mkString)))
+
+    override protected def close_Angle_Bracket_State(c: Char): DoxInlineParseState =
+      copy(cs = cs :+ c)
 
     override protected def space_State(c: Char): DoxInlineParseState =
       if (doxes.isEmpty && cs.isEmpty)

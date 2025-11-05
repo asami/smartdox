@@ -10,7 +10,7 @@ import org.smartdox._
  *  version Aug. 25, 2025
  *  version Sep.  9, 2025
  *  version Oct. 28, 2025
- * @version Nov.  1, 2025
+ * @version Nov.  5, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2TextDocConverter extends Dox2StringConverter {
@@ -24,6 +24,7 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   protected def list_Indent_Space: String = "  "
   protected def definition_List_Term_Mark: String
   protected def definition_List_Definition_Mark: String
+  protected def horizontal_Rule_Mark: String
   protected def bold_open: String
   protected def bold_close: String
   protected def italic_open: String
@@ -213,6 +214,9 @@ trait Dox2TextDocConverter extends Dox2StringConverter {
   override protected def leave_Dl(p: Dl) = {
     _list_stack = _list_stack.tail
   }
+
+  override protected def enter_HorizontalRule(p: HorizontalRule) =
+    sb_println(horizontal_Rule_Mark)
 }
 
 object Dox2TextDocConverter {
