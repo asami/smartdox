@@ -5,6 +5,7 @@ import java.net.URI
 import java.io.File
 import org.goldenport.RAISE
 import org.goldenport.tree._
+import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.ListUtils
 import org.smartdox._
 import org.smartdox.generators.AntoraGenerator
@@ -19,7 +20,7 @@ import org.smartdox.converter._
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
- * @version Nov.  5, 2025
+ * @version Nov.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -43,6 +44,8 @@ class Dox2AsciidocConverter(
   protected def code_open = "`"
   protected def code_close = "`"
   protected def target_locale = context.targetI18NContext.locale
+
+  private def _is_ja = target_locale == LocaleUtils.ja
 
   private def _is_diagram_generation: Boolean = context.isDiagramGeneration
 
@@ -78,7 +81,16 @@ class Dox2AsciidocConverter(
     section_down()
   }
 
-  private def _make_title_attachment(head: Head): Seq[String] = Nil
+  private def _make_title_attachment(head: Head): Seq[String] =
+    if (_is_ja)
+      Vector(
+        ":table-caption: 表",
+        ":figure-caption: 図",
+        ":example-caption: 例",
+        ":listing-caption: リスト"
+      )
+     else
+      Vector.empty
 
   private def _make_title_attachment0(head: Head): Seq[String] = {
     Vector(_json_ld(head))
