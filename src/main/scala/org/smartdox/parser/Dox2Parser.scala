@@ -49,7 +49,7 @@ import Dox._
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
- * @version Nov.  1, 2025
+ * @version Nov.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -87,7 +87,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
         val desc = _distill_brief(elements)
         val h = desc.fold(head)(head.withSummary(_))
         val lead = h.metadata.getEffectiveLead
-        val xs = lead.toList ++ elements.toList
+        val xs = lead.toList.flatMap(_.makeParagraphs) ++ elements
         ParseSuccess(Document(h, Body(xs)))
       }
 

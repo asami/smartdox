@@ -51,6 +51,7 @@ import org.smartdox.service.operations.SiteParameters
 import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.transformers.AutoWireTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
+import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
 
 /*
  * @since   Feb. 23, 2025
@@ -63,7 +64,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov.  2, 2025
+ * @version Nov.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -374,7 +375,8 @@ object DoxSite {
     def create(p: SiteParameters.Holder): Config = {
       val inconfig = p.target match {
         case Some(s) if s.nonEmpty =>
-          Some(_tree_transformer_config(s))
+          val g = s"/${PROP_GLOSSARY_DIRECTORY}/.*".r
+          Some(_tree_transformer_config(s :+ g))
         case _ => None
       }
       val outconfig = p.outputScopePolicy match {

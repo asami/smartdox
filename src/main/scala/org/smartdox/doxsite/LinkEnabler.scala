@@ -25,7 +25,7 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov.  3, 2025
+ * @version Nov.  4, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -405,7 +405,8 @@ object LinkEnabler {
       }
 
     private def _transform_i18nfragment(p: I18NFragment): TreeTransformer.Directive[Dox] = {
-      val r = p.mapValues(_transform_dox_list)
+      val xs = p.makeInlines
+      val r = _transform_dox_list(xs)
       directive_node(r)
     }
 
@@ -884,7 +885,7 @@ object LinkEnabler {
       expand: Boolean
     ): List[Inline] = {
       if (!expand) {
-        Dox.toInlineContents(token.ja)
+        Dox.toInlineContents(token.en)
       } else {
         val text = if (canaux) {
           val wr = definition.term.wordRelation(token.en)
