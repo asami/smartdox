@@ -84,13 +84,16 @@ class Dox2AsciidocConverter(
   private def _make_title_attachment(head: Head): Seq[String] =
     if (_is_ja)
       Vector(
+        ":lang: ja",
         ":table-caption: 表",
         ":figure-caption: 図",
         ":example-caption: 例",
         ":listing-caption: リスト"
       )
      else
-      Vector.empty
+      Vector(
+        ":lang: en"
+      )
 
   private def _make_title_attachment0(head: Head): Seq[String] = {
     Vector(_json_ld(head))

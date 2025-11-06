@@ -19,8 +19,7 @@ import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Oct. 25, 2025
- *  version Oct. 25, 2025
- * @version Nov.  3, 2025
+ * @version Nov.  6, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteMarkGenerator(
@@ -41,76 +40,6 @@ class DoxSiteMarkGenerator(
 }
 
 object DoxSiteMarkGenerator {
-//   val extractJsonldXsl =
-//   """<?xml version="1.0" encoding="UTF-8"?>
-//     |<xsl:stylesheet version="1.0"
-//     |  xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-//     |  <xsl:output method="xml" encoding="UTF-8" omit-xml-declaration="yes" indent="yes"/>
-//     |  <xsl:template match="/">
-//     |    <xsl:for-each select="//*[local-name()='script'
-//     |       and contains(translate(@type,
-//     |         'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-//     |         'abcdefghijklmnopqrstuvwxyz'),'ld+json')]">
-//     |      <xsl:copy-of select="."/>
-//     |      <xsl:text>&#10;</xsl:text>
-//     |    </xsl:for-each>
-//     |  </xsl:template>
-//     |</xsl:stylesheet>
-//     |""".stripMargin
-
-//   val extractJsonldXsl0 = """<?xml version="1.0" encoding="UTF-8"?>
-// <xsl:stylesheet version="1.0"
-//   xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-
-//   <!-- Output raw HTML fragment -->
-//   <xsl:output method="xml" encoding="UTF-8" omit-xml-declaration="yes"/>
-
-//   <!-- Collect all JSON-LD <script> blocks from <head> -->
-//   <xsl:template match="/">
-//     <xsl:for-each select="
-//       //*[local-name()='head']
-//         /*[local-name()='script'
-//            and translate(@type,
-//              'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-//              'abcdefghijklmnopqrstuvwxyz')='application/ld+json']">
-//       <xsl:text>&#10;</xsl:text>
-//       <xsl:text>&lt;script type="application/ld+json"&gt;</xsl:text>
-//       <xsl:value-of select="." disable-output-escaping="yes"/>
-//       <xsl:text>&lt;/script&gt;</xsl:text>
-//     </xsl:for-each>
-//   </xsl:template>
-// </xsl:stylesheet>
-// """
-
-//   val insertJsonldXsl = """<?xml version="1.0" encoding="UTF-8"?>
-// <xsl:stylesheet version="1.0"
-//   xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-
-//   <!-- File path to the JSON-LD fragment -->
-//   <xsl:param name="jsonld-fragment" select="'jsonld-snippet.html'"/>
-
-//   <xsl:output method="xml" encoding="UTF-8" indent="yes"/>
-
-//   <!-- Copy everything by default -->
-//   <xsl:template match="@*|node()">
-//     <xsl:copy>
-//       <xsl:apply-templates select="@*|node()"/>
-//     </xsl:copy>
-//   </xsl:template>
-
-//   <!-- When we reach <head>, inject the fragment -->
-//   <xsl:template match="*[local-name()='head']">
-//     <xsl:copy>
-//       <xsl:apply-templates select="@*|node()"/>
-//       <!-- Import JSON-LD fragment -->
-//       <xsl:text>&#10;</xsl:text>
-//       <xsl:copy-of select="document($jsonld-fragment)/*"/>
-//     </xsl:copy>
-//   </xsl:template>
-
-// </xsl:stylesheet>
-// """
-
   class DoxSiteMarker(
     val realmTransformerContext: RealmTransformer.Context,
     val source: Realm
@@ -166,6 +95,16 @@ object DoxSiteMarkGenerator {
       // --- Parse both documents ---
       val sourcedoc = Jsoup.parse(source)
       val targetdoc = Jsoup.parse(target)
+
+      locale.foreach { loc =>
+        val langCode = loc.getLanguage
+        val htmlEl = targetdoc.selectFirst("html")
+        if (htmlEl != null) {
+          htmlEl.attr("lang", langCode)
+        } else {
+          targetdoc.prependElement("html").attr("lang", langCode)
+        }
+      }
 
       // --- Extract all <script type="application/ld+json"> from source ---
       val jsonldscripts =
