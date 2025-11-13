@@ -33,7 +33,7 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Aug. 16, 2025
  *  version Sep. 22, 2025
  *  version Oct. 12, 2025
- * @version Nov.  1, 2025
+ * @version Nov. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -185,9 +185,9 @@ object Notices {
             md.titleImage,
             category,
             uri,
-            md.getBriefI18NString,
-            md.getSummaryI18NString getOrElse I18NString.empty,
-            md.getDescriptionI18NString getOrElse I18NString.empty,
+            md.getEffectiveBrief,
+            md.getEffectiveSummary getOrElse I18NString.empty,
+            md.getEffectiveDescription getOrElse I18NString.empty,
             md.keywords,
             md.publishedAt.map(_.toLocalDate),
             md.modifiedAtHistory.map(_.toLocalDate),

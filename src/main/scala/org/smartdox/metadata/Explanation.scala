@@ -5,6 +5,7 @@ import java.util.Locale
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.context.Consequence
 import org.goldenport.hocon.RichConfig.Implicits._
+import org.goldenport.i18n.I18NString
 import org.goldenport.util.OptionUtils
 import org.smartdox._
 
@@ -13,7 +14,7 @@ import org.smartdox._
  *  version Aug. 25, 2025
  *  version Sep. 22, 2025
  *  version Oct. 25, 2025
- * @version Nov.  5, 2025
+ * @version Nov. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
@@ -33,7 +34,17 @@ case class Explanation(
 
   def getEffectiveHeadline = headline orElse brief orElse tooltip
 
-  def getEffectiveSummary = summary orElse description orElse brief
+  def getEffectiveBrief: Option[I18NFragment] = brief orElse summary orElse lead orElse `abstract` orElse headline
+
+  def getEffectiveSummary = summary orElse lead orElse `abstract` orElse description orElse brief
+
+  def getEffectiveDescription: Option[I18NFragment] = description orElse `abstract` orElse lead orElse summary
+
+  def getEffectiveBriefI18NString: Option[I18NString] = getEffectiveBrief.map(_.toI18NString)
+
+  def getEffectiveSummaryI18NString: Option[I18NString] = getEffectiveSummary.map(_.toI18NString)
+
+  def getEffectiveDescriptionI18NString: Option[I18NString] = getEffectiveDescription.map(_.toI18NString)
 
   def withSummary(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)

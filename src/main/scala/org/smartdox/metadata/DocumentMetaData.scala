@@ -45,7 +45,7 @@ import org.smartdox.parser.PureParser
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
- * @version Nov.  5, 2025
+ * @version Nov. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -116,6 +116,12 @@ case class DocumentMetaData(
 
   def getEffectiveSummaryString(locale: Locale): Option[String] =
     explanation.getEffectiveSummary.map(_.toI18NString.as(locale))
+
+  def getEffectiveSummary: Option[I18NString] = explanation.getEffectiveSummaryI18NString
+
+  def getEffectiveBrief: Option[I18NString] = explanation.getEffectiveBriefI18NString
+
+  def getEffectiveDescription: Option[I18NString] = explanation.getEffectiveDescriptionI18NString
 
   def getPublishedString(locale: Locale): Option[String] = publishedAt.map(AnyUtils.toPrint)
 
