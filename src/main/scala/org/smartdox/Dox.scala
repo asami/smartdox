@@ -98,7 +98,7 @@ import org.smartdox.util.DoxUtils
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
- * @version Nov.  5, 2025
+ * @version Nov. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -116,6 +116,8 @@ trait Dox extends IDocument {
   def getLanguage: Option[Locale] = attributeMap.get("lang").
     map(x => Locale.forLanguageTag(x))
   def getClassName: Option[String] = attributeMap.get("class")
+
+  def isAccept(p: Locale): Boolean = getLanguage.fold(true)(LocaleUtils.isAccept(p, _))
 
   def showTerm = getClass.getSimpleName().toLowerCase()
   def showParams: List[(String, String)] = Nil
@@ -1148,6 +1150,15 @@ object Dox extends UseDox {
     p.getContent.flatMap(getLocale)
 
   def getLocale(p: Dox): Option[Locale] = p.getLanguage
+
+  def getLocaleInContext(p: TreeNode[Dox]): Option[Locale] = {
+    getLocale(p) orElse {
+      if (p.parent.isRoot)
+        None
+      else
+        getLocaleInContext(p.parent)
+    }
+  }
 }
 
 case class Document(
@@ -2327,6 +2338,9 @@ object Hyperlink extends DoxFactory {
 
   def createArticle(body: I18NFragment, href: URI, tooltip: Option[I18NString]): Hyperlink =
     createArticle(List(body), href, tooltip)
+
+  def createArticle(body: String, href: URI, tooltip: Option[String]): Hyperlink =
+    createArticle(List(Text(body)), href, tooltip.map(I18NString.apply))
 
   def createArticle(body: InlineContents, href: URI, tooltip: Option[I18NString]): Hyperlink =
     tooltip match {
