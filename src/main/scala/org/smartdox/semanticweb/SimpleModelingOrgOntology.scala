@@ -1,0 +1,112 @@
+package org.smartdox.semanticweb
+
+/*
+ * SimpleModeling.org Ontology
+ * ----------------------------------------------------------------------
+ * Defines the meta-level RDF/OWL vocabulary connecting
+ * SimpleModeling, SmartDox, BoK, Project, Category, and Glossary ontologies.
+ *
+ * This ontology acts as a meta-metamodel vocabulary for the
+ * entire SimpleModeling.org knowledge ecosystem.
+ *
+ * @since   Nov. 12, 2025
+ * @version Nov. 13, 2025
+ * @author  ASAMI, Tomoharu
+ */
+object SimpleModelingOrgOntology {
+  val prefix = "smorg"
+  val namespace = "https://www.simplemodeling.org/ontology/1.0#"
+
+  def uri(local: String) = namespace + local
+
+  // ------------------------------------------------------------------
+  // Core Classes
+  // ------------------------------------------------------------------
+  val Ontology       = uri("Ontology")
+  val Schema         = uri("Schema")
+  val Site           = uri("Site")
+  val KnowledgeBase  = uri("KnowledgeBase")
+  val Vocabulary     = uri("Vocabulary")
+  val Module         = uri("Module")
+  val Component      = uri("Component")
+  val System         = uri("System")
+
+  // ------------------------------------------------------------------
+  // Relationships among ontologies and schemas
+  // ------------------------------------------------------------------
+  val definesVocabulary = uri("definesVocabulary") // Ontology → Vocabulary
+  val definesSchema     = uri("definesSchema")     // Ontology → Schema
+  val governsSite       = uri("governsSite")       // Ontology → Site
+  val includesOntology  = uri("includesOntology")  // KnowledgeBase → Ontology
+  val includesSchema    = uri("includesSchema")    // KnowledgeBase → Schema
+  val includesSite      = uri("includesSite")      // KnowledgeBase → Site
+  val partOfSystem      = uri("partOfSystem")      // Component → System
+  val includesModule    = uri("includesModule")    // System → Module
+  val alignsWith        = uri("alignsWith")        // Ontology連携
+  val supersedes        = uri("supersedes")        // 旧バージョン関係
+  val hasVersion        = uri("hasVersion")        // バージョン表現
+
+  // ------------------------------------------------------------------
+  // Linked Ontologies (namespaces)
+  // ------------------------------------------------------------------
+  val SimpleModelingOntology  = "https://www.simplemodeling.org/simplemodeling/ontology/1.0#"
+  val SmartDoxOntology        = "https://www.simplemodeling.org/smartdox/ontology/1.0#"
+  val BokOntology             = "https://www.simplemodeling.org/bok/ontology/1.0#"
+  val ProjectOntology         = "https://www.simplemodeling.org/project/ontology/1.0#"
+  val CategoryOntology        = "https://www.simplemodeling.org/category/ontology/1.0#"
+  val GlossaryOntology        = "https://www.simplemodeling.org/glossary/ontology/1.0#"
+
+  // ------------------------------------------------------------------
+  // Hierarchical relationships (OWL/RDFS subclass semantics)
+  // ------------------------------------------------------------------
+  val subclassOf: Seq[(String, String)] = Seq(
+    Schema -> Ontology,
+    Site -> Ontology,
+    Vocabulary -> Ontology,
+    KnowledgeBase -> Ontology,
+    Component -> Module,
+    Module -> System
+  )
+
+  // ------------------------------------------------------------------
+  // Human-readable labels and comments (optional)
+  // ------------------------------------------------------------------
+  val label: Map[String, String] = Map(
+    Ontology -> "Ontology",
+    Schema -> "Schema",
+    Site -> "Site",
+    KnowledgeBase -> "Knowledge Base",
+    Vocabulary -> "Vocabulary",
+    Module -> "Module",
+    Component -> "Component",
+    System -> "System"
+  )
+
+  val comment: Map[String, String] = Map(
+    Ontology -> "A formal specification of a conceptual model or vocabulary.",
+    Schema -> "A concrete data-level schema derived from an ontology.",
+    Site -> "A web or documentation site managed under an ontology.",
+    KnowledgeBase -> "A collection of ontologies, schemas, and sites forming a knowledge system."
+  )
+
+  // ------------------------------------------------------------------
+  // JSON-LD context for export
+  // ------------------------------------------------------------------
+  lazy val jsonldContext: Map[String, Any] = Map(
+    prefix -> namespace,
+    "Ontology" -> Ontology,
+    "Schema" -> Schema,
+    "Site" -> Site,
+    "KnowledgeBase" -> KnowledgeBase,
+    "Vocabulary" -> Vocabulary,
+    "definesVocabulary" -> definesVocabulary,
+    "definesSchema" -> definesSchema,
+    "governsSite" -> governsSite,
+    "includesOntology" -> includesOntology,
+    "includesSchema" -> includesSchema,
+    "includesSite" -> includesSite,
+    "alignsWith" -> alignsWith,
+    "hasVersion" -> hasVersion,
+    "supersedes" -> supersedes
+  )
+}
