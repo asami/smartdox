@@ -25,7 +25,7 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov.  5, 2025
+ * @version Nov. 13, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -248,8 +248,6 @@ object LinkEnabler {
       else
         Vector(Ul.create(xs))
 
-    private def _transform(m: Text) = _transform_simple(m)
-
     private def _is_inside_table: Boolean = {
       stack.exists { n =>
         n.getContent.exists {
@@ -258,6 +256,8 @@ object LinkEnabler {
         }
       }
     }
+
+    private def _transform(m: Text) = _transform_simple(m)
 
     private def _transform_simple(m: Text): TreeTransformer.Directive[Dox] = {
       def _create_href_(definition: Glossary.Definition): URI =
@@ -524,7 +524,8 @@ object LinkEnabler {
     dox: Vector[Dox],
     definitions: ListSet[Glossary.Definition] = ListSet.empty,
     expandedDefinitions: scala.collection.mutable.Set[Glossary.Definition] = scala.collection.mutable.Set.empty,
-    expandDefinition: Boolean = true
+    expandDefinition: Boolean = true,
+    boundaryConfig: TextLinkProcessor.GlossaryBoundaryConfig = TextLinkProcessor.GlossaryBoundaryConfig.default
   ) {
     import TextLinkProcessor._
 
@@ -582,11 +583,12 @@ object LinkEnabler {
       val s = t.contents
       if (token.isEmpty || s.isEmpty)
         return None
+      val kind = GlossaryKind.detectGlossaryKind(s)
       val buf = Vector.newBuilder[Dox]
       var idx = 0
       var count = if (used) 1 else 0
       var hit = false
-      var found = _next(s, token, idx)
+      var found = _next(s, token, idx, kind)
       var expanded = used
       while (found >= 0) {
         val pre = s.substring(idx, found)
@@ -609,7 +611,7 @@ object LinkEnabler {
         hit = true
         count = count + 1
         idx = found + token.length
-        found = _next(s, token, idx)
+        found = _next(s, token, idx, kind)
       }
       val tail = s.substring(idx)
       if (tail.nonEmpty)
@@ -620,13 +622,108 @@ object LinkEnabler {
         None
     }
 
-    private def _next(s: String, token: String, idx: Int): Int = {
-      val n = s.indexOf(token, idx)
-      if (n > 0 && s.charAt(n - 1) == '.')
-        _next(s, token, idx + token.length)
-      else
-        n
+    // Glossary-aware next-token finder
+    private def _next(
+      s: String,
+      token: String,
+      idx: Int,
+      kind: GlossaryKind,
+    ): Int = {
+
+      // === Unicode category helpers ===
+
+      @inline def isAsciiLetter(c: Char): Boolean =
+        c <= '\u007F' && c.isLetter
+
+      @inline def isHiragana(c: Char): Boolean =
+        c >= '\u3040' && c <= '\u309F'
+
+      @inline def isKatakana(c: Char): Boolean =
+        (c >= '\u30A0' && c <= '\u30FF') ||
+      (c >= '\u31F0' && c <= '\u31FF')
+
+      @inline def isKanji(c: Char): Boolean = {
+        val cp = c.toInt
+        (cp >= 0x4E00  && cp <= 0x9FFF )  || // CJK Unified Ideographs
+        (cp >= 0x3400  && cp <= 0x4DBF )  || // Extension A
+        (cp >= 0xF900  && cp <= 0xFAFF )  || // Compatibility
+        (cp >= 0x20000 && cp <= 0x2FA1F)     // Extension B–G (surrogate pair range)
+      }
+
+      @inline def dbg(msg: => String): Unit =
+        if (boundaryConfig.debug) println("[GlossaryBoundary] " + msg)
+
+      // === Boundary rule by glossary term kind ===
+      //
+      // Returns true if the character can be treated as a boundary.
+      // Returns false if it indicates the token is in the middle of another word.
+      //
+      def isBoundaryFor(c: Char): Boolean = {
+        // Special blocker symbols → treated as “not boundary”
+        if (boundaryConfig.isSpecialBlocker(c))
+          return false
+
+        kind match {
+          // English terms: English letters imply "not a boundary"
+          case GlossaryKind.English =>
+            !isAsciiLetter(c)
+
+          // Katakana terms
+          case GlossaryKind.Katakana =>
+            // If Katakana compounding is not allowed and next char is Katakana → NG
+            if (!boundaryConfig.katakanaCompoundOK && isKatakana(c))
+              false
+            else
+              // Otherwise allowed except ASCII letters or Kanji
+              !isAsciiLetter(c) && !isKanji(c)
+
+          // Kanji terms
+          case GlossaryKind.KanjiTerm =>
+            // If Kanji compounding is not allowed and next char is Kanji → NG
+            if (!boundaryConfig.kanjiCompoundOK && isKanji(c))
+              false
+            else
+              // ASCII letters also imply continuation
+              !isAsciiLetter(c)
+
+          // Default: English/Kanji continuation is forbidden
+          case GlossaryKind.Other =>
+            !isAsciiLetter(c) && !isKanji(c)
+        }
+      }
+
+      // === Search loop ===
+      var pos = s.indexOf(token, idx)
+
+      while (pos >= 0) {
+        val beforeOK =
+          if (pos == 0) true
+          else isBoundaryFor(s.charAt(pos - 1))
+
+        val afterPos = pos + token.length
+        val afterOK =
+          if (afterPos >= s.length) true
+          else isBoundaryFor(s.charAt(afterPos))
+
+        dbg(s"token='$token' pos=$pos beforeOK=$beforeOK afterOK=$afterOK")
+
+        // If both sides look like boundaries → valid glossary term occurrence
+        if (beforeOK && afterOK)
+          return pos
+
+        // Otherwise skip and search further
+        pos = s.indexOf(token, pos + 1)
+      }
+
+      pos
     }
+    // private def _next(s: String, token: String, idx: Int): Int = {
+    //   val n = s.indexOf(token, idx)
+    //   if (n > 0 && s.charAt(n - 1) == '.')
+    //     _next(s, token, idx + token.length)
+    //   else
+    //     n
+    // }
 
     private def _can_aux(p: String, i: Int): Boolean = {
       var k = i
@@ -802,6 +899,43 @@ object LinkEnabler {
     //     s"""$token (${ps.mkString(", ")})"""
   }
   object TextLinkProcessor {
+    final case class GlossaryBoundaryConfig(
+      katakanaCompoundOK: Boolean = false, // default: disallow Katakana compounding
+      kanjiCompoundOK: Boolean = false,    // default: disallow Kanji compounding,
+      specialBlockerChars: Set[Char] = Set('・', '·'),
+      debug: Boolean = false               // print debug logs
+    ) {
+      def isSpecialBlocker(c: Char): Boolean = specialBlockerChars.contains(c)
+    }
+    object GlossaryBoundaryConfig {
+      val default = GlossaryBoundaryConfig()
+    }
+
+    // Glossary term classification
+    sealed trait GlossaryKind
+    object GlossaryKind {
+      case object English extends GlossaryKind
+      case object Katakana extends GlossaryKind
+      case object KanjiTerm extends GlossaryKind
+      case object Other extends GlossaryKind
+
+      def detectGlossaryKind(token: String): GlossaryKind = {
+        if (token.forall(c => c <= '\u007F' && (c.isLetter || c.isDigit)))
+          GlossaryKind.English
+        else if (token.forall { c =>
+          (c >= '\u30A0' && c <= '\u30FF') || // Standard Katakana
+          (c >= '\u31F0' && c <= '\u31FF')    // Katakana phonetic extensions
+        })
+          GlossaryKind.Katakana
+        else if (token.exists(c =>
+          (c >= '\u4E00' && c <= '\u9FFF') // CJK Ideographs
+        ))
+          GlossaryKind.KanjiTerm
+        else
+          GlossaryKind.Other
+      }
+    }
+
     case class Holder(
       xs: Vector[Dox],
       ds: ListSet[Glossary.Definition]
