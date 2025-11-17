@@ -76,6 +76,37 @@ class Dox2AsciidocConverter(
     section_up()
     val attachment = _make_title_attachment(head)
     sb_section_title(title, attachment)
+    _author(head)
+  }
+
+  private def _author(head: Head): Unit = {
+    val (author, created, updated) = if (_is_ja) {
+      val author = head.getAuthorString(LocaleUtils.ja) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.ja))
+      val created = head.getPublisedAtString(LocaleUtils.ja)
+      val updated = head.getModefinedAtString(LocaleUtils.ja)
+      (author, created, updated)
+    } else {
+      val author = head.getAuthorString(LocaleUtils.en) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.en))
+      val created = head.getPublisedAtString(LocaleUtils.en)
+      val updated = head.getModefinedAtString(LocaleUtils.en)
+      (author, created, updated)
+    }
+    sb_println("++++")
+    sb_println("""<div class="doc-meta">""")
+    sb_println("""<span class="doc-meta-bg">""")
+    for (x <- author) {
+      sb_println(s"""<span class="author meta-item">${x}</span>""")
+    }
+    for (x <- created) {
+      sb_println(s"""<span class="created meta-item">Created: ${x}</span>""")
+    }
+    for (x <- updated) {
+      sb_println(s"""<span class="updated meta-item">Updated: ${x}</span>""")
+    }
+    sb_println("""</span>""")
+    sb_println("""</div>""")
+    sb_println("++++")
+    sb_println()
   }
 
   protected final def leave_asciidoc_section(): Unit = {
