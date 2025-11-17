@@ -1352,6 +1352,12 @@ case class Head(
 
   override def isOpenClose = titleDefault.isEmpty && author.isEmpty && date.isEmpty
 
+  def getAuthorString(locale: Locale): Option[String] = metadata.author.map(_.distillString(locale))
+
+  def getPublisedAtString(locale: Locale): Option[String] = metadata.publishedAt.map(_.toLocalDate.toString) // TODO DateTimeContext and Locale
+
+  def getModefinedAtString(locale: Locale): Option[String] = metadata.modifiedAt.map(_.toLocalDate.toString) // TODO DateTimeContext and Locale
+
   def toOption: Option[Head] =
     if (isEmpty)
       None

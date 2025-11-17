@@ -47,7 +47,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Jul. 27, 2025
  *  version Aug. 17, 2025
  *  version Oct. 15, 2025
- * @version Nov.  3, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -59,7 +59,7 @@ class AntoraGenerator(
   def generate(realm: Realm): Realm = {
     val site = DoxSite.create(context, realm, "antora", config)
     // record_message("XXX")
-    val builder = new Builder(Builder.Config(site.metadata))
+    val builder = new Builder(Builder.Config(config, site.metadata))
     // record_info("INFO")
     site.traverse(builder)
     val antora = builder.build()
@@ -83,6 +83,8 @@ object AntoraGenerator {
     def isDiagramGeneration(p: Page): Boolean = config.strategy.isDiagramGeneration(p)
 
     def locale = targetI18NContext.locale
+
+    def getDefaultAuthor: Option[I18NString] = config.siteDefaultAuthor
 
     def withTargetI18NContext(locale: Locale) =
       copy(context = context.withTargetI18NContext(locale))
@@ -862,11 +864,17 @@ object AntoraGenerator {
     }
     object Builder {
       case class Config(
-        title: String = "SimpleModeling",
-        url: Option[URL] = Some(new URI("https://www.simplemodeling.org").toURL)
-      )
+        doxSiteConfig: DoxSite.Config
+        // title: String = "SimpleModeling",
+        // url: Option[URL] = Some(new URI("https://www.simplemodeling.org").toURL),
+        // defaultAuthor: Option[I18NString] = Some(I18NString.enja("ASAMI, Tomoharu", "浅海 智晴"))
+      ) {
+        def title: String = doxSiteConfig.siteTitle
+        def url: Option[URL] = doxSiteConfig.siteUrl
+        def defaultAuthor: Option[I18NString] = doxSiteConfig.siteDefaultAuthor
+      }
       object Config {
-        val default = Config()
+        // val default = Config()
       }
     }
   }
@@ -891,7 +899,7 @@ object AntoraGenerator {
     private var _depth: Int = 0
     private var _in_images: Boolean = false
     private var _in_work_area: Int = 0
-    private val _antora = new Antora.Builder(Antora.Builder.Config.default)
+    private val _antora = new Antora.Builder(Antora.Builder.Config(config.doxSiteConfig))
 
     private def _effective_depth: Int =
       if (_in_images)
@@ -985,9 +993,13 @@ object AntoraGenerator {
   }
   object Builder {
     case class Config(
+      doxSiteConfig: DoxSite.Config, // XXX migrate to MetaData
       metadata: MetaData
     ) {
       def categoryTitle(name: String): String = metadata.categories.makeTitle(name)
+      def title: String = doxSiteConfig.siteTitle
+      def url: Option[URL] = doxSiteConfig.siteUrl
+      def defaultAuthor: Option[I18NString] = doxSiteConfig.siteDefaultAuthor
     }
   }
 }

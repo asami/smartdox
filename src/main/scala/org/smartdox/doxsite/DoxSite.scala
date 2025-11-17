@@ -5,6 +5,7 @@ import scala.util.control.NonFatal
 import scala.util.matching.Regex
 import java.io.File
 import java.net.URI
+import java.net.URL
 import java.time.Instant
 import java.util.Locale
 import org.goldenport.RAISE
@@ -24,6 +25,7 @@ import org.goldenport.realm.Realm.FileData
 import org.goldenport.realm.RealmTransformer
 import org.goldenport.value._
 import org.goldenport.collection.NonEmptyVector
+import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
@@ -317,6 +319,10 @@ object DoxSite {
     def isGlossaryInDocument: Boolean = strategy.isGlossaryInDocument
     def isLinkEnable: Boolean = strategy.isLinkEnable
     def isLinkEnable(p: Page): Boolean = strategy.isLinkEnable(p)
+
+    def siteTitle: String = "SimpleModeling"
+    def siteUrl: Option[URL] = Some(new URI("https://www.simplemodeling.org").toURL)
+    def siteDefaultAuthor: Option[I18NString] = Some(I18NString.enja("ASAMI, Tomoharu", "浅海 智晴"))
 
     def +(rhs: Config): Config = copy(
       lastOption(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),

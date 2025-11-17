@@ -5,6 +5,7 @@ import java.net.URI
 import java.io.File
 import org.goldenport.RAISE
 import org.goldenport.tree._
+import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.util.ListUtils
 import org.smartdox._
@@ -20,7 +21,7 @@ import org.smartdox.converter._
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
- * @version Nov.  6, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -82,18 +83,33 @@ class Dox2AsciidocConverter(
   }
 
   private def _make_title_attachment(head: Head): Seq[String] =
-    if (_is_ja)
+    if (_is_ja) {
+      val author = head.getAuthorString(LocaleUtils.ja) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.ja))
+      val created = head.getPublisedAtString(LocaleUtils.ja)
+      val updated = head.getModefinedAtString(LocaleUtils.ja)
       Vector(
         ":lang: ja",
         ":table-caption: 表",
         ":figure-caption: 図",
         ":example-caption: 例",
         ":listing-caption: リスト"
-      )
-     else
+      ) ++ Vector(
+        author.map(x => s":author: $x"),
+        created.map(x => s":created: $x"),
+        updated.map(x => s":updated: $x")
+      ).flatten
+    } else {
+      val author = head.getAuthorString(LocaleUtils.en) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.en))
+      val created = head.getPublisedAtString(LocaleUtils.en)
+      val updated = head.getModefinedAtString(LocaleUtils.en)
       Vector(
         ":lang: en"
-      )
+      ) ++ Vector(
+        author.map(x => s":author: $x"),
+        created.map(x => s":created: $x"),
+        updated.map(x => s":updated: $x")
+      ).flatten
+    }
 
   private def _make_title_attachment0(head: Head): Seq[String] = {
     Vector(_json_ld(head))
@@ -367,5 +383,6 @@ object Dox2AsciidocConverter {
     isDiagramGeneration: Boolean
   ) {
     def targetI18NContext = context.targetI18NContext
+    def getDefaultAuthor: Option[I18NString] = context.getDefaultAuthor
   }
 }
