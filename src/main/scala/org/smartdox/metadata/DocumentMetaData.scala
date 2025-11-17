@@ -1,12 +1,13 @@
 package org.smartdox.metadata
 
-import scalaz._, Scalaz._
+import scalaz.{Ordering => _, _}, Scalaz._
 import scala.collection.immutable.SortedSet
 import scala.util.Try
 import scala.xml.{Node => XNode, Text => XText, _}
 import java.net.URI
 import java.util.Locale
 import org.joda.time.DateTime
+import org.joda.time.LocalDate
 import com.typesafe.config.{Config => Hocon}
 import org.goldenport.context.Consequence
 import org.goldenport.context.DateTimeContext
@@ -24,6 +25,11 @@ import org.goldenport.util.OptionUtils.lastOption
 import org.smartdox._
 import org.smartdox.generator.Context
 import org.smartdox.parser.PureParser
+import org.smartdox.structure.StructureObject
+import org.smartdox.structure.SectionStructureObject
+import org.smartdox.structure.StructureProperties.StructurePropertyProperties
+import org.smartdox.structure.ListI18NFragmentPropertyProperty
+import org.smartdox.structure.I18NFragmentProperty
 
 /*
 
@@ -45,7 +51,7 @@ import org.smartdox.parser.PureParser
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -58,7 +64,7 @@ case class DocumentMetaData(
   organization: Option[I18NFragment] = None,
   keywords: List[String] = Nil,
   publishedAt: Option[LocalDateOrDateTime] = None,
-  modifiedAtHistory: SortedSet[LocalDateOrDateTime] = SortedSet.empty,
+  modifiedAtHistory: DocumentMetaData.UpdateHistory = DocumentMetaData.UpdateHistory.empty,
   kindOption: Option[DocumentMetaData.Kind] = None,
   statusOption: Option[DocumentMetaData.Status] = None,
   strategy: Set[DocumentMetaData.Strategy] = Set.empty,
@@ -66,7 +72,7 @@ case class DocumentMetaData(
 ) extends Explanation.Holder {
   import DocumentMetaData._
 
-  def isEmpty = title.isEmpty && explanation.isEmpty && author.isEmpty && keywords.isEmpty && publishedAt.isEmpty && modifiedAt.isEmpty
+  def isEmpty = title.isEmpty && explanation.isEmpty && author.isEmpty && keywords.isEmpty && publishedAt.isEmpty && modifiedAtHistory.isEmpty
 
   def toOption = if (isEmpty) None else Some(this)
 
@@ -150,6 +156,9 @@ case class DocumentMetaData(
   def withExplanation(p: Explanation) =
     copy(explanation = p)
 
+  def withUpdateHistory(p: DocumentMetaData.UpdateHistory) =
+    copy(modifiedAtHistory = p)
+
   def complementTitleDate(
     ptitle: InlineContents,
     pdate: InlineContents
@@ -157,15 +166,15 @@ case class DocumentMetaData(
     val t = title orElse _to_title(ptitle)
     val d = _to_date(pdate)
     val (dp, dm) = (publishedAt, modifiedAt) match {
-      case (Some(p), Some(m)) => (Some(p), Some(m))
+      case (Some(p), Some(m)) => (Some(p), None)
       case (Some(p), None) => (Some(p), d)
-      case (None, Some(m)) => (d, Some(m))
+      case (None, Some(m)) => (d, None)
       case (None, None) => (d, None)
     }
     copy(
       title = t,
       publishedAt = dp,
-      modifiedAtHistory = modifiedAtHistory ++ dm
+      modifiedAtHistory = modifiedAtHistory.add(dm)
     )
   }
 
@@ -194,7 +203,7 @@ case class DocumentMetaData(
       organization orElse rhs.organization,
       (keywords ::: rhs.keywords).distinct,
       publishedAt orElse rhs.publishedAt,
-      modifiedAtHistory ++ rhs.modifiedAtHistory,
+      modifiedAtHistory + rhs.modifiedAtHistory,
       lastOption(kindOption, rhs.kindOption),
       lastOption(statusOption, rhs.statusOption),
       strategy ++ rhs.strategy
@@ -223,7 +232,7 @@ case class DocumentMetaData(
       PROP_AUTHOR -> author.map(_.print),
       PROP_KEYWORDS -> _keywords_string,
       PROP_PUBLISHED_AT -> publishedAt.map(_to_string), // TODO DatePublished
-      PROP_MODIFIED_AT -> modifiedAt.map(_to_string), // TODO DateModified
+      PROP_MODIFIED_AT -> modifiedAtHistory.marshall, // TODO DateModified
       PROP_KIND -> Some(kind.name),
       PROP_STATUS -> Some(status.name)
     )
@@ -256,6 +265,7 @@ case class DocumentMetaData(
 
 object DocumentMetaData {
   import io.circe._
+  import io.circe.syntax._
   import io.circe.generic.extras._
   import io.circe.generic.extras.semiauto._
 
@@ -271,6 +281,7 @@ object DocumentMetaData {
   final val PROP_KEYWORDS = "keywords"
   final val PROP_PUBLISHED_AT = "published_at"
   final val PROP_MODIFIED_AT = "modified_at"
+  final val PROP_UPDATE = "update"
   final val PROP_KIND = "kind"
   final val PROP_STATUS = "status"
   final val PROP_STRATEGY = "strategy"
@@ -376,6 +387,93 @@ object DocumentMetaData {
     }
   }
 
+  case class UpdateHistory(
+    slots: SortedSet[UpdateHistory.Slot] = UpdateHistory.emptySlots
+  ) {
+    def isEmpty = slots.isEmpty
+
+    def +(rhs: UpdateHistory) = copy(slots ++ rhs.slots)
+
+    def add(p: Option[LocalDateOrDateTime]): UpdateHistory =
+      p match {
+        case None => this
+        case Some(dt) =>
+          copy(slots = slots + UpdateHistory.Slot(dt, None))
+      }
+
+    def lastOption: Option[LocalDateOrDateTime] = slots.lastOption.map(_.modifiedAt)
+
+    def localDates: Vector[LocalDate] = slots.map(_.modifiedAt.toLocalDate).toVector
+
+    def asJsonString: String = this.asJson.noSpaces
+
+    def marshall: Option[String] = if (isEmpty) None else Some(asJsonString)
+  }
+  object UpdateHistory {
+    implicit val slotOrdering: Ordering[Slot] = Ordering.by(_.modifiedAt)
+
+    private lazy val emptySlots: SortedSet[Slot] = SortedSet.empty[Slot]
+
+    val empty = UpdateHistory()
+
+    // implicit val doxEncoder: Encoder[Dox] =
+    //   Encoder.encodeString.contramap(_.toString) // TODO
+
+    implicit val UpdateHistoryMonoid: Monoid[UpdateHistory] = new Monoid[UpdateHistory] {
+      def zero: UpdateHistory = UpdateHistory.empty
+      def append(f1: UpdateHistory, f2: => UpdateHistory): UpdateHistory = f1 + f2
+    }
+
+    implicit val i18nFragmentEncoder: Encoder[I18NFragment] =
+      Encoder.encodeString.contramap(_.toString) // TODO
+
+    case class Slot(modifiedAt: LocalDateOrDateTime, description: Option[I18NFragment])
+    object Slot {
+    }
+
+    implicit val slotEncoder: Encoder[Slot] =
+      Encoder.forProduct2("modifiedAt", "description")(x =>
+        (x.modifiedAt, x.description)
+      )
+
+    implicit val updatehistoryEncoder: Encoder[UpdateHistory] = Encoder.forProduct1("slots")(_.slots)
+
+    def create(key: String, content: I18NFragment): Consequence[UpdateHistory] =
+      for {
+        d <- LocalDateOrDateTime.parseStatic(key)
+      } yield UpdateHistory(SortedSet(Slot(d, Some(content))))
+
+    def parse(h: Section): Consequence[UpdateHistory] = {
+      import StructureObject.Builder.Config.Schema
+      val bc = StructureObject.Builder.Config(
+        Schema(
+          Schema.Node.SectionLocalDateOrDateTimeSections(PROP_UPDATE)
+        )
+      )
+      val builder = new StructureObject.Builder(bc)
+      val r = builder.build(h)
+      _parse(r)
+    }
+
+    private def _parse(p: StructureObject): Consequence[UpdateHistory] =
+      Consequence {
+        p match {
+          case m: SectionStructureObject => m.properties match {
+            case mm: StructurePropertyProperties => mm.props.foldMap {
+              case mmm: ListI18NFragmentPropertyProperty => mmm.content.foldMap {
+                case mmmm: I18NFragmentProperty =>
+                  UpdateHistory.create(mmmm.key.value, mmmm.content).orZero
+                case _ => UpdateHistory.empty
+              }
+              case _ => UpdateHistory.empty
+            }
+            case _ => UpdateHistory.empty
+          }
+          case _ => UpdateHistory.empty
+        }
+      }
+  }
+
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
     createC(hocon).take
 
@@ -389,7 +487,7 @@ object DocumentMetaData {
       organization <- hocon.cStringOption(PROP_ORGANIZATION)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
       published <- _get_localdateordatetime(hocon, PROP_PUBLISHED_AT)
-      modified <- _take_localdateordatetime_set(hocon, PROP_MODIFIED_AT)
+      modified <- _take_update_history(hocon, PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
       strategy <- hocon.cValueList(Strategy, PROP_STRATEGY)
@@ -424,6 +522,17 @@ object DocumentMetaData {
   )(implicit ctx: DateTimeContext): Consequence[SortedSet[LocalDateOrDateTime]] =
     hocon.cLocalDateOrDateTimeSet(key)
 
+  private def _take_update_history(
+    hocon: Hocon,
+    key: String
+  )(implicit ctx: DateTimeContext): Consequence[DocumentMetaData.UpdateHistory] =
+    for {
+      xs <- _take_localdateordatetime_set(hocon, key)
+    } yield {
+      val slots = xs.map(dt => DocumentMetaData.UpdateHistory.Slot(dt, None))
+      DocumentMetaData.UpdateHistory(SortedSet(slots.toSeq: _*))
+    }
+
   def create(title: Inline): DocumentMetaData =
     DocumentMetaData(Some(I18NFragment.create(List(title))))
 
@@ -441,6 +550,9 @@ object DocumentMetaData {
   def create(p: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withExplanation(p)
 
+  def create(exp: Explanation, uh: UpdateHistory): DocumentMetaData =
+    DocumentMetaData.empty.withExplanation(exp).withUpdateHistory(uh)
+
   def create(title: InlineContents, explanation: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withTitle(title).withExplanation(explanation)
 
@@ -457,7 +569,7 @@ object DocumentMetaData {
       organization <- _get_i18nfragment(p, "organization")
       keywords <- _get_string_list_eager(p, "keywords")
       publishedat <- _get_localdateordatetime(p, "publishedAt")
-      modifiedat <- _take_localdateordatetime_set(p, "modifiedAt")
+      modifiedat <- _take_update_history(p, "modifiedAt")
       kind <- _get_powertype(p, Kind, "kind")
       status <- _get_powertype(p, Status, "status")
     } yield {
@@ -491,6 +603,17 @@ object DocumentMetaData {
 
   private def _take_localdateordatetime_set(p: XNode, name: String)(implicit ctx: DateTimeContext): Consequence[SortedSet[LocalDateOrDateTime]] =
     XmlUtils.takeLocalDateOrDateTimeSetC(p, name)
+
+  private def _take_update_history(
+    p: XNode,
+    name: String
+  )(implicit ctx: DateTimeContext): Consequence[DocumentMetaData.UpdateHistory] =
+    for {
+      xs <- _take_localdateordatetime_set(p, name)
+    } yield {
+      val slots = xs.map(dt => DocumentMetaData.UpdateHistory.Slot(dt, None))
+      DocumentMetaData.UpdateHistory(SortedSet(slots.toSeq: _*))
+    }
 
   private def _get_i18nfragment(p: XNode, name: String): Consequence[Option[I18NFragment]] =
     I18NFragment.getC(name, p)

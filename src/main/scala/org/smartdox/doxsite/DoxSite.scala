@@ -64,7 +64,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov.  4, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1032,7 +1032,7 @@ object DoxSite {
         }
       }
       val title = Hyperlink.createArticle(x.title, new URI(s"../${x.uri}"))
-      val summary = Dox.toDox(x.summary) // Brief
+      val summary = x.effectiveBrief
       tb.append(date, ckind, evt, corner, title, summary)
     }
     val t = tb.apply()

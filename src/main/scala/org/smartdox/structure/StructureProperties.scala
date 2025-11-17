@@ -1,11 +1,14 @@
 package org.smartdox.structure
 
+import org.goldenport.RAISE
 import org.smartdox._
+import org.smartdox.structure.StructureObject.KeyContent
 
 /*
  * @since   Aug. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep.  1, 2025
+ *  version Sep.  1, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 abstract class StructureProperties() {
@@ -29,6 +32,7 @@ object StructureProperties {
     def +(rhs: StructureProperties): StructureProperties = rhs match {
       case Empty => this
       case m: Plain => copy(xs = xs ++ m.xs)
+      case m: Compound => RAISE.notImplementedYetDefect
       case m => Compound(Vector(this, rhs))
     }
 
@@ -43,6 +47,7 @@ object StructureProperties {
     def +(rhs: StructureProperties): StructureProperties = rhs match {
       case Empty => this
       case m: Multi => copy(xs = xs ++ m.xs)
+      case m: Compound => RAISE.notImplementedYetDefect
       case m => Compound(Vector(this, rhs))
     }
 
@@ -67,6 +72,23 @@ object StructureProperties {
       props.toStream.flatMap(_.getAsI18NValue(key)).headOption
   }
 
+  case class StructurePropertyProperties(
+    props: Vector[StructureProperty] = Vector.empty
+  ) extends StructureProperties {
+    def +(rhs: StructureProperties): StructureProperties = rhs match {
+      case Empty => this
+      case m: StructurePropertyProperties => RAISE.notImplementedYetDefect
+      case m: Compound => RAISE.notImplementedYetDefect
+      case m => Compound(Vector(this, rhs))
+    }
+
+    def getAsI18NFragment(key: String): Option[I18NFragment] =
+      props.find(_.isKey(key)).flatMap(_.getI18NFragment)
+
+    def getAsI18NValue(key: String): Option[Value] =
+      props.find(_.isKey(key)).flatMap(_.getI18NValue)
+  }
+
   case class Builder(
     xs: Vector[(String, List[Dox])] = Vector.empty
   ) {
@@ -86,6 +108,9 @@ object StructureProperties {
     else
       Plain(ps.toMap)
 
+  def createI18NFragment(ps: Vector[KeyContent[I18NFragment]]): StructureProperties =
+    createI18NFragment(ps.map(_.toTuple))
+
   def createI18NFragment(ps: Seq[(String, I18NFragment)]): StructureProperties =
     create(ps map {
       case (k, v) => k -> List(v)
@@ -101,6 +126,9 @@ object StructureProperties {
       Multi(a.toMap)
     }
 
+  def createValue(ps: Vector[KeyContent[Value]]): StructureProperties =
+    createValue(ps.map(_.toTuple))
+
   def createValue(ps: Seq[(String, Value)]): StructureProperties =
     if (ps.isEmpty) {
       Empty
@@ -114,4 +142,9 @@ object StructureProperties {
     // }
     // Multi(a.toMap)
     }
+
+  def createLists(ps: Vector[KeyContent[List[KeyContent[Section]]]]): StructureProperties = {
+    val a = ps.map(ListI18NFragmentPropertyProperty.create)
+    StructurePropertyProperties(a)
+  }
 }

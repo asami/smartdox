@@ -7,7 +7,8 @@ import org.smartdox.metadata.Explanation
 /*
  * @since   Aug. 29, 2025
  *  version Aug. 31, 2025
- * @version Sep.  1, 2025
+ *  version Sep.  1, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 abstract class StructureObject() extends Structure {
@@ -84,7 +85,56 @@ object StructureObject {
 
   case class Title(contents: I18NFragment)
 
+  case class KeyContent[T](key: Key, content: T) {
+    def toTuple: (String, T) = (key.value, content)
+  }
+  object KeyContent {
+    def apply[T](key: String, content: T): KeyContent[T] = KeyContent(Key(key), content)
+  }
+
   class Builder(config: Builder.Config) {
+    case class Progress(
+      isDone: Boolean = false,
+      init: Vector[Dox] = Vector.empty,
+      target: Option[Either[Table, Dl]] = None,
+      values: Vector[Section] = Vector.empty,
+      descriptions: Vector[Section] = Vector.empty,
+      lists: Vector[Section] = Vector.empty,
+      tail: Vector[Dox] = Vector.empty
+    ) {
+      def +(rhs: Dox) = if (isDone)
+        copy(tail = tail :+ rhs)
+      else
+        rhs match {
+          case m: Section =>
+            if (config.isSectionValue(m))
+              copy(values = values :+ m)
+            else if (config.isSectionDescription(m))
+              copy(descriptions = descriptions :+ m)
+            else if (config.isSectionList(m))
+              copy(lists = lists :+ m)
+            else
+              copy(isDone = true, tail = tail :+ rhs)
+          case m: Table => copy(isDone = true, target = Some(Left(m)))
+          case m: Dl => copy(isDone = true, target = Some(Right(m)))
+          case m => copy(init = init :+ m)
+        }
+    }
+    object Progress {
+      lazy val empty = Progress()
+
+      trait Holder {
+        def progress: Progress
+
+        def isDone = progress.isDone
+        def init = progress.init
+        def values = progress.values
+        def descriptions = progress.descriptions
+        def lists = progress.lists
+        def tail = progress.tail
+      }
+    }
+
     def build(p: Document): StructureObject = {
       val title = Title(p.head.title getOrElse I18NFragment.create("No title"))
       val explanation = p.head.metadata.explanation
@@ -115,12 +165,13 @@ object StructureObject {
       prog.eval(cursor)
     }
 
-    private def _properties: Cursor.CS[StructureProperties] = State { c =>
+    private def _properties: Cursor.CS[StructureProperties] = State { s =>
       val prog = for {
         a <- _properties_table_dl
         b <- _properties_section_ul_text
-      } yield a + b
-      prog.run(c)
+        c <- _properties_section_sections
+      } yield a + b + c
+      prog.run(s)
     }
 
     private def _properties_table_dl: Cursor.CS[StructureProperties] = State { c =>
@@ -205,6 +256,25 @@ object StructureObject {
       c.xs.foldLeft(Z())(_+_).r
     }
 
+    private def _properties_section_sections: Cursor.CS[StructureProperties] = State { s =>
+      case class Z(
+        progress: Progress = Progress.empty
+      ) extends Progress.Holder {
+        def r: (Cursor, StructureProperties) = {
+          val props = _create_sections
+          (Cursor(tail.toList), props)
+        }
+
+        private def _create_sections = {
+          val xs = lists.map(Section.toKeySectionList)
+          StructureProperties.createLists(xs)
+        }
+
+        def +(rhs: Dox) = copy(progress = progress + rhs)
+      }
+      s.xs.foldLeft(Z())(_+_).r
+    }
+
     private def _children: Cursor.CS[List[StructureObject]] = State { c =>
       if (config.isChildren) {
         val prog = for {
@@ -219,7 +289,7 @@ object StructureObject {
     }
 
     private def _children_table: Cursor.CS[List[StructureObject]] = State { c =>
-      (c, Nil)
+      (c, Nil) // TODO
     }
 
     private def _children_section: Cursor.CS[List[StructureObject]] = State { c =>
@@ -229,7 +299,7 @@ object StructureObject {
         tail: Vector[Dox] = Vector.empty
       ) {
         def r = {
-          val a = sections.map(build)
+          val a = sections.map(build) // TODO use new Builder
           (Cursor(tail.toList), a.toList)
         }
 
@@ -263,35 +333,59 @@ object StructureObject {
       def isSectionDescription(p: Section) =
         schema.descriptions.exists(_.name == p.keyForModel)
 
-      def isChildren = false
+      def isSectionList(p: Section) =
+        schema.lists.exists(_.name == p.keyForModel)
+
+      def isChildren = schema.nodes.exists(_.isChildren)
     }
     object Config {
-      case class Schema(attributes: List[Schema.Attribute]) {
+      case class Schema(nodes: List[Schema.Node] = Nil) {
         import Schema._
-        lazy val values = attributes.filter(_.kind == Attribute.Kind.Value)
-        lazy val descriptions = attributes.filter(_.kind == Attribute.Kind.Description)
+        lazy val values = nodes.filter(_.isValue)
+        lazy val descriptions = nodes.filter(_.isDescription)
+        lazy val lists = nodes.filter(_.isSectionList)
 
-        def addDescription(name: String) = copy(attributes = attributes :+ Attribute(name, Attribute.Kind.Description))
+        def addDescription(name: String) = copy(nodes = nodes :+ Node.Description(name))
       }
       object Schema {
-        case class Attribute(name: String, kind: Attribute.Kind)
-        object Attribute {
-          sealed trait Kind
-          object Kind {
-            case object Value extends Kind
-            case object Description extends Kind
-          }
+        val empty = Schema()
 
-          def value(p: String): Attribute = Attribute(p, Attribute.Kind.Value)
-          def description(p: String): Attribute = Attribute(p, Attribute.Kind.Description)
+        sealed trait Node {
+          def name: String
+          def isValue: Boolean = false
+          def isDescription: Boolean = false
+          def isSectionList: Boolean = false
+          def isChildren: Boolean = false
+        }
+        sealed trait Property extends Node
+        sealed trait SectionListProperty extends Property {
+          override def isSectionList: Boolean = true
+        }
+        sealed trait Children extends Node {
+          override def isChildren: Boolean = true
+        }
+        object Node {
+          case class Value(name: String) extends Property {
+            override def isValue = true
+          }
+          case class Description(name: String) extends Property {
+            override def isDescription = true
+          }
+          case class SectionLocalDateOrDateTimeSections(name: String) extends SectionListProperty
+          case class List(name: String, childSchema: Schema) extends SectionListProperty
+          def value(p: String): Node = Node.Value(p)
+          def description(p: String): Node = Node.Description(p)
         }
 
+        def apply(p: Node, ps: Node*): Schema =
+          Schema((p +: ps).toList)
+
         def create(p: String, ps: String*): Schema =
-          Schema((p +: ps).toList.map(Attribute.value))
+          Schema((p +: ps).toList.map(Node.value))
 
         def create(values: Seq[String], descs: Seq[String]): Schema = {
-          val vs = values.toList.map(Attribute.value)
-          val ds = descs.toList.map(Attribute.description)
+          val vs = values.toList.map(Node.value)
+          val ds = descs.toList.map(Node.description)
           Schema(vs ++ ds)
         }
       }

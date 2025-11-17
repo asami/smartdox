@@ -33,7 +33,7 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Aug. 16, 2025
  *  version Sep. 22, 2025
  *  version Oct. 12, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -118,7 +118,7 @@ object Notices {
     description: I18NString,
     keywords: List[String],
     published: Option[LocalDate],
-    updateds: SortedSet[LocalDate],
+    updateds: DocumentMetaData.UpdateHistory,
     kind: Option[DocumentMetaData.Kind],
     status: Option[DocumentMetaData.Status],
     lastModified: Option[Instant]
@@ -127,17 +127,19 @@ object Notices {
 
     def id = s"id:urn:${uri}"
 
-    def lastUpdated: Option[LocalDate] = updateds.lastOption
+    def lastUpdated: Option[LocalDate] = updateds.lastOption.map(_.toLocalDate)
 
     def getTimestamp: Option[Instant] = {
       val a = published.map(_to_instant).toVector ++
-      updateds.map(_to_instant).toVector ++
+      updateds.localDates.map(_to_instant).toVector ++
       lastModified.toVector
       a match {
         case Vector() => None
         case xs => Some(xs.max)
       }
     }
+
+    def effectiveBrief: I18NString = brief getOrElse summary
 
     private def _to_instant(p: LocalDate) = InstantUtils.toInstant(p)
 
@@ -165,7 +167,7 @@ object Notices {
       I18NString("No article"),
       Nil,
       None,
-      SortedSet.empty[LocalDate],
+      DocumentMetaData.UpdateHistory.empty,
       None,
       None,
       None
@@ -190,7 +192,7 @@ object Notices {
             md.getEffectiveDescription getOrElse I18NString.empty,
             md.keywords,
             md.publishedAt.map(_.toLocalDate),
-            md.modifiedAtHistory.map(_.toLocalDate),
+            md.modifiedAtHistory,
             md.kindOption,
             md.statusOption,
             m.lastModified

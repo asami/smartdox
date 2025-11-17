@@ -5,6 +5,7 @@ import org.joda.time.LocalDate
 import org.goldenport.i18n.I18NString
 import org.goldenport.tree.TreeNode
 import org.goldenport.collection.NonEmptyVector
+import org.smartdox.{Dox, I18NFragment}
 import org.smartdox.generator.Context
 import org.smartdox.metadata.Notices
 import org.smartdox.metadata.Notices.Notice
@@ -19,7 +20,7 @@ import org.smartdox.metadata.CategoryCollection
  *  version Jul. 22, 2025
  *  version Aug. 27, 2025
  *  version Sep.  3, 2025
- * @version Nov.  1, 2025
+ * @version Nov. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -49,9 +50,9 @@ class NoticeCollector(
     if (_is_notice(p))
       _notices = _notices :+ p
     for (xs <- _make_event_kind(p)) {
-      for ((evt, d) <- xs.vector) {
+      for ((evt, date, desc) <- xs.vector) {
         val ckind = _make_content_kind(p)
-        val slot = History.Slot(evt, d, ckind, p)
+        val slot = History.Slot(evt, date, ckind, p, desc)
         _history_slots = _history_slots :+ slot
       }
     }
@@ -71,9 +72,13 @@ class NoticeCollector(
       History.ContentKind.Article
   }
 
-  private def _make_event_kind(p: Notice): Option[NonEmptyVector[(History.EventKind, LocalDate)]] = {
-    val a = p.published.map(x => (History.EventKind.Created, x))
-    val b = p.updateds.toVector.map(x => (History.EventKind.Updated, x))
+  private def _make_event_kind(p: Notice): Option[NonEmptyVector[(History.EventKind, LocalDate, Option[I18NFragment])]] = {
+    val a = p.published.map(x => (History.EventKind.Created, x, None))
+    val b = p.updateds.slots.toVector.map(x => (
+      History.EventKind.Updated,
+      x.modifiedAt.toLocalDate,
+      x.description
+    ))
     val c = a.toVector ++ b
     NonEmptyVector.createOption(c)
   }

@@ -49,7 +49,7 @@ import Dox._
  *  version Aug. 18, 2025
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
- * @version Nov.  5, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -179,7 +179,8 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     val (_, meta) = _distill_meta(p.contents.toVector)
     val a = for {
       ex <- Explanation.parse(p)
-    } yield DocumentMetaData.create(ex)
+      updatehistory <- DocumentMetaData.UpdateHistory.parse(p)
+    } yield DocumentMetaData.create(ex, updatehistory)
     meta + a.take
   }
 

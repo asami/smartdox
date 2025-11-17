@@ -45,6 +45,7 @@ import org.smartdox.converter.DoxTreeVisitor
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.parser.DoxLinesParser.BlockMacro
 import org.smartdox.parser.PureParser
+import org.smartdox.structure.StructureObject.KeyContent
 import org.smartdox.util.DoxUtils
 
 /*
@@ -98,7 +99,7 @@ import org.smartdox.util.DoxUtils
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
- * @version Nov. 14, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -366,6 +367,17 @@ trait Dox extends IDocument {
       case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
     }
   }
+
+  protected final def to_inline_force(cs: List[Dox]): ValidationNel[String, List[Inline]] =
+    cs.foldRight(Success(Nil): ValidationNel[String, List[Inline]]) {
+      case (i: Inline, Success(a)) => Success(i :: a)
+      case (i: Inline, e: Failure[_]) => e
+      case (d, Success(a)) => to_inline_force(d.elements) match {
+        case Success(aa) => Success(aa :: a)
+        case e: Failure[_] => e
+      }
+      case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
+    }
 
   protected final def to_li(cs: List[Dox]): ValidationNel[String, List[Li]] = {
     cs.foldRight(Success(Nil): ValidationNel[String, List[Li]]) {
@@ -1689,11 +1701,17 @@ object Section {
   // def toKeyValues(p: Section): (String, List[InlineContents]) =
   //   (p.keyForModel, Dox.toValuesAsInlineContents(p))
 
-  def toKeyValueOrValues(p: Section): (String, Value) =
-    (p.keyForModel, Value.buildValueOrValuesI18N(p))
+  def toKeyValueOrValues(p: Section): KeyContent[Value] =
+    KeyContent(p.keyForModel, Value.buildValueOrValuesI18N(p))
 
-  def toKeyDescription(p: Section): (String, I18NFragment) =
-    (p.keyForModel, Dox.toDescriptionAsI18NFragment(p))
+  def toKeyDescription(p: Section): KeyContent[I18NFragment] =
+    KeyContent(p.keyForModel, Dox.toDescriptionAsI18NFragment(p))
+
+  def toKeySectionList(p: Section): KeyContent[List[KeyContent[Section]]] =
+    KeyContent(p.keyForModel, p.sections.map(x => KeyContent(x.keyForModel, x)))
+
+  // def toKeyListOfKeyValueOrValues(p: Section): KeyContent[List[Section]] =
+  //   KeyContent(p.keyForModel, p.sections) // TODO
 }
 
 case class Div(
@@ -2860,7 +2878,7 @@ case class TD(
   }
 
   override def copyV(cs: List[Dox]) = {
-    to_inline(cs).map(copy(_, location = get_location(location, cs)))
+    to_inline_force(cs).map(copy(_, location = get_location(location, cs)))
   }
 }
 

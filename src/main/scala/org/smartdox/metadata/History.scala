@@ -5,12 +5,14 @@ import org.joda.time.LocalDate
 import org.goldenport.i18n.I18NString
 import org.goldenport.collection.VectorMap
 import org.goldenport.util.LocalDateUtils.Implicits._
+import org.smartdox.{Dox, I18NFragment}
 import Notices.Notice
 
 /*
  * @since   Aug. 23, 2025
  *  version Aug. 27, 2025
- * @version Sep.  3, 2025
+ *  version Sep.  3, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 case class History(
@@ -86,11 +88,12 @@ object History {
     eventKind: EventKind,
     date: LocalDate,
     contentKind: ContentKind,
-    notice: Notice
+    notice: Notice,
+    description: Option[I18NFragment]
   ) {
     def year: Int = date.getYear
     def title: I18NString = notice.title
-    def summary: I18NString = notice.summary
+    def effectiveBrief: I18NFragment = description getOrElse I18NFragment.create(notice.effectiveBrief)
     def uri = notice.uri
     def category = notice.category
   }

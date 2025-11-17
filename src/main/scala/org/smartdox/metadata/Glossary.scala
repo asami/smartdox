@@ -22,7 +22,8 @@ import org.smartdox.structure.StructureObject
  *  version Mar.  9, 2025
  *  version Aug. 31, 2025
  *  version Sep. 22, 2025
- * @version Oct. 28, 2025
+ *  version Oct. 28, 2025
+ * @version Nov. 14, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -289,15 +290,18 @@ object Glossary {
         }
 
       def toHistorySlot: Vector[History.Slot] =
-        _notice_option.toVector.flatMap(n =>
+        _notice_option.toVector.flatMap { n =>
+          val desc = None
           modifiedAt match {
-            case Some(s) => Vector(Slot(EventKind.Updated, s.toLocalDate, ContentKind.Glossary, n))
+            case Some(s) =>
+              Vector(Slot(EventKind.Updated, s.toLocalDate, ContentKind.Glossary, n, desc))
             case None => publishedAt match {
-              case Some(s) => Vector(Slot(EventKind.Created, s.toLocalDate, ContentKind.Glossary, n))
+              case Some(s) =>
+                Vector(Slot(EventKind.Created, s.toLocalDate, ContentKind.Glossary, n, desc))
               case None => Vector.empty
             }
           }
-        )
+        }
     }
 
     sealed trait TokenKind

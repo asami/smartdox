@@ -13,7 +13,7 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
  *  version Oct. 26, 2025
- * @version Nov.  5, 2025
+ * @version Nov. 17, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -115,6 +115,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: TH => enter_Th(m)
       case m: TD => enter_Td(m)
       case m: Section => enter_section(node, m)
+      case m: Fragment => enter_fragment(m)
       case m: I18NFragment => enter_i18nfragment(m)
       case m: Program => enter_program(node, m)
       case m: Document => enter_Document(m)
@@ -129,12 +130,15 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Html5Inline => enter_Html5Inline(m)
       case m: Html5 => enter_Html5(m)
       case m: Error => enter_Error(m)
-      case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
+      case m => RAISE.notImplementedYetDefect(s"Dox2TreeVisitor[${getClass.getSimpleName}]#start: $m")
     }
 
   protected def enter_section(node: TreeNode[Dox], p: Section): Unit = {
     section_up()
     enter_Section(p)
+  }
+
+  protected def enter_fragment(p: Fragment): Unit = {
   }
 
   protected def enter_i18nfragment(p: I18NFragment): Unit = {
@@ -276,6 +280,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: TH => leave_Th(m)
       case m: TD => leave_Td(m)
       case m: Section => leave_section(node, m)
+      case m: Fragment => leave_fragment(m)
       case m: I18NFragment => leave_i18nfragment(m)
       case m: Program => leave_program(node, m)
       case m: Document => leave_Document(m)
@@ -302,6 +307,9 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_section(node: TreeNode[Dox], p: Section): Unit = {
     leave_Section(p)
     section_down()
+  }
+
+  protected def leave_fragment(p: Fragment): Unit = {
   }
 
   protected def leave_i18nfragment(p: I18NFragment): Unit = {
