@@ -1,5 +1,6 @@
 package org.smartdox.converter
 
+import java.util.Locale
 import org.goldenport.RAISE
 import org.goldenport.tree._
 import org.smartdox._
@@ -13,7 +14,7 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
  *  version Oct. 26, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 18, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -24,9 +25,16 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   private var _list_depth = 0
   private var _is_in_figure: Boolean = false
   private var _metadata: Option[DocumentMetaData] = None
+  private var _node_stack: List[TreeNode[Dox]] = Nil
 
   protected final def is_uninvoke_img = is_ignore_img_in_figure && _is_in_figure
   protected final def is_invoke_img = !is_uninvoke_img
+
+  protected final def current_node: TreeNode[Dox] = _node_stack.head
+
+  protected final def current_dox: Dox = current_node.content
+
+  protected final def get_locale: Option[Locale] = Dox.getLocaleInContext(current_node)
 
   protected final def get_metadata: Option[DocumentMetaData] = _metadata
 
@@ -84,7 +92,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     if (is_invoke_img)
       _enter_content(node, content)
 
-  private def _enter_content(node: TreeNode[Dox], content: Dox): Unit =
+  private def _enter_content(node: TreeNode[Dox], content: Dox): Unit = {
+    _node_stack = node :: _node_stack
     content match {
       case m: Text => enter_Text(m)
       case m: Paragraph => enter_Paragraph(m)
@@ -132,6 +141,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Error => enter_Error(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2TreeVisitor[${getClass.getSimpleName}]#start: $m")
     }
+    _node_stack = _node_stack.tail
+  }
 
   protected def enter_section(node: TreeNode[Dox], p: Section): Unit = {
     section_up()

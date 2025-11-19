@@ -19,7 +19,9 @@ import org.smartdox.parser.Dox2Parser
  *  version Jun. 28, 2025
  *  version Jul. 23, 2025
  *  version Aug. 22, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Nov. 19, 2025
+ * @version Nov. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -130,5 +132,9 @@ object DoxSiteTransformer {
     def withMetaData(metadata: MetaData): Context = copy(metadata = metadata)
 
     def normalizeUriName(p: String): String = StringUtils.camelToUnderscore(p)
+
+    def doxSiteConfig: DoxSite.Config = config.doxsiteConfig getOrElse DoxSite.Config.default
+
+    def textMark = doxSiteConfig.textMark
   }
 }

@@ -25,11 +25,12 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov. 14, 2025
+ * @version Nov. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
   val context: DoxSiteTransformer.Context,
+  val links: LinkCollection,
   val site: Tree[Node]
 ) extends DoxSiteTransformer {
   import LinkEnabler._
@@ -64,11 +65,14 @@ object LinkEnabler {
   ) extends DoxInSiteTransformer {
     import LinkEmbedder._
 
+    private def _link_collection = enabler.links
+
 //    private val _link_mark = "▸" // 軽量で自然: [▸ Glossary]
 //    private val _link_mark = "⮕" // 見出し: [⮕ Error Concept]
-    private val _link_mark = "📄" // Markdown/記事リンク: [📄ドメイン・モデル構成要素]
+//    private val _link_mark = "📄" // Markdown/記事リンク: [📄ドメイン・モデル構成要素]
 
 //    private val _link_mark = "📝" // 文書リンク: [📝定義済みデータ型]
+    private val _link_mark = context.textMark.article
 
 //    private val _link_mark = "🔗" // 文中リンク例: [🔗エンティティ]
 //    private val _link_mark = "🡒 " // [?] 文中: [🡒 Value Object]
@@ -80,9 +84,9 @@ object LinkEnabler {
     // Shared across all glossary terms within the same page
     private val expandedDefinitions = scala.collection.mutable.Set.empty[Glossary.Definition]
 
-    private var _internal_links: LinkHolder = LinkHolder()
+    private var _internal_links: LinkHolder = LinkHolder.empty
 
-    private var _external_links: LinkHolder = LinkHolder()
+    private var _external_links: LinkHolder = LinkHolder.empty
 
     private val _is_document_stable = pageNode.getContent.fold(false) {
       case m: Page => m.dox.head.metadata.isStable
@@ -172,7 +176,11 @@ object LinkEnabler {
     }
 
     private def _create_reference_relation_related: Vector[Dox] = {
-      val xs = Vector.empty
+      val a = _link_collection.get(pageNode.pathname) match {
+        case Some(s) => s.incomingLinks.toListContents(pageNode.pathnameValue)
+        case None => Vector.empty
+      }
+      val xs = _create_ul(a)
       _create_section(xs, "Related Articles", "関連記事")
     }
 
@@ -349,16 +357,11 @@ object LinkEnabler {
     private def _transform_hyperlink(
       locale: Option[Locale],
       p: Hyperlink
-    ): TreeTransformer.Directive[Dox] = {
-      Option(p.href.getScheme) match {
-        case Some(s) =>
-          if (s == "file")
-            _transform_hyperlink(locale, p, p.href)
-          else
-            _external_link(locale, p)
-        case None => _transform_hyperlink(locale, p, p.href)
-      }
-    }
+    ): TreeTransformer.Directive[Dox] =
+      if (p.isLocalOrRelative)
+        _transform_hyperlink(locale, p, p.href)
+      else
+        _external_link(locale, p)
 
     private def _transform_hyperlink(
       locale: Option[Locale],
@@ -446,7 +449,12 @@ object LinkEnabler {
   }
   object LinkEmbedder {
     case class LinkHolder(links: Vector[Link] = Vector.empty) {
-      def add(hyperlink: Hyperlink) =
+      def add(locale: Option[Locale], hyperlink: Hyperlink): LinkHolder = locale match {
+        case Some(s) => add(s, hyperlink)
+        case None => add(hyperlink)
+      }
+
+      def add(hyperlink: Hyperlink): LinkHolder =
         links.find(_.href == hyperlink.href) match {
           case Some(s) =>
             val a = s.add(hyperlink)
@@ -460,7 +468,7 @@ object LinkEnabler {
           case None => copy(links = links :+ Link(hyperlink))
         }
 
-      def add(locale: Locale, hyperlink: Hyperlink) =
+      def add(locale: Locale, hyperlink: Hyperlink): LinkHolder =
         links.find(_.href == hyperlink.href) match {
           case Some(existing) =>
             val updated = existing.add(locale, hyperlink)
@@ -476,12 +484,18 @@ object LinkEnabler {
 
       def toListContents: Vector[ListContent] = links.map(_.toListContent)
     }
+    object LinkHolder {
+      val empty = LinkHolder()
+    }
+
     case class Link(href: URI, slots: I18NHangar[Link.Slot]) {
       def add(p: Hyperlink) = copy(slots = slots.add(Link.Slot(p)))
       def add(locale: Locale, p: Hyperlink) = copy(slots = slots.add(locale, Link.Slot(p)))
 
+      def hyperlinks: I18NHangar[Hyperlink] = slots.mapValue(_.link)
+
       def toListContent: I18NFragment = {
-        slots.valueVector
+//        slots.valueVector
         I18NFragment.create(slots.mapValueCollection(_.map(_.link)))
       }
     }

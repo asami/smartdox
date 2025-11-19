@@ -99,7 +99,7 @@ import org.smartdox.util.DoxUtils
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2292,6 +2292,8 @@ case class Hyperlink(
   attributes: VectorMap[String, String] = VectorMap.empty,
   location: Option[ParseLocation] = None
 ) extends Inline {
+  import Hyperlink._
+
   override val elements = contents
   override def showTerm = "a"
   override def showParams = List("href" -> href.toASCIIString())
@@ -2308,9 +2310,31 @@ case class Hyperlink(
   def withTitle(p: String): Hyperlink = copy(title = Some(I18NString(p)))
 
   def getHtmlClass: Option[String] = attributes.get("class")
+
+  def isLocalOrRelative: Boolean = linkKind match {
+    case LinkKind.Local => true
+    case LinkKind.Relative => true
+    case _ => false
+  }
+
+  lazy val linkKind: LinkKind = Option(href.getScheme) match {
+    case Some(s) =>
+      if (s == "file")
+        LinkKind.Local
+      else
+        LinkKind.External
+    case None => LinkKind.Relative
+  }
 }
 object Hyperlink extends DoxFactory {
   val label = "a"
+
+  sealed trait LinkKind
+  object LinkKind {
+    case object Local extends LinkKind
+    case object Relative extends LinkKind
+    case object External extends LinkKind
+  }
 
    def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Hyperlink =
      apply(ensure_inline(body), attrs.applyIgnoreCase("href"))
@@ -2377,6 +2401,8 @@ object Hyperlink extends DoxFactory {
 
   def createArticle(body: InlineContents, href: URI): Hyperlink =
     Hyperlink(body, href, None, VectorMap("class" -> "article"))
+
+  def createArticle(body: String): Hyperlink = Hyperlink(List(Text(body)), new URI(body))
 
   def createGlossary(body: String, href: URI, title: String): Hyperlink =
     Hyperlink(List(Text(body)), href, Some(I18NString(title)), VectorMap("class" -> "glossary"))
@@ -3273,6 +3299,9 @@ case class I18NFragment(
     }
   })
 
+  def mapValues(f: List[Dox] => List[Dox]): I18NFragment =
+    I18NFragment(contents.mapValues(f))
+
   def trimSingleLine: I18NFragment = {
     val lv = contents.localeVector
     val r = lv.map(_trim_single_line)
@@ -3338,9 +3367,6 @@ case class I18NFragment(
     case m: Value.Single => Vector(m.v)
     case m => Vector(m.toText)
   }
-
-  def mapValues(f: List[Dox] => List[Dox]): I18NFragment =
-    I18NFragment(contents.mapValues(f))
 }
 object I18NFragment {
   def create(ps: Seq[Dox]): I18NFragment = ps.toList match {
@@ -3570,6 +3596,8 @@ case class Figcaption(
   override def copyV(cs: List[Dox]) = {
     to_inline(cs).map(copy(_))
   }
+
+  def nonEmpty = contents.nonEmpty
 }
 object Figcaption {
   def apply(name: String): Figcaption = Figcaption(List(Text(name)))

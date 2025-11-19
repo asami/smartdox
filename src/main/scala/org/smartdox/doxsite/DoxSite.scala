@@ -66,7 +66,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -324,6 +324,8 @@ object DoxSite {
     def siteUrl: Option[URL] = Some(new URI("https://www.simplemodeling.org").toURL)
     def siteDefaultAuthor: Option[I18NString] = Some(I18NString.enja("ASAMI, Tomoharu", "浅海 智晴"))
 
+    def textMark = Config.WorkAround.textMark
+
     def +(rhs: Config): Config = copy(
       lastOption(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
       lastOption(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
@@ -409,6 +411,12 @@ object DoxSite {
 
     implicit val configDecoder: Decoder[Config] = deriveConfiguredDecoder
     implicit val configEncoder: Encoder[Config] = deriveConfiguredEncoder
+
+    object WorkAround {
+      object textMark {
+        val article = "📄 " // Markdown/記事リンク: [📄ドメイン・モデル構成要素]
+      }
+    }
   }
 
   sealed trait Strategy extends NamedValueInstance {
@@ -988,10 +996,13 @@ object DoxSite {
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
   ): Tree[Node] =
-    if (ctx.config.isLinkEnable)
-      p.transform(new LinkEnabler(ctx, p))
-    else
+    if (ctx.config.isLinkEnable) {
+      val doxsitec = ctx.doxSiteConfig
+      val c = new LinkCollector(doxsitec)(p)
+      p.transform(new LinkEnabler(ctx, c, p))
+    } else {
       p
+    }
 
   private def _deploy_metadata(base: Tree[Node], meta: MetaData): Tree[Node] = {
     val a = _deploy_glossary(base, meta.glossary)
