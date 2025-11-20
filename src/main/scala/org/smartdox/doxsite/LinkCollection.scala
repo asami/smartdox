@@ -14,10 +14,11 @@ import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.LinkHolder
 import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.Link
 import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.FigureHolder
 import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.TableHolder
+import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.ProgramHolder
 
 /*
  * @since   Nov. 14, 2025
- * @version Nov. 19, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 case class LinkCollection(
@@ -85,6 +86,7 @@ object LinkCollection {
     externalLinks: LinkHolder = LinkHolder.empty,
     figures: FigureHolder = FigureHolder.empty,
     tables: TableHolder = TableHolder.empty,
+    programs: ProgramHolder = ProgramHolder.empty,
     incomingLinks: IncomingLinkHolder = IncomingLinkHolder.empty
   ) {
     def addIncomingLinks(p: IncomingLinkHolder) = copy(incomingLinks = incomingLinks + p)
@@ -127,7 +129,8 @@ object LinkCollection {
       internallinks: LinkHolder,
       externallinks: LinkHolder,
       figures: FigureHolder,
-      tables: TableHolder
+      tables: TableHolder,
+      programs: ProgramHolder
     ): Unit = {
       val dl = DoxLinks(dox, internallinks, externallinks, figures, tables)
       _set(node.pathname, DoxLinks.Candidate.Complete(dl))

@@ -10,7 +10,7 @@ import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.LinkHolder
 
 /*
  * @since   Nov. 14, 2025
- * @version Nov. 19, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkCollector(
@@ -53,7 +53,8 @@ object LinkCollector {
         scanner.internalLinks,
         scanner.externalLinks,
         scanner.figures,
-        scanner.tables
+        scanner.tables,
+        scanner.programs
       )
     }
   }
@@ -65,11 +66,13 @@ object LinkCollector {
       private var _external_links: LinkHolder = LinkHolder.empty
       private var _figures: FigureHolder = FigureHolder.empty
       private var _tables: TableHolder = TableHolder.empty
+      private var _programs: ProgramHolder = ProgramHolder.empty
 
       def internalLinks = _internal_links
       def externalLinks = _external_links
       def figures = _figures
       def tables = _tables
+      def programs = _programs
 
       private def _add_internal_link(p: Hyperlink) = {
         _internal_links = _internal_links.add(get_locale, p)
@@ -106,6 +109,13 @@ object LinkCollector {
       override protected def enter_Table(p: Table): Unit = {
         p.caption.foreach { caption =>
           _tables = _tables.add(get_locale, p, caption)
+        }
+      }
+
+      override protected def enter_Program(p: Program): Unit = {
+        p.caption.foreach { c =>
+          val caption = Caption(c)
+          _programs = _programs.add(get_locale, p, caption)
         }
       }
     }
@@ -149,6 +159,26 @@ object LinkCollector {
         val empty = TableHolder()
 
         case class Slot(locale: Option[Locale], table: Table, caption: Caption)
+      }
+
+      case class ProgramHolder(
+        programs: Vector[ProgramHolder.Slot] = Vector.empty
+      ) {
+        import ProgramHolder._
+
+        def add(locale: Option[Locale], p: Program, c: Caption): ProgramHolder = locale match {
+          case Some(s) => add(s, p, c)
+          case None => add(p, c)
+        }
+        def add(locale: Locale, p: Program, c: Caption): ProgramHolder =
+          copy(programs = programs :+ Slot(Some(locale), p, c))
+        def add(p: Program, c: Caption): ProgramHolder =
+          copy(programs = programs :+ Slot(None, p, c))
+      }
+      object ProgramHolder {
+        val empty = ProgramHolder()
+
+        case class Slot(locale: Option[Locale], program: Program, caption: Caption)
       }
     }
   }
