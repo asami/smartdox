@@ -24,6 +24,7 @@ import org.goldenport.realm.Realm
 import org.goldenport.realm.Realm.FileData
 import org.goldenport.realm.RealmTransformer
 import org.goldenport.value._
+import org.goldenport.values.PathName
 import org.goldenport.collection.NonEmptyVector
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
@@ -53,6 +54,7 @@ import org.smartdox.service.operations.SiteParameters
 import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.transformers.AutoWireTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
+import org.smartdox.semanticweb._
 import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
 
 /*
@@ -66,7 +68,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov. 19, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -103,6 +105,7 @@ class DoxSite(
     _build_notices(r)
     _build_categories(r)
     _build_atomfeed(r)
+    _build_rdf(r)
     r
   }
 
@@ -230,6 +233,49 @@ class DoxSite(
   private def _build_atomfeed(realm: Realm, path: String, af: AtomFeed): Realm = {
     val json = af.toAtomString
     realm.setContent(path, json)
+  }
+
+  /*
+   * Unused:
+   * BokSiteOntology, BokSiteSchema
+   * CategorySiteOntology, CategorySiteSchema
+   * ProjectSiteOntology, ProjectSiteSchema
+   */
+  private val _knoledge_models: Vector[KnowledgeModel] = Vector(
+    SimpleModelingOrgOntology,
+    BokOntology, BokSchema,
+    CategoryOntology, CategorySchema,
+    SimpleModelingOntology,
+    SimpleModelOntology, SimpleModelSchema,
+    GlossaryOntology,
+    BibliographyOntology,
+    SmartDoxOntology
+  )
+
+  private def _build_rdf(realm: Realm): Realm =
+    _knoledge_models.foldLeft(realm)((z, x) => _build_rdf(z, x))
+
+  private def _build_rdf(
+    realm: Realm,
+    knowledge: KnowledgeModel
+  ): Realm =
+    _build_rdf(realm, knowledge.namespace, knowledge.asJsonLD, knowledge.asTurtle)
+
+  private def _build_rdf(
+    realm: Realm,
+    namespace: String,
+    jsonld: String,
+    turtle: String
+  ): Realm = {
+    val path = _path(namespace)
+    realm.setContent(path("index.jsonld"), jsonld)
+    realm.setContent(path("index.ttl"), turtle)
+  }
+
+  private def _path(namespace: String): PathName = {
+    val a = namespace.takeWhile(_ != '#')
+    val uri = URI.create(a)
+    PathName(uri.getPath)
   }
 
   private def _compare(lhs: Notice, rhs: Notice): Boolean =

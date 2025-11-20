@@ -11,16 +11,16 @@ package org.smartdox.semanticweb
  *   - SimpleModelOntology (for model-level concepts)
  *   - ProjectSchema (for instance-level RDF/JSON-LD structure)
  *
- * Namespace: https://www.simplemodeling.org/project/ontology/1.0#
+ * Namespace: https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#
  * Prefix: proj
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 object ProjectOntology {
   val prefix = "proj"
-  val namespace = "https://www.simplemodeling.org/project/ontology/1.0#"
+  val namespace = "https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#"
   def uri(local: String) = namespace + local
 
   // ------------------------------------------------------------------
@@ -81,8 +81,8 @@ object ProjectOntology {
   // ------------------------------------------------------------------
   // Cross-links to other ontologies
   // ------------------------------------------------------------------
-  val SimpleModelOntology    = "https://www.simplemodeling.org/simplemodel/ontology/1.0#"
-  val SimpleModelingOntology = "https://www.simplemodeling.org/simplemodeling/ontology/1.0#"
+  val SimpleModelOntology    = "https://www.simplemodeling.org/simplemodel/ontology/0.1-SNAPSHOT#"
+  val SimpleModelingOntology = "https://www.simplemodeling.org/simplemodeling/ontology/0.1-SNAPSHOT#"
 
   // ------------------------------------------------------------------
   // JSON-LD Context

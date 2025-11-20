@@ -13,17 +13,31 @@ import org.smartdox.semanticweb.SimpleModelOntology._
  * This schema generates RDF graphs for entities, values, rules, services,
  * and events, based on the vocabulary defined in SimpleModelOntology.
  *
- * Namespace: https://www.simplemodeling.org/simplemodel/schema/1.0#
+ * Namespace: https://www.simplemodeling.org/simplemodel/schema/0.1-SNAPSHOT#
  * Prefix: sm-schema
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelSchema {
+object SimpleModelSchema extends KnowledgeModel {
   val prefix = "sm-schema"
-  val namespace = "https://www.simplemodeling.org/simplemodel/schema/1.0#"
-  def uri(local: String): String = namespace + local
+  val namespace = "https://www.simplemodeling.org/simplemodel/schema/0.1-SNAPSHOT#"
+
+  // JSON-LD context (schema reuses vocabulary context)
+  override lazy val jsonldContext: Map[String, Any] =
+    SimpleModelOntology.jsonldContext
+
+  // JSON-LD Profile
+  override def jsonldProfile: RdfRenderer.JsonLDProfile =
+    RdfRenderer.JsonLDProfile.BoK
+
+  // Base schema triples (can be extended to include class/property declarations)
+  lazy val triples: Seq[Triple] = Seq.empty
+
+  // Structural schema graph
+  override def toGraph: Rdf.Graph =
+    Rdf.Graph(triples.toVector)
 
   // ------------------------------------------------------------------
   // Node Builders

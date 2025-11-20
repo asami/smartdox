@@ -13,10 +13,23 @@ import org.smartdox.semanticweb.CategoryOntology._
  * JSON-LD or Turtle representations of each category page.
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
-object CategorySchema {
+object CategorySchema extends KnowledgeModel {
+  override val prefix: String = "categorySchema"
+  override val namespace: String = "https://www.simplemodeling.org/category/schema/0.1-SNAPSHOT#"
+
+  override lazy val jsonldContext: Map[String, Any] =
+    CategoryOntology.jsonldContext
+
+  override def jsonldProfile: RdfRenderer.JsonLDProfile =
+    RdfRenderer.JsonLDProfile.BoK
+
+  // Base triples for this schema (will be populated via toGraph(category…))
+  lazy val triples: Seq[Triple] = Seq.empty
+
+  override def toGraph: Rdf.Graph = Rdf.Graph(triples.toVector)
   // ------------------------------------------------------------------
   // Node Builders
   // ------------------------------------------------------------------

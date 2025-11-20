@@ -5,27 +5,27 @@ import org.smartdox.semanticweb.Vocabulary._
 import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
 
 /*
- * Glossary Ontology
+ * Bibliography Ontology
  * ----------------------------------------------------------------------
- * Defines vocabulary and schema for glossary terms used in
+ * Defines vocabulary and schema for bibliography terms used in
  * the SimpleModeling.org knowledge ecosystem.
  *
  * This unified ontology includes:
  *  - RDF/OWL vocabulary definitions for terms
  *  - Utility methods to build RDF triples for each term instance
  *
- * @since   Nov. 13, 2025
+ * @since   Nov. 20, 2025
  * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
-object GlossaryOntology extends KnowledgeModel {
-  val prefix = "glossary"
-  val namespace = "https://www.simplemodeling.org/glossary/ontology/0.1-SNAPSHOT#"
+object BibliographyOntology extends KnowledgeModel {
+  val prefix = "bibliography"
+  val namespace = "https://www.simplemodeling.org/bibliography/ontology/0.1-SNAPSHOT#"
 
   // ------------------------------------------------------------------
   // Core Classes
   // ------------------------------------------------------------------
-  val Glossary = uri("Glossary")
+  val Bibliography = uri("Bibliography")
   val Term     = uri("Term")
 
   // ------------------------------------------------------------------
@@ -44,7 +44,7 @@ object GlossaryOntology extends KnowledgeModel {
   // ------------------------------------------------------------------
   lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,
-    "Glossary" -> Glossary,
+    "Bibliography" -> Bibliography,
     "Term" -> Term,
     "hasTerm" -> hasTerm,
     "hasDefinition" -> hasDefinition,
@@ -57,10 +57,10 @@ object GlossaryOntology extends KnowledgeModel {
   // ------------------------------------------------------------------
   def termNode(termId: String): Node.Uri = Node.Uri(s"${namespace}term/$termId")
 
-  def glossaryTriples(glossaryId: String, termIds: Seq[String]): Seq[Triple] = {
-    val subject = Node.Uri(s"${namespace}glossary/$glossaryId")
+  def bibliographyTriples(bibliographyId: String, termIds: Seq[String]): Seq[Triple] = {
+    val subject = Node.Uri(s"${namespace}bibliography/$bibliographyId")
     val termTriples = termIds.map(tid => Triple(subject, Node.Uri(hasTerm), termNode(tid)))
-    Triple(subject, RdfType, Node.Uri(Glossary)) +: termTriples
+    Triple(subject, RdfType, Node.Uri(Bibliography)) +: termTriples
   }
 
   def termTriples(
@@ -80,9 +80,8 @@ object GlossaryOntology extends KnowledgeModel {
   // Base schema triples for this ontology (can be extended later)
   lazy val triples: Seq[Triple] = Seq.empty
 
-  override def jsonldProfile: RdfRenderer.JsonLDProfile =
-    RdfRenderer.JsonLDProfile.BoK
+  def jsonldProfile: RdfRenderer.JsonLDProfile =
+    RdfRenderer.JsonLDProfile.SmartDox
 
-  override def toGraph: Rdf.Graph =
-    Rdf.Graph(triples.toVector)
+  def toGraph: Rdf.Graph = Rdf.Graph(triples.toVector)
 }

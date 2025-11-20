@@ -5,7 +5,7 @@ import org.smartdox.semanticweb.Vocabulary._
 import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
 
 /*
- * BoK Ontology (Body of Knowledge Ontology)
+ * Bok Schema (Body of Knowledge Schema)
  *
  * Defines RDF-level representation for integrated knowledge
  * across SimpleModeling and SmartDox ecosystems.
@@ -15,10 +15,33 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  * into a unified semantic graph.
  *
  * @since   Nov. 12, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
-object BoKSchema {
+object BokSchema extends KnowledgeModel {
+  //
+  // Schema-level namespace (separate from BokOntology)
+  //
+  val prefix: String = "bok"
+  val namespace: String = "https://www.simplemodeling.org/bok/schema/0.1-SNAPSHOT#"
+
+  //
+  // JSON-LD context for schema export
+  //
+  lazy val jsonldContext: Map[String, Any] = Map(
+    // Core vocabularies
+    "rdf"     -> Vocabulary.Rdf.namespace,
+    "rdfs"    -> Vocabulary.Rdfs.namespace,
+    "dcterms" -> Vocabulary.Dcterms.namespace,
+    "sm"      -> SimpleModelOntology.namespace,
+    // Schema namespace
+    prefix    -> namespace,
+    // Logical schema terms (Concept, KnowledgeUnit, Relation)
+    "Concept"        -> uri("Concept"),
+    "KnowledgeUnit"  -> uri("KnowledgeUnit"),
+    "Relation"       -> uri("Relation")
+  )
+
   /** Represents a conceptual element (domain concept, entity, or value). */
   case class Concept(
     id: String,
@@ -67,17 +90,18 @@ object BoKSchema {
     }
   }
 
-  /** Represents a relation between knowledge entities (BoK-specific edges). */
+  /** Represents a relation between knowledge entities (Bok-specific edges). */
   case class Relation(
     subject: String,
     predicate: String,
     obj: String
   ) {
-    def toTriple: Triple = Triple(Node.Uri(subject), Node.Uri(predicate), Node.Uri(obj))
+    def toTriple: Triple =
+      Triple(Node.Uri(subject), Node.Uri(predicate), Node.Uri(obj))
   }
 
   /** Represents the full Body of Knowledge model as an RDF Graph. */
-  case class BoKModel(
+  case class BokModel(
     concepts: Seq[Concept] = Seq.empty,
     knowledgeUnits: Seq[KnowledgeUnit] = Seq.empty,
     relations: Seq[Relation] = Seq.empty
@@ -89,18 +113,19 @@ object BoKSchema {
         relations.map(_.toTriple)
       Graph(triples)
     }
-
-    /** Generates a GraphWithPrefix for JSON-LD/Turtle export. */
-    def toGraphWithPrefix: GraphWithPrefix = {
-      GraphWithPrefix(
-        graph = toGraph,
-        prefixes = PrefixMap(Map(
-          "rdf" -> Vocabulary.Rdf.namespace,
-          "rdfs" -> Vocabulary.Rdfs.namespace,
-          "dcterms" -> Vocabulary.Dcterms.namespace,
-          "sm" -> SimpleModelOntology.namespace
-        ))
-      )
-    }
   }
+
+  //
+  // Static schema export (for DoxSite)
+  //
+  // For now, we export an empty BokModel with schema context.
+  // Later you can change this to include schema-level instances
+  // (e.g. predefined Concept/KnowledgeUnit templates).
+  //
+
+  private def emptyModel: BokModel = BokModel()
+
+  def toGraph: Graph = emptyModel.toGraph
+
+  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 }

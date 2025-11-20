@@ -1,5 +1,6 @@
 package org.smartdox.semanticweb
 
+import org.smartdox.semanticweb.Rdf.Triple
 import org.smartdox.semanticweb.Rdf.Node
 
 /*
@@ -12,17 +13,16 @@ import org.smartdox.semanticweb.Rdf.Node
  * construct domain models and supports RDF/JSON-LD serialization
  * via SimpleModelSchema.
  *
- * Namespace: https://www.simplemodeling.org/simplemodel/ontology/1.0#
+ * Namespace: https://www.simplemodeling.org/simplemodel/ontology/0.1-SNAPSHOT#
  * Prefix: sm
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelOntology {
+object SimpleModelOntology extends KnowledgeModel {
   val prefix = "sm"
-  val namespace = "https://www.simplemodeling.org/simplemodel/ontology/1.0#"
-  def uri(local: String) = namespace + local
+  val namespace = "https://www.simplemodeling.org/simplemodel/ontology/0.1-SNAPSHOT#"
 
   // ------------------------------------------------------------------
   // Core Classes
@@ -138,4 +138,13 @@ object SimpleModelOntology {
     val Relation     = Node.Uri(SimpleModelOntology.Relation)
     val tag          = Node.Uri(SimpleModelOntology.tag)
   }
+
+  // Base schema triples for this ontology (can be extended later)
+  lazy val triples: Seq[Triple] = Seq.empty
+
+  override def jsonldProfile: RdfRenderer.JsonLDProfile =
+    RdfRenderer.JsonLDProfile.BoK
+
+  override def toGraph: Rdf.Graph =
+    Rdf.Graph(triples.toVector)
 }

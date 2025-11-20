@@ -9,12 +9,12 @@ package org.smartdox.semanticweb
  * and linked within the BoK site (e.g., project index, modules, components).
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 object ProjectSiteOntology {
   val prefix = "projectsite"
-  val namespace = "https://www.simplemodeling.org/project-site/ontology/1.0#"
+  val namespace = "https://www.simplemodeling.org/project-site/ontology/0.1-SNAPSHOT#"
   def uri(local: String) = namespace + local
 
   // ------------------------------------------------------------------

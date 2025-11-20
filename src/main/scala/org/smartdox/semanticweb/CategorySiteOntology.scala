@@ -7,12 +7,12 @@ package org.smartdox.semanticweb
  * in the SimpleModeling BoK publication.
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 object CategorySiteOntology {
   val prefix = "categorysite"
-  val namespace = "https://www.simplemodeling.org/category-site/ontology/1.0#"
+  val namespace = "https://www.simplemodeling.org/category-site/ontology/0.1-SNAPSHOT#"
   def uri(local: String) = namespace + local
 
   // ------------------------------------------------------------------

@@ -6,12 +6,12 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
 
 /*
  * @since   Nov. 12, 2025
- * @version Nov. 12, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 object BokSiteOntology {
   val prefix = "boksite"
-  val namespace = "https://www.simplemodeling.org/bok-site/ontology/1.0#"
+  val namespace = "https://www.simplemodeling.org/bok-site/ontology/0.1-SNAPSHOT#"
   def uri(local: String) = namespace + local
 
   // Core Classes

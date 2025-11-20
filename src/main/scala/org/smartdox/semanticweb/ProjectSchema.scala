@@ -19,15 +19,15 @@ import org.smartdox.semanticweb.ProjectOntology._
  *   - ProjectOntology (vocabulary)
  *   - SimpleModelOntology (model linkage)
  *
- * Namespace: https://www.simplemodeling.org/project/schema/1.0#
+ * Namespace: https://www.simplemodeling.org/project/schema/0.1-SNAPSHOT#
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 object ProjectSchema {
   val prefix = "project-schema"
-  val namespace = "https://www.simplemodeling.org/project/schema/1.0#"
+  val namespace = "https://www.simplemodeling.org/project/schema/0.1-SNAPSHOT#"
   def uri(local: String): String = namespace + local
 
   // ------------------------------------------------------------------

@@ -1,5 +1,9 @@
 package org.smartdox.semanticweb
 
+import org.smartdox.semanticweb.Rdf._
+import org.smartdox.semanticweb.Vocabulary._
+import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
+
 /*
  * Category Ontology
  * ----------------------------------------------------------------------
@@ -8,13 +12,12 @@ package org.smartdox.semanticweb
  * SimpleModeling knowledge system.
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
-object CategoryOntology {
+object CategoryOntology extends KnowledgeModel {
   val prefix = "category"
-  val namespace = "https://www.simplemodeling.org/category/ontology/1.0#"
-  def uri(local: String) = namespace + local
+  val namespace = "https://www.simplemodeling.org/category/ontology/0.1-SNAPSHOT#"
 
   // ------------------------------------------------------------------
   // Core Classes
@@ -58,4 +61,11 @@ object CategoryOntology {
     "order" -> order,
     "parentCategory" -> parentCategory
   )
+
+  // Base schema triples for this ontology (can be extended later)
+  lazy val triples: Seq[Triple] = Seq.empty
+
+  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
+
+  def toGraph: Rdf.Graph = Rdf.Graph(triples.toVector)
 }

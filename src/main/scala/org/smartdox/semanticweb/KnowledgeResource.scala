@@ -15,7 +15,7 @@ import scala.collection.mutable
  * glossary terms, SimpleModel references, etc.) during HTML generation.
  *
  * @since   Nov. 15, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 20, 2025
  * @author  ASAMI, Tomoharu
  */
 case class KnowledgeResource(
@@ -87,9 +87,9 @@ case class KnowledgeResource(
          |  "sd": "${SmartDoxOntology.namespace}",
          |  "smorg": "${SimpleModelingOrgOntology.namespace}",
          |  "dcterms": "${Dcterms.namespace}",
-         |  "glossary": "https://www.simplemodeling.org/glossary/ontology/1.0#",
-         |  "project": "https://www.simplemodeling.org/project/ontology/1.0#",
-         |  "category": "https://www.simplemodeling.org/category/ontology/1.0#"
+         |  "glossary": "https://www.simplemodeling.org/glossary/ontology/0.1-SNAPSHOT#",
+         |  "project": "https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#",
+         |  "category": "https://www.simplemodeling.org/category/ontology/0.1-SNAPSHOT#"
          |}
          |""".stripMargin.trim
 
