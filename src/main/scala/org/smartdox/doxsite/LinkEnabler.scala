@@ -376,10 +376,10 @@ object LinkEnabler {
           enabler.getMetaData(path) match {
             case Some(s) => s.title match {
               case Some(title0) =>
-                val title = _link_mark + _text(locale, title0)
+                val title = _prepend(_link_mark, _inline_contents(locale, title0))
                 val relpath0 = StringUtils.relativizePathSafe(base, path)
                 val relpath = StringUtils.changeSuffix(relpath0, "html")
-                val tooltip = s.getEffectiveTooltip.map(_text(locale, _))
+                val tooltip = s.getEffectiveTooltip // .map(_text(locale, _))
                 val r = Hyperlink.createArticle(title, new URI(relpath), tooltip, pageNode.pathnameValue)
                 _internal_link(locale, r)
               case None => _external_link(locale, dox)
@@ -388,6 +388,15 @@ object LinkEnabler {
           }
         case None => _external_link(locale, dox)
       }
+
+    private def _inline_contents(locale: Option[Locale], p: I18NFragment): InlineContents =
+      locale match {
+        case Some(s) => List(Text(p.distillString(s)))
+        case None => List(p)
+      }
+
+    private def _prepend(p: String, ps: InlineContents): InlineContents =
+      Text(p) :: ps
 
     private def _text(locale: Option[Locale], p: I18NFragment): String =
       locale match {
