@@ -2,6 +2,7 @@ package org.smartdox.semanticweb
 
 import org.smartdox.semanticweb.Rdf._
 import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
+import org.smartdox.semanticweb.Vocabulary.Owl
 import org.smartdox.semanticweb.SimpleModelingOrgOntology._
 
 /*
@@ -20,10 +21,12 @@ import org.smartdox.semanticweb.SimpleModelingOrgOntology._
  *  - GlossaryOntology
  *
  * @since   Nov. 13, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 21, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelingOrgSchema {
+object SimpleModelingOrgSchema extends KnowledgeModel {
+  val prefix: String = "smorgschema"
+  val namespace: String = "https://www.simplemodeling.org/simplemodelingorg/schema/0.1-SNAPSHOT#"
 
   // ------------------------------------------------------------
   // URI helpers
@@ -87,4 +90,39 @@ object SimpleModelingOrgSchema {
     }
     Graph(kbTriples ++ ontTriples)
   }
+
+  lazy val jsonldContext: Map[String, Any] = Map(
+    prefix -> namespace
+  )
+
+  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
+
+  def toGraph: Graph =
+    toGraph("https://www.simplemodeling.org/kb", "0.1-SNAPSHOT", Seq.empty, Seq.empty, Seq.empty)
+}
+
+object SimpleModelingOrgPublicSchema extends KnowledgeModel {
+  val prefix = "smorgschema"
+  val namespace = "https://www.simplemodeling.org/schema/simplemodelingorg.jsonld#"
+
+  // Import the internal SNAPSHOT schema definition
+  val internalSchema = "https://www.simplemodeling.org/simplemodelingorg/schema/0.1-SNAPSHOT/index.jsonld#"
+
+  override lazy val jsonldContext: Map[String, Any] = Map(
+    prefix -> namespace,
+    "imports" -> internalSchema
+  )
+
+  def toGraph: Graph = {
+    val schemaNode = Node.Uri(namespace)
+
+    val triples = Seq(
+      Triple(schemaNode, RdfType, Node.Uri(Owl.Ontology)),
+      Triple(schemaNode, Node.Uri("http://www.w3.org/2002/07/owl#imports"), Node.Uri(internalSchema))
+    )
+
+    Graph(triples)
+  }
+
+  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 }

@@ -1,5 +1,9 @@
 package org.smartdox.semanticweb
 
+import org.smartdox.semanticweb.Rdf._
+import org.smartdox.semanticweb.Vocabulary.{Rdf => VocaRdf, Rdfs, Owl}
+import org.smartdox.semanticweb.Rdf.Node
+
 /*
  * SimpleModeling.org Ontology
  * ----------------------------------------------------------------------
@@ -10,16 +14,18 @@ package org.smartdox.semanticweb
  * entire SimpleModeling.org knowledge ecosystem.
  *
  * @since   Nov. 12, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 21, 2025
  * @author  ASAMI, Tomoharu
  */
-import org.smartdox.semanticweb.Rdf._
-import org.smartdox.semanticweb.Vocabulary.{Rdf => VocaRdf, Rdfs, Owl}
-import org.smartdox.semanticweb.Rdf.Node
-
 object SimpleModelingOrgOntology extends KnowledgeModel {
   val prefix = "smorg"
-  val namespace = "https://www.simplemodeling.org/ontology/0.1-SNAPSHOT#"
+  val namespace = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT#"
+
+  val knowledgeBaseId: String =
+    "https://www.simplemodeling.org/kb"
+
+  val siteId: String =
+    "https://www.simplemodeling.org/site/simplemodelingorg"
 
   // ------------------------------------------------------------------
   // Core Classes
@@ -136,6 +142,32 @@ object SimpleModelingOrgOntology extends KnowledgeModel {
     }
 
     Graph(baseTriples ++ labelTriples ++ commentTriples ++ subclassTriples)
+  }
+
+  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
+}
+
+object SimpleModelingOrgPublicOntology extends KnowledgeModel {
+  val prefix = "smorg"
+  val namespace = "https://www.simplemodeling.org/ontology/simplemodelingorg.jsonld#"
+
+  // Import the internal SNAPSHOT ontology
+  val internalOntology = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT/index.jsonld#"
+
+  override lazy val jsonldContext: Map[String, Any] = Map(
+    prefix -> namespace,
+    "imports" -> internalOntology
+  )
+
+  def toGraph: Graph = {
+    val ontologyNode = Node.Uri(namespace)
+
+    val triples = Seq(
+      Triple(ontologyNode, VocaRdf.node.`type`, Node.Uri(Owl.Ontology)),
+      Triple(ontologyNode, Node.Uri("http://www.w3.org/2002/07/owl#imports"), Node.Uri(internalOntology))
+    )
+
+    Graph(triples)
   }
 
   def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK

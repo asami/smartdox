@@ -10,7 +10,7 @@ import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.LinkHolder
 
 /*
  * @since   Nov. 14, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkCollector(
@@ -52,6 +52,7 @@ object LinkCollector {
         dox,
         scanner.internalLinks,
         scanner.externalLinks,
+        scanner.glossaryLinks,
         scanner.figures,
         scanner.tables,
         scanner.programs
@@ -64,12 +65,14 @@ object LinkCollector {
 
       private var _internal_links: LinkHolder = LinkHolder.empty
       private var _external_links: LinkHolder = LinkHolder.empty
+      private var _glossary_links: LinkHolder = LinkHolder.empty
       private var _figures: FigureHolder = FigureHolder.empty
       private var _tables: TableHolder = TableHolder.empty
       private var _programs: ProgramHolder = ProgramHolder.empty
 
       def internalLinks = _internal_links
       def externalLinks = _external_links
+      def glossaryLinks = _glossary_links
       def figures = _figures
       def tables = _tables
       def programs = _programs
@@ -82,9 +85,15 @@ object LinkCollector {
         _external_links = _external_links.add(get_locale, p)
       }
 
+      private def _add_glossary_link(p: Hyperlink) = {
+        _glossary_links = _glossary_links.add(get_locale, p)
+      }
+
       override protected def enter_Hyperlink(p: Hyperlink): Unit = {
         if (p.isLocalOrRelative)
           _scan_link(p, p.href)
+        else if (p.isGlossary)
+          _glossary_link(p)
         else
           _external_link(p)
       }
@@ -98,6 +107,10 @@ object LinkCollector {
 
       private def _external_link(dox: Hyperlink) = {
         _add_external_link(dox)
+      }
+
+      private def _glossary_link(dox: Hyperlink) = {
+        _add_glossary_link(dox)
       }
 
       override protected def enter_Figure(p: Figure): Unit = {

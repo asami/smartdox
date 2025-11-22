@@ -24,6 +24,10 @@ import org.smartdox._
 import org.smartdox.doxsite.Node
 import org.smartdox.doxsite.Page
 import org.smartdox.doxsite.CategoryMetaData
+import org.smartdox.semanticweb.Vocabulary
+import org.smartdox.semanticweb.SimpleModelingOrgPublicOntology
+import org.smartdox.semanticweb.SimpleModelingOrgPublicSchema
+import org.smartdox.semanticweb.Site._
 
 /*
  * @since   Apr. 28, 2025
@@ -33,7 +37,7 @@ import org.smartdox.doxsite.CategoryMetaData
  *  version Aug. 16, 2025
  *  version Sep. 22, 2025
  *  version Oct. 12, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -103,6 +107,14 @@ case class Notices(
       source
     )
   }
+
+  // def toSiteModel: SiteModel = {
+  //   val rs = notices.map(_.toSiteResource)
+  //   val o = SimpleModelingOrgPublicOntology.namespace
+  //   val s = SimpleModelingOrgPublicSchema.namespace
+  //   val v = Vocabulary.Rdf.namespace
+  //   SiteModel(rs, ???, Vector(o), Some(s), Some(v))
+  // }
 }
 
 object Notices {
@@ -121,11 +133,14 @@ object Notices {
     updateds: DocumentMetaData.UpdateHistory,
     kind: Option[DocumentMetaData.Kind],
     status: Option[DocumentMetaData.Status],
-    lastModified: Option[Instant]
+    lastModified: Option[Instant],
+    metadata: DocumentMetaData
   ) {
     import Notice._
 
     def id = s"id:urn:${uri}"
+
+    def effectiveKind = kind getOrElse DocumentMetaData.Kind.Article
 
     def lastUpdated: Option[LocalDate] = updateds.lastOption.map(_.toLocalDate)
 
@@ -155,6 +170,16 @@ object Notices {
       val json = this.asJson(noticeEncoder(ctx))
       CirceUtils.toYamlString(json)
     }
+
+    def toSiteResource: SiteResource = {
+      effectiveKind match {
+        case DocumentMetaData.Kind.Article => SiteResource.Article.create(uri, metadata)
+        case DocumentMetaData.Kind.Blog => SiteResource.Article.create(uri, metadata)
+        case DocumentMetaData.Kind.Glossary => SiteResource.Glossary.create(uri, metadata)
+        case DocumentMetaData.Kind.Bibliography => SiteResource.Bibliography.create(uri, metadata)
+        case _ => SiteResource.Article.create(uri, metadata)
+      }
+    }
   }
   object Notice {
     val notitle: Notice = Notice(
@@ -170,7 +195,8 @@ object Notices {
       DocumentMetaData.UpdateHistory.empty,
       None,
       None,
-      None
+      None,
+      DocumentMetaData.empty
     )
 
     def createOption(node: TreeNode[Node], content: Node): Option[Notice] =
@@ -195,7 +221,8 @@ object Notices {
             md.modifiedAtHistory,
             md.kindOption,
             md.statusOption,
-            m.lastModified
+            m.lastModified,
+            md
           )
         }
         case _ => None

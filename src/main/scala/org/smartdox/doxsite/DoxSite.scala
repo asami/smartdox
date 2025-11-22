@@ -41,6 +41,7 @@ import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
+import org.smartdox.metadata.Bibliography
 import org.smartdox.metadata.CategoryCollection
 import org.smartdox.metadata.Category
 import org.smartdox.metadata.Notices
@@ -55,6 +56,7 @@ import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.transformers.AutoWireTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
 import org.smartdox.semanticweb._
+import org.smartdox.semanticweb.Site.SiteModel
 import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
 
 /*
@@ -68,7 +70,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -241,8 +243,8 @@ class DoxSite(
    * CategorySiteOntology, CategorySiteSchema
    * ProjectSiteOntology, ProjectSiteSchema
    */
-  private val _knoledge_models: Vector[KnowledgeModel] = Vector(
-    SimpleModelingOrgOntology,
+  private val _knowledge_models: Vector[KnowledgeModel] = Vector(
+    SimpleModelingOrgOntology, SimpleModelingOrgSchema,
     BokOntology, BokSchema,
     CategoryOntology, CategorySchema,
     SimpleModelingOntology,
@@ -252,8 +254,21 @@ class DoxSite(
     SmartDoxOntology
   )
 
-  private def _build_rdf(realm: Realm): Realm =
-    _knoledge_models.foldLeft(realm)((z, x) => _build_rdf(z, x))
+  private val _public_models: Vector[KnowledgeModel] = Vector(
+    SimpleModelingOrgPublicOntology, SimpleModelingOrgPublicSchema
+  )
+
+  private def _build_rdf(realm: Realm): Realm = {
+    val a = _build_rdf_definitions(realm)
+    val b = _build_rdf_public(a)
+    _build_rdf_site(b)
+  }
+
+  private def _build_rdf_definitions(realm: Realm): Realm = 
+    _knowledge_models.foldLeft(realm)(_build_rdf)
+
+  private def _build_rdf_public(realm: Realm): Realm =
+    _public_models.foldLeft(realm)(_build_rdf_public)
 
   private def _build_rdf(
     realm: Realm,
@@ -270,6 +285,25 @@ class DoxSite(
     val path = _path(namespace)
     realm.setContent(path("index.jsonld"), jsonld)
     realm.setContent(path("index.ttl"), turtle)
+  }
+
+  private def _build_rdf_public(
+    realm: Realm,
+    knowledge: KnowledgeModel
+  ): Realm = {
+    val namespace = knowledge.namespace
+    val jsonld = knowledge.asJsonLD
+    val turtle = knowledge.asTurtle
+    val path = _path(namespace)
+    realm.setContent(path.changeSuffix("jsonld"), jsonld)
+    realm.setContent(path.changeSuffix("ttl"), turtle)
+  }
+
+  private def _build_rdf_site(realm: Realm): Realm = {
+    val jsonld = metadata.site.toJsonLD
+    val turtle = metadata.site.toTurtle
+    realm.setContent("site.jsonld", jsonld)
+    realm.setContent("site.ttl", turtle)
   }
 
   private def _path(namespace: String): PathName = {
@@ -940,10 +974,11 @@ object DoxSite {
     val (notices, history0) = _collect_notice_history(config, context, categories, a)
     val atoms = _build_atom_feed(notices)
     val (b, glossary) = _build_glossary(ctx, a)
+    val bibliography = _collect_bibliography(ctx, a)
     val keywords = _collect_keywords()
     val tags = _collect_tags()
-    val history = _build_history(history0, glossary, keywords, tags)
-    val metadata = MetaData(
+    val history = _build_history(history0, glossary, bibliography, keywords, tags)
+    val metadata0 = MetaData(
       glossary = glossary,
       categories = categories,
       keywords = keywords,
@@ -952,8 +987,10 @@ object DoxSite {
       atomFeed = atoms,
       history = history
     )
-    val ctx1 = ctx.withMetaData(metadata)
-    val c: Tree[Node] = _enable_link(ctx1, b)
+    val ctx1 = ctx.withMetaData(metadata0)
+    val (c, links) = _enable_link(ctx1, b)
+    val metadata1 = metadata0.copy(linkCollection = links)
+    val metadata = _build_site_model(metadata1)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
@@ -988,11 +1025,12 @@ object DoxSite {
 
   private def _collect_tags(): TagCollection = TagCollection.create()
 
-  private def _build_history(p: History, g: Glossary, k: KeywordCollection, t: TagCollection): History = {
+  private def _build_history(p: History, g: Glossary, bib: Bibliography, k: KeywordCollection, t: TagCollection): History = {
     val a = g.toHistory
     val b = k.toHistory
     val c = t.toHistory
-    p.add(a, b, c)
+    val d = bib.toHistory
+    p.add(a, b, c, d)
   }
 
   private def _build_atom_feed(p: Notices): Option[AtomFeedBag] = {
@@ -1038,19 +1076,40 @@ object DoxSite {
       (p, Glossary.empty)
     }
 
+  private def _collect_bibliography(
+    ctx: DoxSiteTransformer.Context,
+    p: Tree[Node]
+  ): Bibliography = {
+    Bibliography.empty // TODO
+  }
+
+  private def _build_site_model(p: MetaData): MetaData = {
+    val articles = p.notices.notices.filter { _.effectiveKind match {
+      case DocumentMetaData.Kind.Article => true
+      case DocumentMetaData.Kind.Blog => true
+      case _ => false
+    }}.map(_.toSiteResource)
+    // p.glossary
+    val site = SiteModel.create(p, articles)
+    p.copy(site = site)
+  }
+
   private def _enable_link(
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
-  ): Tree[Node] =
+  ): (Tree[Node], Option[LinkCollection]) =
     if (ctx.config.isLinkEnable) {
       val doxsitec = ctx.doxSiteConfig
       val c = new LinkCollector(doxsitec)(p)
-      p.transform(new LinkEnabler(ctx, c, p))
+      (p.transform(new LinkEnabler(ctx, c, p)), Some(c))
     } else {
-      p
+      (p, None)
     }
 
-  private def _deploy_metadata(base: Tree[Node], meta: MetaData): Tree[Node] = {
+  private def _deploy_metadata(
+    base: Tree[Node],
+    meta: MetaData
+  ): Tree[Node] = {
     val a = _deploy_glossary(base, meta.glossary)
     _deploy_history(a, meta.history)
   }
@@ -1094,7 +1153,7 @@ object DoxSite {
           case None => Dox.text("-")
         }
       }
-      val title = Hyperlink.createArticle(x.title, new URI(s"../${x.uri}"))
+      val title = Hyperlink.createArticle(x.title, new URI(s"../${x.uri}"), base.pathnameValue)
       val summary = x.effectiveBrief
       tb.append(date, ckind, evt, corner, title, summary)
     }

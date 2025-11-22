@@ -18,7 +18,7 @@ import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.ProgramHolder
 
 /*
  * @since   Nov. 14, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class LinkCollection(
@@ -49,7 +49,7 @@ object LinkCollection {
     private def _make_link(uri: URI, ps: List[Dox], tooltip: Option[I18NString]): List[Hyperlink] = {
       val a = Dox.toInlineContents(Text(_link_mark) :: ps)
       val to = UriUtils.changeSuffix(uri, "html")
-      List(Hyperlink.createArticle(a, to, tooltip))
+      List(Hyperlink.createArticle(a, to, tooltip, source))
     }
   }
   object IncomingLink {
@@ -84,6 +84,7 @@ object LinkCollection {
     dox: Dox,
     internalLinks: LinkHolder = LinkHolder.empty,
     externalLinks: LinkHolder = LinkHolder.empty,
+    glossaryLinks: LinkHolder = LinkHolder.empty,
     figures: FigureHolder = FigureHolder.empty,
     tables: TableHolder = TableHolder.empty,
     programs: ProgramHolder = ProgramHolder.empty,
@@ -128,11 +129,12 @@ object LinkCollection {
       dox: Dox,
       internallinks: LinkHolder,
       externallinks: LinkHolder,
+      glossarylinks: LinkHolder,
       figures: FigureHolder,
       tables: TableHolder,
       programs: ProgramHolder
     ): Unit = {
-      val dl = DoxLinks(dox, internallinks, externallinks, figures, tables)
+      val dl = DoxLinks(dox, internallinks, externallinks, glossarylinks, figures, tables)
       _set(node.pathname, DoxLinks.Candidate.Complete(dl))
       for (x <- internallinks.links) {
         _set_internallink(node, dox, x)

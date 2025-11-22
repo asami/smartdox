@@ -20,7 +20,7 @@ import org.smartdox.metadata.CategoryCollection
  *  version Jul. 22, 2025
  *  version Aug. 27, 2025
  *  version Sep.  3, 2025
- * @version Nov. 14, 2025
+ * @version Nov. 21, 2025
  * @author  ASAMI, Tomoharu
  */
 class NoticeCollector(
@@ -36,8 +36,14 @@ class NoticeCollector(
   def history: History = History(_history_slots)
 
   override protected def enter_Content(node: TreeNode[Node], content: Node): Unit = {
-    if (!node.pathname.startsWith("/glossary/"))
+    if (_is_article(node))
       _enter_content(node, content)
+  }
+
+  private def _is_article(node: TreeNode[Node]) = {
+    val pathname = node.pathname
+    val r = specialPaths.exists(x => pathname.startsWith(x))
+    !r
   }
 
   private def _enter_content(node: TreeNode[Node], content: Node): Unit =
@@ -58,15 +64,17 @@ class NoticeCollector(
     }
   }
 
-  private def _is_notice(p: Notice) = !p.uri.toString.startsWith("/glossary/")
+  private def _is_notice(p: Notice) = !p.uri.toString.startsWith(PROP_PATH_GLOSSARY)
 
   private def _make_content_kind(p: Notice): History.ContentKind = {
     val path = p.uri.toString
-    if (path.startsWith("/glossary/"))
+    if (path.startsWith(PROP_PATH_GLOSSARY))
       History.ContentKind.Glossary
-    else if (path.startsWith("/keyword/"))
+    else if (path.startsWith(PROP_PATH_BIBLIOGRAPHY))
+      History.ContentKind.Bibliography
+    else if (path.startsWith(PROP_PATH_KEYWORD))
       History.ContentKind.Keyword
-    else if (path.startsWith("/tag/"))
+    else if (path.startsWith(PROP_PATH_TAG))
       History.ContentKind.Tag
     else
       History.ContentKind.Article
@@ -85,4 +93,15 @@ class NoticeCollector(
 }
 
 object NoticeCollector {
+  val PROP_PATH_GLOSSARY = "/glossary/"
+  val PROP_PATH_BIBLIOGRAPHY = "/bibliography/"
+  val PROP_PATH_KEYWORD = "/keyword/"
+  val PROP_PATH_TAG = "/tag/"
+
+  val specialPaths = Vector(
+    PROP_PATH_GLOSSARY,
+    PROP_PATH_BIBLIOGRAPHY,
+    PROP_PATH_KEYWORD,
+    PROP_PATH_TAG
+  )
 }

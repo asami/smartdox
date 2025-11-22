@@ -8,7 +8,8 @@ import org.smartdox.metadata.DocumentMetaData
 
 /*
  * @since   Oct. 25, 2025
- * @version Oct. 25, 2025
+ *  version Oct. 25, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 /** === JSON-LD base trait === */
@@ -32,7 +33,7 @@ object JsonLd {
       sameas,
       alternatename
     )
-    val headline = p.getEffectiveHeadlineString(locale)
+    val headline = p.takeEffectiveHeadlineString(locale)
     val author: Either[Person, Organization] = p.getAuthorString(locale) match {
       case Some(s) => Left(Person.create(s))
       case None => p.getOrganizationString(locale) match {

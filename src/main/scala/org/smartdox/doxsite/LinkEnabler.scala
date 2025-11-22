@@ -10,6 +10,7 @@ import org.goldenport.tree._
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
+import org.goldenport.values.PathName
 import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.transformer._
@@ -25,7 +26,7 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov. 19, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -379,7 +380,7 @@ object LinkEnabler {
                 val relpath0 = StringUtils.relativizePathSafe(base, path)
                 val relpath = StringUtils.changeSuffix(relpath0, "html")
                 val tooltip = s.getEffectiveTooltip.map(_text(locale, _))
-                val r = Hyperlink.createArticle(title, new URI(relpath), tooltip)
+                val r = Hyperlink.createArticle(title, new URI(relpath), tooltip, pageNode.pathnameValue)
                 _internal_link(locale, r)
               case None => _external_link(locale, dox)
             }
@@ -488,7 +489,11 @@ object LinkEnabler {
       val empty = LinkHolder()
     }
 
-    case class Link(href: URI, slots: I18NHangar[Link.Slot]) {
+    case class Link(
+      href: URI,
+      pathname: Option[PathName],
+      slots: I18NHangar[Link.Slot]
+    ) {
       def add(p: Hyperlink) = copy(slots = slots.add(Link.Slot(p)))
       def add(locale: Locale, p: Hyperlink) = copy(slots = slots.add(locale, Link.Slot(p)))
 
@@ -504,11 +509,13 @@ object LinkEnabler {
 
       def apply(hyperlink: Hyperlink): Link = Link(
         hyperlink.href,
+        hyperlink.source,
         I18NHangar.createCommons(Slot(hyperlink))
       )
 
       def apply(locale: Locale, hyperlink: Hyperlink): Link = Link(
         hyperlink.href,
+        hyperlink.source,
         I18NHangar.create(locale, Slot(hyperlink))
       )
     }

@@ -12,7 +12,7 @@ import Notices.Notice
  * @since   Aug. 23, 2025
  *  version Aug. 27, 2025
  *  version Sep.  3, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 21, 2025
  * @author  ASAMI, Tomoharu
  */
 case class History(
@@ -51,9 +51,11 @@ object History {
     case object Glossary extends ContentKind {
       val title = I18NString("Glossary", "用語集")
     }
+    case object Bibliography extends ContentKind {
+      val title = I18NString("Bibliography", "参考文献")
+    }
     case object Keyword extends ContentKind {
       val title = I18NString("Keyword", "キーワード")
-
     }
     case object Tag extends ContentKind {
       val title = I18NString("Tag", "タグ")
@@ -64,6 +66,7 @@ object History {
       case Glossary => 1
       case Keyword  => 2
       case Tag      => 3
+      case Bibliography => 4
     }
   }
 

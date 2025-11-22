@@ -51,7 +51,7 @@ import org.smartdox.structure.I18NFragmentProperty
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -117,8 +117,11 @@ case class DocumentMetaData(
   def getTitleString(locale: Locale): Option[String] =
     title.map(_.toI18NString.as(locale))
 
-  def getEffectiveHeadlineString(locale: Locale): String =
-    explanation.getEffectiveHeadline.map(_.toI18NString.as(locale)) getOrElse ""
+  def takeEffectiveHeadlineString(locale: Locale): String =
+    getEffectiveHeadlineString(locale) getOrElse ""
+
+  def getEffectiveHeadlineString(locale: Locale): Option[String] =
+    explanation.getEffectiveHeadline.map(_.toI18NString.as(locale))
 
   def getEffectiveSummaryString(locale: Locale): Option[String] =
     explanation.getEffectiveSummary.map(_.toI18NString.as(locale))
@@ -127,7 +130,11 @@ case class DocumentMetaData(
 
   def getEffectiveBrief: Option[I18NString] = explanation.getEffectiveBriefI18NString
 
+  def getEffectiveBriefString(locale: Locale): Option[String] = explanation.getEffectiveBriefString(locale)
+
   def getEffectiveDescription: Option[I18NString] = explanation.getEffectiveDescriptionI18NString
+
+  def getEffectiveDescriptionString(locale: Locale): Option[String] = explanation.getEffectiveDescriptionString(locale)
 
   def getPublishedString(locale: Locale): Option[String] = publishedAt.map(AnyUtils.toPrint)
 
@@ -305,6 +312,9 @@ object DocumentMetaData {
     }
     case object Glossary extends Kind {
       val name = "glossary"
+    }
+    case object Bibliography extends Kind {
+      val name = "bibliography"
     }
 
     implicit val kindDecoder: Decoder[Kind] = Decoder.decodeString.emap(_create)

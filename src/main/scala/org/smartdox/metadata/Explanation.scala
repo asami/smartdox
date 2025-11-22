@@ -14,7 +14,7 @@ import org.smartdox._
  *  version Aug. 25, 2025
  *  version Sep. 22, 2025
  *  version Oct. 25, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Explanation(
@@ -42,9 +42,13 @@ case class Explanation(
 
   def getEffectiveBriefI18NString: Option[I18NString] = getEffectiveBrief.map(_.toI18NString)
 
+  def getEffectiveBriefString(locale: Locale): Option[String] = getEffectiveBrief.map(_.toI18NString.as(locale))
+
   def getEffectiveSummaryI18NString: Option[I18NString] = getEffectiveSummary.map(_.toI18NString)
 
   def getEffectiveDescriptionI18NString: Option[I18NString] = getEffectiveDescription.map(_.toI18NString)
+
+  def getEffectiveDescriptionString(locale: Locale): Option[String] = getEffectiveDescription.map(_.toI18NString.as(locale))
 
   def withSummary(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)

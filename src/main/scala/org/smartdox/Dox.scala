@@ -26,6 +26,7 @@ import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.xsv.{Lxsv, LxsvSequence}
 import org.goldenport.hocon.HoconUtils
 import org.goldenport.value._
+import org.goldenport.values.PathName
 import org.goldenport.values.LocalDateOrDateTime
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NContainer
@@ -99,7 +100,7 @@ import org.smartdox.util.DoxUtils
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
- * @version Nov. 19, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2290,6 +2291,7 @@ case class Hyperlink(
   href: URI,
   title: Option[I18NString] = None,
   attributes: VectorMap[String, String] = VectorMap.empty,
+  source: Option[PathName] = None,
   location: Option[ParseLocation] = None
 ) extends Inline {
   import Hyperlink._
@@ -2317,7 +2319,17 @@ case class Hyperlink(
     case _ => false
   }
 
-  lazy val linkKind: LinkKind = Option(href.getScheme) match {
+  def isGlossary: Boolean = linkKind match {
+    case LinkKind.Glossary => true
+    case _ => false
+  }
+
+  lazy val linkKind: LinkKind = getHtmlClass match {
+    case Some("glossary") => LinkKind.Glossary
+    case _ => _link_kind_by_scheme
+  }
+
+  private def _link_kind_by_scheme = Option(href.getScheme) match {
     case Some(s) =>
       if (s == "file")
         LinkKind.Local
@@ -2334,6 +2346,7 @@ object Hyperlink extends DoxFactory {
     case object Local extends LinkKind
     case object Relative extends LinkKind
     case object External extends LinkKind
+    case object Glossary extends LinkKind
   }
 
    def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Hyperlink =
@@ -2343,7 +2356,7 @@ object Hyperlink extends DoxFactory {
     new Hyperlink(c.toList, new URI(href))
 
   def apply(c: Seq[Inline], href: String, location: Option[ParseLocation]): Hyperlink =
-    new Hyperlink(c.toList, new URI(href), None, VectorMap.empty, location)
+    new Hyperlink(c.toList, new URI(href), None, VectorMap.empty, None, location)
 
   def apply(label: Inline, href: URI): Hyperlink =
     new Hyperlink(List(label), href)
@@ -2381,26 +2394,26 @@ object Hyperlink extends DoxFactory {
   def createCategory(body: Inline, href: URI): Hyperlink =
     Hyperlink(body, href, VectorMap("class" -> "category"))
 
-  def createArticle(body: I18NString, href: URI): Hyperlink =
-    Hyperlink(List(Dox.toDox(body)), href, VectorMap("class" -> "article"))
+  def createArticle(body: I18NString, href: URI, source: PathName): Hyperlink =
+    Hyperlink(List(Dox.toDox(body)), href, None, VectorMap("class" -> "article"), source = Some(source))
 
-  def createArticle(body: I18NFragment, href: URI, tooltip: Option[I18NString]): Hyperlink =
-    createArticle(List(body), href, tooltip)
+  def createArticle(body: I18NFragment, href: URI, tooltip: Option[I18NString], source: PathName): Hyperlink =
+    createArticle(List(body), href, tooltip, source)
 
-  def createArticle(body: String, href: URI, tooltip: Option[String]): Hyperlink =
-    createArticle(List(Text(body)), href, tooltip.map(I18NString.apply))
+  def createArticle(body: String, href: URI, tooltip: Option[String], source: PathName): Hyperlink =
+    createArticle(List(Text(body)), href, tooltip.map(I18NString.apply), source)
 
-  def createArticle(body: InlineContents, href: URI, tooltip: Option[I18NString]): Hyperlink =
+  def createArticle(body: InlineContents, href: URI, tooltip: Option[I18NString], source: PathName): Hyperlink =
     tooltip match {
-      case Some(s) => createArticle(body, href, s)
-      case None => createArticle(body, href)
+      case Some(s) => createArticle(body, href, s, source)
+      case None => createArticle(body, href, source)
     }
 
-  def createArticle(body: InlineContents, href: URI, tooltip: I18NString): Hyperlink =
-    Hyperlink(body, href, Some(tooltip), VectorMap("class" -> "article"))
+  def createArticle(body: InlineContents, href: URI, tooltip: I18NString, source: PathName): Hyperlink =
+    Hyperlink(body, href, Some(tooltip), VectorMap("class" -> "article"), source = Some(source))
 
-  def createArticle(body: InlineContents, href: URI): Hyperlink =
-    Hyperlink(body, href, None, VectorMap("class" -> "article"))
+  def createArticle(body: InlineContents, href: URI, source: PathName): Hyperlink =
+    Hyperlink(body, href, None, VectorMap("class" -> "article"), source = Some(source))
 
   def createArticle(body: String): Hyperlink = Hyperlink(List(Text(body)), new URI(body))
 
