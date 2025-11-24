@@ -487,29 +487,43 @@ $ind1]
     val rawId = if (id.startsWith("_:")) id else curie(id, table)
     val idRepr = if (rawId.endsWith(":")) rawId.dropRight(1) else rawId
 
-    // property ordering: profile-specific
-    val sortedTriples = triples.sortBy {
-      case Triple(_, Node.Uri(predIri), _) =>
-        (profile.propertySortKey(predIri), predIri)
-      case Triple(_, _, _) =>
-        (Int.MaxValue, "")
-    }
-
-    if (policy.prettyJson) {
-      implicit val indentSpaces: Int = policy.jsonIndent
-      val ind2 = indent(2)
-      val ind3 = indent(3)
-
-      val props = sortedTriples.map { t =>
-        val pred = t.predicate match {
+    // ---- group by predicate ----
+    val grouped: Map[String, Seq[Node]] =
+      triples.groupBy(_.predicate).map { case (predNode, ts) =>
+        val pred = predNode match {
           case Node.Uri(uri) =>
             val c = curie(uri, table)
             if (c.endsWith(":")) c.dropRight(1) else c
           case _ =>
             throw new IllegalArgumentException("Predicate must be URI")
         }
-        val obj = renderObjectJson(t.obj, table)
-        s"""$ind3"$pred": $obj"""
+        pred -> ts.map(_.obj)
+      }
+
+    // ---- sorted predicates ----
+    val sortedPredKeys: Seq[String] =
+      grouped.keys.toSeq.sortBy { pred =>
+        val iriCandidate =
+          table.collectFirst {
+            case (ns, prefix) if pred.startsWith(prefix + ":") =>
+              ns + pred.drop(prefix.length + 1)
+          }.getOrElse(pred)
+        profile.propertySortKey(iriCandidate)
+      }
+
+    // pretty printed
+    if (policy.prettyJson) {
+      implicit val indentSpaces: Int = policy.jsonIndent
+      val ind2 = indent(2)
+      val ind3 = indent(3)
+
+      val props = sortedPredKeys.map { pred =>
+        val objs = grouped(pred).map(obj => renderObjectJson(obj, table))
+        val value =
+          if (objs.size == 1) objs.head
+          else objs.mkString("[", ", ", "]")
+
+        s"""$ind3"$pred": $value"""
       }.mkString(",\n")
 
       s"""$ind2{
@@ -517,16 +531,14 @@ $ind3"@id": "$idRepr",
 $props
 $ind2}"""
     } else {
-      val props = sortedTriples.map { t =>
-        val pred = t.predicate match {
-          case Node.Uri(uri) =>
-            val c = curie(uri, table)
-            if (c.endsWith(":")) c.dropRight(1) else c
-          case _ =>
-            throw new IllegalArgumentException("Predicate must be URI")
-        }
-        val obj = renderObjectJson(t.obj, table)
-        s"""      "$pred": $obj"""
+      // compact
+      val props = sortedPredKeys.map { pred =>
+        val objs = grouped(pred).map(obj => renderObjectJson(obj, table))
+        val value =
+          if (objs.size == 1) objs.head
+          else objs.mkString("[", ", ", "]")
+
+        s"""      "$pred": $value"""
       }.mkString(",\n")
 
       s"""    {
@@ -558,7 +570,19 @@ $props
   // ============================================================
 
   private def escape(s: String): String =
-    s.replace("\"", "\\\"")
+    s.flatMap {
+      case '"'  => "\\\""
+      case '\\' => "\\\\"
+      case '\b' => "\\b"
+      case '\f' => "\\f"
+      case '\n' => "\\n"
+      case '\r' => "\\r"
+      case '\t' => "\\t"
+      case c if c < ' ' =>
+        "\\u%04x".format(c.toInt)
+      case c =>
+        c.toString
+    }
 
   private def jsonMapCompact(m: Map[String, Any]): String = {
     val entries = m.map {

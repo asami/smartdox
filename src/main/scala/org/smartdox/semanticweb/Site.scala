@@ -45,6 +45,9 @@ object Site {
   /** Builds a full IRI under the smorg namespace */
   def uri(local: String): String = namespace + local
 
+  /** Builds a full IRI under the Schema.org namespace */
+  def schemaUri(local: String): String = Vocabulary.Schema.uri(local)
+
   /** Root identifier of this site */
   val SiteRoot: String = uri("SiteRoot")
 
@@ -115,16 +118,16 @@ object Site {
       val schemaAuthorTriples: Seq[Triple] =
         Seq(
           authorJa.map(a =>
-            Triple(s, Node.Uri("schema:author"), Node.Literal(a, None, Some("ja")))
+            Triple(s, Node.Uri(schemaUri("author")), Node.Literal(a, None, Some("ja")))
           ),
           authorEn.map(a =>
-            Triple(s, Node.Uri("schema:author"), Node.Literal(a, None, Some("en")))
+            Triple(s, Node.Uri(schemaUri("author")), Node.Literal(a, None, Some("en")))
           ),
           authorJa.map(a =>
-            Triple(s, Node.Uri("schema:creator"), Node.Literal(a, None, Some("ja")))
+            Triple(s, Node.Uri(schemaUri("creator")), Node.Literal(a, None, Some("ja")))
           ),
           authorEn.map(a =>
-            Triple(s, Node.Uri("schema:creator"), Node.Literal(a, None, Some("en")))
+            Triple(s, Node.Uri(schemaUri("creator")), Node.Literal(a, None, Some("en")))
           )
         ).flatten
 
@@ -134,16 +137,16 @@ object Site {
       val descriptionTriples: Seq[Triple] =
         Seq(
           descJa.map(d =>
-            Triple(s, Node.Uri("schema:description"), Node.Literal(d, None, Some("ja")))
+            Triple(s, Node.Uri(schemaUri("description")), Node.Literal(d, None, Some("ja")))
           ),
           descEn.map(d =>
-            Triple(s, Node.Uri("schema:description"), Node.Literal(d, None, Some("en")))
+            Triple(s, Node.Uri(schemaUri("description")), Node.Literal(d, None, Some("en")))
           ),
           descJa.map(d =>
-            Triple(s, Node.Uri("smorg:summary"), Node.Literal(d, None, Some("ja")))
+            Triple(s, Node.Uri(uri("summary")), Node.Literal(d, None, Some("ja")))
           ),
           descEn.map(d =>
-            Triple(s, Node.Uri("smorg:summary"), Node.Literal(d, None, Some("en")))
+            Triple(s, Node.Uri(uri("summary")), Node.Literal(d, None, Some("en")))
           )
         ).flatten
 
@@ -155,20 +158,20 @@ object Site {
       val headlineTriples: Seq[Triple] =
         Seq(
           headlineJa.map(h =>
-            Triple(s, Node.Uri("smorg:headline"), Node.Literal(h, None, Some("ja")))
+            Triple(s, Node.Uri(uri("headline")), Node.Literal(h, None, Some("ja")))
           ),
           headlineEn.map(h =>
-            Triple(s, Node.Uri("smorg:headline"), Node.Literal(h, None, Some("en")))
+            Triple(s, Node.Uri(uri("headline")), Node.Literal(h, None, Some("en")))
           )
         ).flatten
 
       val briefTriples: Seq[Triple] =
         Seq(
           briefJa.map(b =>
-            Triple(s, Node.Uri("smorg:brief"), Node.Literal(b, None, Some("ja")))
+            Triple(s, Node.Uri(uri("brief")), Node.Literal(b, None, Some("ja")))
           ),
           briefEn.map(b =>
-            Triple(s, Node.Uri("smorg:brief"), Node.Literal(b, None, Some("en")))
+            Triple(s, Node.Uri(uri("brief")), Node.Literal(b, None, Some("en")))
           )
         ).flatten
 
@@ -214,11 +217,11 @@ object Site {
     }
 
     private def _create_canonical_id(path: URI): String = {
-      val pathStr = path.toString.stripPrefix("/")
-      val withoutHtml =
-        if (pathStr.endsWith(".html")) pathStr.dropRight(5)
-        else pathStr
-      uri(withoutHtml)
+      val raw = path.toString.stripPrefix("/")
+      val base =
+        if (raw.endsWith(".html")) raw.dropRight(5)
+        else raw
+      s"https://www.simplemodeling.org/$base"
     }
   }
 
@@ -261,6 +264,11 @@ object Site {
         Triple(root, Rdfs.node.label, Node.Literal("SimpleModeling.org"))
       )
 
+      val siteClassTriples: Seq[Triple] = Seq(
+        Triple(Node.Uri(uri("Site")), RdfType, Owl.node.Class),
+        Triple(Node.Uri(uri("Site")), Rdfs.node.label, Node.Literal("Site"))
+      )
+
       val ontoTriples: Seq[Triple] =
         ontology.map(o =>
           Triple(root, Node.Uri(SimpleModelingOrgOntology.includesOntology), Node.Uri(o))
@@ -274,20 +282,28 @@ object Site {
       // There is no includesVocabulary in SimpleModelingOrgOntology yet,
       // so we use definesVocabulary to relate the site to its vocabulary.
       val vocabTriples: Seq[Triple] =
-        vocabulary.map(v =>
-          Triple(root, Node.Uri(SimpleModelingOrgOntology.definesVocabulary), Node.Uri(v))
+        vocabulary.map(_ =>
+          Triple(root, Node.Uri(SimpleModelingOrgOntology.definesVocabulary), Node.Uri(uri("Ontology")))
         ).toSeq
+
+      // Add hasArticle triples linking SiteRoot to each canonical resource
+      val articleLinkTriples: Seq[Triple] =
+        resources.map { r =>
+          Triple(root, Node.Uri(uri("hasArticle")), Node.Uri(r.id))
+        }
 
       // Generate locale-specific page nodes for each canonical resource
       val localePageTriples: Seq[Triple] = resources.flatMap { r =>
         val canonicalNode = Node.Uri(r.id)
-        val canonicalLocal = r.id.stripPrefix(namespace)
+        val canonicalLocal =
+          r.id.stripPrefix("https://www.simplemodeling.org/")
+            .stripPrefix("/")
         locales.flatMap { loc =>
-          val pageUri = uri(s"$loc/$canonicalLocal.html")
+          val pageUri = s"https://www.simplemodeling.org/$loc/$canonicalLocal.html"
           val pageNode = Node.Uri(pageUri)
           Seq(
-            Triple(canonicalNode, Node.Uri("schema:hasPart"), pageNode),
-            Triple(pageNode, Node.Uri("schema:inLanguage"), Node.Literal(loc)),
+            Triple(canonicalNode, Node.Uri(schemaUri("hasPart")), pageNode),
+            Triple(pageNode, Node.Uri(schemaUri("inLanguage")), Node.Literal(loc)),
             Triple(pageNode, RdfType, Dcterms.node.BibliographicResource)
           )
         }
@@ -315,7 +331,7 @@ object Site {
                 targetOpt.map { targetR =>
                   Triple(
                     sourceNode,
-                    Node.Uri("schema:relatedLink"),
+                    Node.Uri(schemaUri("relatedLink")),
                     Node.Uri(targetR.id)
                   )
                 }
@@ -337,9 +353,11 @@ object Site {
 
       Graph(
         rootBase ++
+        siteClassTriples ++
         ontoTriples ++
         schemaTriples ++
         vocabTriples ++
+        articleLinkTriples ++
         localePageTriples ++
         relatedTriples ++
         aboutTriples ++
@@ -351,11 +369,10 @@ object Site {
     def toTurtle: String = Site.toTurtle(this)
 
     private def _smorg_iri_to_dox_path(iri: String): String = {
-      val fragment = iri.split("#", 2) match {
-        case Array(_, frag) if frag.nonEmpty => frag
-        case _ => iri // fallback
-      }
-      "/" + fragment + ".dox"
+      // Convert absolute URL to /x/y/z.dox
+      val noScheme =
+        iri.replaceFirst("^https?://[^/]+/", "")
+      "/" + noScheme + ".dox"
     }
 
     private def _to_canonical_smorg_iri(
@@ -406,9 +423,9 @@ object Site {
 
     def create(metadata: MetaData, articles: Seq[SiteResource]): SiteModel = {
       val locals = List("ja", "en")
-      val o = SimpleModelingOrgPublicOntology.namespace
-      val s = SimpleModelingOrgPublicSchema.namespace
-      val v = Vocabulary.Rdf.namespace
+      val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#")
+      val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#")
+      val v = Vocabulary.Rdf.namespace.stripSuffix("#")
       SiteModel(metadata, articles, locals, Some(o), Some(s), Some(v))
     }
   }
@@ -429,6 +446,7 @@ object Site {
     "rdfs"     -> Vocabulary.Rdfs.namespace,
     "owl"      -> Vocabulary.Owl.namespace,
     "dcterms"  -> Vocabulary.Dcterms.namespace,
+    "schema"   -> Vocabulary.Schema.namespace,
     "smorg"    -> namespace
   )
 

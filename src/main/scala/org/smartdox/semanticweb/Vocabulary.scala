@@ -9,7 +9,7 @@ import org.smartdox.semanticweb.Rdf.Node.Uri
  * facilitating semantic web development and interoperability.
  *
  * @since   Nov. 11, 2025
- * @version Nov. 13, 2025
+ * @version Nov. 22, 2025
  * @author  ASAMI, Tomoharu
  */
 object Vocabulary {
@@ -166,5 +166,12 @@ object Vocabulary {
       val title       = Uri(Vocabulary.Dcterms.title)
       val type_       = Uri(Vocabulary.Dcterms.type_)
     }
+  }
+
+  object Schema {
+    val prefix    = "schema"
+    val namespace = "https://schema.org/"
+
+    def uri(local: String): String = namespace + local
   }
 }
