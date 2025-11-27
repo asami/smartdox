@@ -5,3 +5,5 @@ lib
 *.bak
 target
 .*
+*.orig
+*.rej

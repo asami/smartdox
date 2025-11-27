@@ -21,8 +21,8 @@ import org.smartdox.semanticweb.Rdf.Node
  * @author  ASAMI, Tomoharu
  */
 object SimpleModelOntology extends OntologyModel {
-  val prefix = "sm"
-  val namespace = "https://www.simplemodeling.org/simplemodel/ontology/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.SimpleModel.prefix
+  override val namespace: String = Vocabulary.SimpleModel.namespace
 
   // ------------------------------------------------------------------
   // Core Classes

@@ -1,7 +1,7 @@
 package org.smartdox.semanticweb
 
 import org.smartdox.semanticweb.Rdf._
-import org.smartdox.semanticweb.Vocabulary.{Rdf => VocaRdf, Rdfs, Owl}
+import org.smartdox.semanticweb.Vocabulary.{Rdf => VocaRdf, Rdfs, Owl, Smorg}
 import org.smartdox.semanticweb.Rdf.Node
 
 /*
@@ -18,8 +18,8 @@ import org.smartdox.semanticweb.Rdf.Node
  * @author  ASAMI, Tomoharu
  */
 object SimpleModelingOrgOntology extends OntologyModel {
-  val prefix = "smorg"
-  val namespace = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT#"
+  override val prefix: String = Smorg.prefix
+  override val namespace: String = Smorg.namespace
 
   val knowledgeBaseId: String =
     "https://www.simplemodeling.org/kb"
@@ -146,8 +146,8 @@ object SimpleModelingOrgOntology extends OntologyModel {
 }
 
 object SimpleModelingOrgPublicOntology extends OntologyModel {
-  val prefix = "smorg"
-  val namespace = "https://www.simplemodeling.org/ontology/simplemodelingorg.jsonld#"
+  override val prefix: String = Smorg.prefix
+  override val namespace: String = Smorg.namespace
 
   // Import the internal SNAPSHOT ontology
   val internalOntology = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT/index.jsonld#"

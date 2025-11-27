@@ -19,8 +19,8 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  * @author  ASAMI, Tomoharu
  */
 object SmartDoxOntology extends OntologyModel {
-  val prefix = "sd"
-  val namespace = "https://www.simplemodeling.org/smartdox/ontology/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.SmartDox.prefix
+  override val namespace: String = Vocabulary.SmartDox.namespace
 
   // ------------------------------------------------------------------
   // Core Classes

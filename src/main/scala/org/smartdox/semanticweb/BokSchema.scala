@@ -22,8 +22,8 @@ object BokSchema extends SchemaModel {
   //
   // Schema-level namespace (separate from BokOntology)
   //
-  val prefix: String = "bok"
-  val namespace: String = "https://www.simplemodeling.org/bok/schema/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.BokSchema.prefix
+  override val namespace: String = Vocabulary.BokSchema.namespace
 
   //
   // JSON-LD context for schema export

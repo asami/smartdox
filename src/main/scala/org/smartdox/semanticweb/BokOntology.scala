@@ -6,8 +6,8 @@ package org.smartdox.semanticweb
  * @author  ASAMI, Tomoharu
  */
 object BokOntology extends OntologyModel {
-  val prefix = "bok"
-  val namespace = "https://www.simplemodeling.org/bok/ontology/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.Bok.prefix
+  override val namespace: String = Vocabulary.Bok.namespace
 
   // Classes
   val Concept = uri("Concept")

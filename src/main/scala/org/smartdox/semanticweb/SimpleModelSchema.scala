@@ -21,8 +21,8 @@ import org.smartdox.semanticweb.SimpleModelOntology._
  * @author  ASAMI, Tomoharu
  */
 object SimpleModelSchema extends SchemaModel {
-  val prefix = "sm-schema"
-  val namespace = "https://www.simplemodeling.org/simplemodel/schema/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.SimpleModelSchema.prefix
+  override val namespace: String = Vocabulary.SimpleModelSchema.namespace
 
   // JSON-LD context (schema reuses vocabulary context)
   override lazy val jsonldContext: Map[String, Any] =

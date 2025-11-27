@@ -25,8 +25,8 @@ import org.smartdox.semanticweb.SimpleModelingOrgOntology._
  * @author  ASAMI, Tomoharu
  */
 object SimpleModelingOrgSchema extends SchemaModel {
-  val prefix: String = "smorgschema"
-  val namespace: String = "https://www.simplemodeling.org/simplemodelingorg/schema/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.SmorgSchema.prefix
+  override val namespace: String = Vocabulary.SmorgSchema.namespace
 
   // ------------------------------------------------------------
   // URI helpers
@@ -106,11 +106,11 @@ object SimpleModelingOrgSchema extends SchemaModel {
 }
 
 object SimpleModelingOrgPublicSchema extends SchemaModel {
-  val prefix = "smorgschema"
-  val namespace = "https://www.simplemodeling.org/schema/simplemodelingorg.jsonld#"
+  override val prefix: String = Vocabulary.SmorgSchema.prefix
+  override val namespace: String = Vocabulary.SmorgSchema.namespace
 
   // Import the internal SNAPSHOT schema definition
-  val internalSchema = "https://www.simplemodeling.org/simplemodelingorg/schema/0.1-SNAPSHOT/index.jsonld#"
+  val internalSchema = "https://www.simplemodeling.org/simplemodelingorg/schema/0.1-SNAPSHOT/index.jsonld"
 
   override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,

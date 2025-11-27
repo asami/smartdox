@@ -17,8 +17,8 @@ import org.smartdox.semanticweb.CategoryOntology._
  * @author  ASAMI, Tomoharu
  */
 object CategorySchema extends SchemaModel {
-  override val prefix: String = "categorySchema"
-  override val namespace: String = "https://www.simplemodeling.org/category/schema/0.1-SNAPSHOT#"
+  override val prefix: String = Vocabulary.CategorySchema.prefix
+  override val namespace: String = Vocabulary.CategorySchema.namespace
 
   override lazy val jsonldContext: Map[String, Any] = Map(
     CategorySchema.prefix ->
