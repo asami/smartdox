@@ -22,13 +22,34 @@ import org.smartdox.semanticweb.ProjectOntology._
  * Namespace: https://www.simplemodeling.org/project/schema/0.1-SNAPSHOT#
  *
  * @since   Nov. 13, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object ProjectSchema {
-  val prefix = "project-schema"
+object ProjectSchema extends SchemaModel {
+  val prefix = "projectSchema"
   val namespace = "https://www.simplemodeling.org/project/schema/0.1-SNAPSHOT#"
-  def uri(local: String): String = namespace + local
+
+  override lazy val jsonldContext: Map[String, Any] = Map(
+    prefix -> Map("@id" -> namespace),
+    "Project" -> ProjectOntology.uri("Project"),
+    "Module" -> ProjectOntology.uri("Module"),
+    "Component" -> ProjectOntology.uri("Component"),
+    "Repository" -> ProjectOntology.uri("Repository"),
+    "Build" -> ProjectOntology.uri("Build"),
+    "title" -> ProjectOntology.uri("title"),
+    "description" -> ProjectOntology.uri("description"),
+    "version" -> ProjectOntology.uri("version"),
+    "language" -> ProjectOntology.uri("language"),
+    "license" -> ProjectOntology.uri("license"),
+    "owner" -> ProjectOntology.uri("owner"),
+    "status" -> ProjectOntology.uri("status"),
+    "hasModule" -> ProjectOntology.uri("hasModule"),
+    "hasComponent" -> ProjectOntology.uri("hasComponent"),
+    "hasRepository" -> ProjectOntology.uri("hasRepository"),
+    "hasBuild" -> ProjectOntology.uri("hasBuild"),
+    "dependsOn" -> ProjectOntology.uri("dependsOn"),
+    "url" -> ProjectOntology.uri("url")
+  )
 
   // ------------------------------------------------------------------
   // Node Builders
@@ -63,15 +84,16 @@ object ProjectSchema {
     val buildTriples  = builds.map(bid => Triple(subject, Node.Uri(hasBuild), buildNode(bid)))
     val depTriples    = depends.map(did => Triple(subject, Node.Uri(dependsOn), projectNode(did)))
 
-    val literalTriples = Seq(
-      Option(title).map(v => Triple(subject, Node.Uri(ProjectOntology.title), Node.Literal(v))),
-      Option(description).map(v => Triple(subject, Node.Uri(ProjectOntology.description), Node.Literal(v))),
-      version.map(v => Triple(subject, Node.Uri(ProjectOntology.version), Node.Literal(v))),
-      language.map(v => Triple(subject, Node.Uri(ProjectOntology.language), Node.Literal(v))),
-      license.map(v => Triple(subject, Node.Uri(ProjectOntology.license), Node.Literal(v))),
-      owner.map(v => Triple(subject, Node.Uri(ProjectOntology.owner), Node.Literal(v))),
-      status.map(v => Triple(subject, Node.Uri(ProjectOntology.status), Node.Literal(v)))
-    ).flatten
+    val literalTriples =
+      Seq(
+        Some(Triple(subject, Node.Uri(ProjectOntology.title), Node.Literal(title))),
+        Some(Triple(subject, Node.Uri(ProjectOntology.description), Node.Literal(description))),
+        version.map(v => Triple(subject, Node.Uri(ProjectOntology.version), Node.Literal(v))),
+        language.map(v => Triple(subject, Node.Uri(ProjectOntology.language), Node.Literal(v))),
+        license.map(v => Triple(subject, Node.Uri(ProjectOntology.license), Node.Literal(v))),
+        owner.map(v => Triple(subject, Node.Uri(ProjectOntology.owner), Node.Literal(v))),
+        status.map(v => Triple(subject, Node.Uri(ProjectOntology.status), Node.Literal(v)))
+      ).collect { case Some(t) => t }
 
     // Link ontology and schema (meta triple)
     val schemaTriple = Triple(subject, Node.Uri(ProjectOntology.usesSchema), Node.Uri(namespace + "Project"))

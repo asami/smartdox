@@ -174,4 +174,81 @@ object Vocabulary {
 
     def uri(local: String): String = namespace + local
   }
+  object Smorg {
+    val prefix    = "smorg"
+    val namespace = "https://www.simplemodeling.org/ontology/simplemodelingorg#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object SmorgSchema {
+    val prefix    = "smorgschema"
+    val namespace = "https://www.simplemodeling.org/schema/simplemodelingorg#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object SimpleModeling {
+    val prefix    = "smd"
+    val namespace = "https://www.simplemodeling.org/simplemodeling/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object SimpleModel {
+    val prefix    = "smodel"
+    val namespace = "https://www.simplemodeling.org/simplemodel/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object SimpleModelSchema {
+    val prefix    = "smodelschema"
+    val namespace = "https://www.simplemodeling.org/simplemodel/schema/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object SmartDox {
+    val prefix    = "sdx"
+    val namespace = "https://www.simplemodeling.org/smartdox/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object Bok {
+    val prefix    = "bok"
+    val namespace = "https://www.simplemodeling.org/bok/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object BokSchema {
+    val prefix    = "bokschema"
+    val namespace = "https://www.simplemodeling.org/bok/schema/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object Category {
+    val prefix    = "cat"
+    val namespace = "https://www.simplemodeling.org/category/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object CategorySchema {
+    val prefix    = "catschema"
+    val namespace = "https://www.simplemodeling.org/category/schema/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object Glossary {
+    val prefix    = "glo"
+    val namespace = "https://www.simplemodeling.org/glossary/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object Bibliography {
+    val prefix    = "bib"
+    val namespace = "https://www.simplemodeling.org/bibliography/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object Project {
+    val prefix    = "proj"
+    val namespace = "https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
 }

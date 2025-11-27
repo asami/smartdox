@@ -13,23 +13,40 @@ import org.smartdox.semanticweb.CategoryOntology._
  * JSON-LD or Turtle representations of each category page.
  *
  * @since   Nov. 13, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object CategorySchema extends KnowledgeModel {
+object CategorySchema extends SchemaModel {
   override val prefix: String = "categorySchema"
   override val namespace: String = "https://www.simplemodeling.org/category/schema/0.1-SNAPSHOT#"
 
-  override lazy val jsonldContext: Map[String, Any] =
-    CategoryOntology.jsonldContext
+  override lazy val jsonldContext: Map[String, Any] = Map(
+    CategorySchema.prefix ->
+      Map("@id" -> CategorySchema.uri("")),
+
+    "Category"     -> Map("@id" -> CategorySchema.uri("Category")),
+    "Subcategory"  -> Map("@id" -> CategorySchema.uri("Subcategory")),
+    "Article"      -> Map("@id" -> CategorySchema.uri("Article")),
+    "Topic"        -> Map("@id" -> CategorySchema.uri("Topic")),
+    "Tag"          -> Map("@id" -> CategorySchema.uri("Tag")),
+
+    "title"        -> Map("@id" -> CategorySchema.uri("title")),
+    "description"  -> Map("@id" -> CategorySchema.uri("description")),
+    "order"        -> Map("@id" -> CategorySchema.uri("order")),
+
+    "hasSubcategory" -> Map("@id" -> CategorySchema.uri("hasSubcategory")),
+    "hasArticle"     -> Map("@id" -> CategorySchema.uri("hasArticle")),
+    "hasTopic"       -> Map("@id" -> CategorySchema.uri("hasTopic")),
+    "hasTag"         -> Map("@id" -> CategorySchema.uri("hasTag")),
+    "relatedTo"      -> Map("@id" -> CategorySchema.uri("relatedTo")),
+    "parentCategory" -> Map("@id" -> CategorySchema.uri("parentCategory"))
+  )
 
   override def jsonldProfile: RdfRenderer.JsonLDProfile =
     RdfRenderer.JsonLDProfile.BoK
 
   // Base triples for this schema (will be populated via toGraph(category…))
-  lazy val triples: Seq[Triple] = Seq.empty
 
-  override def toGraph: Rdf.Graph = Rdf.Graph(triples.toVector)
   // ------------------------------------------------------------------
   // Node Builders
   // ------------------------------------------------------------------
@@ -54,7 +71,7 @@ object CategorySchema extends KnowledgeModel {
     val subject = categoryNode(categoryId)
 
     val orderTriples = order.map(o =>
-      Triple(subject, Node.Uri(CategoryOntology.order), Node.Literal(o.toString))
+      Triple(subject, Node.Uri(CategorySchema.uri("order")), Node.Literal(o.toString))
     ).toSeq
 
     val subTriples = subcategories.map(sid =>
@@ -74,9 +91,9 @@ object CategorySchema extends KnowledgeModel {
     )
 
     Seq(
-      Triple(subject, RdfType, Node.Uri(Category)),
-      Triple(subject, Node.Uri(CategoryOntology.title), Node.Literal(title)),
-      Triple(subject, Node.Uri(CategoryOntology.description), Node.Literal(description))
+      Triple(subject, RdfType, Node.Uri(CategorySchema.uri("Category"))),
+      Triple(subject, Node.Uri(CategorySchema.uri("title")), Node.Literal(title)),
+      Triple(subject, Node.Uri(CategorySchema.uri("description")), Node.Literal(description))
     ) ++ orderTriples ++ subTriples ++ articleTriples ++ topicTriples ++ tagTriples
   }
 
@@ -90,9 +107,9 @@ object CategorySchema extends KnowledgeModel {
   ): Seq[Triple] = {
     val subject = categoryNode(subId)
     Seq(
-      Triple(subject, RdfType, Node.Uri(Subcategory)),
-      Triple(subject, Node.Uri(CategoryOntology.title), Node.Literal(title)),
-      Triple(subject, Node.Uri(parentCategory), categoryNode(parentId))
+      Triple(subject, RdfType, Node.Uri(CategorySchema.uri("Subcategory"))),
+      Triple(subject, Node.Uri(CategorySchema.uri("title")), Node.Literal(title)),
+      Triple(subject, Node.Uri(CategorySchema.uri("parentCategory")), categoryNode(parentId))
     )
   }
 
@@ -109,15 +126,15 @@ object CategorySchema extends KnowledgeModel {
       Triple(subject, Node.Uri(relatedTo), articleNode(rid))
     )
     Seq(
-      Triple(subject, RdfType, Node.Uri(Article)),
-      Triple(subject, Node.Uri(CategoryOntology.title), Node.Literal(title))
+      Triple(subject, RdfType, Node.Uri(CategorySchema.uri("Article"))),
+      Triple(subject, Node.Uri(CategorySchema.uri("title")), Node.Literal(title))
     ) ++ relatedTriples
   }
 
   // ------------------------------------------------------------------
   // Graph Builder
   // ------------------------------------------------------------------
-  def toGraph(
+  def buildGraph(
     categoryId: String,
     title: String,
     description: String,

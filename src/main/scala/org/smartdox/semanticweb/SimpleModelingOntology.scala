@@ -13,10 +13,10 @@ import org.smartdox.semanticweb.Rdf._
  * Prefix: smont
  *
  * @since   Nov. 12, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelingOntology extends KnowledgeModel {
+object SimpleModelingOntology extends OntologyModel {
   val prefix = "smont"
   val namespace = "https://www.simplemodeling.org/simplemodeling/ontology/0.1-SNAPSHOT#"
 
@@ -48,7 +48,7 @@ object SimpleModelingOntology extends KnowledgeModel {
   // ------------------------------------------------------------------
   // JSON-LD Context
   // ------------------------------------------------------------------
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,
     "Methodology" -> Methodology,
     "Process" -> Process,
@@ -60,13 +60,5 @@ object SimpleModelingOntology extends KnowledgeModel {
     "usesMetaModel" -> usesMetaModel,
     "governsProcess" -> governsProcess
   )
-
-  // Base schema triples for this ontology (can be extended later)
-  lazy val triples: Seq[Triple] = Seq.empty
-
-  override def jsonldProfile: RdfRenderer.JsonLDProfile =
-    RdfRenderer.JsonLDProfile.BoK
-
-  override def toGraph: Rdf.Graph =
-    Rdf.Graph(triples.toVector)
+  override def toTriples: Seq[Triple] = Seq.empty
 }

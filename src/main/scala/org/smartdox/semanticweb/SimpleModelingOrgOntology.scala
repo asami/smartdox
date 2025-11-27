@@ -14,10 +14,10 @@ import org.smartdox.semanticweb.Rdf.Node
  * entire SimpleModeling.org knowledge ecosystem.
  *
  * @since   Nov. 12, 2025
- * @version Nov. 21, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelingOrgOntology extends KnowledgeModel {
+object SimpleModelingOrgOntology extends OntologyModel {
   val prefix = "smorg"
   val namespace = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT#"
 
@@ -100,7 +100,7 @@ object SimpleModelingOrgOntology extends KnowledgeModel {
   // ------------------------------------------------------------------
   // JSON-LD context for export
   // ------------------------------------------------------------------
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,
     "Ontology" -> Ontology,
     "Schema" -> Schema,
@@ -119,9 +119,9 @@ object SimpleModelingOrgOntology extends KnowledgeModel {
   )
 
   // ------------------------------------------------------------------
-  // RDF Graph Construction
+  // RDF Triples Construction
   // ------------------------------------------------------------------
-  def toGraph: Graph = {
+  override def toTriples: Seq[Triple] = {
     val ontologyNode = Node.Uri(namespace)
 
     val baseTriples = Seq(
@@ -141,34 +141,28 @@ object SimpleModelingOrgOntology extends KnowledgeModel {
       Triple(Node.Uri(child), Node.Uri(Rdfs.subClassOf), Node.Uri(parent))
     }
 
-    Graph(baseTriples ++ labelTriples ++ commentTriples ++ subclassTriples)
+    baseTriples ++ labelTriples ++ commentTriples ++ subclassTriples
   }
-
-  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 }
 
-object SimpleModelingOrgPublicOntology extends KnowledgeModel {
+object SimpleModelingOrgPublicOntology extends OntologyModel {
   val prefix = "smorg"
   val namespace = "https://www.simplemodeling.org/ontology/simplemodelingorg.jsonld#"
 
   // Import the internal SNAPSHOT ontology
   val internalOntology = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT/index.jsonld#"
 
-  override lazy val jsonldContext: Map[String, Any] = Map(
-    prefix -> namespace,
-    "imports" -> internalOntology
-  )
+  // override lazy val jsonldContext: Map[String, Any] = Map(
+  //   prefix -> namespace,
+  //   "imports" -> internalOntology
+  // )
 
-  def toGraph: Graph = {
+  override def toTriples: Seq[Triple] = {
     val ontologyNode = Node.Uri(namespace)
 
-    val triples = Seq(
+    Seq(
       Triple(ontologyNode, VocaRdf.node.`type`, Node.Uri(Owl.Ontology)),
       Triple(ontologyNode, Node.Uri("http://www.w3.org/2002/07/owl#imports"), Node.Uri(internalOntology))
     )
-
-    Graph(triples)
   }
-
-  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 }

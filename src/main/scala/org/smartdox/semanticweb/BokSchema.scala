@@ -15,10 +15,10 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  * into a unified semantic graph.
  *
  * @since   Nov. 12, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object BokSchema extends KnowledgeModel {
+object BokSchema extends SchemaModel {
   //
   // Schema-level namespace (separate from BokOntology)
   //
@@ -28,7 +28,7 @@ object BokSchema extends KnowledgeModel {
   //
   // JSON-LD context for schema export
   //
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     // Core vocabularies
     "rdf"     -> Vocabulary.Rdf.namespace,
     "rdfs"    -> Vocabulary.Rdfs.namespace,
@@ -124,8 +124,4 @@ object BokSchema extends KnowledgeModel {
   //
 
   private def emptyModel: BokModel = BokModel()
-
-  def toGraph: Graph = emptyModel.toGraph
-
-  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 }

@@ -1,8 +1,6 @@
 package org.smartdox.semanticweb
 
 import org.smartdox.semanticweb.Rdf._
-import org.smartdox.semanticweb.RdfRenderer.JsonLDProfile
-import org.smartdox.semanticweb.RdfRenderer.Policy
 
 /**
  * Common trait for Ontology-like and Schema-like models.
@@ -13,6 +11,10 @@ import org.smartdox.semanticweb.RdfRenderer.Policy
  *   - RDF graph describing the model
  *   - JSON-LD context for export
  *   - JSON-LD / Turtle renderers
+ *
+ * @since   Nov. 20, 2025
+ * @version Nov. 27, 2025
+ * @author  ASAMI, Tomoharu
  */
 trait KnowledgeModel {
 
@@ -28,27 +30,27 @@ trait KnowledgeModel {
   /** Build full IRI from local name */
   def uri(local: String): String = namespace + local
 
-  /** RDF graph representing this model */
-  def toGraph: Graph
+  /** RDF triples representing this model (TBox/RBox for ontology, ABox for schema) */
+  def toTriples: Seq[Triple]
 
-  /** JSON-LD @context (prefix → namespace) */
-  def jsonldContext: Map[String, Any]
+  /** Graph is derived from triples */
+  final def toGraph: Graph = Graph(toTriples.toVector)
 
-  /** Default JSON-LD rendering policy */
-  def defaultPolicy: Policy = RdfRenderer.Policy.default
+  /** JSON-LD profile (default BoK) */
+  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 
-  def jsonldProfile: RdfRenderer.JsonLDProfile
+  /** JSON-LD @context (default empty, override in SchemaModel) */
+  def jsonldContext: Map[String, Any] = Map.empty
 
-  /** JSON-LD export */
+  /** Export this model as JSON-LD */
   def asJsonLD: String =
     RdfRenderer.toJsonLD(
       toGraph,
       jsonldProfile,
-      userContext = jsonldContext,
-      policy = defaultPolicy
+      userContext = jsonldContext
     )
 
-  /** Turtle export */
+  /** Export this model as Turtle */
   def asTurtle: String =
     RdfRenderer.toTurtle(
       toGraph,

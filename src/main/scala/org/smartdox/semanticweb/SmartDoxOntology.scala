@@ -15,10 +15,10 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  *    representing SmartDox documents and their internal structures.
  *
  * @since   Nov. 13, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object SmartDoxOntology extends KnowledgeModel {
+object SmartDoxOntology extends OntologyModel {
   val prefix = "sd"
   val namespace = "https://www.simplemodeling.org/smartdox/ontology/0.1-SNAPSHOT#"
 
@@ -69,7 +69,7 @@ object SmartDoxOntology extends KnowledgeModel {
   // ------------------------------------------------------------------
   // JSON-LD Context
   // ------------------------------------------------------------------
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,
     "Document" -> Document,
     "Section" -> Section,
@@ -161,12 +161,5 @@ object SmartDoxOntology extends KnowledgeModel {
     base ++ langT.toSeq
   }
 
-  // Base schema triples for this ontology (can be extended later)
-  lazy val triples: Seq[Triple] = Seq.empty
-
-  override def jsonldProfile: RdfRenderer.JsonLDProfile =
-    RdfRenderer.JsonLDProfile.BoK
-
-  override def toGraph: Rdf.Graph =
-    Rdf.Graph(triples.toVector)
+  override lazy val toTriples: Seq[Triple] = Seq.empty
 }

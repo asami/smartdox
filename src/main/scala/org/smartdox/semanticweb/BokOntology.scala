@@ -2,10 +2,10 @@ package org.smartdox.semanticweb
 
 /*
  * @since   Nov. 12, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object BokOntology extends KnowledgeModel {
+object BokOntology extends OntologyModel {
   val prefix = "bok"
   val namespace = "https://www.simplemodeling.org/bok/ontology/0.1-SNAPSHOT#"
 
@@ -20,7 +20,7 @@ object BokOntology extends KnowledgeModel {
   val representsDocument = uri("representsDocument")
 
   /** JSON-LD context */
-  lazy val jsonldContext = Map(
+  override lazy val jsonldContext = Map(
     prefix -> namespace,
     "Concept" -> Concept,
     "KnowledgeUnit" -> KnowledgeUnit,
@@ -33,7 +33,7 @@ object BokOntology extends KnowledgeModel {
   //
   // RDF Graph generation
   //
-  private def triples: Seq[Rdf.Triple] = Seq(
+  def toTriples: Seq[Rdf.Triple] = Seq(
     // Labels
     Rdf.Triple(Rdf.Node.Uri(Concept), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("Concept")),
     Rdf.Triple(Rdf.Node.Uri(KnowledgeUnit), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("KnowledgeUnit")),
@@ -51,8 +51,4 @@ object BokOntology extends KnowledgeModel {
     Rdf.Triple(Rdf.Node.Uri(references), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("references")),
     Rdf.Triple(Rdf.Node.Uri(representsDocument), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("representsDocument"))
   )
-
-  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
-
-  def toGraph: Rdf.Graph = Rdf.Graph(triples.toVector)
 }

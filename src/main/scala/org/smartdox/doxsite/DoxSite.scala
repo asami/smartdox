@@ -70,7 +70,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov. 22, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -243,19 +243,34 @@ class DoxSite(
    * CategorySiteOntology, CategorySiteSchema
    * ProjectSiteOntology, ProjectSiteSchema
    */
-  private val _knowledge_models: Vector[KnowledgeModel] = Vector(
-    SimpleModelingOrgOntology, SimpleModelingOrgSchema,
-    BokOntology, BokSchema,
-    CategoryOntology, CategorySchema,
+  private val _ontology_models: Vector[OntologyModel] = Vector(
+    SimpleModelingOrgOntology,
+    BokOntology,
+    CategoryOntology,
     SimpleModelingOntology,
-    SimpleModelOntology, SimpleModelSchema,
+    SimpleModelOntology,
     GlossaryOntology,
     BibliographyOntology,
     SmartDoxOntology
   )
 
-  private val _public_models: Vector[KnowledgeModel] = Vector(
-    SimpleModelingOrgPublicOntology, SimpleModelingOrgPublicSchema
+  private val _schema_models: Vector[SchemaModel] = Vector(
+    SimpleModelingOrgSchema,
+    BokSchema,
+    CategorySchema,
+    // SimpleModelingSchema,
+    SimpleModelSchema,
+    GlossarySchema,
+    BibliographySchema //,
+//    SmartDoxSchema
+  )
+
+  private val _public_ontology_models: Vector[OntologyModel] = Vector(
+    SimpleModelingOrgPublicOntology
+  )
+
+  private val _public_schema_models: Vector[SchemaModel] = Vector(
+    SimpleModelingOrgPublicSchema
   )
 
   private def _build_rdf(realm: Realm): Realm = {
@@ -264,39 +279,70 @@ class DoxSite(
     _build_rdf_site(b)
   }
 
-  private def _build_rdf_definitions(realm: Realm): Realm = 
-    _knowledge_models.foldLeft(realm)(_build_rdf)
+  private def _build_rdf_definitions(realm: Realm): Realm = {
+    val a = _ontology_models.foldLeft(realm)(_build_rdf)
+    _schema_models.foldLeft(realm)(_build_rdf)
+  }
 
-  private def _build_rdf_public(realm: Realm): Realm =
-    _public_models.foldLeft(realm)(_build_rdf_public)
+  private def _build_rdf_public(realm: Realm): Realm = {
+    val a = _public_ontology_models.foldLeft(realm)(_build_rdf_public)
+    _public_schema_models.foldLeft(realm)(_build_rdf_public)
+  }
 
   private def _build_rdf(
     realm: Realm,
-    knowledge: KnowledgeModel
+    knowledge: OntologyModel
   ): Realm =
-    _build_rdf(realm, knowledge.namespace, knowledge.asJsonLD, knowledge.asTurtle)
+    _build_rdf(realm, knowledge.namespace, Some(knowledge.asJsonLD), Some(knowledge.asTurtle))
+
+  private def _build_rdf(
+    realm: Realm,
+    knowledge: SchemaModel
+  ): Realm =
+    _build_rdf(realm, knowledge.namespace, Some(knowledge.asJsonLD), Some(knowledge.asTurtle))
 
   private def _build_rdf(
     realm: Realm,
     namespace: String,
-    jsonld: String,
-    turtle: String
+    jsonld: Option[String],
+    turtle: Option[String]
   ): Realm = {
     val path = _path(namespace)
-    realm.setContent(path("index.jsonld"), jsonld)
-    realm.setContent(path("index.ttl"), turtle)
+    jsonld.foreach(x => realm.setContent(path("index.jsonld"), x))
+    turtle.foreach(x => realm.setContent(path("index.ttl"), x))
+    realm
   }
 
   private def _build_rdf_public(
     realm: Realm,
-    knowledge: KnowledgeModel
+    knowledge: OntologyModel
   ): Realm = {
     val namespace = knowledge.namespace
-    val jsonld = knowledge.asJsonLD
-    val turtle = knowledge.asTurtle
+    val jsonld = Some(knowledge.asJsonLD)
+    val turtle = Some(knowledge.asTurtle)
+    _build_rdf_public(realm, namespace, jsonld, turtle)
+  }
+
+  private def _build_rdf_public(
+    realm: Realm,
+    knowledge: SchemaModel
+  ): Realm = {
+    val namespace = knowledge.namespace
+    val jsonld = Some(knowledge.asJsonLD)
+    val turtle = Some(knowledge.asTurtle)
+    _build_rdf_public(realm, namespace, jsonld, turtle)
+  }
+
+  private def _build_rdf_public(
+    realm: Realm,
+    namespace: String,
+    jsonld: Option[String],
+    turtle: Option[String]
+  ): Realm = {
     val path = _path(namespace)
-    realm.setContent(path.changeSuffix("jsonld"), jsonld)
-    realm.setContent(path.changeSuffix("ttl"), turtle)
+    jsonld.foreach(x => realm.setContent(path.changeSuffix("jsonld"), x))
+    turtle.foreach(x => realm.setContent(path.changeSuffix("ttl"), x))
+    realm
   }
 
   private def _build_rdf_site(realm: Realm): Realm = {

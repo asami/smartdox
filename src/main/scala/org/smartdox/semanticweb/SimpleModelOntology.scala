@@ -17,10 +17,10 @@ import org.smartdox.semanticweb.Rdf.Node
  * Prefix: sm
  *
  * @since   Nov. 13, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelOntology extends KnowledgeModel {
+object SimpleModelOntology extends OntologyModel {
   val prefix = "sm"
   val namespace = "https://www.simplemodeling.org/simplemodel/ontology/0.1-SNAPSHOT#"
 
@@ -83,7 +83,7 @@ object SimpleModelOntology extends KnowledgeModel {
   // ------------------------------------------------------------------
   // JSON-LD Context
   // ------------------------------------------------------------------
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,
     // Classes
     "Model" -> Model,
@@ -139,12 +139,5 @@ object SimpleModelOntology extends KnowledgeModel {
     val tag          = Node.Uri(SimpleModelOntology.tag)
   }
 
-  // Base schema triples for this ontology (can be extended later)
-  lazy val triples: Seq[Triple] = Seq.empty
-
-  override def jsonldProfile: RdfRenderer.JsonLDProfile =
-    RdfRenderer.JsonLDProfile.BoK
-
-  override def toGraph: Rdf.Graph =
-    Rdf.Graph(triples.toVector)
+  override def toTriples: Seq[Triple] = Seq.empty
 }

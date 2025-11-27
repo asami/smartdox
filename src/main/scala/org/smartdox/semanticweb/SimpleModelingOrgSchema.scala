@@ -21,10 +21,10 @@ import org.smartdox.semanticweb.SimpleModelingOrgOntology._
  *  - GlossaryOntology
  *
  * @since   Nov. 13, 2025
- * @version Nov. 21, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelingOrgSchema extends KnowledgeModel {
+object SimpleModelingOrgSchema extends SchemaModel {
   val prefix: String = "smorgschema"
   val namespace: String = "https://www.simplemodeling.org/simplemodelingorg/schema/0.1-SNAPSHOT#"
 
@@ -35,6 +35,15 @@ object SimpleModelingOrgSchema extends KnowledgeModel {
   def schemaNode(uriStr: String): Node.Uri = Node.Uri(uriStr)
   def siteNode(uriStr: String): Node.Uri = Node.Uri(uriStr)
   def kbNode(uriStr: String): Node.Uri = Node.Uri(uriStr)
+
+  override def toTriples: Seq[Triple] =
+    toGraph(
+      "https://www.simplemodeling.org/kb",
+      "0.1-SNAPSHOT",
+      Seq.empty,
+      Seq.empty,
+      Seq.empty
+    ).triples
 
   // ------------------------------------------------------------
   // Ontology linkage graph
@@ -91,17 +100,12 @@ object SimpleModelingOrgSchema extends KnowledgeModel {
     Graph(kbTriples ++ ontTriples)
   }
 
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace
   )
-
-  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
-
-  def toGraph: Graph =
-    toGraph("https://www.simplemodeling.org/kb", "0.1-SNAPSHOT", Seq.empty, Seq.empty, Seq.empty)
 }
 
-object SimpleModelingOrgPublicSchema extends KnowledgeModel {
+object SimpleModelingOrgPublicSchema extends SchemaModel {
   val prefix = "smorgschema"
   val namespace = "https://www.simplemodeling.org/schema/simplemodelingorg.jsonld#"
 
@@ -113,16 +117,11 @@ object SimpleModelingOrgPublicSchema extends KnowledgeModel {
     "imports" -> internalSchema
   )
 
-  def toGraph: Graph = {
+  override def toTriples: Seq[Triple] = {
     val schemaNode = Node.Uri(namespace)
-
-    val triples = Seq(
+    Seq(
       Triple(schemaNode, RdfType, Node.Uri(Owl.Ontology)),
       Triple(schemaNode, Node.Uri("http://www.w3.org/2002/07/owl#imports"), Node.Uri(internalSchema))
     )
-
-    Graph(triples)
   }
-
-  def jsonldProfile: RdfRenderer.JsonLDProfile = RdfRenderer.JsonLDProfile.BoK
 }

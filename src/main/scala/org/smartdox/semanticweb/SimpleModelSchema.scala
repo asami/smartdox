@@ -17,10 +17,10 @@ import org.smartdox.semanticweb.SimpleModelOntology._
  * Prefix: sm-schema
  *
  * @since   Nov. 13, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object SimpleModelSchema extends KnowledgeModel {
+object SimpleModelSchema extends SchemaModel {
   val prefix = "sm-schema"
   val namespace = "https://www.simplemodeling.org/simplemodel/schema/0.1-SNAPSHOT#"
 
@@ -31,13 +31,6 @@ object SimpleModelSchema extends KnowledgeModel {
   // JSON-LD Profile
   override def jsonldProfile: RdfRenderer.JsonLDProfile =
     RdfRenderer.JsonLDProfile.BoK
-
-  // Base schema triples (can be extended to include class/property declarations)
-  lazy val triples: Seq[Triple] = Seq.empty
-
-  // Structural schema graph
-  override def toGraph: Rdf.Graph =
-    Rdf.Graph(triples.toVector)
 
   // ------------------------------------------------------------------
   // Node Builders

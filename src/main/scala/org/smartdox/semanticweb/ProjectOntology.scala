@@ -1,5 +1,9 @@
 package org.smartdox.semanticweb
 
+import org.smartdox.semanticweb.Rdf._
+import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
+import org.smartdox.semanticweb.Vocabulary.Owl
+
 /*
  * Project Ontology
  * ----------------------------------------------------------------------
@@ -15,13 +19,13 @@ package org.smartdox.semanticweb
  * Prefix: proj
  *
  * @since   Nov. 13, 2025
- * @version Nov. 20, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
-object ProjectOntology {
-  val prefix = "proj"
-  val namespace = "https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#"
-  def uri(local: String) = namespace + local
+object ProjectOntology extends OntologyModel {
+  override val prefix: String = Vocabulary.Project.prefix
+  override val namespace: String = Vocabulary.Project.namespace
+  override def uri(local: String): String = Vocabulary.Project.uri(local)
 
   // ------------------------------------------------------------------
   // Core Classes
@@ -85,9 +89,55 @@ object ProjectOntology {
   val SimpleModelingOntology = "https://www.simplemodeling.org/simplemodeling/ontology/0.1-SNAPSHOT#"
 
   // ------------------------------------------------------------------
+  // TBox: Core class/property declarations
+  // ------------------------------------------------------------------
+  override def toTriples: Seq[Triple] = Seq(
+    // Classes
+    Triple(Node.Uri(Project),       RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(ProjectFamily), RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Module),        RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Component),     RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Build),         RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Release),       RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Artifact),      RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Documentation), RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Repository),    RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(Contributor),   RdfType, Node.Uri(Owl.Class)),
+    Triple(Node.Uri(License),       RdfType, Node.Uri(Owl.Class)),
+
+    // Datatype Properties
+    Triple(Node.Uri(title),       RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(description), RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(version),     RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(language),    RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(license),     RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(owner),       RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(status),      RdfType, Node.Uri(Owl.DatatypeProperty)),
+    Triple(Node.Uri(url),         RdfType, Node.Uri(Owl.DatatypeProperty)),
+
+    // Object Properties
+    Triple(Node.Uri(hasModule),        RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasComponent),     RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasBuild),         RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasRelease),       RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasArtifact),      RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasDocumentation), RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasRepository),    RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasContributor),   RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasLicense),       RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(belongsToFamily),  RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(dependsOn),        RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(usesModel),        RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(definesModel),     RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(basedOnMethodology), RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(hasSchema),        RdfType, Node.Uri(Owl.ObjectProperty)),
+    Triple(Node.Uri(usesSchema),       RdfType, Node.Uri(Owl.ObjectProperty))
+  )
+
+  // ------------------------------------------------------------------
   // JSON-LD Context
   // ------------------------------------------------------------------
-  lazy val jsonldContext: Map[String, Any] = Map(
+  override lazy val jsonldContext: Map[String, Any] = Map(
     prefix -> namespace,
     // Classes
     "Project" -> Project,
@@ -130,4 +180,3 @@ object ProjectOntology {
     "usesSchema" -> usesSchema
   )
 }
-
