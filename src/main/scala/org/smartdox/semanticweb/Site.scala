@@ -49,7 +49,7 @@ object Site {
   def schemaUri(local: String): String = Vocabulary.Schema.uri(local)
 
   /** Root identifier of this site */
-  val SiteRoot: String = uri("SiteRoot")
+  val SiteRoot: String = "https://www.simplemodeling.org/site/simplemodelingorg"
 
   // ------------------------------------------------------------
   // Data Model
@@ -423,8 +423,8 @@ object Site {
 
     def create(metadata: MetaData, articles: Seq[SiteResource]): SiteModel = {
       val locals = List("ja", "en")
-      val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#")
-      val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#")
+      val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#") + "/index.jsonld"
+      val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#") + "/index.jsonld"
       val v = Vocabulary.Rdf.namespace.stripSuffix("#")
       SiteModel(metadata, articles, locals, Some(o), Some(s), Some(v))
     }
