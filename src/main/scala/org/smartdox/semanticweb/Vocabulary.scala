@@ -113,6 +113,7 @@ object Vocabulary {
       val someValuesFrom     = Uri(Vocabulary.Owl.someValuesFrom)
       val allValuesFrom      = Uri(Vocabulary.Owl.allValuesFrom)
       val unionOf            = Uri(Vocabulary.Owl.unionOf)
+      val versionInfo        = Uri(Vocabulary.Owl.uri("versionInfo"))
     }
   }
 
@@ -210,6 +211,12 @@ object Vocabulary {
     def uri(local: String): String = namespace + local
   }
 
+  object DocumentModel {
+    val prefix    = "doc"
+    val namespace = "https://www.simplemodeling.org/documentmodel/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
   object Bok {
     val prefix    = "bok"
     val namespace = "https://www.simplemodeling.org/bok/ontology/0.1-SNAPSHOT#"
@@ -249,6 +256,12 @@ object Vocabulary {
   object Project {
     val prefix    = "proj"
     val namespace = "https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#"
+    def uri(local: String): String = namespace + local
+  }
+
+  object ComponentRepository {
+    val prefix    = "comp"
+    val namespace = "https://www.simplemodeling.org/component/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 }

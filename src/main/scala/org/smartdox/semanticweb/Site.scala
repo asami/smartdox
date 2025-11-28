@@ -27,7 +27,7 @@ import org.smartdox.metadata.Glossary
  *   - site.ttl
  *
  * @since   Nov. 20, 2025
- * @version Nov. 22, 2025
+ * @version Nov. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 object Site {
@@ -63,6 +63,8 @@ object Site {
     def id: String             // canonical article IRI
     def meta: DocumentMetaData // SmartDox document metadata
 
+    def typeTriple: Triple
+
     /**
      * Convert this SiteResource into RDF triples.
      *
@@ -73,10 +75,6 @@ object Site {
      */
     def toTriples: Seq[Triple] = {
       val s = Node.Uri(id)
-
-      // Type: article node
-      val typeTriple =
-        Triple(s, RdfType, Node.Uri(uri("Article")))
 
       // Title as language-tagged labels (language-map style).
       val titleJa = meta.getTitleString(Locale.JAPANESE)
@@ -175,8 +173,19 @@ object Site {
           )
         ).flatten
 
+      val glossarytriples = Vector() // meta.glossary.definitions
+
+      val referencetriples = Vector() // meta.references
+
+      val categorietriples = Vector() // meta.categories
+
+      val keywordtriples = Vector() // meta.keywords
+
+      val tagtriples = Vector() // meta.tags
+
       Seq(typeTriple) ++ titleTriples ++ published ++ modified ++ authorTriples ++
-      schemaAuthorTriples ++ descriptionTriples ++ headlineTriples ++ briefTriples
+      schemaAuthorTriples ++ descriptionTriples ++ headlineTriples ++ briefTriples ++
+      glossarytriples ++ referencetriples ++ categorietriples ++ keywordtriples ++ tagtriples
     }
   }
   object SiteResource {
@@ -184,6 +193,9 @@ object Site {
       id: String,            // canonical article IRI
       meta: DocumentMetaData // SmartDox document metadata
     ) extends SiteResource {
+      // Type: article node
+      val typeTriple =
+        Triple(Node.Uri(id), RdfType, Node.Uri(uri("Article")))
     }
     object Article {
       def create(path: URI, meta: DocumentMetaData): Article = {
@@ -196,6 +208,8 @@ object Site {
       id: String,            // canonical article IRI
       meta: DocumentMetaData // SmartDox document metadata
     ) extends SiteResource {
+      val typeTriple =
+        Triple(Node.Uri(id), RdfType, Dcterms.node.BibliographicResource)
     }
     object Glossary {
       def create(path: URI, meta: DocumentMetaData): Glossary = {
@@ -208,6 +222,8 @@ object Site {
       id: String,            // canonical article IRI
       meta: DocumentMetaData // SmartDox document metadata
     ) extends SiteResource {
+      val typeTriple =
+        Triple(Node.Uri(id), RdfType, Dcterms.node.BibliographicResource)
     }
     object Bibliography {
       def create(path: URI, meta: DocumentMetaData): Bibliography = {
@@ -286,11 +302,12 @@ object Site {
           Triple(root, Node.Uri(SimpleModelingOrgOntology.definesVocabulary), Node.Uri(uri("Ontology")))
         ).toSeq
 
-      // Add hasArticle triples linking SiteRoot to each canonical resource
-      val articleLinkTriples: Seq[Triple] =
-        resources.map { r =>
-          Triple(root, Node.Uri(uri("hasArticle")), Node.Uri(r.id))
-        }
+      // ------------------------------------------------------------
+      // BoK root triple
+      // ------------------------------------------------------------
+      val bokRoot = Node.Uri("https://www.simplemodeling.org/bok")
+      val includesBokTriple =
+        Triple(root, Node.Uri(BokOntology.includesBoK), bokRoot)
 
       // Generate locale-specific page nodes for each canonical resource
       val localePageTriples: Seq[Triple] = resources.flatMap { r =>
@@ -351,17 +368,28 @@ object Site {
       val resourceTriples: Seq[Triple] =
         resources.flatMap(_.toTriples)
 
+      // ------------------------------------------------------------
+      // BoK integration
+      // ------------------------------------------------------------
+      // SimpleModel graph placeholder until SimpleModelSchema is implemented
+      val simpleModelGraph = Graph(Nil)
+
+      // Build full BoK graph (DocumentModel + SimpleModel)
+      val bokGraph = BokSchema.build(resources, simpleModelGraph, Graph(Nil))
+      val bokTriples = bokGraph.triples
+
       Graph(
         rootBase ++
         siteClassTriples ++
         ontoTriples ++
         schemaTriples ++
         vocabTriples ++
-        articleLinkTriples ++
+        Seq(includesBokTriple) ++
         localePageTriples ++
         relatedTriples ++
         aboutTriples ++
-        resourceTriples
+        resourceTriples ++
+        bokTriples
       )
     }
 
@@ -421,12 +449,15 @@ object Site {
   object SiteModel {
     val empty = SiteModel()
 
-    def create(metadata: MetaData, articles: Seq[SiteResource]): SiteModel = {
+    def create(
+      metadata: MetaData,
+      resources: Seq[SiteResource]
+    ): SiteModel = {
       val locals = List("ja", "en")
       val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#") + "/index.jsonld"
       val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#") + "/index.jsonld"
       val v = Vocabulary.Rdf.namespace.stripSuffix("#")
-      SiteModel(metadata, articles, locals, Some(o), Some(s), Some(v))
+      SiteModel(metadata, resources, locals, Some(o), Some(s), Some(v))
     }
   }
 

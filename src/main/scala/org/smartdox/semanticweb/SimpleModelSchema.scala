@@ -17,7 +17,7 @@ import org.smartdox.semanticweb.SimpleModelOntology._
  * Prefix: sm-schema
  *
  * @since   Nov. 13, 2025
- * @version Nov. 27, 2025
+ * @version Nov. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 object SimpleModelSchema extends SchemaModel {
@@ -51,7 +51,8 @@ object SimpleModelSchema extends SchemaModel {
     name: String,
     description: Option[String] = None,
     attributes: Seq[(String, String)] = Seq.empty, // (name, type)
-    relations: Seq[(String, String)] = Seq.empty   // (name, target)
+    relations: Seq[(String, String)] = Seq.empty,   // (name, target)
+    docId: Option[String] = None
   ): Seq[Triple] = {
     val subject = entityNode(id)
     val attrTriples = attributes.map { case (n, t) =>
@@ -66,8 +67,9 @@ object SimpleModelSchema extends SchemaModel {
       Triple(subject, Node.Uri(SimpleModelOntology.name), Node.Literal(name))
     )
     val desc = description.map(d => Triple(subject, Node.Uri(SimpleModelOntology.description), Node.Literal(d)))
+    val docTriple = docId.map(doc => Triple(subject, Node.Uri(SimpleModelOntology.documentedBy), Node.Uri(doc)))
 
-    core ++ desc ++ attrTriples ++ relTriples
+    core ++ desc ++ attrTriples ++ relTriples ++ docTriple
   }
 
   // ------------------------------------------------------------------
@@ -188,13 +190,13 @@ object SimpleModelSchema extends SchemaModel {
   // Graph Builder
   // ------------------------------------------------------------------
   def toGraph(
-    entities: Seq[(String, String)] = Seq.empty,
+    entities: Seq[(String, String, Option[String])] = Seq.empty,
     values: Seq[(String, String)] = Seq.empty,
     rules: Seq[(String, String, String, String)] = Seq.empty,
     services: Seq[(String, String)] = Seq.empty,
     events: Seq[(String, String)] = Seq.empty
   ): Graph = {
-    val entityTriplesSeq = entities.flatMap { case (id, name) => entityTriples(id, name) }
+    val entityTriplesSeq = entities.flatMap { case (id, name, doc) => entityTriples(id, name, None, Seq.empty, Seq.empty, doc) }
     val valueTriplesSeq  = values.flatMap { case (id, name) => valueTriples(id, name) }
     val ruleTriplesSeq   = rules.flatMap { case (id, title, cond, cons) => ruleTriples(id, title, cond, cons) }
     val serviceTriplesSeq= services.flatMap { case (id, title) => serviceTriples(id, title) }

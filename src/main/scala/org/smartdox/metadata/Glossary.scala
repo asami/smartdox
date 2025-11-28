@@ -15,6 +15,7 @@ import org.smartdox.metadata.Notices.Notice
 import org.smartdox.doxsite.Node
 import org.smartdox.doxsite.Page
 import org.smartdox.structure.StructureObject
+import org.smartdox.semanticweb.Site._
 
 /*
  * @since   Feb. 23, 2025
@@ -23,7 +24,7 @@ import org.smartdox.structure.StructureObject
  *  version Aug. 31, 2025
  *  version Sep. 22, 2025
  *  version Oct. 28, 2025
- * @version Nov. 14, 2025
+ * @version Nov. 27, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -302,6 +303,9 @@ object Glossary {
             }
           }
         }
+
+      def toSiteResource: SiteResource =
+        SiteResource.Glossary.create(page, metadata)
     }
 
     sealed trait TokenKind

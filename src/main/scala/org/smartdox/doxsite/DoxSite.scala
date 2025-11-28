@@ -1130,14 +1130,25 @@ object DoxSite {
   }
 
   private def _build_site_model(p: MetaData): MetaData = {
-    val articles = p.notices.notices.filter { _.effectiveKind match {
+    val articles = _article_site_resources(p)
+    val glossaries = _glossary_site_resources(p)
+    val resourcs = articles ++ glossaries
+    val site = SiteModel.create(p, resourcs)
+    p.copy(site = site)
+  }
+
+  private def _article_site_resources(p: MetaData) =
+    p.notices.notices.filter { _.effectiveKind match {
       case DocumentMetaData.Kind.Article => true
       case DocumentMetaData.Kind.Blog => true
       case _ => false
     }}.map(_.toSiteResource)
-    // p.glossary
-    val site = SiteModel.create(p, articles)
-    p.copy(site = site)
+
+  private def _glossary_site_resources(p: MetaData) = {
+    p.glossary.definitions.flatMap {
+      case m: Glossary.Definition.InDocument => None
+      case m: Glossary.Definition.InGlossary => Some(m.toSiteResource)
+    }
   }
 
   private def _enable_link(

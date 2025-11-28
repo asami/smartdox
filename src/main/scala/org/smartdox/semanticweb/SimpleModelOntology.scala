@@ -17,7 +17,7 @@ import org.smartdox.semanticweb.Rdf.Node
  * Prefix: sm
  *
  * @since   Nov. 13, 2025
- * @version Nov. 27, 2025
+ * @version Nov. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 object SimpleModelOntology extends OntologyModel {
@@ -38,6 +38,18 @@ object SimpleModelOntology extends OntologyModel {
   val Component   = uri("Component")
   val Subsystem   = uri("Subsystem")
   val StateMachine= uri("StateMachine")
+  val GlossaryEntry = uri("GlossaryEntry")
+
+  private def classTriples(u: String, label: String, comment: String) = Seq(
+    Triple(Node.Uri(u), Node.Uri(Vocabulary.Rdfs.label), Node.Literal(label)),
+    Triple(Node.Uri(u), Node.Uri(Vocabulary.Rdfs.comment), Node.Literal(comment)),
+    Triple(Node.Uri(u), Node.Uri(Vocabulary.Rdf.`type`), Node.Uri(Vocabulary.Owl.Class))
+  )
+
+  private def propertyTriples(u: String, label: String) = Seq(
+    Triple(Node.Uri(u), Node.Uri(Vocabulary.Rdfs.label), Node.Literal(label)),
+    Triple(Node.Uri(u), Node.Uri(Vocabulary.Rdf.`type`), Node.Uri(Vocabulary.Owl.ObjectProperty))
+  )
 
   // ------------------------------------------------------------------
   // Literal Properties (basic metadata)
@@ -69,7 +81,8 @@ object SimpleModelOntology extends OntologyModel {
   val input        = uri("input")             // service → input value(s)
   val output       = uri("output")            // service → output value(s)
   val triggeredBy  = uri("triggeredBy")       // event → cause
-
+  val glossaryFor  = uri("glossaryFor")
+  val documentedBy = uri("documentedBy")
   // ------------------------------------------------------------------
   // Integration
   // ------------------------------------------------------------------
@@ -97,6 +110,7 @@ object SimpleModelOntology extends OntologyModel {
     "Component" -> Component,
     "Subsystem" -> Subsystem,
     "StateMachine" -> StateMachine,
+    "GlossaryEntry" -> GlossaryEntry,
     // Literals
     "name" -> name,
     "title" -> title,
@@ -119,10 +133,12 @@ object SimpleModelOntology extends OntologyModel {
     "input" -> input,
     "output" -> output,
     "triggeredBy" -> triggeredBy,
+    "glossaryFor" -> glossaryFor,
+    "documentedBy" -> documentedBy,
     // Integration
     "belongsToModel" -> belongsToModel,
     "partOfComponent" -> partOfComponent,
-    "partOfSubsystem" -> partOfSubsystem,
+    "partOfSubsystem" -> partOfSubsystem
   )
 
   object node {
@@ -137,7 +153,42 @@ object SimpleModelOntology extends OntologyModel {
     val Attribute    = Node.Uri(SimpleModelOntology.Attribute)
     val Relation     = Node.Uri(SimpleModelOntology.Relation)
     val tag          = Node.Uri(SimpleModelOntology.tag)
+    val GlossaryEntry = Node.Uri(SimpleModelOntology.GlossaryEntry)
+    val glossaryFor   = Node.Uri(SimpleModelOntology.glossaryFor)
+    val documentedBy  = Node.Uri(SimpleModelOntology.documentedBy)
   }
 
-  override def toTriples: Seq[Triple] = Seq.empty
+  override def toTriples: Seq[Triple] =
+    classTriples(Model, "Model", "Root model element.") ++
+    classTriples(Entity, "Entity", "A domain entity.") ++
+    classTriples(Value, "Value", "A domain value object.") ++
+    classTriples(Rule, "Rule", "A rule.") ++
+    classTriples(Service, "Service", "A domain service.") ++
+    classTriples(Event, "Event", "A domain event.") ++
+    classTriples(Attribute, "Attribute", "An attribute.") ++
+    classTriples(Relation, "Relation", "A relation.") ++
+    classTriples(Component, "Component", "A component.") ++
+    classTriples(Subsystem, "Subsystem", "A subsystem.") ++
+    classTriples(StateMachine, "StateMachine", "A state machine.") ++
+    classTriples(GlossaryEntry, "GlossaryEntry", "Glossary entry for domain terms.") ++
+    propertyTriples(hasAttribute, "hasAttribute") ++
+    propertyTriples(hasRelation, "hasRelation") ++
+    propertyTriples(hasRule, "hasRule") ++
+    propertyTriples(hasService, "hasService") ++
+    propertyTriples(hasEvent, "hasEvent") ++
+    propertyTriples(hasComponent, "hasComponent") ++
+    propertyTriples(hasSubsystem, "hasSubsystem") ++
+    propertyTriples(hasStateMachine, "hasStateMachine") ++
+    propertyTriples(relation, "relation") ++
+    propertyTriples(attribute, "attribute") ++
+    propertyTriples(targetEntity, "targetEntity") ++
+    propertyTriples(input, "input") ++
+    propertyTriples(output, "output") ++
+    propertyTriples(triggeredBy, "triggeredBy") ++
+    propertyTriples(glossaryFor, "glossaryFor") ++
+    propertyTriples(documentedBy, "documentedBy") ++
+    propertyTriples(belongsToModel, "belongsToModel") ++
+    propertyTriples(partOfComponent, "partOfComponent") ++
+    propertyTriples(partOfSubsystem, "partOfSubsystem") ++
+    propertyTriples(tag, "tag")
 }

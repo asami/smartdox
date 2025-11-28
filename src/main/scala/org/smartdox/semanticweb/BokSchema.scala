@@ -15,113 +15,62 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  * into a unified semantic graph.
  *
  * @since   Nov. 12, 2025
- * @version Nov. 27, 2025
+ * @version Nov. 28, 2025
  * @author  ASAMI, Tomoharu
  */
 object BokSchema extends SchemaModel {
-  //
-  // Schema-level namespace (separate from BokOntology)
-  //
-  override val prefix: String = Vocabulary.BokSchema.prefix
-  override val namespace: String = Vocabulary.BokSchema.namespace
 
-  //
-  // JSON-LD context for schema export
-  //
-  override lazy val jsonldContext: Map[String, Any] = Map(
-    // Core vocabularies
-    "rdf"     -> Vocabulary.Rdf.namespace,
-    "rdfs"    -> Vocabulary.Rdfs.namespace,
-    "dcterms" -> Vocabulary.Dcterms.namespace,
-    "sm"      -> SimpleModelOntology.namespace,
-    // Schema namespace
-    prefix    -> namespace,
-    // Logical schema terms (Concept, KnowledgeUnit, Relation)
-    "Concept"        -> uri("Concept"),
-    "KnowledgeUnit"  -> uri("KnowledgeUnit"),
-    "Relation"       -> uri("Relation")
-  )
+  override val prefix: String = Vocabulary.Bok.prefix
+  override val namespace: String = Vocabulary.Bok.namespace
 
-  /** Represents a conceptual element (domain concept, entity, or value). */
-  case class Concept(
-    id: String,
-    label: String,
-    kind: String,
-    description: Option[String] = None,
-    related: Seq[String] = Seq.empty
-  ) {
-    def toTriples: Seq[Triple] = {
-      val s = Node.Uri(id)
-      val base = Seq(
-        Triple(s, RdfType, SimpleModelOntology.node.Entity),
-        Triple(s, Rdfs.node.label, Node.Literal(label)),
-        Triple(s, Dcterms.node.type_, Node.Literal(kind))
-      )
-      val desc = description.map(v => Triple(s, Rdfs.node.comment, Node.Literal(v)))
-      val rels = related.map(r => Triple(s, Dcterms.node.relation, Node.Uri(r)))
-      base ++ desc ++ rels
-    }
+  override lazy val jsonldContext: Map[String, Any] = BokOntology.jsonldContext
+
+  val BoKRoot = Node.Uri("https://www.simplemodeling.org/bok")
+  val DocumentModelRoot = Node.Uri("https://www.simplemodeling.org/bok/document-model")
+  val SimpleModelRoot = Node.Uri("https://www.simplemodeling.org/bok/simple-model")
+  val ComponentRepositoryRoot = Node.Uri("https://www.simplemodeling.org/bok/component-repository")
+
+  def build(site: Seq[Site.SiteResource], simpleModelGraph: Graph, componentRepositoryGraph: Graph): Graph = {
+
+    val docModel = DocumentModelSchema.fromSiteResources(site)
+    val docGraph = docModel.toGraph
+
+    // Extract documentedBy links from SimpleModel graph
+    val documentedByLinks: Seq[Triple] =
+      simpleModelGraph.triples.filter(t => t.predicate == Node.Uri(SimpleModelOntology.documentedBy))
+
+    val docModelRootTriples = Seq(
+      Triple(DocumentModelRoot, RdfType, Node.Uri(DocumentModelOntology.uri("DocumentModelRoot"))),
+      Triple(DocumentModelRoot, Rdfs.node.label, Node.Literal("Document Model"))
+    )
+
+    val simpleModelRootTriples = Seq(
+      Triple(SimpleModelRoot, RdfType, Node.Uri(SimpleModelOntology.uri("SimpleModel"))),
+      Triple(SimpleModelRoot, Rdfs.node.label, Node.Literal("Simple Model"))
+    )
+
+    val componentRepositoryRootTriples = Seq(
+      Triple(ComponentRepositoryRoot, RdfType, Node.Uri(BokOntology.ComponentRepository)),
+      Triple(ComponentRepositoryRoot, Rdfs.node.label, Node.Literal("Component Repository"))
+    )
+
+    val bokRootTriples = Seq(
+      Triple(BoKRoot, RdfType, Node.Uri(BokOntology.BoK)),
+      Triple(BoKRoot, Rdfs.node.label, Node.Literal("SimpleModeling Body of Knowledge")),
+      Triple(BoKRoot, Node.Uri(BokOntology.includesDocumentModel), DocumentModelRoot),
+      Triple(BoKRoot, Node.Uri(BokOntology.includesSimpleModel), SimpleModelRoot)
+      , Triple(BoKRoot, Node.Uri(BokOntology.includesComponentRepository), ComponentRepositoryRoot)
+    )
+
+    Graph(
+      bokRootTriples ++
+      docModelRootTriples ++
+      simpleModelRootTriples ++
+      componentRepositoryRootTriples ++
+      docGraph.triples ++
+      simpleModelGraph.triples ++
+      componentRepositoryGraph.triples ++
+      documentedByLinks
+    )
   }
-
-  /** Represents a knowledge unit (SmartDox document, model, or resource). */
-  case class KnowledgeUnit(
-    id: String,
-    title: String,
-    category: Option[String] = None,
-    language: Option[String] = None,
-    tags: Seq[String] = Seq.empty,
-    modelRefs: Seq[String] = Seq.empty,
-    relatedConcepts: Seq[String] = Seq.empty
-  ) {
-    def toTriples: Seq[Triple] = {
-      val s = Node.Uri(id)
-      val base = Seq(
-        Triple(s, RdfType, Dcterms.node.BibliographicResource),
-        Triple(s, Dcterms.node.title, Node.Literal(title))
-      )
-      val opt = Seq(
-        category.map(v => Triple(s, Dcterms.node.subject, Node.Literal(v))),
-        language.map(v => Triple(s, Dcterms.node.language, Node.Literal(v)))
-      ).flatten
-      val tagsTriples = tags.map(t => Triple(s, SimpleModelOntology.node.tag, Node.Literal(t)))
-      val models = modelRefs.map(m => Triple(s, Dcterms.node.relation, Node.Uri(m)))
-      val conceptLinks = relatedConcepts.map(c => Triple(s, Dcterms.node.subject, Node.Uri(c)))
-      base ++ opt ++ tagsTriples ++ models ++ conceptLinks
-    }
-  }
-
-  /** Represents a relation between knowledge entities (Bok-specific edges). */
-  case class Relation(
-    subject: String,
-    predicate: String,
-    obj: String
-  ) {
-    def toTriple: Triple =
-      Triple(Node.Uri(subject), Node.Uri(predicate), Node.Uri(obj))
-  }
-
-  /** Represents the full Body of Knowledge model as an RDF Graph. */
-  case class BokModel(
-    concepts: Seq[Concept] = Seq.empty,
-    knowledgeUnits: Seq[KnowledgeUnit] = Seq.empty,
-    relations: Seq[Relation] = Seq.empty
-  ) {
-    def toGraph: Graph = {
-      val triples =
-        concepts.flatMap(_.toTriples) ++
-        knowledgeUnits.flatMap(_.toTriples) ++
-        relations.map(_.toTriple)
-      Graph(triples)
-    }
-  }
-
-  //
-  // Static schema export (for DoxSite)
-  //
-  // For now, we export an empty BokModel with schema context.
-  // Later you can change this to include schema-level instances
-  // (e.g. predefined Concept/KnowledgeUnit templates).
-  //
-
-  private def emptyModel: BokModel = BokModel()
 }
