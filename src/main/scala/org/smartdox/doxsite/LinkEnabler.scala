@@ -26,12 +26,12 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov. 22, 2025
+ * @version Nov. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
   val context: DoxSiteTransformer.Context,
-  val links: LinkCollection,
+  val linkcollection: LinkCollection,
   val site: Tree[Node]
 ) extends DoxSiteTransformer {
   import LinkEnabler._
@@ -66,7 +66,7 @@ object LinkEnabler {
   ) extends DoxInSiteTransformer {
     import LinkEmbedder._
 
-    private def _link_collection = enabler.links
+    private def _link_collection = enabler.linkcollection
 
 //    private val _link_mark = "▸" // 軽量で自然: [▸ Glossary]
 //    private val _link_mark = "⮕" // 見出し: [⮕ Error Concept]
@@ -209,6 +209,7 @@ object LinkEnabler {
     private def _glossary_links: Vector[Dox] = {
       val xs: Vector[(Dt, Dd)] = _definitions.distinct.map { x =>
         val l = TextLinkProcessor.makeGlossaryLinkExpand(_create_href, x)
+//        _link_collection.addGlossary(pageNode.pathname, l)
         val summary = x.term.effectiveBrief getOrElse I18NString("Undefined")
         (Dt.make(l), Dd.create(summary))
       }

@@ -30,6 +30,21 @@ object ComponentRepositorySchema extends SchemaModel {
     RdfRenderer.JsonLDProfile.BoK
 
   // ---------------------------------------------------------
+  // OWL Typing
+  // ---------------------------------------------------------
+  override def toTriples: Seq[Triple] = Seq(
+    Triple(Node.Uri(ComponentRepositoryOntology.Component), RdfType, Node.Uri(Vocabulary.Owl.Class)),
+    Triple(Node.Uri(ComponentRepositoryOntology.ComponentVersion), RdfType, Node.Uri(Vocabulary.Owl.Class)),
+    Triple(Node.Uri(ComponentRepositoryOntology.Artifact), RdfType, Node.Uri(Vocabulary.Owl.Class)),
+    Triple(Node.Uri(ComponentRepositoryOntology.Capability), RdfType, Node.Uri(Vocabulary.Owl.Class)),
+    Triple(Node.Uri(ComponentRepositoryOntology.hasVersion), RdfType, Node.Uri(Vocabulary.Owl.ObjectProperty)),
+    Triple(Node.Uri(ComponentRepositoryOntology.hasArtifact), RdfType, Node.Uri(Vocabulary.Owl.ObjectProperty)),
+    Triple(Node.Uri(ComponentRepositoryOntology.provides), RdfType, Node.Uri(Vocabulary.Owl.ObjectProperty)),
+    Triple(Node.Uri(ComponentRepositoryOntology.requires), RdfType, Node.Uri(Vocabulary.Owl.ObjectProperty)),
+    Triple(Node.Uri(ComponentRepositoryOntology.dependsOn), RdfType, Node.Uri(Vocabulary.Owl.ObjectProperty))
+  )
+
+  // ---------------------------------------------------------
   // Builders
   // ---------------------------------------------------------
   def componentNode(id: String)        = Node.Uri(id)

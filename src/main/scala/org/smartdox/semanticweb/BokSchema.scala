@@ -39,6 +39,13 @@ object BokSchema extends SchemaModel {
     val documentedByLinks: Seq[Triple] =
       simpleModelGraph.triples.filter(t => t.predicate == Node.Uri(SimpleModelOntology.documentedBy))
 
+    // Generate reverse links: Article → bok:documents → SimpleModelElement
+    val reverseDocumentedByLinks: Seq[Triple] =
+      documentedByLinks.collect {
+        case Triple(subj, _, obj) =>
+          Triple(obj, Node.Uri(BokOntology.documents), subj)
+      }
+
     val docModelRootTriples = Seq(
       Triple(DocumentModelRoot, RdfType, Node.Uri(DocumentModelOntology.uri("DocumentModelRoot"))),
       Triple(DocumentModelRoot, Rdfs.node.label, Node.Literal("Document Model"))
@@ -70,7 +77,8 @@ object BokSchema extends SchemaModel {
       docGraph.triples ++
       simpleModelGraph.triples ++
       componentRepositoryGraph.triples ++
-      documentedByLinks
+      documentedByLinks ++
+      reverseDocumentedByLinks
     )
   }
 }

@@ -70,7 +70,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov. 27, 2025
+ * @version Nov. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1158,7 +1158,9 @@ object DoxSite {
     if (ctx.config.isLinkEnable) {
       val doxsitec = ctx.doxSiteConfig
       val c = new LinkCollector(doxsitec)(p)
-      (p.transform(new LinkEnabler(ctx, c, p)), Some(c))
+      val r = p.transform(new LinkEnabler(ctx, c, p))
+      val cr = new LinkCollector(doxsitec)(r)
+      (r, Some(cr))
     } else {
       (p, None)
     }

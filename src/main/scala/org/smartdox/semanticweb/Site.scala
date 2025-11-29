@@ -10,6 +10,7 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Glossary
+import org.smartdox.doxsite.LinkCollection.DoxLinks
 
 /**
  * Site (SimpleModeling.org)
@@ -27,10 +28,11 @@ import org.smartdox.metadata.Glossary
  *   - site.ttl
  *
  * @since   Nov. 20, 2025
- * @version Nov. 28, 2025
+ * @version Nov. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 object Site {
+  val rule = new KnowledgeRule()
 
   // ------------------------------------------------------------
   // Namespace
@@ -329,40 +331,46 @@ object Site {
       // ------------------------------------------------------------
       // schema:relatedLink (cross-article weak relatedness)
       // ------------------------------------------------------------
-      val relatedTriples: Seq[Triple] = {
+      // val relatedTriples: Seq[Triple] = {
+      //   val lcOpt = metadata.linkCollection
+
+      //   lcOpt.toSeq.flatMap { lc =>
+      //     // Loop over all canonical SiteResources
+      //     resources.flatMap { sourceR =>
+      //       val pathname = _smorg_iri_to_dox_path(sourceR.id)
+      //       val sourceNode = Node.Uri(sourceR.id)
+
+      //       // Get DoxLinks for this pathname
+      //       lc.get(pathname).toSeq.flatMap { doxLinks =>
+      //         doxLinks.internalLinks.links.flatMap { link =>
+      //           val targetid = _to_canonical_smorg_iri(link.pathname, link.href)
+      //           // Lookup target by pathnameValue
+      //           val targetOpt = resources.find(_.id == targetid)
+
+      //           targetOpt.map { targetR =>
+      //             Triple(
+      //               sourceNode,
+      //               Node.Uri(schemaUri("relatedLink")),
+      //               Node.Uri(targetR.id)
+      //             )
+      //           }
+      //         }
+      //       }
+      //     }
+      //   }
+      // }
+
+      // Mentions extraction: schema:mentions and schema:mentionedIn
+      val mentionsTriples: Seq[Triple] = {
         val lcOpt = metadata.linkCollection
 
         lcOpt.toSeq.flatMap { lc =>
-          // Loop over all canonical SiteResources
           resources.flatMap { sourceR =>
-            val pathname = _smorg_iri_to_dox_path(sourceR.id)
             val sourceNode = Node.Uri(sourceR.id)
-
-            // Get DoxLinks for this pathname
-            lc.get(pathname).toSeq.flatMap { doxLinks =>
-              doxLinks.internalLinks.links.flatMap { link =>
-                val targetid = _to_canonical_smorg_iri(link.pathname, link.href)
-                // Lookup target by pathnameValue
-                val targetOpt = resources.find(_.id == targetid)
-
-                targetOpt.map { targetR =>
-                  Triple(
-                    sourceNode,
-                    Node.Uri(schemaUri("relatedLink")),
-                    Node.Uri(targetR.id)
-                  )
-                }
-              }
-            }
+            val pathname = _smorg_iri_to_dox_path(sourceR.id)
+            lc.get(pathname).toSeq.flatMap(_to_triples(sourceNode))
           }
         }
-      }
-
-      // Placeholder: schema:about triples derived from glossary (actual extraction done elsewhere)
-      val aboutTriples: Seq[Triple] = resources.flatMap { r =>
-        // NOTE: actual matching of glossary terms to article content will be implemented externally.
-        // Here we only prepare an empty or stub triple list.
-        Seq.empty[Triple]
       }
 
       val resourceTriples: Seq[Triple] =
@@ -386,11 +394,25 @@ object Site {
         vocabTriples ++
         Seq(includesBokTriple) ++
         localePageTriples ++
-        relatedTriples ++
-        aboutTriples ++
+//        relatedTriples ++
+        mentionsTriples ++
         resourceTriples ++
         bokTriples
       )
+    }
+
+    private def _to_triples(sourceNode: Node)(p: DoxLinks) = {
+      val internaltriples = p.internalLinks.links.flatMap { link =>
+        val targetId = rule.resourceIri(sourceNode, link)
+        resources.find(_.id == targetId).toSeq.flatMap(_ => rule.articleToArticle(sourceNode, targetId))
+      }
+
+      val glossarytriples = p.glossaryLinks.links.flatMap { link =>
+        val targetId = rule.resourceIri(sourceNode, link)
+        resources.find(_.id == targetId).toSeq.flatMap(_ => rule.articleToGlossaryUse(sourceNode, targetId))
+      }
+
+      internaltriples ++ glossarytriples
     }
 
     def toJsonLD: String = Site.toJsonLD(this)
@@ -403,35 +425,35 @@ object Site {
       "/" + noScheme + ".dox"
     }
 
-    private def _to_canonical_smorg_iri(
-      basepath: Option[PathName],
-      targetpath: URI
-    ): String = basepath match {
-      case Some(s) => _to_canonical_smorg_iri(s.toString, targetpath.toString)
-      case None => _to_canonical_smorg_iri(_normalize_relative_dox_path(targetpath.toString), targetpath.toString)
-    }
+    // private def _to_canonical_smorg_iri(
+    //   basepath: Option[PathName],
+    //   targetpath: URI
+    // ): String = basepath match {
+    //   case Some(s) => _to_canonical_smorg_iri(s.toString, targetpath.toString)
+    //   case None => _to_canonical_smorg_iri(_normalize_relative_dox_path(targetpath.toString), targetpath.toString)
+    // }
 
-    private def _to_canonical_smorg_iri(
-      basePath: String,         // absolute path of the current .dox file
-      targetPath: String,       // link path such as "../foo/bar.dox"
-      iriPrefix: String = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT#"
-    ): String = {
-      import java.nio.file.{Paths, Path}
+    // private def _to_canonical_smorg_iri(
+    //   basePath: String,         // absolute path of the current .dox file
+    //   targetPath: String,       // link path such as "../foo/bar.dox"
+    //   iriPrefix: String = "https://www.simplemodeling.org/simplemodelingorg/ontology/0.1-SNAPSHOT#"
+    // ): String = {
+    //   import java.nio.file.{Paths, Path}
 
-      // Get the directory of the base .dox file
-      val baseDir: Path = Paths.get(basePath).getParent
+    //   // Get the directory of the base .dox file
+    //   val baseDir: Path = Paths.get(basePath).getParent
 
-      // Resolve the relative target path against the base directory
-      // Normalize to remove "../" and "./"
-      val resolved: Path = baseDir.resolve(targetPath).normalize()
+    //   // Resolve the relative target path against the base directory
+    //   // Normalize to remove "../" and "./"
+    //   val resolved: Path = baseDir.resolve(targetPath).normalize()
 
-      // Convert to fragment — strip leading slash and remove ".dox" suffix
-      val fragment =
-        resolved.toString.stripPrefix("/").stripSuffix(".dox")
+    //   // Convert to fragment — strip leading slash and remove ".dox" suffix
+    //   val fragment =
+    //     resolved.toString.stripPrefix("/").stripSuffix(".dox")
 
-      // Build canonical IRI
-      iriPrefix + fragment
-    }
+    //   // Build canonical IRI
+    //   iriPrefix + fragment
+    // }
 
     private def _normalize_relative_dox_path(path: String): String = {
       import java.nio.file.{Paths, Path}

@@ -18,6 +18,7 @@ object BokOntology extends OntologyModel {
   val includesDocumentModel = uri("includesDocumentModel")
   val includesSimpleModel = uri("includesSimpleModel")
   val includesComponentRepository = uri("includesComponentRepository")
+  val documents = uri("documents")
 
   /** JSON-LD context */
   override lazy val jsonldContext = Map(
@@ -29,6 +30,7 @@ object BokOntology extends OntologyModel {
     "includesDocumentModel" -> includesDocumentModel,
     "includesSimpleModel" -> includesSimpleModel,
     "includesComponentRepository" -> includesComponentRepository,
+    "documents" -> documents,
   )
 
   //
@@ -55,6 +57,8 @@ object BokOntology extends OntologyModel {
     Rdf.Triple(Rdf.Node.Uri(includesSimpleModel), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("includesSimpleModel")),
     Rdf.Triple(Rdf.Node.Uri(includesSimpleModel), Rdf.Node.Uri(Vocabulary.Rdf.`type`), Rdf.Node.Uri(Vocabulary.Owl.ObjectProperty)),
     Rdf.Triple(Rdf.Node.Uri(includesComponentRepository), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("includesComponentRepository")),
-    Rdf.Triple(Rdf.Node.Uri(includesComponentRepository), Rdf.Node.Uri(Vocabulary.Rdf.`type`), Rdf.Node.Uri(Vocabulary.Owl.ObjectProperty))
+    Rdf.Triple(Rdf.Node.Uri(includesComponentRepository), Rdf.Node.Uri(Vocabulary.Rdf.`type`), Rdf.Node.Uri(Vocabulary.Owl.ObjectProperty)),
+    Rdf.Triple(Rdf.Node.Uri(documents), Rdf.Node.Uri(Vocabulary.Rdfs.label), Rdf.Node.Literal("documents")),
+    Rdf.Triple(Rdf.Node.Uri(documents), Rdf.Node.Uri(Vocabulary.Rdf.`type`), Rdf.Node.Uri(Vocabulary.Owl.ObjectProperty))
   )
 }

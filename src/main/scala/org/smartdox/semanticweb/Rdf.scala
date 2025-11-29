@@ -5,14 +5,16 @@ import org.goldenport.context.Consequence
 
 /*
  * @since   Nov. 12, 2025
- * @version Nov. 12, 2025
+ * @version Nov. 29, 2025
  * @author  ASAMI, Tomoharu
  */
 case class Rdf(
 )
 
 object Rdf {
-  sealed trait Node
+  sealed trait Node {
+    def value: String
+  }
   object Node {
     case class Uri(value: String) extends Node
     case class Literal(

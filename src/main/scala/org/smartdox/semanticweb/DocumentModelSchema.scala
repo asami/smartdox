@@ -72,6 +72,16 @@ object DocumentModelSchema extends SchemaModel {
         )
       }
 
+      val mentionTriples = relations.collect {
+        case RelationInstance(subj, pred, obj) if pred == DocumentModelOntology.mentions =>
+          Triple(Node.Uri(subj), Node.Uri(DocumentModelOntology.mentions), Node.Uri(obj))
+      }
+
+      val mentionedInTriples = relations.collect {
+        case RelationInstance(subj, pred, obj) if pred == DocumentModelOntology.mentionedIn =>
+          Triple(Node.Uri(subj), Node.Uri(DocumentModelOntology.mentionedIn), Node.Uri(obj))
+      }
+
       // Placeholder: glossaryFor relations (DocumentModel ⇒ SimpleModel)
       val glossaryForTriples: Seq[Triple] = Seq.empty
 
@@ -83,7 +93,15 @@ object DocumentModelSchema extends SchemaModel {
         )
       }
 
-      Graph(conceptTriples ++ kuTriples ++ relationTriples ++ categoryTriples ++ glossaryForTriples)
+      Graph(
+        conceptTriples ++
+        kuTriples ++
+        relationTriples ++
+        mentionTriples ++
+        mentionedInTriples ++
+        categoryTriples ++
+        glossaryForTriples
+      )
     }
   }
 

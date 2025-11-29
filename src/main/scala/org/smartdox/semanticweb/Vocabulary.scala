@@ -166,6 +166,28 @@ object Vocabulary {
       val subject     = Uri(Vocabulary.Dcterms.subject)
       val title       = Uri(Vocabulary.Dcterms.title)
       val type_       = Uri(Vocabulary.Dcterms.type_)
+      val references  = Uri(Vocabulary.Dcterms.uri("references"))
+    }
+  }
+
+  /** SKOS Vocabulary: Simple Knowledge Organization System */
+  object Skos {
+    val prefix    = "skos"
+    val namespace = "http://www.w3.org/2004/02/skos/core#"
+    def uri(local: String): String = namespace + local
+
+    val definition = uri("definition")
+    val example    = uri("example")
+    val broader    = uri("broader")
+    val narrower   = uri("narrower")
+    val related    = uri("related")
+
+    object node {
+      val definition = Uri(Vocabulary.Skos.definition)
+      val example    = Uri(Vocabulary.Skos.example)
+      val broader    = Uri(Vocabulary.Skos.broader)
+      val narrower   = Uri(Vocabulary.Skos.narrower)
+      val related    = Uri(Vocabulary.Skos.related)
     }
   }
 
@@ -174,6 +196,13 @@ object Vocabulary {
     val namespace = "https://schema.org/"
 
     def uri(local: String): String = namespace + local
+
+    object node {
+      val about    = Uri(Vocabulary.Schema.uri("about"))
+      val mentions = Uri(Vocabulary.Schema.uri("mentions"))
+      val citation = Uri(Vocabulary.Schema.uri("citation"))
+      val relatedLink = Uri(Vocabulary.Schema.uri("relatedLink"))
+    }
   }
   object Smorg {
     val prefix    = "smorg"
