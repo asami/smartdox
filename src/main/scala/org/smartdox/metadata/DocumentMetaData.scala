@@ -51,7 +51,7 @@ import org.smartdox.structure.I18NFragmentProperty
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
- * @version Nov. 22, 2025
+ * @version Nov. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -68,6 +68,7 @@ case class DocumentMetaData(
   kindOption: Option[DocumentMetaData.Kind] = None,
   statusOption: Option[DocumentMetaData.Status] = None,
   strategy: Set[DocumentMetaData.Strategy] = Set.empty,
+  directive: DocumentMetaData.Directive = DocumentMetaData.Directive.empty,
   properties: Option[Hocon] = None
 ) extends Explanation.Holder {
   import DocumentMetaData._
@@ -88,6 +89,10 @@ case class DocumentMetaData(
   }
 
   def isStable: Boolean = strategy.contains(Strategy.Stable)
+
+  def isAutoWire: Option[Boolean] = directive.autoWire
+
+  def isAutoWireDt: Option[Boolean] = isAutoWire // TODO
 
   def getTitleStringDefault: Option[String] = title.map(_.distillStringDefault)
 
@@ -213,7 +218,8 @@ case class DocumentMetaData(
       modifiedAtHistory + rhs.modifiedAtHistory,
       lastOption(kindOption, rhs.kindOption),
       lastOption(statusOption, rhs.statusOption),
-      strategy ++ rhs.strategy
+      strategy ++ rhs.strategy,
+      directive + rhs.directive
     )
 
   def distillLocale(p: Option[Locale]): DocumentMetaData =
@@ -397,6 +403,25 @@ object DocumentMetaData {
     }
   }
 
+  case class Directive(
+    autoWire: Option[Boolean] = None
+  ) {
+    def +(rhs: Directive) =
+      copy(
+        autoWire = OptionUtils.lastOption(autoWire, rhs.autoWire)
+      )
+  }
+  object Directive {
+    val PROP_AUTOWIRE = "directive.autowire"
+
+    val empty = Directive()
+
+    def createC(hocon: Hocon): Consequence[Directive] =
+      for {
+        autowire <- hocon.cBooleanOption(PROP_AUTOWIRE)
+      } yield Directive(autowire)
+  }
+
   case class UpdateHistory(
     slots: SortedSet[UpdateHistory.Slot] = UpdateHistory.emptySlots
   ) {
@@ -500,6 +525,7 @@ object DocumentMetaData {
       modified <- _take_update_history(hocon, PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
+      directive <- Directive.createC(hocon)
       strategy <- hocon.cValueList(Strategy, PROP_STRATEGY)
     } yield {
       val inlinetitle = title.map(x => I18NFragment.create(List(Text(x))))
@@ -516,6 +542,7 @@ object DocumentMetaData {
         kind,
         status,
         strategy.toSet,
+        directive,
         Some(hocon)
       )
     }

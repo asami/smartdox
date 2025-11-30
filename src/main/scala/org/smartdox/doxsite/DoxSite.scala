@@ -249,20 +249,26 @@ class DoxSite(
     CategoryOntology,
     SimpleModelingOntology,
     SimpleModelOntology,
+    DocumentModelOntology,
     GlossaryOntology,
     BibliographyOntology,
-    SmartDoxOntology
+    SmartDoxOntology,
+    ProjectOntology,
+    ComponentRepositoryOntology
   )
 
   private val _schema_models: Vector[SchemaModel] = Vector(
     SimpleModelingOrgSchema,
     BokSchema,
     CategorySchema,
-    // SimpleModelingSchema,
+//    SimpleModelingSchema,
     SimpleModelSchema,
+    DocumentModelSchema,
     GlossarySchema,
-    BibliographySchema //,
-//    SmartDoxSchema
+    BibliographySchema,
+//    SmartDoxSchema,
+    ProjectSchema,
+    ComponentRepositorySchema
   )
 
   private val _public_ontology_models: Vector[OntologyModel] = Vector(

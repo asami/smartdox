@@ -19,7 +19,8 @@ import org.smartdox.generator.Context
  *  version Apr. 30, 2025
  *  version Jun. 24, 2025
  *  version Jul. 26, 2025
- * @version Aug. 17, 2025
+ *  version Aug. 17, 2025
+ * @version Nov. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait Node {
@@ -56,6 +57,8 @@ case class Page(
   //   case _ => None
   // }
   def getHead: Option[Head] = Some(dox.head)
+
+  def isAutoWire: Option[Boolean] = getMetadata.flatMap(_.isAutoWire)
 
   def withDox(p: Dox) = copy(dox = Dox.toDocument(p))
   def withlastModified(p: Option[Instant]) = copy(lastModified = p)

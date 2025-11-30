@@ -21,7 +21,7 @@ import org.smartdox.converter._
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
- * @version Nov. 17, 2025
+ * @version Nov. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -58,6 +58,12 @@ class Dox2AsciidocConverter(
     new File("kroki-cache.d"),
     false
   )
+
+  override protected def normalize_Text_Dt(p: String) =
+    if (is_autowire_dt)
+      p
+    else
+      s"++$p++"
 
   override protected def is_space_required_in_stay(p: Dox): Boolean = p match {
     case _: Code => true
@@ -113,7 +119,13 @@ class Dox2AsciidocConverter(
     section_down()
   }
 
-  private def _make_title_attachment(head: Head): Seq[String] =
+  private def _make_title_attachment(head: Head): Vector[String] = {
+    val a = _make_title_attachment_locale(head)
+    val b = _make_title_attachment_directive(head)
+    a ++ b
+  }
+
+  private def _make_title_attachment_locale(head: Head): Vector[String] = {
     if (_is_ja) {
       val author = head.getAuthorString(LocaleUtils.ja) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.ja))
       val created = head.getPublisedAtString(LocaleUtils.ja)
@@ -141,6 +153,15 @@ class Dox2AsciidocConverter(
         updated.map(x => s":updated: $x")
       ).flatten
     }
+  }
+
+  private def _make_title_attachment_directive(head: Head): Vector[String] =
+    Vector(
+      head.metadata.isAutoWire.map { // currently not supported
+        case true => s":autolink: on"
+        case false => s":autolink: off"
+      }
+    ).flatten
 
   private def _make_title_attachment0(head: Head): Seq[String] = {
     Vector(_json_ld(head))

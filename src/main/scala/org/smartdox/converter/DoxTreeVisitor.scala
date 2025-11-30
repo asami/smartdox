@@ -14,7 +14,7 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
  *  version Oct. 26, 2025
- * @version Nov. 18, 2025
+ * @version Nov. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -37,6 +37,18 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected final def get_locale: Option[Locale] = Dox.getLocaleInContext(current_node)
 
   protected final def get_metadata: Option[DocumentMetaData] = _metadata
+
+  protected final def get_directive: Option[DocumentMetaData.Directive] =
+    get_metadata.map(_.directive)
+
+  protected final def is_autowire_dt: Boolean = get_metadata.fold(true)(_.isAutoWireDt getOrElse true)
+
+  protected final def is_in_dt: Boolean = _node_stack.exists(x =>
+    x.getContent.fold(false) {
+      case _: Dt => true
+      case _ => false
+    }
+  )
 
   protected final def section_up(): Int = {
     _section = _section + 1
@@ -109,7 +121,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Ol => enter_ol(m)
       case m: Li => enter_Li(m)
       case m: Dl => enter_dl(m)
-      case m: Dt => enter_Dt(m)
+      case m: Dt => enter_dt(m)
       case m: Dd => enter_Dd(m)
       case m: Hyperlink => enter_Hyperlink(m)
       case m: Figure => enter_figure(m)
@@ -141,7 +153,6 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Error => enter_Error(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2TreeVisitor[${getClass.getSimpleName}]#start: $m")
     }
-    _node_stack = _node_stack.tail
   }
 
   protected def enter_section(node: TreeNode[Dox], p: Section): Unit = {
@@ -178,6 +189,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_dl(p: Dl): Unit = {
     list_up()
     enter_Dl(p)
+  }
+
+  protected def enter_dt(p: Dt): Unit = {
+    enter_Dt(p)
   }
 
   protected def enter_figure(p: Figure): Unit = {
@@ -260,7 +275,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
     else
       _leave_content_figure(node, content)
 
-  private def _leave_content(node: TreeNode[Dox], content: Dox): Unit =
+  private def _leave_content(node: TreeNode[Dox], content: Dox): Unit = {
     content match {
       case m: Text => leave_Text(m)
       case m: Paragraph => leave_Paragraph(m)
@@ -276,7 +291,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Ol => leave_ol(m)
       case m: Li => leave_Li(m)
       case m: Dl => leave_dl(m)
-      case m: Dt => leave_Dt(m)
+      case m: Dt => leave_dt(m)
       case m: Dd => leave_Dd(m)
       case m: Hyperlink => leave_Hyperlink(m)
       case m: Figure => leave_figure(m)
@@ -308,6 +323,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Error => leave_Error(m)
       case m => RAISE.notImplementedYetDefect(s"Dox2StringConverter#start: $m")
     }
+    _node_stack = _node_stack.tail
+  }
 
   private def _leave_content_figure(node: TreeNode[Dox], content: Dox): Unit =
     content match {
@@ -347,6 +364,10 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_dl(p: Dl): Unit = {
     leave_Dl(p)
     list_down()
+  }
+
+  protected def leave_dt(p: Dt): Unit = {
+    leave_Dt(p)
   }
 
   protected def leave_figure(p: Figure): Unit = {

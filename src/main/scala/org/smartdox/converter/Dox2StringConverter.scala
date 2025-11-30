@@ -17,22 +17,32 @@ import Dox._
  *  version Jul. 15, 2025
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Nov. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
-  private var _head: Option[Head] = None
-  protected final def dox_metadata: Option[DocumentMetaData] = _head.map(_.metadata)
+  // private var _head: Option[Head] = None
+  // protected final def dox_metadata: Option[DocumentMetaData] = _head.map(_.metadata)
 
   def convert(dox: Dox): Consequence[String] = Consequence {
-    _head = Dox.getHead(dox)
+//    _head = Dox.getHead(dox)
     val tree = Dox.toTree(dox)
     tree.traverse(this)
     sb_to_string()
   }
 
+  protected def normalize_text(p: String): String = {
+    val s1 = if (is_in_dt) normalize_Text_Dt(p) else p
+    normalize_Text(s1)
+  }
+
+  protected def normalize_Text_Dt(p: String): String = p
+
+  protected def normalize_Text(p: String): String = p
+
   override protected def enter_Text(p: Text): Unit = {
-    sb_print(to_text(p))
+    sb_print(normalize_text(to_text(p)))
   }
 
   override protected def enter_Value(p: Value.Single): Unit = 

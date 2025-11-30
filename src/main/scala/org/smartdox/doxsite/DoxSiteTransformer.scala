@@ -20,8 +20,8 @@ import org.smartdox.parser.Dox2Parser
  *  version Jul. 23, 2025
  *  version Aug. 22, 2025
  *  version Oct. 26, 2025
- * @version Nov. 19, 2025
- * @version Nov. 19, 2025
+ * @version Nov. 30, 2025
+ * @version Nov. 30, 2025
  * @author  ASAMI, Tomoharu
  */
 trait DoxSiteTransformer extends HomoTreeTransformer[Node] {
@@ -107,7 +107,7 @@ object DoxSiteTransformer {
     def isGlossary = doxsiteConfig.fold(false)(_.isGlossary)
     def isGlossaryInDocument = doxsiteConfig.fold(false)(_.isGlossaryInDocument)
     def isLinkEnable = doxsiteConfig.fold(false)(_.isLinkEnable)
-    def isAutoWire(p: Page) = doxsiteConfig.fold(false)(_.isAutoWire(p))
+    def isAutoWire(p: Page) = p.isAutoWire getOrElse doxsiteConfig.fold(false)(_.isAutoWire(p))
     def isAutoI18n(p: Page) = doxsiteConfig.fold(false)(_.isAutoI18n(p))
   }
   object Config {
