@@ -9,7 +9,8 @@ import org.smartdox.semanticweb.Rdf.Node.Uri
  * facilitating semantic web development and interoperability.
  *
  * @since   Nov. 11, 2025
- * @version Nov. 22, 2025
+ *  version Nov. 22, 2025
+ * @version Dec.  1, 2025
  * @author  ASAMI, Tomoharu
  */
 object Vocabulary {
@@ -235,62 +236,62 @@ object Vocabulary {
   }
 
   object SmartDox {
-    val prefix    = "sdx"
+    val prefix    = "smdox"
     val namespace = "https://www.simplemodeling.org/smartdox/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object DocumentModel {
-    val prefix    = "doc"
+    val prefix    = "smdoc"
     val namespace = "https://www.simplemodeling.org/documentmodel/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object Bok {
-    val prefix    = "bok"
+    val prefix    = "smbok"
     val namespace = "https://www.simplemodeling.org/bok/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object BokSchema {
-    val prefix    = "bokschema"
+    val prefix    = "smbokschema"
     val namespace = "https://www.simplemodeling.org/bok/schema/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object Category {
-    val prefix    = "cat"
+    val prefix    = "smcat"
     val namespace = "https://www.simplemodeling.org/category/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object CategorySchema {
-    val prefix    = "catschema"
+    val prefix    = "smcatschema"
     val namespace = "https://www.simplemodeling.org/category/schema/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object Glossary {
-    val prefix    = "glo"
+    val prefix    = "smglo"
     val namespace = "https://www.simplemodeling.org/glossary/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object Bibliography {
-    val prefix    = "bib"
+    val prefix    = "smbib"
     val namespace = "https://www.simplemodeling.org/bibliography/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object Project {
-    val prefix    = "proj"
+    val prefix    = "smproj"
     val namespace = "https://www.simplemodeling.org/project/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 
   object ComponentRepository {
-    val prefix    = "comp"
-    val namespace = "https://www.simplemodeling.org/component/ontology/0.1-SNAPSHOT#"
+    val prefix    = "smcompr"
+    val namespace = "https://www.simplemodeling.org/componentrepository/ontology/0.1-SNAPSHOT#"
     def uri(local: String): String = namespace + local
   }
 }
