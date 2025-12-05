@@ -51,7 +51,8 @@ import org.smartdox.structure.I18NFragmentProperty
  *  version Aug. 29, 2025
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
- * @version Nov. 30, 2025
+ *  version Nov. 30, 2025
+ * @version Dec.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -148,6 +149,12 @@ case class DocumentMetaData(
   def getAuthorString(locale: Locale): Option[String] = author.map(_.toI18NString.as(locale))
 
   def getOrganizationString(locale: Locale): Option[String] = organization.map(_.toI18NString.as(locale))
+
+  def getCategoryString(locale: Locale): Option[String] = None // TODO
+
+  def aboutIds: Option[List[String]] = None
+
+  def mentionIds: Option[List[String]] = None
 
   def withTitle(p: InlineContents) = {
     val x = Dox.trimSingleLine(p)

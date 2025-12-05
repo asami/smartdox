@@ -9,7 +9,8 @@ import org.smartdox.metadata.DocumentMetaData
 /*
  * @since   Oct. 25, 2025
  *  version Oct. 25, 2025
- * @version Nov. 22, 2025
+.getOrElse(Nil), *  version Nov. 22, 2025
+.getOrElse(Nil), * @version Dec.  3, 2025
  * @author  ASAMI, Tomoharu
  */
 /** === JSON-LD base trait === */
@@ -54,7 +55,13 @@ object JsonLd {
       modified,
       mainentityofpage,
       image,
-      id
+      inLanguage = Some(locale.getLanguage),
+      articleSection = p.getCategoryString(locale),
+      keywords = p.keywords,
+      about = p.aboutIds.getOrElse(Nil),
+      mentions = p.mentionIds.getOrElse(Nil),
+      publisher = p.getOrganizationString(locale).map(Organization.create),
+      id = id
     )
   }
 
@@ -176,6 +183,12 @@ final case class Article(
   dateModified: Option[String] = None,
   mainEntityOfPage: Option[String] = None,
   image: List[ImageObject] = Nil,
+  inLanguage: Option[String] = None,
+  articleSection: Option[String] = None,
+  keywords: List[String] = Nil,
+  about: List[String] = Nil,
+  mentions: List[String] = Nil,
+  publisher: Option[Organization] = None,
   id: Option[String] = None
 ) extends JsonLdTyped {
   val jsonLdType = "Article"
@@ -191,8 +204,16 @@ object Article {
       .addIfDefined("dateModified", x.dateModified.map(Json.fromString))
       .addIfDefined("mainEntityOfPage", x.mainEntityOfPage.map(Json.fromString))
 
-    val base = if (x.image.nonEmpty) base0.add("image", x.image.asJson) else base0
+    val base1 = if (x.image.nonEmpty) base0.add("image", x.image.asJson) else base0
+
+    val base = base1
+      .addIfDefined("inLanguage", x.inLanguage.map(Json.fromString))
+      .addIfDefined("articleSection", x.articleSection.map(Json.fromString))
+      .addIfDefined("publisher", x.publisher.map(_.asJson))
+      .addIfDefined("keywords", Some(Json.fromValues(x.keywords.map(Json.fromString))).filter(_ => x.keywords.nonEmpty))
+      .addIfDefined("about", Some(Json.fromValues(x.about.map(id => Json.obj("@id" -> Json.fromString(id))))).filter(_ => x.about.nonEmpty))
+      .addIfDefined("mentions", Some(Json.fromValues(x.mentions.map(id => Json.obj("@id" -> Json.fromString(id))))).filter(_ => x.mentions.nonEmpty))
+
     JsonLd.withTypeAndId(base, x.jsonLdType, x.id)
   }
 }
-

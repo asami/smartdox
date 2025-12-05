@@ -381,7 +381,9 @@ object RdfRenderer {
   private def renderSubjectTurtle(n: Node, table: Seq[(String, String)]): String = n match {
     case Node.Uri(uri) =>
       val c = curie(uri, table)
-      if (c.contains(":")) c else "<" + c + ">"
+      val prefixes = table.map(_._2)
+      val isCurie = prefixes.exists(p => c.startsWith(p + ":"))
+      if (isCurie) c else "<" + uri + ">"
     case Node.Blank(id) => "_:b" + id
     case _ =>
       throw new IllegalArgumentException("Turtle subject must be URI or Blank")
@@ -396,7 +398,9 @@ object RdfRenderer {
   private def renderObjectTurtle(n: Node, table: Seq[(String, String)]): String = n match {
     case Node.Uri(uri) =>
       val c = curie(uri, table)
-      if (c.contains(":")) c else "<" + c + ">"
+      val prefixes = table.map(_._2)
+      val isCurie = prefixes.exists(p => c.startsWith(p + ":"))
+      if (isCurie) c else "<" + uri + ">"
     case Node.Blank(id) => "_:b" + id
     case Node.Literal(v, None, None) =>
       "\"" + escape(v) + "\""
