@@ -70,7 +70,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Aug. 27, 2025
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
- * @version Nov. 29, 2025
+ *  version Nov. 29, 2025
+ * @version Dec.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -839,11 +840,14 @@ object DoxSite {
       _create_dox(name, dox)
     }
 
+    // private def _create_dox(name: String, dox: Dox, lastmodified: Option[Instant] = None) =
+    //   if (rule.strategy.isActive(dox))
+    //     _create_page(name, dox, lastmodified)
+    //   else
+    //     Nil
+
     private def _create_dox(name: String, dox: Dox, lastmodified: Option[Instant] = None) =
-      if (rule.strategy.isActive(dox))
-        _create_page(name, dox, lastmodified)
-      else
-        Nil
+      _create_page(name, dox, lastmodified)
 
     private def _create_page(name: String, dox: Dox, lastmodified: Option[Instant]) =
       List(Page(name, Dox.toDocument(dox), lastmodified))
@@ -923,6 +927,25 @@ object DoxSite {
     object Rule {
       def apply(p: TreeTransformer.Config): Rule = Rule(Config(inputTreeTransformerConfig = Some(p)))
     }
+  }
+
+  class DoxSiteEnabler(
+    val context: DoxSiteTransformer.Context,
+    rule: DoxSiteBuilder.Rule
+  ) extends DoxSiteTransformer {
+    override protected def make_Node(
+      node: TreeNode[Node],
+      content: Node
+    ): TreeTransformer.Directive[Node] = content match {
+      case m: Page =>
+        if (rule.strategy.isActive(m.dox))
+          directive_leaf(m)
+        else
+          directive_empty
+      case m => TreeTransformer.Directive.Default[Node]
+    }
+  }
+  object DoxSiteEnabler {
   }
 
   class RealmBuilder(
@@ -1020,7 +1043,8 @@ object DoxSite {
       doxctx
     )
     val rule = DoxSiteBuilder.Rule(config)
-    val a1: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
+    val a0: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
+    val a1: Tree[Node] = a0.transform(new DoxSiteEnabler(ctx, rule))
     val a = a1.transform(new DoxSitePreTransformer(ctx))
     val categories = _collect_category(config, context, a)
     val (notices, history0) = _collect_notice_history(config, context, categories, a)
@@ -1040,7 +1064,7 @@ object DoxSite {
       history = history
     )
     val ctx1 = ctx.withMetaData(metadata0)
-    val (c, links) = _enable_link(ctx1, b)
+    val (c, links) = _enable_link(ctx1, b, a0)
     val metadata1 = metadata0.copy(linkCollection = links)
     val metadata = _build_site_model(metadata1)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
@@ -1159,12 +1183,13 @@ object DoxSite {
 
   private def _enable_link(
     ctx: DoxSiteTransformer.Context,
-    p: Tree[Node]
+    p: Tree[Node],
+    full: Tree[Node]
   ): (Tree[Node], Option[LinkCollection]) =
     if (ctx.config.isLinkEnable) {
       val doxsitec = ctx.doxSiteConfig
       val c = new LinkCollector(doxsitec)(p)
-      val r = p.transform(new LinkEnabler(ctx, c, p))
+      val r = p.transform(new LinkEnabler(ctx, c, p, full))
       val cr = new LinkCollector(doxsitec)(r)
       (r, Some(cr))
     } else {

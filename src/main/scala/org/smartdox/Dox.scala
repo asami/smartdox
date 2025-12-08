@@ -100,7 +100,8 @@ import org.smartdox.util.DoxUtils
  *  version Aug. 31, 2025
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
- * @version Nov. 22, 2025
+ *  version Nov. 22, 2025
+ * @version Dec.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2017,6 +2018,8 @@ object Italic extends Italic(Nil, VectorMap.empty, None) with DoxFactory {
     Italic(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Italic(List(element))
+
+  def createLinkCandidate(p: InlineContents): Italic = new Italic(p)
 
   def build(elem: XNode): Italic = {
     val cs = PureParser.buildInline(elem)

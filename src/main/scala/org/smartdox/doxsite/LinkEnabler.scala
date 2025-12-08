@@ -26,13 +26,15 @@ import org.smartdox.metadata._
  *  version Aug. 23, 2025
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
- * @version Nov. 29, 2025
+ *  version Nov. 29, 2025
+ * @version Dec.  8, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
   val context: DoxSiteTransformer.Context,
   val linkcollection: LinkCollection,
-  val site: Tree[Node]
+  val site: Tree[Node],
+  val full: Tree[Node]
 ) extends DoxSiteTransformer {
   import LinkEnabler._
 
@@ -48,6 +50,12 @@ class LinkEnabler(
 
   def getMetaData(path: String): Option[DocumentMetaData] =
     site.getContent(path).flatMap {
+      case m: Page => Dox.getMetadata(m.dox)
+      case _ => None
+    }
+
+  def getMetaDataFull(path: String): Option[DocumentMetaData] =
+    full.getContent(path).flatMap {
       case m: Page => Dox.getMetadata(m.dox)
       case _ => None
     }
@@ -385,7 +393,16 @@ object LinkEnabler {
                 _internal_link(locale, r)
               case None => _external_link(locale, dox)
             }
-            case None => _external_link(locale, dox)
+            case None => enabler.getMetaDataFull(path) match {
+              case Some(s) => s.title match {
+                case Some(title0) => 
+                  val title = _prepend(_link_mark, _inline_contents(locale, title0))
+                  val r = Italic.createLinkCandidate(title)
+                  directive_node(r)
+                case None => _external_link(locale, dox)
+              }
+              case None => _external_link(locale, dox)
+            }
           }
         case None => _external_link(locale, dox)
       }
