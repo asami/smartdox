@@ -527,8 +527,8 @@ object LinkEnabler {
       def hyperlinks: I18NHangar[Hyperlink] = slots.mapValue(_.link)
 
       def toListContent: I18NFragment = {
-//        slots.valueVector
-        I18NFragment.create(slots.mapValueCollection(_.map(_.link)))
+        val xs = slots.mapValueCollectionOne(_.headOption.map(_.link))
+        I18NFragment.create(xs)
       }
     }
     object Link {
