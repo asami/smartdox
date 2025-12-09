@@ -101,7 +101,7 @@ import org.smartdox.util.DoxUtils
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
  *  version Nov. 22, 2025
- * @version Dec.  8, 2025
+ * @version Dec.  9, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -2350,6 +2350,7 @@ object Hyperlink extends DoxFactory {
     case object Relative extends LinkKind
     case object External extends LinkKind
     case object Glossary extends LinkKind
+    case object Bibliography extends LinkKind
   }
 
    def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Hyperlink =
@@ -2498,31 +2499,17 @@ case class Table(
     if (cs.isEmpty) {
       Success(this)
     } else {
-      val (c, cs1) = cs match {
-        case (c: Caption) :: xs => (Some(c), xs)
-        case _ => (None, cs)
+      val c = cs.collectFirst { case x: Caption => x }
+      val h = cs.collectFirst { case x: THead => x }
+      val b = cs.collectFirst { case x: TBody => x }
+      val f = cs.collectFirst { case x: TFoot => x }
+      val s = cs.collectFirst { case x: TSide => x }
+      val cg = cs.collectFirst { case x: Colgroup => x }
+      val others = cs.filter {
+        case _: Caption | _: THead | _: TBody | _: TFoot | _: TSide | _: Colgroup => false
+        case _ => true
       }
-      val (h, cs2) = cs1 match {
-        case (h: THead) :: xs => (Some(h), xs)
-        case _ => (None, cs1)
-      }
-      val (b, cs3) = cs2 match {
-        case (b: TBody) :: xs => (Some(b), xs)
-        case _ => (None, cs2)
-      }
-      val (f, cs4) = cs3 match {
-        case (f: TFoot) :: xs => (Some(f), xs)
-        case _ => (None, cs3)
-      }
-      val (s, cs5) = cs4 match {
-        case (s: TSide) :: xs => (Some(s), xs)
-        case _ => (None, cs4)
-      }
-      val (cg, cs6) = cs5 match {
-        case (cg: Colgroup) :: xs => (Some(cg), xs)
-        case _ => (None, cs5)
-      }
-      if (b.isEmpty || cs6.nonEmpty) {
+      if (b.isEmpty || others.nonEmpty) {
         to_failure(cs)
       } else {
         Success(copy(h, b.get, f, s, cg, c, label, location = get_location(location, cs)))
@@ -2867,6 +2854,15 @@ case class Colgroup(
   override def equals_Value(o: Dox) = o match {
     case m: Colgroup => cols == m.cols
     case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    cs.foldRight(Success(Nil): ValidationNel[String, List[Col]]) {
+      case (d: Col, Success(a)) => Success(d :: a)
+      case (d: Col, e: Failure[_]) => e
+      case (d, Success(a)) => to_failure(d)
+      case (d, Failure(e)) => Failure(to_failure_message(d) <:: e)
+    }.map(copy(_, location = get_location(location, cs)))
   }
 }
 
