@@ -1,6 +1,7 @@
 package org.smartdox.structure
 
 import scalaz.{Value => _, _}, Scalaz._
+import org.goldenport.context.Consequence
 import org.smartdox._
 import org.smartdox.metadata.Explanation
 
@@ -8,7 +9,8 @@ import org.smartdox.metadata.Explanation
  * @since   Aug. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep.  1, 2025
- * @version Nov. 17, 2025
+ *  version Nov. 17, 2025
+ * @version Dec. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 abstract class StructureObject() extends Structure {
@@ -17,6 +19,20 @@ abstract class StructureObject() extends Structure {
   def getAsI18NValue(key: String): Option[Value]
   def contents: List[Dox]
   def +(rhs: StructureObject): StructureObject
+
+  def distillI18NFragmentPropertyList: List[I18NFragmentProperty] =
+    distillI18NFragmentPropertyList(_ => true)
+  def distillI18NFragmentPropertyList(key: String): List[I18NFragmentProperty] =
+    distillI18NFragmentPropertyList(_.key.isMatch(key))
+  def distillI18NFragmentPropertyList(matcher: ListI18NFragmentPropertyProperty => Boolean): List[I18NFragmentProperty] = Nil
+
+  def distillValueListPropertyListProperty: List[ValueListPropertyListProperty] =
+    distillValueListPropertyListProperty(_ => true)
+  def distillValueListPropertyListProperty(key: String): List[ValueListPropertyListProperty] =
+    distillValueListPropertyListProperty(_.key.isMatch(key))
+  def distillValueListPropertyListProperty(
+    matcher: ValueListPropertyListProperty => Boolean
+  ): List[ValueListPropertyListProperty] = Nil
 }
 
 case class DocumentStructureObject(
@@ -27,6 +43,14 @@ case class DocumentStructureObject(
     CompoundStructureObject(Vector(this, rhs))
 
   def print = "DocumentStructureObject"
+
+  override def distillI18NFragmentPropertyList(matcher: ListI18NFragmentPropertyProperty => Boolean): List[I18NFragmentProperty] =
+    distill_I18NFragmentProperty_list(matcher)
+
+  override def distillValueListPropertyListProperty(
+    matcher: ValueListPropertyListProperty => Boolean
+  ): List[ValueListPropertyListProperty] =
+    distill_ValueListPropertyListProperty_list(matcher)
 }
 
 case class SectionStructureObject(
@@ -37,6 +61,16 @@ case class SectionStructureObject(
     CompoundStructureObject(Vector(this, rhs))
 
   def print = "SectionStructureObject"
+
+  override def distillI18NFragmentPropertyList(
+    matcher: ListI18NFragmentPropertyProperty => Boolean
+  ): List[I18NFragmentProperty] =
+    distill_I18NFragmentProperty_list(matcher)
+
+  override def distillValueListPropertyListProperty(
+    matcher: ValueListPropertyListProperty => Boolean
+  ): List[ValueListPropertyListProperty] =
+    distill_ValueListPropertyListProperty_list(matcher)
 }
 
 case class CompoundStructureObject(
@@ -80,12 +114,36 @@ object StructureObject {
 
       def getAsI18NValue(key: String): Option[Value] =
         properties.getAsI18NValue(key)
+
+      protected def distill_I18NFragmentProperty_list: List[I18NFragmentProperty] =
+        distill_I18NFragmentProperty_list(_ => true)
+
+      protected def distill_I18NFragmentProperty_list(key: String): List[I18NFragmentProperty] =
+        distill_I18NFragmentProperty_list(_.key.isMatch(key))
+
+      protected def distill_I18NFragmentProperty_list(matcher: ListI18NFragmentPropertyProperty => Boolean): List[I18NFragmentProperty] =
+        properties.distillI18NFragmentPropertyList(matcher)
+
+      protected def distill_ValueListPropertyListProperty_list: List[ValueListPropertyListProperty] =
+        distill_ValueListPropertyListProperty_list(_ => true)
+
+      protected def distill_ValueListPropertyListProperty_list(key: String): List[ValueListPropertyListProperty] =
+        distill_ValueListPropertyListProperty_list(_.key.isMatch(key))
+
+      protected def distill_ValueListPropertyListProperty_list(
+        matcher: ValueListPropertyListProperty => Boolean
+      ): List[ValueListPropertyListProperty] =
+        properties.distillValueListPropertyListProperty(matcher)
     }
   }
 
   case class Title(contents: I18NFragment)
 
-  case class KeyContent[T](key: Key, content: T) {
+  case class KeyContent[T](
+    key: Key,
+    content: T,
+    description: Vector[Dox] = Vector.empty
+  ) {
     def toTuple: (String, T) = (key.value, content)
   }
   object KeyContent {
@@ -100,6 +158,8 @@ object StructureObject {
       values: Vector[Section] = Vector.empty,
       descriptions: Vector[Section] = Vector.empty,
       lists: Vector[Section] = Vector.empty,
+      valuePropertyListProperty: Vector[Section] = Vector.empty,
+      valueListPropertyListProperty: Vector[Section] = Vector.empty,
       tail: Vector[Dox] = Vector.empty
     ) {
       def +(rhs: Dox) = if (isDone)
@@ -113,6 +173,10 @@ object StructureObject {
               copy(descriptions = descriptions :+ m)
             else if (config.isSectionList(m))
               copy(lists = lists :+ m)
+            else if (config.isListValuePropertyProperty(m))
+              copy(valuePropertyListProperty = valuePropertyListProperty :+ m)
+            else if (config.isListValueListPropertyProperty(m))
+              copy(valueListPropertyListProperty = valueListPropertyListProperty :+ m)
             else
               copy(isDone = true, tail = tail :+ rhs)
           case m: Table => copy(isDone = true, target = Some(Left(m)))
@@ -170,7 +234,8 @@ object StructureObject {
         a <- _properties_table_dl
         b <- _properties_section_ul_text
         c <- _properties_section_sections
-      } yield a + b + c
+        d <- _properties_progress
+      } yield a + b + c + d
       prog.run(s)
     }
 
@@ -275,6 +340,48 @@ object StructureObject {
       s.xs.foldLeft(Z())(_+_).r
     }
 
+    private def _properties_progress: Cursor.CS[StructureProperties] = State { s =>
+      case class Z(
+        progress: Progress = Progress.empty
+      ) extends Progress.Holder {
+        def r: (Cursor, StructureProperties) = {
+          val a = _create_sections
+          val b = _create_ValuePropertyListProperty
+          val c = _create_ValueListPropertyListProperty
+          val props = a + b + c
+          (Cursor(tail.toList), props)
+        }
+
+        private def _create_sections = {
+          val xs = progress.lists.map(Section.toKeySectionList)
+          StructureProperties.createLists(xs)
+        }
+
+        private def _create_ValuePropertyListProperty = {
+          val xs = progress.valuePropertyListProperty.map(ValuePropertyListProperty.create)
+          StructureProperties.createStructureProperty(xs)
+        }
+
+        private def _create_ValueListPropertyListProperty = {
+          val xs = progress.valueListPropertyListProperty.map(ValueListPropertyListProperty.create)
+          StructureProperties.createStructureProperty(xs)
+        }
+
+        def +(rhs: Dox) = copy(progress = progress + rhs)
+      }
+      s.xs.foldLeft(Z())(_+_).r
+    }
+
+    // private def _properties_section_ValueListPropertyListProperty: Cursor.CS[StructureProperties] = State { s =>
+    //   val prog = for {
+    //     a <- _properties_section_sections_ul_value
+    //   } yield a
+    //   prog.run(s)
+    // }
+
+    // private def _properties_section_sections_ul_value: Cursor.CS[StructureProperties] = State { s =>
+    // }
+
     private def _children: Cursor.CS[List[StructureObject]] = State { c =>
       if (config.isChildren) {
         val prog = for {
@@ -336,6 +443,12 @@ object StructureObject {
       def isSectionList(p: Section) =
         schema.lists.exists(_.name == p.keyForModel)
 
+      def isListValuePropertyProperty(p: Section) =
+        schema.listValuePropertyProperty.exists(_.name == p.keyForModel)
+
+      def isListValueListPropertyProperty(p: Section) =
+        schema.listValueListPropertyProperty.exists(_.name == p.keyForModel)
+
       def isChildren = schema.nodes.exists(_.isChildren)
     }
     object Config {
@@ -344,6 +457,8 @@ object StructureObject {
         lazy val values = nodes.filter(_.isValue)
         lazy val descriptions = nodes.filter(_.isDescription)
         lazy val lists = nodes.filter(_.isSectionList)
+        lazy val listValuePropertyProperty = nodes.filter(_.isListValuePropertyProperty)
+        lazy val listValueListPropertyProperty = nodes.filter(_.isListValueListPropertyProperty)
 
         def addDescription(name: String) = copy(nodes = nodes :+ Node.Description(name))
       }
@@ -355,6 +470,8 @@ object StructureObject {
           def isValue: Boolean = false
           def isDescription: Boolean = false
           def isSectionList: Boolean = false
+          def isListValuePropertyProperty: Boolean = false
+          def isListValueListPropertyProperty: Boolean = false
           def isChildren: Boolean = false
         }
         sealed trait Property extends Node
@@ -371,8 +488,11 @@ object StructureObject {
           case class Description(name: String) extends Property {
             override def isDescription = true
           }
-          case class SectionLocalDateOrDateTimeSections(name: String) extends SectionListProperty
+          case class SectionLocalDateOrDateTimeSectionList(name: String) extends SectionListProperty
           case class List(name: String, childSchema: Schema) extends SectionListProperty
+
+          case class SectionSectionListValueList(name: String) extends SectionListProperty
+
           def value(p: String): Node = Node.Value(p)
           def description(p: String): Node = Node.Description(p)
         }

@@ -30,6 +30,7 @@ import org.smartdox.structure.SectionStructureObject
 import org.smartdox.structure.StructureProperties.StructurePropertyProperties
 import org.smartdox.structure.ListI18NFragmentPropertyProperty
 import org.smartdox.structure.I18NFragmentProperty
+import org.smartdox.structure.ValueListProperty
 
 /*
 
@@ -52,7 +53,7 @@ import org.smartdox.structure.I18NFragmentProperty
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
  *  version Nov. 30, 2025
- * @version Dec.  3, 2025
+ * @version Dec. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -70,6 +71,7 @@ case class DocumentMetaData(
   statusOption: Option[DocumentMetaData.Status] = None,
   strategy: Set[DocumentMetaData.Strategy] = Set.empty,
   directive: DocumentMetaData.Directive = DocumentMetaData.Directive.empty,
+  relations: DocumentMetaData.Relations = DocumentMetaData.Relations.empty,
   properties: Option[Hocon] = None
 ) extends Explanation.Holder {
   import DocumentMetaData._
@@ -178,6 +180,9 @@ case class DocumentMetaData(
   def withUpdateHistory(p: DocumentMetaData.UpdateHistory) =
     copy(modifiedAtHistory = p)
 
+  def withRelations(p: DocumentMetaData.Relations) =
+    copy(relations = p)
+
   def complementTitleDate(
     ptitle: InlineContents,
     pdate: InlineContents
@@ -226,7 +231,9 @@ case class DocumentMetaData(
       lastOption(kindOption, rhs.kindOption),
       lastOption(statusOption, rhs.statusOption),
       strategy ++ rhs.strategy,
-      directive + rhs.directive
+      directive + rhs.directive,
+      relations + rhs.relations,
+      lastOption(properties, rhs.properties)
     )
 
   def distillLocale(p: Option[Locale]): DocumentMetaData =
@@ -305,6 +312,8 @@ object DocumentMetaData {
   final val PROP_KIND = "kind"
   final val PROP_STATUS = "status"
   final val PROP_STRATEGY = "strategy"
+  final val PROP_DIRECTIVE = "directive"
+  final val PROP_RELATIONS = "relations"
 
   val empty = DocumentMetaData()
 
@@ -489,7 +498,7 @@ object DocumentMetaData {
       import StructureObject.Builder.Config.Schema
       val bc = StructureObject.Builder.Config(
         Schema(
-          Schema.Node.SectionLocalDateOrDateTimeSections(PROP_UPDATE)
+          Schema.Node.SectionLocalDateOrDateTimeSectionList(PROP_UPDATE)
         )
       )
       val builder = new StructureObject.Builder(bc)
@@ -497,23 +506,146 @@ object DocumentMetaData {
       _parse(r)
     }
 
-    private def _parse(p: StructureObject): Consequence[UpdateHistory] =
+    private def _parse(p: StructureObject): Consequence[UpdateHistory] = Consequence {
+      val a = p.distillI18NFragmentPropertyList(PROP_UPDATE)
+      a.foldMap(x => UpdateHistory.create(x.key.value, x.content).orZero)
+    }
+  }
+
+  //   private def _parse(p: StructureObject): Consequence[UpdateHistory] =
+  //     p match {
+  //       case _: SectionStructureObject =>
+  //         distill_I18NFragmentPropertyList_in_ListI18NFragmentPropertyProperty(p, PROP_UPDATE).map {
+  //           _.foldMap(x => UpdateHistory.create(x.key.value, x.content).orZero)
+  //         }
+  //       case _ => Consequence.success(UpdateHistory.empty)
+  //     }
+  // }
+
+  // protected final def distill_I18NFragmentPropertyList_in_ListI18NFragmentPropertyProperty(
+  //   p: StructureObject
+  // ): Consequence[List[I18NFragmentProperty]] =
+  //   distill_I18NFragmentPropertyList_in_ListI18NFragmentPropertyProperty(
+  //     p,
+  //     _ => true
+  //   )
+
+  // protected final def distill_I18NFragmentPropertyList_in_ListI18NFragmentPropertyProperty(
+  //   p: StructureObject,
+  //   key: String
+  // ): Consequence[List[I18NFragmentProperty]] =
+  //   distill_I18NFragmentPropertyList_in_ListI18NFragmentPropertyProperty(
+  //     p,
+  //     _.key.isMatch(key)
+  //   )
+
+  // protected final def distill_I18NFragmentPropertyList_in_ListI18NFragmentPropertyProperty(
+  //   p: StructureObject,
+  //   matcher: ListI18NFragmentPropertyProperty => Boolean
+  // ): Consequence[List[I18NFragmentProperty]] = Consequence {
+  //   p match {
+  //     case m: SectionStructureObject =>
+  //       m.properties match {
+  //         case propsContainer: StructurePropertyProperties =>
+  //           val frag = for {
+  //             lp <- propsContainer.props.collect {
+  //               case x: ListI18NFragmentPropertyProperty if matcher(x) => x
+  //             }.toList
+  //             frag <- lp.content.collect {
+  //               case x: I18NFragmentProperty => x
+  //             }
+  //           } yield frag
+  //           frag
+  //         case _ => List.empty
+  //       }
+  //     case _ => List.empty
+  //   }
+  // }
+
+  case class Relations(
+    relations: Vector[Relation] = Vector.empty
+  ) {
+    def isEmpty: Boolean = relations.isEmpty
+
+    def +(rhs: Relations): Relations =
+      Relations(relations ++ rhs.relations)
+  }
+  object Relations {
+    val empty: Relations = Relations()
+
+    implicit val RelationsMonoid: Monoid[Relations] = new Monoid[Relations] {
+      def zero: Relations = empty
+      def append(f1: Relations, f2: => Relations): Relations = f1 + f2
+    }
+
+    def create(
+      key: String,
+      content: List[ValueListProperty]
+    ): Relations =
+      Relations(_build_relations(content))
+
+    def createC(
+      key: String,
+      content: List[ValueListProperty]
+    ): Consequence[Relations] =
       Consequence {
-        p match {
-          case m: SectionStructureObject => m.properties match {
-            case mm: StructurePropertyProperties => mm.props.foldMap {
-              case mmm: ListI18NFragmentPropertyProperty => mmm.content.foldMap {
-                case mmmm: I18NFragmentProperty =>
-                  UpdateHistory.create(mmmm.key.value, mmmm.content).orZero
-                case _ => UpdateHistory.empty
-              }
-              case _ => UpdateHistory.empty
-            }
-            case _ => UpdateHistory.empty
+        Relations(_build_relations(content))
+      }
+
+    def createC(hocon: Hocon): Consequence[Relations] =
+      Consequence {
+        Relations.empty
+      }
+
+    def parse(h: Section): Consequence[Relations] = {
+      import StructureObject.Builder.Config.Schema
+      val bc = StructureObject.Builder.Config(
+        Schema(
+          Schema.Node.SectionSectionListValueList(PROP_RELATIONS)
+        )
+      )
+      val build = new StructureObject.Builder(bc)
+      val r = build.build(h)
+      _parse(r)
+    }
+
+    private def _parse(p: StructureObject): Consequence[Relations] = Consequence {
+      val a = p.distillValueListPropertyListProperty
+      a.foldMap(x => Relations.createC(x.key.value, x.content).orZero)
+    }
+
+    private def _build_relations(
+      content: List[ValueListProperty]
+    ): Vector[Relation] =
+      content.toVector.flatMap { prop =>
+        _predicate(prop.key.value).toVector.flatMap { predicate =>
+          prop.content.toVector.flatMap(_.values).map { uri =>
+            Relation(URI.create(uri), predicate)
           }
-          case _ => UpdateHistory.empty
         }
       }
+
+    private def _predicate(name: String): Option[Relation.Predicate] =
+      name.toLowerCase match {
+        case "next"      => Some(Relation.Predicate.Next)
+        case "previous"  => Some(Relation.Predicate.Previous)
+        case "supercede" => Some(Relation.Predicate.Supercede)
+        case _           => None
+      }
+  }
+
+  case class Relation(
+    link: URI,
+    predicate: Relation.Predicate
+  )
+  object Relation {
+    sealed trait Predicate {
+    }
+    object Predicate {
+      case object Next extends Predicate
+      case object Previous extends Predicate
+      case object Supercede extends Predicate
+    }
   }
 
   def create(hocon: Hocon)(implicit ctx: DateTimeContext): DocumentMetaData =
@@ -533,6 +665,7 @@ object DocumentMetaData {
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
       directive <- Directive.createC(hocon)
+      relations <- Relations.createC(hocon)
       strategy <- hocon.cValueList(Strategy, PROP_STRATEGY)
     } yield {
       val inlinetitle = title.map(x => I18NFragment.create(List(Text(x))))
@@ -550,6 +683,7 @@ object DocumentMetaData {
         status,
         strategy.toSet,
         directive,
+        relations,
         Some(hocon)
       )
     }
@@ -594,8 +728,8 @@ object DocumentMetaData {
   def create(p: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withExplanation(p)
 
-  def create(exp: Explanation, uh: UpdateHistory): DocumentMetaData =
-    DocumentMetaData.empty.withExplanation(exp).withUpdateHistory(uh)
+  def create(exp: Explanation, uh: UpdateHistory, rs: Relations): DocumentMetaData =
+    DocumentMetaData.empty.withExplanation(exp).withUpdateHistory(uh).withRelations(rs)
 
   def create(title: InlineContents, explanation: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withTitle(title).withExplanation(explanation)

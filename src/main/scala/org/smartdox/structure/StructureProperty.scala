@@ -5,7 +5,8 @@ import org.smartdox.structure.StructureObject.KeyContent
 
 /*
  * @since   Nov. 16, 2025
- * @version Nov. 17, 2025
+ *  version Nov. 17, 2025
+ * @version Dec. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 sealed trait StructureProperty {
@@ -20,7 +21,9 @@ sealed trait StructureProperty {
   def getI18NValue: Option[Value] = None
 }
 
-case class Key(value: String)
+case class Key(value: String) {
+  def isMatch(key: String): Boolean = value == key
+}
 
 case class ValueProperty(
   key: Key,
@@ -29,6 +32,20 @@ case class ValueProperty(
   type T = Value
 
   override def getI18NValue: Option[Value] = Some(content)
+}
+object ValueProperty {
+  def create(p: KeyContent[Value]): ValueProperty = ValueProperty(p.key, p.content)
+}
+
+case class ValueListProperty(
+  key: Key,
+  content: List[Value],
+  description: Vector[Dox]
+) extends StructureProperty {
+  type T = List[Value]
+}
+object ValueListProperty {
+  def create(p: KeyContent[List[Value]]): ValueListProperty = ValueListProperty(p.key, p.content, p.description)
 }
 
 case class I18NFragmentProperty(
@@ -53,11 +70,48 @@ object I18NFragmentProperty {
 //   type T = List[Dox]
 // }
 
-case class ListValuePropertyPropety (
+case class ValuePropertyListProperty (
   key: Key,
   content: List[ValueProperty]
 ) extends StructureProperty {
   type T = List[ValueProperty]
+}
+object ValuePropertyListProperty {
+  def create(p: Section): ValuePropertyListProperty = {
+    val a = _to_keycontent(p)
+    create(a)
+  }
+
+  private def _to_keycontent(p: Section): KeyContent[List[KeyContent[Value]]] = {
+    val key = p.keyForModel
+    val xs = p.sections.map(_.makeKeyContentValue)
+    KeyContent(key, xs)
+  }
+
+  def create(p: KeyContent[List[KeyContent[Value]]]): ValuePropertyListProperty =
+    ValuePropertyListProperty(p.key, p.content.map(ValueProperty.create))
+}
+
+case class ValueListPropertyListProperty (
+  key: Key,
+  content: List[ValueListProperty]
+) extends StructureProperty {
+  type T = List[ValueListProperty]
+}
+object ValueListPropertyListProperty {
+  def create(p: Section): ValueListPropertyListProperty = {
+    val a = _to_keycontent(p)
+    create(a)
+  }
+
+  private def _to_keycontent(p: Section): KeyContent[List[KeyContent[List[Value]]]] = {
+    val key = p.keyForModel
+    val xs = p.sections.map(_.makeKeyContentValueList)
+    KeyContent(key, xs)
+  }
+
+  def create(p: KeyContent[List[KeyContent[List[Value]]]]): ValueListPropertyListProperty =
+    ValueListPropertyListProperty(p.key, p.content.map(ValueListProperty.create))
 }
 
 case class ListI18NFragmentPropertyProperty (

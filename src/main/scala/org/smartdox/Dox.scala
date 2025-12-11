@@ -101,7 +101,7 @@ import org.smartdox.util.DoxUtils
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
  *  version Nov. 22, 2025
- * @version Dec.  9, 2025
+ * @version Dec. 11, 2025
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1682,6 +1682,65 @@ case class Section(
       case xs => Fragment(xs)
     }
     Description.name(name, dox)
+  }
+
+  def makeKeyContentValue: KeyContent[Value] = {
+    val key = keyForModel
+
+    case class Z(
+      prologue: Vector[Dox] = Vector.empty,
+      ul: Option[Ul] = None,
+      epilogue: Vector[Dox] = Vector.empty
+    ) {
+      def r = {
+        val v = ul match {
+          case Some(s) => s.contents.headOption match {
+            case Some(ss) => Value.create(ss.contents)
+            case None => Value.empty
+          }
+          case None => Value.empty
+        }
+        KeyContent(key, v)
+      }
+
+      def +(rhs: Dox) = ul match {
+        case Some(s) => copy(epilogue = epilogue :+ rhs)
+        case None => rhs match {
+          case m: Ul => copy(ul = Some(m))
+          case m => copy(prologue = prologue :+ rhs)
+        }
+      }
+    }
+
+    contents.foldLeft(Z())(_+_).r
+  }
+
+  def makeKeyContentValueList: KeyContent[List[Value]] = {
+    val key = keyForModel
+
+    case class Z(
+      prologue: Vector[Dox] = Vector.empty,
+      ul: Option[Ul] = None,
+      epilogue: Vector[Dox] = Vector.empty
+    ) {
+      def r = {
+        val v = ul match {
+          case Some(s) => s.contents.map(x => Value.create(x.contents))
+          case None => Nil
+        }
+        KeyContent(key, v)
+      }
+
+      def +(rhs: Dox) = ul match {
+        case Some(s) => copy(epilogue = epilogue :+ rhs)
+        case None => rhs match {
+          case m: Ul => copy(ul = Some(m))
+          case m => copy(prologue = prologue :+ rhs)
+        }
+      }
+    }
+
+    contents.foldLeft(Z())(_+_).r
   }
 }
 object Section {
@@ -3725,7 +3784,7 @@ case class Html5(
 ) extends Block {
   override val elements = contents
   override def showTerm = name
-  override def showParams = attributes.toList
+  override def showParams = Nil
 
   override def equals_Value(o: Dox) = o match {
     case m: Html5 => name == m.name && attributes == m.attributes && contents == m.contents
@@ -3734,6 +3793,13 @@ case class Html5(
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
+  }
+  override protected def print_Open(buf: StringBuilder): Unit = {
+    print_open_tag(buf, name, attributes)
+  }
+
+  override protected def print_Close(buf: StringBuilder): Unit = {
+    print_close_tag(buf, name)
   }
 }
 
@@ -3746,7 +3812,7 @@ case class Html5Inline(
 ) extends Inline {
   override val elements = contents
   override def showTerm = name
-  override def showParams = attributes.toList
+  override def showParams = Nil
 
   override def equals_Value(o: Dox) = o match {
     case m: Html5Inline => name == m.name && attributes == m.attributes && contents == m.contents
@@ -3755,6 +3821,13 @@ case class Html5Inline(
 
   override def copyV(cs: List[Dox]) = {
     Success(copy(name, attributes, cs))
+  }
+  override protected def print_Open(buf: StringBuilder): Unit = {
+    print_open_tag(buf, name, attributes)
+  }
+
+  override protected def print_Close(buf: StringBuilder): Unit = {
+    print_close_tag(buf, name)
   }
 }
 
@@ -4185,6 +4258,8 @@ sealed trait Value extends Inline {
 //  def toInlineContentsList: List[InlineContents]
 }
 object Value {
+  val empty = Single("")
+
   case class Single(v: String) extends Value {
     def attributes: VectorMap[String, String] = VectorMap.empty
     def location: Option[ParseLocation] = None

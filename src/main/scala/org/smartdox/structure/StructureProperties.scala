@@ -8,13 +8,22 @@ import org.smartdox.structure.StructureObject.KeyContent
  * @since   Aug. 29, 2025
  *  version Aug. 31, 2025
  *  version Sep.  1, 2025
- * @version Nov. 17, 2025
+ *  version Nov. 17, 2025
+ * @version Dec. 12, 2025
  * @author  ASAMI, Tomoharu
  */
 abstract class StructureProperties() {
   def +(rhs: StructureProperties): StructureProperties
   def getAsI18NFragment(key: String): Option[I18NFragment]
   def getAsI18NValue(key: String): Option[Value]
+
+  def distillI18NFragmentPropertyList(
+    matcher: ListI18NFragmentPropertyProperty => Boolean
+  ): List[I18NFragmentProperty] = Nil
+
+  def distillValueListPropertyListProperty(
+    matcher: ValueListPropertyListProperty => Boolean
+  ): List[ValueListPropertyListProperty] = Nil
 }
 
 object StructureProperties {
@@ -77,7 +86,7 @@ object StructureProperties {
   ) extends StructureProperties {
     def +(rhs: StructureProperties): StructureProperties = rhs match {
       case Empty => this
-      case m: StructurePropertyProperties => RAISE.notImplementedYetDefect
+      case m: StructurePropertyProperties => copy(props = props ++ m.props)
       case m: Compound => RAISE.notImplementedYetDefect
       case m => Compound(Vector(this, rhs))
     }
@@ -87,6 +96,25 @@ object StructureProperties {
 
     def getAsI18NValue(key: String): Option[Value] =
       props.find(_.isKey(key)).flatMap(_.getI18NValue)
+
+    override def distillI18NFragmentPropertyList(
+      matcher: ListI18NFragmentPropertyProperty => Boolean
+    ): List[I18NFragmentProperty] = {
+      val a = props.collect {
+        case m: ListI18NFragmentPropertyProperty if matcher(m) => m
+      }
+      if (true) // First
+        a.headOption.map(_.content).getOrElse(Nil)
+      else // Full
+        a.toList.flatMap(_.content)
+    }
+
+    override def distillValueListPropertyListProperty(
+      matcher: ValueListPropertyListProperty => Boolean
+    ): List[ValueListPropertyListProperty] =
+      props.collect {
+        case m: ValueListPropertyListProperty if matcher(m) => m
+      }.toList
   }
 
   case class Builder(
@@ -147,4 +175,7 @@ object StructureProperties {
     val a = ps.map(ListI18NFragmentPropertyProperty.create)
     StructurePropertyProperties(a)
   }
+
+  def createStructureProperty(ps: Seq[StructureProperty]): StructureProperties =
+    StructurePropertyProperties(ps.toVector)
 }
