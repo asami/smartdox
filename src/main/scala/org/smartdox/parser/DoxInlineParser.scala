@@ -583,6 +583,25 @@ object DoxInlineParser {
         )
       }
 
+    override def returnCharsFrom(cs0: Seq[Char]): DoxInlineParseState = {
+      if (cs0.isEmpty) {
+        this
+      } else {
+        // Treat returned characters as plain text continuation
+        val s = cs0.mkString
+        if (isInSpace) {
+          copy(
+            cs = cs ++ (' ' +: s.toVector),
+            isInSpace = false
+          )
+        } else {
+          copy(
+            cs = cs ++ s.toVector
+          )
+        }
+      }
+    }
+
     override protected def end_Result(): ParseResult[Dox] =
       if (cs.isEmpty)
         ParseSuccess(Dox.toDox(doxes))
@@ -958,10 +977,11 @@ object DoxInlineParser {
           val dox = Dox.create(tag, parent.attrs, xs)
           parent.parent match {
             case gp: XmlState =>
-              // Append the rendered tag text to the outer XmlState’s buffer
+              // Append the rendered markup (with attributes preserved) to the outer XmlState buffer
               val inner = {
-                val contents = xs.contents.map(_.toPlainText).mkString
-                s"<$tag>$contents</$tag>"
+                val buf = new StringBuilder
+                dox.printDox(buf)
+                buf.toString
               }
               gp.copy(cs = gp.cs ++ inner.toVector)
             case _ =>
@@ -994,8 +1014,9 @@ object DoxInlineParser {
 
       override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState = {
         // When finishing opening tag, construct a new nested XmlState
-        val tag = cs.dropWhile(_ == '<').mkString.trim.stripSuffix(">")
-        XmlState(config, parent = parent, tagName = tag, attrs = Vector.empty)
+        val raw = cs.dropWhile(_ == '<').mkString
+        val (tag, attrs) = XmlState._parse_tag_definition(raw)
+        XmlState(config, parent = parent, tagName = tag, attrs = attrs)
       }
     }
 
@@ -1055,6 +1076,91 @@ object DoxInlineParser {
 
       override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
         leave_to_chars(cs :+ '>')
+    }
+
+    private def _parse_tag_definition(raw: String): (String, Vector[(String, String)]) = {
+      val trimmed = raw.trim.stripSuffix(">")
+      val normalized = {
+        val r = trimmed.reverse.dropWhile(_.isWhitespace)
+        val s = if (r.startsWith("/")) r.drop(1) else r
+        s.reverse.trim
+      }
+      val len = normalized.length
+      @annotation.tailrec
+      def skipSpace(idx: Int): Int =
+        if (idx < len && normalized.charAt(idx).isWhitespace)
+          skipSpace(idx + 1)
+        else
+          idx
+
+      val start = skipSpace(0)
+      val nameEnd = {
+        @annotation.tailrec
+        def loop(i: Int): Int =
+          if (i < len && !normalized.charAt(i).isWhitespace) loop(i + 1)
+          else i
+        loop(start)
+      }
+      val tagName =
+        if (start < nameEnd) normalized.substring(start, nameEnd) else ""
+
+      val attrs = Vector.newBuilder[(String, String)]
+
+      @annotation.tailrec
+      def parseAttr(idx: Int): Unit = {
+        val i = skipSpace(idx)
+        if (i >= len)
+          ()
+        else {
+          val nameStart = i
+          @annotation.tailrec
+          def readName(j: Int): Int =
+            if (j < len) {
+              val ch = normalized.charAt(j)
+              if (!ch.isWhitespace && ch != '=') readName(j + 1)
+              else j
+            } else j
+
+          val nameEnd = readName(nameStart)
+          val attrName =
+            if (nameStart < nameEnd) normalized.substring(nameStart, nameEnd) else ""
+          val afterName = skipSpace(nameEnd)
+          if (attrName.nonEmpty) {
+            if (afterName < len && normalized.charAt(afterName) == '=') {
+              val valueStart = skipSpace(afterName + 1)
+              if (valueStart < len && (normalized.charAt(valueStart) == '"' || normalized.charAt(valueStart) == '\'')) {
+                val quote = normalized.charAt(valueStart)
+                val valueBodyStart = valueStart + 1
+                @annotation.tailrec
+                def readQuoted(j: Int): Int =
+                  if (j < len && normalized.charAt(j) != quote) readQuoted(j + 1) else j
+                val valueEnd = readQuoted(valueBodyStart)
+                val value = normalized.substring(valueBodyStart, valueEnd)
+                attrs += attrName -> value
+                val next = if (valueEnd < len) valueEnd + 1 else valueEnd
+                parseAttr(next)
+              } else {
+                @annotation.tailrec
+                def readUnquoted(j: Int): Int =
+                  if (j < len && !normalized.charAt(j).isWhitespace) readUnquoted(j + 1) else j
+                val valueEnd = readUnquoted(valueStart)
+                val value = normalized.substring(valueStart, valueEnd)
+                attrs += attrName -> value
+                parseAttr(valueEnd)
+              }
+            } else {
+              // boolean attribute
+              attrs += attrName -> attrName
+              parseAttr(afterName)
+            }
+          } else {
+            parseAttr(afterName + 1)
+          }
+        }
+      }
+
+      parseAttr(nameEnd)
+      (tagName, attrs.result())
     }
   }
 
