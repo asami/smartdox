@@ -27,7 +27,7 @@ import org.smartdox.metadata._
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
- * @version Dec.  8, 2025
+ * @version Dec. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -186,7 +186,7 @@ object LinkEnabler {
 
     private def _create_reference_relation_related: Vector[Dox] = {
       val a = _link_collection.get(pageNode.pathname) match {
-        case Some(s) => s.incomingLinks.toListContents(pageNode.pathnameValue)
+        case Some(s) => s.incomingLinks.filterNot(_internal_links).toListContents(pageNode.pathnameValue)
         case None => Vector.empty
       }
       val xs = _create_ul(a)

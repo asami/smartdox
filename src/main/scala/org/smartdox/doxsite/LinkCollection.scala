@@ -18,7 +18,8 @@ import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.ProgramHolder
 
 /*
  * @since   Nov. 14, 2025
- * @version Nov. 22, 2025
+ *  version Nov. 22, 2025
+ * @version Dec. 16, 2025
  * @author  ASAMI, Tomoharu
  */
 case class LinkCollection(
@@ -65,9 +66,25 @@ object LinkCollection {
   case class IncomingLinkHolder(
     links: Vector[IncomingLink] = Vector.empty
   ) {
-    def +(p: IncomingLinkHolder): IncomingLinkHolder = copy(links = p.links)
+    def +(p: IncomingLinkHolder): IncomingLinkHolder = copy(links = links ++ p.links)
 
     def addDirect(source: PathName, doc: DocumentMetaData, p: Link): IncomingLinkHolder = copy(links = links :+ IncomingLink.direct(source, doc, p.hyperlinks))
+
+    def filterNot(p: LinkHolder): IncomingLinkHolder = {
+      val excludes: Set[String] = p.links.flatMap { link =>
+        link.pathname.map { base =>
+          val resolved = StringUtils.resolvePath(base.v, link.href.toString)
+          if (resolved.endsWith(".html"))
+            StringUtils.changeSuffix(resolved, "dox")
+          else
+            resolved
+        }
+      }.toSet
+      def _is_match_(link: IncomingLink): Boolean =
+        excludes.contains(link.source.v)
+      copy(links = links.filterNot(_is_match_))
+    }
+
 
     def toListContents(newsource: PathName): Vector[ListContent] =
       links.map(_.toListContent(newsource))
