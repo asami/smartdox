@@ -27,7 +27,7 @@ import org.smartdox.metadata._
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
- * @version Dec. 16, 2025
+ * @version Dec. 19, 2025
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -162,6 +162,7 @@ object LinkEnabler {
         _create_reference_relation,
         _create_reference_internal,
         _create_reference_external,
+        _create_reference_relation_related,
         _create_reference_glossary
       ).flatten
       _create_section(xs, "reference-section", "References", "参照")
@@ -170,8 +171,7 @@ object LinkEnabler {
     private def _create_reference_relation: Vector[Dox] =
       Vector(
         _create_reference_relation_next,
-        _create_reference_relation_prev,
-        _create_reference_relation_related
+        _create_reference_relation_prev
       ).flatten
 
     private def _create_reference_relation_next: Vector[Dox] = {
