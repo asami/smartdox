@@ -528,7 +528,48 @@ object LinkEnabler {
 
       def toListContent: I18NFragment = {
         val xs = slots.mapValueCollectionOne(_.headOption.map(_.link))
-        I18NFragment.create(xs)
+        val ys = _normalize_i18n_links(xs)
+        I18NFragment.create(ys)
+      }
+
+      private def _normalize_i18n_links(p: I18NHangar[Hyperlink]): I18NHangar[Hyperlink] = {
+        var b = I18NHangar.Builder[Hyperlink]()
+        p.commons.foreach { link =>
+          _expand_common_link(link) match {
+            case Left(common) => b = b.add(common)
+            case Right(map) => b = b.add(map)
+          }
+        }
+        p.map.foreach {
+          case (locale, links) =>
+            links.foreach { link =>
+              b = b.add(Map(locale -> _distill_link(locale, link)))
+            }
+        }
+        b.build()
+      }
+
+      private def _expand_common_link(p: Hyperlink): Either[Hyperlink, Map[Locale, Hyperlink]] = {
+        val locales = _collect_locales(p)
+        if (locales.isEmpty)
+          Left(p)
+        else
+          Right(locales.map(l => l -> _distill_link(l, p)).toMap)
+      }
+
+      private def _collect_locales(p: Hyperlink): Vector[Locale] =
+        p.contents
+          .collect { case m: I18NFragment => m.contents.localeVector.map(_._1) }
+          .flatten
+          .distinct
+          .toVector
+
+      private def _distill_link(locale: Locale, p: Hyperlink): Hyperlink = {
+        val contents = p.contents.flatMap {
+          case m: I18NFragment => m.distillInline(locale)
+          case m => List(m)
+        }
+        p.copy(contents = contents)
       }
     }
     object Link {
