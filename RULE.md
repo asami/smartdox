@@ -1,0 +1,1 @@
+ai/directive/core/RULE.md

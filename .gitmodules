@@ -1,0 +1,3 @@
+[submodule "ai/directive"]
+	path = ai/directive
+	url = https://github.com/asami/ai-directive.git
