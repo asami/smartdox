@@ -1362,7 +1362,7 @@ object DoxInlineParser {
     urn: Seq[Inline]
   ) extends ChildDoxInlineParseState {
     override def returnInlineFrom(doxes: Seq[Inline]) =
-      leave_to_urn(urn, doxes)
+      leave_to_urn(doxes, urn)
   }
 
   case class BoldState(

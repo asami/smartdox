@@ -27,19 +27,47 @@ class AutoI18nTransformer(
     node: TreeNode[Dox],
     content: Dox
   ): TreeTransformer.Directive[Dox] = content match {
+    case m: Head =>
+      _transform_head_title(m).map(directive_node).getOrElse(directive_default)
+    case m: Section =>
+      directive_container_content(m.withTitle(_inline_contents(m.title)))
+    case m: Li =>
+      directive_container_content(m.copy(contents = _list_contents(m.contents)))
     case m: Text =>
-      val a = m.contents.split(_delimiter).toList
-      a match {
-        case Nil => directive_node(m)
-        case x :: Nil => directive_node(m)
-        case xs => directive_nodes(_make_spans(xs))
+      if (_is_in_preserve(node))
+        directive_node(m)
+      else {
+        val a = m.contents.split(_delimiter).toList
+        a match {
+          case Nil => directive_node(m)
+          case x :: Nil => directive_node(m)
+          case xs => directive_nodes(_make_spans(xs))
+        }
       }
-//    case m: Head => directive_node(m.withTitle(_inline_contents(m.titleDefault)))
-//    case m: Section => directive_node(m.copy(title = _inline_contents(m.title)))
     case _ => directive_default
   }
 
+  private def _transform_head_title(p: Head): Option[Head] =
+    p.title match {
+      case Some(title) if title.isSimple =>
+        val a = _inline_contents(title.makeInlines)
+        if (a == p.titleDefault)
+          None
+        else
+          Some(p.withTitle(a))
+      case _ => None
+    }
+
+  private def _is_in_preserve(node: TreeNode[Dox]): Boolean =
+    node.getParent.exists(_.getContent.exists(_.isInstanceOf[Preserve]))
+
   private def _inline_contents(ps: InlineContents): InlineContents =
+    ps.flatMap {
+      case m: Text => _text_i18n(m)
+      case m => List(m)
+    }
+
+  private def _list_contents(ps: List[ListContent]): List[ListContent] =
     ps.flatMap {
       case m: Text => _text_i18n(m)
       case m => List(m)

@@ -16,6 +16,7 @@ import org.goldenport.hocon.HoconUtils
 import org.goldenport.util.ListUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.i18n.LocaleUtils
+import java.util.Locale
 import org.smartdox._
 import Dox._
 import org.smartdox.generator.Context
@@ -55,7 +56,7 @@ class Dox2DomHtmlTransformer(
   def documentOut(d: Document) = {
     // println(s"Dox2DomHtmlTransform#documentOut: $d")
     val doc = _factory.document
-    val title = _get_inline(d.head.titleDefault)
+    val title = _title_inline(d.head)
     val h = headOut(d.head)
     val b = bodyOut(d.body, title)
     val root = _factory.element("html")
@@ -85,7 +86,7 @@ class Dox2DomHtmlTransformer(
   }
 
   private def _head_title(p: Head): Option[Element] =
-    _get_inline(p.titleDefault).map(create_element("title", _))
+    _title_inline(p).map(create_element("title", _))
 
   private def _head_author(p: Head): Option[Element] =
     _get_inline(p.author).map(create_element("author", _))
@@ -253,6 +254,12 @@ class Dox2DomHtmlTransformer(
   private def _get_inline(ps: InlineContents): Option[Node] = ps match {
     case Nil => None
     case xs => Some(_inline(ps))
+  }
+
+  private def _title_inline(p: Head): Option[Node] = {
+    val locale = context.targetI18NContext.locale
+    val inlines = p.title.map(_.distillInline(locale)).getOrElse(p.titleDefault)
+    _get_inline(inlines)
   }
 
   private def _inline(ps: InlineContents): Node = ps match {
