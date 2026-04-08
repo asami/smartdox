@@ -12,7 +12,8 @@ import org.smartdox.service.operations._
  *  version Feb. 28, 2025
  *  version Apr. 18, 2025
  *  version May.  4, 2025
- * @version Oct. 25, 2025
+ *  version Oct. 25, 2025
+ * @version Apr.  9, 2026
  * @author  ASAMI, Tomoharu
  */
 class SmartDoxService(
@@ -36,6 +37,7 @@ object SmartDoxService {
     val defaultOperation = None
     val operations = Operations(
       HtmlOperationClass,
+      PdfOperationClass,
       BloggerOperationClass,
       SiteOperationClass,
       SiteMarkOperationClass,

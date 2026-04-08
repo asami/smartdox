@@ -16,7 +16,7 @@ import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Oct. 25, 2025
- * @version Oct. 25, 2025
+ * @version Apr.  9, 2026
  * @author  ASAMI, Tomoharu
  */
 case object SiteMarkOperationClass extends OperationClassWithOperation {
@@ -31,7 +31,7 @@ case object SiteMarkOperationClass extends OperationClassWithOperation {
   }
 
   def execute(env: Environment, cmd: SiteCommand): SiteResult = {
-    val realm = Realm.create(DoxSite.realmConfig, cmd.in)
+    val realm = SiteInputRealm.create(cmd)
     val ctx = DoxContext.create(env)
     val config = DoxSite.Config.create(cmd)
     val site = new DoxSiteMarkGenerator(ctx, config)

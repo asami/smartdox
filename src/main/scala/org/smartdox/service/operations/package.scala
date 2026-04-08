@@ -5,12 +5,15 @@ import java.io.File
 import org.goldenport.context.Consequence
 import org.goldenport.cli.Request
 import org.goldenport.cli.spec
+import org.goldenport.realm.Realm
+import org.goldenport.realm.Realm.FileData
 import org.goldenport.tree.TreeTransformer
+import org.goldenport.util.StringUtils
 import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Jun.  3, 2025
- * @version Jun. 16, 2025
+ * @version Apr.  9, 2026
  * @author  ASAMI, Tomoharu
  */
 
@@ -27,6 +30,30 @@ package object operations {
     outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy],
     target: Option[List[Regex]]
   )
+  object SiteInputRealm {
+    def create(p: SiteParameters.Holder): Realm =
+      create(p.in)
+
+    def create(p: SiteParameters): Realm =
+      create(p.in)
+
+    def create(in: File): Realm =
+      if (in.isDirectory)
+        Realm.create(DoxSite.realmConfig, in)
+      else
+        _from_file(in)
+
+    private def _from_file(in: File): Realm = {
+      val b = Realm.Builder()
+      val suffix = StringUtils.toSuffix(in.getName.toLowerCase)
+      if (DoxSite.realmConfig.textSuffixes.contains(suffix))
+        b.set(in.getName, scala.io.Source.fromFile(in).mkString)
+      else
+        b.cursor.set(in.getName, FileData(in))
+      b.build()
+    }
+  }
+
   object SiteParameters {
     trait Holder {
       def siteParameters: SiteParameters
