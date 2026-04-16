@@ -101,7 +101,8 @@ import org.smartdox.util.DoxUtils
  *  version Sep. 29, 2025
  *  version Oct. 28, 2025
  *  version Nov. 22, 2025
- * @version Dec. 11, 2025
+ *  version Dec. 11, 2025
+ * @version Apr. 16, 2026
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -648,6 +649,7 @@ object Dox extends UseDox {
     Italic,
     Underline,
     Code,
+    InlineMacro,
     Pre,
     Ul,
     Ol,
@@ -2173,6 +2175,46 @@ object Code extends Code(Nil, VectorMap.empty, None, None) with DoxFactory {
     val attrs = PureParser.getAttributes(elem)
     Code(cs, attrs)
   }
+}
+
+case class InlineMacro(
+  name: String,
+  contents: String,
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline with Preserve {
+  override val elements = List(Text(contents))
+  override def showTerm = "inlinemacro"
+  override def showParams = List("name" -> name)
+
+  override def to_Data_Prologue(buf: StringBuilder) {
+    buf.append(name).append(":[")
+  }
+
+  override def to_Data_Epilogue(buf: StringBuilder) {
+    buf.append("]")
+  }
+
+  override def equals_Value(o: Dox) = o match {
+    case m: InlineMacro =>
+      name == m.name && contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) =
+    Success(copy(contents = cs.map(_.toText).mkString, location = get_location(location, cs)))
+}
+
+object InlineMacro extends InlineMacro("", "", VectorMap.empty, None) with DoxFactory {
+  val label = "inlinemacro"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): InlineMacro = {
+    val name = attrs.get("name").getOrElse("macro")
+    InlineMacro(name, body.map(_.toText).mkString, attrs)
+  }
+
+  def pass(contents: String, location: Option[ParseLocation] = None): InlineMacro =
+    InlineMacro("pass", contents, location = location)
 }
 
 case class Pre(
@@ -4541,4 +4583,3 @@ object Admonition {
 //     Verbatim(cs, attrs)
 //   }
 // }
-

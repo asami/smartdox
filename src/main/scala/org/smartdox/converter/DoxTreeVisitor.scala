@@ -14,7 +14,8 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
  *  version Oct. 26, 2025
- * @version Nov. 30, 2025
+ *  version Nov. 30, 2025
+ * @version Apr. 16, 2026
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -124,6 +125,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Dt => enter_dt(m)
       case m: Dd => enter_Dd(m)
       case m: Hyperlink => enter_Hyperlink(m)
+      case m: InlineMacro => enter_InlineMacro(m)
       case m: Figure => enter_figure(m)
       case m: Figcaption => enter_figcaption(m)
       case m: Img => enter_img(m)
@@ -235,6 +237,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Dt(p: Dt): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dt: $p")
   protected def enter_Dd(p: Dd): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Dd: $p")
   protected def enter_Hyperlink(p: Hyperlink): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Hyperlink: $p")
+  protected def enter_InlineMacro(p: InlineMacro): Unit = {}
   protected def enter_Figure(p: Figure): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Figure: $p")
   protected def enter_Figcaption(p: Figcaption): Unit = {}
   protected def enter_Img(p: Img): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Img: $p")
@@ -294,6 +297,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Dt => leave_dt(m)
       case m: Dd => leave_Dd(m)
       case m: Hyperlink => leave_Hyperlink(m)
+      case m: InlineMacro => leave_InlineMacro(m)
       case m: Figure => leave_figure(m)
       case m: Figcaption => leave_figcaption(m)
       case m: Img => leave_img(m)
@@ -410,6 +414,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Dt(p: Dt): Unit = {}
   protected def leave_Dd(p: Dd): Unit = {}
   protected def leave_Hyperlink(p: Hyperlink): Unit = {}
+  protected def leave_InlineMacro(p: InlineMacro): Unit = {}
   protected def leave_Figure(p: Figure): Unit = {}
   protected def leave_Figcaption(p: Figcaption): Unit = {}
   protected def leave_Img(p: Img): Unit = {}

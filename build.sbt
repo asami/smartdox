@@ -2,9 +2,13 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.4.11"
+version := "2.4.12-SNAPSHOT"
 
 scalaVersion := "2.12.18"
+
+lazy val Master = config("master").extend(Compile)
+
+ivyConfigurations += Master
 
 // crossScalaVersions := Seq("2.11.6", "2.10.5")
 
@@ -100,3 +104,5 @@ publishTo := Some(
 credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 publishMavenStyle := true
+
+Compile / packageDoc / publishArtifact := false

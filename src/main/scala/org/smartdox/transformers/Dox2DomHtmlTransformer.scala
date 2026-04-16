@@ -14,6 +14,7 @@ import org.goldenport.xml.dom.DomFactory
 import org.goldenport.value._
 import org.goldenport.hocon.HoconUtils
 import org.goldenport.util.ListUtils
+import org.goldenport.util.StringUtils
 import org.goldenport.util.AnyUtils
 import org.goldenport.i18n.LocaleUtils
 import java.util.Locale
@@ -32,7 +33,8 @@ import org.smartdox.metadata.web.JsonLd
  *  version Apr. 29, 2025
  *  version Jul.  3, 2025
  *  version Aug.  5, 2025
- * @version Oct. 26, 2025
+ *  version Oct. 26, 2025
+ * @version Apr. 16, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -270,6 +272,7 @@ class Dox2DomHtmlTransformer(
 
   private def _inline(p: Inline): Node = p match {
     case m: Text => _factory.text(m.contents)
+    case InlineMacro("site", target, _, _) => _site_link(target)
     case m => _node(p)
   }
 
@@ -308,6 +311,12 @@ class Dox2DomHtmlTransformer(
     val text = Dox.getText(p.contents)
     val attrs = List("href" -> href.toString)
     _factory.element("A", attrs, contents)
+  }
+
+  private def _site_link(target: String): Node = {
+    val href = StringUtils.changeSuffix(target, "html")
+    val attrs = List("href" -> href)
+    _factory.element("A", attrs, _factory.text(target))
   }
 
   private def _figure(p: Figure): Node = {

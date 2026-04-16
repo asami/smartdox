@@ -7,6 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import java.io.File
+import org.goldenport.i18n.I18NContext
 import org.goldenport.tree.TreeTransformer
 import org.smartdox._
 import org.smartdox.parser.UseDoxParser
@@ -19,7 +20,8 @@ import org.smartdox.transformers.AutoI18nTransformer
  *  version Mar.  1, 2025
  *  version Apr.  3, 2025
  *  version Jun. 17, 2025
- * @version Aug. 16, 2025
+ *  version Aug. 16, 2025
+ * @version Apr. 16, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -30,6 +32,17 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
     "create" in {
       val site = DoxSite.create(context, new File("src/test/resources/site1"))
       println(site)
+    }
+
+    "resolve site inline macro as internal link" in {
+      val site = DoxSite.create(context, new File("src/test/resources/site-link"))
+      val realm = site.toRealm(context)
+      implicit val i18nContext: I18NContext = context.i18NContext
+      val html = realm.getString("/en/index.html").orElse(realm.getString("en/index.html")).get
+
+      html should include ("href=\"target.html\"")
+      html should include ("target.dox")
+      html should not include ("site:[target.dox]")
     }
 
     "keep program text opaque during auto i18n" in {

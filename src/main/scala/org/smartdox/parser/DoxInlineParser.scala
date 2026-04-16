@@ -21,7 +21,8 @@ import org.smartdox._
  *  version Jul. 29, 2025
  *  version Sep.  9, 2025
  *  version Oct. 26, 2025
- * @version Nov.  5, 2025
+ *  version Nov.  5, 2025
+ * @version Apr. 16, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -35,15 +36,27 @@ object DoxInlineParser {
 
   def parse(in: String): Dox = parse(Config.default, in)
 
-  def parse(config: Config, in: String): Dox = {
-    // println(s"Inline($config): $in")
-    val (messages, result, state) = apply(config, in)
-    result match {
-      case ParseSuccess(dox, _) => Dox.toDox(dox)
-      case ParseFailure(_, _) => RAISE.notImplementedYetDefect
-      case EmptyParseResult() => RAISE.notImplementedYetDefect
+  def parse(config: Config, in: String): Dox =
+    _parse_inline_macro(config, in).getOrElse {
+      // println(s"Inline($config): $in")
+      val (messages, result, state) = apply(config, in)
+      result match {
+        case ParseSuccess(dox, _) => Dox.toDox(dox)
+        case ParseFailure(_, _) => RAISE.notImplementedYetDefect
+        case EmptyParseResult() => RAISE.notImplementedYetDefect
+      }
     }
-  }
+
+  private val _inline_macro_regex = """^([A-Za-z][A-Za-z0-9_-]*):\[(.*)\]$""".r
+
+  private def _parse_inline_macro(config: Config, in: String): Option[Dox] =
+    if (config.asciidoc.isInlineMacro)
+      in match {
+        case _inline_macro_regex(name, contents) => Some(InlineMacro(name, contents))
+        case _ => None
+      }
+    else
+      None
 
   // def apply(in: String): (ParseMessageSequence, ParseResult[Vector[Dox]], DoxInlineParseState) =
   //   apply(Config.default, in)
@@ -83,7 +96,7 @@ object DoxInlineParser {
     def useUnderscore: Boolean = markdown.isItalic || markdown.isItalic2 || orgmode.isUnderline
     def useBackQuote: Boolean = markdown.isBackQuote
     def useTilde: Boolean = orgmode.isVerbatim
-    def useColon: Boolean = false
+    def useColon: Boolean = asciidoc.isInlineMacro
     def useEqual: Boolean = orgmode.isCode
     def usePlus: Boolean = orgmode.isStrikeThrough
     def useSlash: Boolean = orgmode.isItalic
@@ -141,11 +154,12 @@ object DoxInlineParser {
     }
 
     case class Asciidoc(
+      isInlineMacro: Boolean = false
     )
     object Asciidoc {
       val none = Asciidoc()
-      val full = Asciidoc()
-      val smartdox = Asciidoc()
+      val full = Asciidoc(isInlineMacro = true)
+      val smartdox = Asciidoc(isInlineMacro = true)
       val model = none
     }
   }
@@ -611,6 +625,58 @@ object DoxInlineParser {
     override protected def close_Angle_Bracket_State(c: Char): DoxInlineParseState =
       copy(cs = cs :+ c)
 
+    override protected def open_Bracket_State(evt: CharEvent): DoxInlineParseState =
+      if (cs.lastOption.contains(':'))
+        _inline_macro_state_from_open_bracket(evt)
+      else
+        super.open_Bracket_State(evt)
+
+    override protected def colon_State(evt: CharEvent): DoxInlineParseState =
+      if (evt.next.contains('['))
+        _inline_macro_state(evt)
+      else
+        character_State(evt.c)
+
+    private def _inline_macro_state(evt: CharEvent): DoxInlineParseState = {
+      val (prefix, name) = _split_inline_macro_name(cs)
+      if (name.isEmpty)
+        character_State(evt.c)
+      else {
+        val base = prefix match {
+          case Some(s) if s.nonEmpty => copy(doxes = doxes :+ Text(s), cs = Vector.empty, isInSpace = false)
+          case _ => copy(cs = Vector.empty, isInSpace = false)
+        }
+        SkipOneState(config, InlineMacroState(config, base, name), '[')
+      }
+    }
+
+    private def _inline_macro_state_from_open_bracket(evt: CharEvent): DoxInlineParseState = {
+      val (prefix, name) = _split_inline_macro_name(cs.dropRight(1))
+      if (name.isEmpty)
+        super.open_Bracket_State(evt)
+      else {
+        val base = prefix match {
+          case Some(s) if s.nonEmpty => copy(doxes = doxes :+ Text(s), cs = Vector.empty, isInSpace = false)
+          case _ => copy(cs = Vector.empty, isInSpace = false)
+        }
+        InlineMacroState(config, base, name)
+      }
+    }
+
+    private def _split_inline_macro_name(p: Vector[Char]): (Option[String], String) = {
+      val s = p.mkString
+      val i = s.lastIndexWhere(ch => !Character.isLetterOrDigit(ch) && ch != '_' && ch != '-')
+      val name = s.drop(i + 1)
+      val prefix = if (i < 0) None else Some(s.take(i + 1))
+      if (_is_inline_macro_name(name))
+        prefix -> name
+      else
+        None -> ""
+    }
+
+    private def _is_inline_macro_name(p: String): Boolean =
+      p.nonEmpty && p.head.isLetter && p.forall(ch => Character.isLetterOrDigit(ch) || ch == '_' || ch == '-')
+
     override protected def space_State(c: Char): DoxInlineParseState =
       if (doxes.isEmpty && cs.isEmpty)
         this
@@ -861,6 +927,25 @@ object DoxInlineParser {
       parent: DoxInlineParseState,
       closeChar: Char
     ): RawState = RawState(parent.config, parent, closeChar)
+  }
+
+  case class InlineMacroState(
+    config: Config,
+    parent: DoxInlineParseState,
+    name: String,
+    cs: Vector[Char] = Vector.empty
+  ) extends ChildDoxInlineParseState with RawFeature {
+    override protected def character_State(evt: CharEvent): DoxInlineParseState =
+      evt.c match {
+        case ']' if _is_close(evt) => leave_inline_to(InlineMacro(name, cs.mkString))
+        case m => copy(cs = cs :+ m)
+      }
+
+    private def _is_close(evt: CharEvent): Boolean =
+      name match {
+        case "pass" => evt.next.forall(_.isWhitespace)
+        case _ => true
+      }
   }
 
   case class XmlState(
@@ -1346,14 +1431,25 @@ object DoxInlineParser {
     urn: Seq[Inline] = Vector.empty
   ) extends ChildDoxInlineParseState {
     override protected def handle_End(): Transition =
-      leave_to_urn(urn).apply(config, EndEvent)
+      _deprecated_site_link(EndEvent)
 
     override protected def handle_char_event(evt: CharEvent): Transition =
       evt.c match {
         case '(' => to_transition(InlineState(MarkdownLinkLabelState(config, parent, urn), ')'))
         case _ =>
-          leave_to_urn(urn).apply(config, evt)
+          _deprecated_site_link(evt)
       }
+
+    private def _deprecated_site_link(evt: ParseEvent): Transition = {
+      val label = make_text(urn)
+      val text = s"[$label]"
+      val next = leave_to_urn(urn)
+      val (msgs, result, state) = next.apply(config, evt)
+      val message = s"Deprecated SmartDox site link '$text'. Use 'site:[$label]' instead."
+      scala.Console.err.println(s"warning: $message")
+      val warn = ParseMessageSequence.warning(message)
+      (warn + msgs, result, state)
+    }
   }
 
   case class MarkdownLinkLabelState(
