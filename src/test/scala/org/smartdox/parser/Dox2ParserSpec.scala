@@ -12,7 +12,8 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Nov. 12, 2018
  *  version Dec. 31, 2018
  *  version Sep.  5, 2024
- * @version Aug. 16, 2025
+ *  version Aug. 16, 2025
+ * @version Apr. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -371,7 +372,8 @@ class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with 
       "scala" in {
         parse_orgmode_simple(
           """include::src/test/resources/sample.scala[]""",
-          """object x {}"""
+          """<pre kind="scala" caption="sample.scala" kind="scala" caption="sample.scala" class="program">object x {}
+</pre>"""
         )
       }
     }

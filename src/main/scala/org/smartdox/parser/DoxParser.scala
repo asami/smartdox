@@ -30,7 +30,7 @@ import org.goldenport.collection.VectorMap
  *  version May.  4, 2025
  *  version Jun. 16, 2025
  *  version Jul.  2, 2025
- * @version Apr. 16, 2026
+ * @version Apr. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -41,7 +41,8 @@ class DoxParser(
   val newline = """(\r\n|\n|\r)""".r
 
   def parseOrgmode(reader: Reader) = parseAll(orgmode, reader)
-  def parseOrgmode(in: String) = parseAll(orgmode, in)
+  def parseOrgmode(in: String) =
+    parseAll(orgmode, in).map(_resolve_include(".", _))
   def parseOrgmode(uri: URI): ParseResult[Dox] = {
     var reader: BufferedReader = null
     try {
@@ -831,7 +832,7 @@ class DoxParser(
   def text: Parser[List[Text]] = {
     // special charactors: :|]
 //    """[^*/_=~+<>\[\] :|\n\r]+""".r ^^ {
-    """[^*/_=~+<\[ \n\r]+""".r ^^ {
+    (if (useUnderline) """[^*/_=~+<\[ \n\r]+""".r else """[^*/=~+<\[ \n\r]+""".r) ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         List(Text(s))
@@ -839,7 +840,7 @@ class DoxParser(
   }
 
   def text_table: Parser[List[Text]] = {
-    """[^*/_=~+<\[ |\n\r]+""".r ^^ {
+    (if (useUnderline) """[^*/_=~+<\[ |\n\r]+""".r else """[^*/=~+<\[ |\n\r]+""".r) ^^ {
       case s => 
 //        println("s = " + s);Text(s)
         List(Text(s))
@@ -1254,6 +1255,8 @@ class DoxParser(
 }
 
 object DoxParser {
+  implicit private val dateTimeContext: DateTimeContext = DateTimeContext.now()
+
   def parseOrgmodeZ(s: String): Validation[NonEmptyList[String], Dox] =
-    RAISE.unsupportedOperationFault
+    new DoxParser(false, dateTimeContext).parseOrgmodeZ(s)
 }

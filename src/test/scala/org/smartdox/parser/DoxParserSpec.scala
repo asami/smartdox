@@ -17,7 +17,8 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Feb.  5, 2014
  *  version Mar. 10, 2016
  *  version Feb. 13, 2021
- * @version Aug. 16, 2025
+ *  version Aug. 16, 2025
+ * @version Apr. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -342,7 +343,7 @@ class DoxParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with U
     "typical" which {
       "underscoe" in {
         parse_orgmode("register_provisional",
-          "<!DOCTYPE html><html><head/><body><p>register _provisional</p></body></html>"
+          "<!DOCTYPE html><html><head/><body><p>register_provisional</p></body></html>"
         )
       }
     }
