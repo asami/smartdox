@@ -22,7 +22,7 @@ import org.smartdox._
  *  version Sep.  9, 2025
  *  version Oct. 26, 2025
  *  version Nov.  5, 2025
- * @version Apr. 16, 2026
+ * @version Apr. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -1443,12 +1443,35 @@ object DoxInlineParser {
     private def _deprecated_site_link(evt: ParseEvent): Transition = {
       val label = make_text(urn)
       val text = s"[$label]"
-      val next = leave_to_urn(urn)
-      val (msgs, result, state) = next.apply(config, evt)
-      val message = s"Deprecated SmartDox site link '$text'. Use 'site:[$label]' instead."
-      scala.Console.err.println(s"warning: $message")
-      val warn = ParseMessageSequence.warning(message)
-      (warn + msgs, result, state)
+      if (_is_structural_bracket_text(label)) {
+        val next = leave_to(Text(text))
+        next.apply(config, evt)
+      } else if (!_is_legacy_site_link(label)) {
+        val next = leave_to_urn(urn)
+        next.apply(config, evt)
+      } else {
+        val next = leave_to_urn(urn)
+        val (msgs, result, state) = next.apply(config, evt)
+        val message = s"Deprecated SmartDox site link '$text'. Use 'site:[$label]' instead."
+        scala.Console.err.println(s"warning: $message")
+        val warn = ParseMessageSequence.warning(message)
+        (warn + msgs, result, state)
+      }
+    }
+
+    private def _is_structural_bracket_text(label: String): Boolean = {
+      val s = label.trim
+      s.length >= 2 && (
+        (s.head == '"' && s.last == '"') ||
+        (s.head == '\'' && s.last == '\'') ||
+        (s.startsWith("&quot;") && s.endsWith("&quot;")) ||
+        (s.startsWith("&#39;") && s.endsWith("&#39;"))
+      )
+    }
+
+    private def _is_legacy_site_link(label: String): Boolean = {
+      val s = label.trim
+      s.endsWith(".dox") && !s.exists(_.isWhitespace)
     }
   }
 

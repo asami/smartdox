@@ -13,7 +13,7 @@ import org.smartdox._
 /*
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
- * @version Apr. 16, 2026
+ * @version Apr. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -56,12 +56,41 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
     "warn legacy single bracket site link" in {
       val buffer = new ByteArrayOutputStream()
       val r = scala.Console.withErr(new PrintStream(buffer)) {
-        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "[overview]")
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "[overview.dox]")
       }
       buffer.toString("UTF-8") should include (
-        "warning: Deprecated SmartDox site link '[overview]'. Use 'site:[overview]' instead."
+        "warning: Deprecated SmartDox site link '[overview.dox]'. Use 'site:[overview.dox]' instead."
       )
-      r shouldBe Hyperlink(Vector(Text("overview")), "overview")
+      r shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
+    }
+
+    "keep markdown link label without legacy site link warning" in {
+      val buffer = new ByteArrayOutputStream()
+      val r = scala.Console.withErr(new PrintStream(buffer)) {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "[overview](overview.dox)")
+      }
+      buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
+      r shouldBe a [Hyperlink]
+      val link = r.asInstanceOf[Hyperlink]
+      link.href.toString shouldBe "overview.dox"
+      link.contents shouldBe Vector(Text("overview"))
+    }
+
+    "keep asciidoc link label without legacy site link warning" in {
+      val buffer = new ByteArrayOutputStream()
+      scala.Console.withErr(new PrintStream(buffer)) {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "link:overview.dox[Overview]")
+      }
+      buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
+    }
+
+    "keep quoted bracket text without legacy site link warning" in {
+      val buffer = new ByteArrayOutputStream()
+      val r = scala.Console.withErr(new PrintStream(buffer)) {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, """["SimpleEntity"]""")
+      }
+      buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
+      r shouldBe Text("""[&quot;SimpleEntity&quot;]""")
     }
   }
 }
