@@ -21,7 +21,7 @@ import org.smartdox.transformers.AutoI18nTransformer
  *  version Apr.  3, 2025
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
- * @version Apr. 16, 2026
+ * @version Apr. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -35,13 +35,14 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
     }
 
     "resolve site inline macro as internal link" in {
-      val site = DoxSite.create(context, new File("src/test/resources/site-link"))
+      val config = DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
+      val site = DoxSite.create(context, new File("src/test/resources/site-link"), None, config)
       val realm = site.toRealm(context)
       implicit val i18nContext: I18NContext = context.i18NContext
       val html = realm.getString("/en/index.html").orElse(realm.getString("en/index.html")).get
 
       html should include ("href=\"target.html\"")
-      html should include ("target.dox")
+      html should include ("Target Page")
       html should not include ("site:[target.dox]")
     }
 

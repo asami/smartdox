@@ -22,7 +22,7 @@ import org.smartdox._
  *  version Sep.  9, 2025
  *  version Oct. 26, 2025
  *  version Nov.  5, 2025
- * @version Apr. 19, 2026
+ * @version Apr. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -52,6 +52,7 @@ object DoxInlineParser {
   private def _parse_inline_macro(config: Config, in: String): Option[Dox] =
     if (config.asciidoc.isInlineMacro)
       in match {
+        case _inline_macro_regex("site", contents) => Some(Hyperlink(Vector(Text(contents)), contents))
         case _inline_macro_regex(name, contents) => Some(InlineMacro(name, contents))
         case _ => None
       }
@@ -937,7 +938,7 @@ object DoxInlineParser {
   ) extends ChildDoxInlineParseState with RawFeature {
     override protected def character_State(evt: CharEvent): DoxInlineParseState =
       evt.c match {
-        case ']' if _is_close(evt) => leave_inline_to(InlineMacro(name, cs.mkString))
+        case ']' if _is_close(evt) => leave_inline_to(_make_inline_macro)
         case m => copy(cs = cs :+ m)
       }
 
@@ -946,6 +947,14 @@ object DoxInlineParser {
         case "pass" => evt.next.forall(_.isWhitespace)
         case _ => true
       }
+
+    private def _make_inline_macro: Inline = {
+      val contents = cs.mkString
+      name match {
+        case "site" => Hyperlink(Vector(Text(contents)), contents)
+        case _ => InlineMacro(name, contents)
+      }
+    }
   }
 
   case class XmlState(

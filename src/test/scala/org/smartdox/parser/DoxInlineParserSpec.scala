@@ -13,7 +13,7 @@ import org.smartdox._
 /*
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
- * @version Apr. 19, 2026
+ * @version Apr. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -44,13 +44,9 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       macroNode.toData shouldBe "pass:[^[A-Z]{2}$]"
     }
 
-    "parse site inline macro as migration target" in {
-      val r = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "site:[overview]")
-      r shouldBe a [InlineMacro]
-      val macroNode = r.asInstanceOf[InlineMacro]
-      macroNode.name shouldBe "site"
-      macroNode.contents shouldBe "overview"
-      macroNode.toData shouldBe "site:[overview]"
+    "parse site inline macro as internal link" in {
+      val r = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "site:[overview.dox]")
+      r shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
     }
 
     "warn legacy single bracket site link" in {

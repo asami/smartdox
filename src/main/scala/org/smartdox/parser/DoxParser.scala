@@ -30,7 +30,7 @@ import org.goldenport.collection.VectorMap
  *  version May.  4, 2025
  *  version Jun. 16, 2025
  *  version Jul.  2, 2025
- * @version Apr. 19, 2026
+ * @version Apr. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -865,7 +865,8 @@ class DoxParser(
   }
 
   def inline_macro: Parser[InlineContents] = {
-    """[A-Za-z][A-Za-z0-9_-]*""".r~(":"~>""".*""".r<~"]") ^^ {
+    """[A-Za-z][A-Za-z0-9_-]*""".r~(":"~>"["~>""".*""".r<~"]") ^^ {
+      case "site"~contents => List(Hyperlink(Vector(Text(contents)), contents))
       case name~contents => List(InlineMacro(name, contents))
     }
   }
