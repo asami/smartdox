@@ -1,0 +1,11 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "catalog.project",
+  "publication": {
+    "path": "samples/textus/bad path"
+  },
+  "project": {
+    "name": "bad-path",
+    "title": "Bad Path"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "source-manifest",
+  "publication": {
+    "path": "samples/textus/tutorial"
+  },
+  "project": {
+    "name": "textus-tutorial",
+    "title": "Textus Tutorial"
+  },
+  "source_manifest": [
+    {
+      "path": "src/main/scala/example/Main.scala",
+      "size": 120,
+      "sha256": "0123456789abcdef"
+    }
+  ]
+}

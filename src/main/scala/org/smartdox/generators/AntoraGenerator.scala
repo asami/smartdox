@@ -1,6 +1,7 @@
 package org.smartdox.generators
 
 import scala.util.{Try, Success, Failure}
+import java.io.File
 import java.util.Locale
 import java.net.{URL, URI}
 import java.nio.file.{Paths, Path}
@@ -34,6 +35,7 @@ import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.{Node, Page, MetaDataNode}
 import org.smartdox.doxsite.ImageNode
 import org.smartdox.metadata.MetaData
+import org.smartdox.metadata.PublishMetadata
 import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.transformers.LanguageFilterTransformer
 import org.smartdox.transformers.DoxTreeNormalizationTransformer
@@ -47,17 +49,20 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Jul. 27, 2025
  *  version Aug. 17, 2025
  *  version Oct. 15, 2025
- * @version Nov. 17, 2025
+ *  version Nov. 17, 2025
+ * @version May. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
   val context: GeneratorContext,
-  val config: DoxSite.Config
+  val config: DoxSite.Config,
+  val publish: Option[File] = None
 ) extends GeneratorBase {
   import AntoraGenerator._
 
   def generate(realm: Realm): Realm = {
-    val site = DoxSite.create(context, realm, "antora", config)
+    val extraPages = PublishMetadata.load(publish).map(_.generatedPages).getOrElse(Vector.empty)
+    val site = DoxSite.create(context, realm, "antora", config, extraPages)
     // record_message("XXX")
     val builder = new Builder(Builder.Config(config, site.metadata))
     // record_info("INFO")
@@ -899,6 +904,7 @@ object AntoraGenerator {
     private var _depth: Int = 0
     private var _in_images: Boolean = false
     private var _in_work_area: Int = 0
+    private var _module_path: Vector[String] = Vector.empty
     private val _antora = new Antora.Builder(Antora.Builder.Config(config.doxSiteConfig))
 
     private def _effective_depth: Int =
@@ -949,12 +955,16 @@ object AntoraGenerator {
 
     private def _at_component(node: TreeNode[Node], c: Node): Unit = _antora.addNode(c)
 
-    private def _at_module(node: TreeNode[Node]): Unit = RAISE.notImplementedYetDefect
+    private def _at_module(node: TreeNode[Node]): Unit =
+      _module_path = _module_path :+ node.name
 
     private def _at_module(node: TreeNode[Node], c: Node): Unit = _antora.addNode(c)
 
-    private def _at_ingredient(node: TreeNode[Node]): Unit = RAISE.notImplementedYetDefect
-    private def _at_ingredient(node: TreeNode[Node], c: Node): Unit = RAISE.notImplementedYetDefect
+    private def _at_ingredient(node: TreeNode[Node]): Unit =
+      _module_path = _module_path :+ node.name
+
+    private def _at_ingredient(node: TreeNode[Node], c: Node): Unit =
+      _antora.addNode(_with_module_path(c))
 
     override def leave(node: TreeNode[Node]) = {
       if (_in_work_area == 0)
@@ -983,13 +993,27 @@ object AntoraGenerator {
 
     private def _return_to_home(node: TreeNode[Node]): Unit = _antora.pushComponent()
     private def _return_to_component(node: TreeNode[Node]): Unit = _antora.pushModule()
-    private def _return_to_module(node: TreeNode[Node]): Unit = {}
-    private def _return_to_ingredient(node: TreeNode[Node]): Unit = {}
+    private def _return_to_module(node: TreeNode[Node]): Unit =
+      _module_path = _module_path.dropRight(1)
+    private def _return_to_ingredient(node: TreeNode[Node]): Unit =
+      _module_path = _module_path.dropRight(1)
 
     private def _category_title(name: String): I18NString =
       I18NString(config.categoryTitle(name))
 
     private def _is_images(node: TreeNode[Node]) = node.name == "images"
+
+    private def _with_module_path(p: Node): Node =
+      if (_module_path.isEmpty)
+        p
+      else {
+        val name = (_module_path :+ p.name.name).mkString("/")
+        p match {
+          case m: Page => m.copy(name = Node.Name(name))
+          case m: ImageNode => m.withName(name)
+          case m => m
+        }
+      }
   }
   object Builder {
     case class Config(

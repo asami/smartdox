@@ -1,0 +1,20 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "repository.artifact",
+  "project": {
+    "name": "textus-core",
+    "title": "Textus Core",
+    "kind": "car",
+    "version": "1.2.3"
+  },
+  "artifact": {
+    "layer": "component",
+    "status": "released",
+    "files": [
+      {
+        "path": "repository/car/textus-core/1.2.3/textus-core.car",
+        "size": 4096
+      }
+    ]
+  }
+}

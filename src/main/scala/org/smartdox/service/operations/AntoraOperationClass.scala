@@ -14,9 +14,9 @@ import org.smartdox.doxsite.DoxSite
 
 /*
  * @since   Apr. 18, 2025
- *  version Apr. 18, 2025
  *  version May.  2, 2025
- * @version Apr.  9, 2026
+ *  version Apr.  9, 2026
+ * @version May. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 case object AntoraOperationClass extends OperationClassWithOperation {
@@ -34,7 +34,7 @@ case object AntoraOperationClass extends OperationClassWithOperation {
     val realm = SiteInputRealm.create(cmd)
     val ctx = GeneratorContext.create(env)
     val config = DoxSite.Config.create(cmd)
-    val antora = new AntoraGenerator(ctx, config)
+    val antora = new AntoraGenerator(ctx, config, cmd.publish)
     val out = antora.generate(realm)
     AntoraResult(out)
   }

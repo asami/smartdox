@@ -71,7 +71,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Sep. 28, 2025
  *  version Oct. 30, 2025
  *  version Nov. 29, 2025
- * @version Dec.  8, 2025
+ *  version Dec.  8, 2025
+ * @version May. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1030,8 +1031,26 @@ object DoxSite {
   def create(
     context: Context,
     realm: Realm,
+    configname: String,
+    inconfig: DoxSite.Config,
+    extraPages: Seq[(String, Page)]
+  ): DoxSite =
+    create(context, realm, Some(configname), inconfig, extraPages)
+
+  def create(
+    context: Context,
+    realm: Realm,
     configname: Option[String],
     inconfig: DoxSite.Config
+  ): DoxSite =
+    create(context, realm, configname, inconfig, Nil)
+
+  def create(
+    context: Context,
+    realm: Realm,
+    configname: Option[String],
+    inconfig: DoxSite.Config,
+    extraPages: Seq[(String, Page)]
   ): DoxSite = {
     val config = _config(inconfig, realm, configname)(context.i18NContext)
     val nodectx = TreeTransformer.Context.default[Node]
@@ -1045,7 +1064,8 @@ object DoxSite {
     val rule = DoxSiteBuilder.Rule(config)
     val a0: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
     val a1: Tree[Node] = a0.transform(new DoxSiteEnabler(ctx, rule))
-    val a = a1.transform(new DoxSitePreTransformer(ctx))
+    val a0x = _deploy_extra_pages(a0, extraPages)
+    val a = _deploy_extra_pages(a1.transform(new DoxSitePreTransformer(ctx)), extraPages)
     val categories = _collect_category(config, context, a)
     val (notices, history0) = _collect_notice_history(config, context, categories, a)
     val atoms = _build_atom_feed(notices)
@@ -1064,13 +1084,23 @@ object DoxSite {
       history = history
     )
     val ctx1 = ctx.withMetaData(metadata0)
-    val (c, links) = _enable_link(ctx1, b, a0)
+    val (c, links) = _enable_link(ctx1, b, a0x)
     val metadata1 = metadata0.copy(linkCollection = links)
     val metadata = _build_site_model(metadata1)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
     new DoxSite(config, z, metadata)
+  }
+
+  private def _deploy_extra_pages(
+    base: Tree[Node],
+    extraPages: Seq[(String, Page)]
+  ): Tree[Node] = {
+    extraPages.foreach {
+      case (path, page) => base.setContent(path, page)
+    }
+    base
   }
 
   private def _collect_category(

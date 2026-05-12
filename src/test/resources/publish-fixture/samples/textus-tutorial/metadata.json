@@ -1,0 +1,13 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "sample.metadata",
+  "publication": {
+    "path": "samples/textus/tutorial"
+  },
+  "project": {
+    "name": "textus-tutorial",
+    "title": "Textus Tutorial",
+    "kind": "sample-single",
+    "version": "0.1.0"
+  }
+}

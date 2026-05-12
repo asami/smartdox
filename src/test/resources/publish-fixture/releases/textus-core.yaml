@@ -1,0 +1,8 @@
+schema: cozy.publish-project.v1
+type: release.history
+project:
+  name: textus-core
+  title: Textus Core
+release:
+  version: 1.2.3
+  date: "2026-05-13"
