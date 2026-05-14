@@ -56,13 +56,13 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
 class AntoraGenerator(
   val context: GeneratorContext,
   val config: DoxSite.Config,
-  val publish: Option[File] = None
+  val publication: Option[File] = None
 ) extends GeneratorBase {
   import AntoraGenerator._
 
   def generate(realm: Realm): Realm = {
-    val extraPages = PublishMetadata.load(publish).map(_.generatedPages).getOrElse(Vector.empty)
-    val site = DoxSite.create(context, realm, "antora", config, extraPages)
+    val extrapages = PublishMetadata.load(publication).map(_.generatedPages).getOrElse(Vector.empty)
+    val site = DoxSite.create(context, realm, "antora", config, extrapages)
     // record_message("XXX")
     val builder = new Builder(Builder.Config(config, site.metadata))
     // record_info("INFO")

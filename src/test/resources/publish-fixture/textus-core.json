@@ -1,0 +1,49 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "publication-bundle",
+  "publication": {
+    "name": "textus-core"
+  },
+  "entries": [
+    {
+      "path": "metadata/artifacts/repository/textus-core.json",
+      "key": "artifacts/repository/textus-core",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "repository.artifact",
+        "project": {
+          "name": "textus-core",
+          "title": "Textus Core",
+          "kind": "car",
+          "version": "1.2.3"
+        },
+        "artifact": {
+          "layer": "component",
+          "status": "released",
+          "files": [
+            {
+              "path": "repository/car/textus-core/1.2.3/textus-core.car",
+              "size": 4096
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "metadata/releases/textus-core.json",
+      "key": "releases/textus-core",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "release.history",
+        "project": {
+          "name": "textus-core",
+          "title": "Textus Core"
+        },
+        "release": {
+          "version": "1.2.3",
+          "date": "2026-05-13"
+        }
+      }
+    }
+  ]
+}

@@ -9,6 +9,8 @@ import org.goldenport.realm.Realm
 import org.goldenport.config.ConfigLoader
 import org.goldenport.io.InputSource
 import org.goldenport.value.DescriptiveAttributes
+import org.goldenport.values.PathName
+import org.goldenport.realm.Realm.StringData
 import org.smartdox._
 import org.smartdox.doxsite.Page
 
@@ -37,7 +39,7 @@ case class PublishMetadata(
       ))
     }
     "catalog/index.dox" -> _page("index.dox", "Publication Catalog", List(
-      Paragraph.text("This catalog lists resources published from Cozy-generated publish.d metadata. Public pages are intended for site users. Diagnostics pages are intended for maintainers who need to inspect publication inputs and generated artifact references."),
+      Paragraph.text("This catalog lists resources published from the Cozy-generated publication registry. Public pages are intended for site users. Diagnostics pages are intended for maintainers who need to inspect publication inputs and generated artifact references."),
       table()
     ))
   }
@@ -196,7 +198,7 @@ case class PublishMetadata(
         tb.append(_link("Source Manifest", "source-manifest.html"), Text("Inspect the source file inventory and checksums used to describe this publication."))
       if (entries.exists(_.isRelease))
         tb.append(_link("Release History", "releases.html"), Text("Inspect release metadata for this publication."))
-      tb.append(_link("Metadata Reference", "metadata.html"), Text("Inspect the publish.d metadata records consumed by SmartDox."))
+      tb.append(_link("Metadata Reference", "metadata.html"), Text("Inspect the publication registry metadata records consumed by SmartDox."))
       List(
         Paragraph.text("These pages are for maintainers and release verification. They expose the metadata used to generate public publication pages and to link published artifacts."),
         tb()
@@ -345,7 +347,7 @@ case class PublishMetadata(
           else
             Nil
         Some(s"$adminPath/source-manifest.dox" -> _page("source-manifest.dox", s"$title Source Manifest",
-          Paragraph.text("This maintainer page lists source files and checksums recorded in publish.d. Use it to verify what source content was described at publication time.") :: tb() :: more
+          Paragraph.text("This maintainer page lists source files and checksums recorded in the publication registry. Use it to verify what source content was described at publication time.") :: tb() :: more
         ))
       }
     }
@@ -513,15 +515,23 @@ object PublishMetadata {
     _directory(publish).flatMap(load)
 
   def load(publish: File): Option[PublishMetadata] = {
-    val entries = _metadata_files(publish).map(_entry(publish, _))
+    val entries = _bundle_entries(publish).getOrElse(_metadata_files(publish).map(_entry(publish, _)))
     if (entries.isEmpty)
       None
     else
       Some(PublishMetadata(entries))
   }
 
-  def rawRealm(publish: Option[File]): Option[Realm] =
-    _directory(publish).map(Realm.create)
+  def publicRealm(publish: Option[File]): Option[Realm] =
+    _directory(publish).flatMap { base =>
+      _bundle_entries(base).map { entries =>
+        val b = Realm.Builder()
+        entries.foreach { entry =>
+          b.set(PathName(entry.path), StringData(entry.json.spaces2 + "\n"))
+        }
+        b.build()
+      }
+    }
 
   private def _directory(publish: Option[File]): Option[File] =
     publish.filter(x => x.exists && x.isDirectory)
@@ -536,6 +546,34 @@ object PublishMetadata {
       case (_, xs) => xs.sortBy(_priority).headOption
     }
   }
+
+  private def _bundle_entries(base: File): Option[Vector[Entry]] = {
+    val bundles = _files(base).filter { x =>
+      x.isFile &&
+        (x.getName.toLowerCase.endsWith(".json") || x.getName.toLowerCase.endsWith(".yaml") || x.getName.toLowerCase.endsWith(".yml"))
+    }.flatMap { file =>
+      val json = _parse_metadata(file)
+      json.hcursor.downField("type").as[String].toOption match {
+        case Some("publication-bundle") => Some(_bundle_entries(file, json))
+        case _ => None
+      }
+    }
+    if (bundles.isEmpty)
+      None
+    else
+      Some(bundles.flatten.sortBy(_.path))
+  }
+
+  private def _bundle_entries(file: File, json: Json): Vector[Entry] =
+    json.hcursor.downField("entries").focus.flatMap(_.asArray).getOrElse(Vector.empty).flatMap { entry =>
+      for {
+        path <- _json_string(entry, "path").map(_validate_relative_metadata_path)
+        metadata <- entry.hcursor.downField("metadata").focus
+      } yield {
+        val key = _json_string(entry, "key").getOrElse(_strip_suffix(path))
+        Entry(path, key, metadata)
+      }
+    }
 
   private def _files(base: File): Vector[File] =
     Option(base.listFiles).toVector.flatten.toVector.flatMap { x =>
@@ -556,11 +594,11 @@ object PublishMetadata {
     if (file.getName.toLowerCase.endsWith(".json"))
       parser.parse(in.asText) match {
         case Right(r) => r
-        case Left(l) => throw new IllegalArgumentException(s"Invalid publish metadata JSON: ${file.getPath}: ${l.message}", l)
+        case Left(l) => throw new IllegalArgumentException(s"Invalid publication metadata JSON: ${file.getPath}: ${l.message}", l)
       }
     else
       ConfigLoader.loadConfigFromYaml[Json](in).fold(
-        e => throw new IllegalArgumentException(s"Invalid publish metadata YAML: ${file.getPath}: ${e.message}"),
+        e => throw new IllegalArgumentException(s"Invalid publication metadata YAML: ${file.getPath}: ${e.message}"),
         identity
       )
   }
@@ -570,6 +608,16 @@ object PublishMetadata {
 
   private def _relative_path(base: File, file: File): String =
     base.toPath.relativize(file.toPath).toString.replace(File.separatorChar, '/')
+
+  private def _validate_relative_metadata_path(path: String): String = {
+    val normalized = path.replace('\\', '/').split("/").toVector.filter(_.nonEmpty)
+    if (normalized.isEmpty || normalized.contains(".") || normalized.contains("..") || path.startsWith("/") || path.contains("\u0000"))
+      throw new IllegalArgumentException(s"Invalid publication metadata path: $path")
+    val r = normalized.mkString("/")
+    if (!r.startsWith("metadata/"))
+      throw new IllegalArgumentException(s"Publication bundle entry must be under metadata/: $path")
+    r
+  }
 
   private def _strip_suffix(path: String): String =
     path.replaceFirst("""\.[^.]+$""", "")

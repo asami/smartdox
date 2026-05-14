@@ -1,0 +1,158 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "publication-bundle",
+  "publication": {
+    "name": "textus-tutorial",
+    "path": "textus/tutorial/textus-tutorial"
+  },
+  "entries": [
+    {
+      "path": "metadata/catalog/projects/textus-tutorial.json",
+      "key": "catalog/projects/textus-tutorial",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "catalog.project",
+        "publication": {
+          "path": "textus/tutorial/textus-tutorial"
+        },
+        "project": {
+          "name": "textus-tutorial",
+          "title": "Textus Tutorial",
+          "kind": "sample-single",
+          "version": "0.1.0",
+          "scala_version": "3.6.4",
+          "sbt_version": "1.10.7"
+        }
+      }
+    },
+    {
+      "path": "metadata/samples/textus-tutorial/metadata.json",
+      "key": "samples/textus-tutorial/metadata",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "sample.metadata",
+        "publication": {
+          "path": "textus/tutorial/textus-tutorial"
+        },
+        "project": {
+          "name": "textus-tutorial",
+          "title": "Textus Tutorial",
+          "kind": "sample-single",
+          "version": "0.1.0"
+        },
+        "samples": [
+          {
+            "name": "01-minimal",
+            "title": "textus-samples-01-minimal",
+            "summary": "Smallest executable Textus sample.",
+            "summary_i18n": {
+              "ja": "最小の実行可能な Textus サンプルです。"
+            },
+            "description": "Introduces the basic command execution shape.",
+            "description_i18n": {
+              "ja": "基本的なコマンド実行の形を確認します。"
+            },
+            "version": "0.1.0",
+            "directory": "01-minimal"
+          }
+        ]
+      }
+    },
+    {
+      "path": "metadata/publication-pages/textus-tutorial.json",
+      "key": "publication-pages/textus-tutorial",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "publication-pages",
+        "publication": {
+          "name": "textus-tutorial",
+          "title": "Textus Tutorial",
+          "path": "textus/tutorial/textus-tutorial"
+        },
+        "pages": [
+          {
+            "path": "textus/tutorial",
+            "title": "Textus Tutorials",
+            "title_i18n": {
+              "ja": "Textus チュートリアル"
+            },
+            "summary": "Tutorial collections for learning Textus.",
+            "summary_i18n": {
+              "ja": "Textus を学ぶためのチュートリアル一覧です。"
+            },
+            "description": "Choose a tutorial collection and follow its samples."
+          },
+          {
+            "path": "textus/tutorial/textus-tutorial",
+            "title": "Textus Tutorial",
+            "title_i18n": {
+              "ja": "Textus チュートリアル"
+            },
+            "summary": "Executable Textus and CNCF tutorial sample collection.",
+            "summary_i18n": {
+              "ja": "Textus と CNCF の基本を実行しながら学ぶサンプル集です。"
+            },
+            "description": "Tutorial samples for CozyTextus users."
+          }
+        ]
+      }
+    },
+    {
+      "path": "metadata/artifacts/download/textus-tutorial.json",
+      "key": "artifacts/download/textus-tutorial",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "download-artifact",
+        "publication": {
+          "path": "textus/tutorial/textus-tutorial"
+        },
+        "project": {
+          "name": "textus-tutorial",
+          "title": "Textus Tutorial",
+          "kind": "sample-single",
+          "version": "0.1.0"
+        },
+        "artifact": {
+          "layer": "download",
+          "status": "planned",
+          "files": [
+            {
+              "type": "sample-collection-zip",
+              "version": "0.1.0",
+              "publicPath": "repository/download/textus/tutorial/textus-tutorial/0.1.0/textus-tutorial-0.1.0.zip",
+              "name": "textus-tutorial-0.1.0.zip"
+            },
+            {
+              "type": "sample-zip",
+              "version": "0.1.0",
+              "publicPath": "repository/download/textus/tutorial/textus-tutorial/0.1.0/01-minimal/01-minimal-0.1.0.zip",
+              "name": "01-minimal-0.1.0.zip"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "metadata/source-manifest/textus-tutorial.json",
+      "key": "source-manifest/textus-tutorial",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "source-manifest",
+        "publication": {
+          "path": "textus/tutorial/textus-tutorial"
+        },
+        "project": {
+          "name": "textus-tutorial",
+          "title": "Textus Tutorial"
+        },
+        "source_manifest": [
+          {
+            "path": "src/main/scala/example/Main.scala",
+            "size": 120,
+            "sha256": "0123456789abcdef"
+          }
+        ]
+      }
+    }
+  ]
+}

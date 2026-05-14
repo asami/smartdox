@@ -75,22 +75,23 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         println(r.print)
       }
     }
-    "publish.d" which {
-      val publish = Some(new File("src/test/resources/publish-fixture"))
+    "publication registry" which {
+      val publication = Some(new File("src/test/resources/publish-fixture"))
 
-      "copies raw metadata into doxsite root" in {
+      "generates public metadata from publication bundles" in {
         val in = Realm.create(new File("src/test/resources/site-mini"))
-        val g = new DoxSiteGenerator(ctx, DoxSite.Config.default, publish)
+        val g = new DoxSiteGenerator(ctx, DoxSite.Config.default, publication)
         val r = g.generate(in)
-        r.get("doxsite.d/catalog/projects/textus-tutorial.json") should not be empty
-        r.get("doxsite.d/samples/textus-tutorial/metadata.json") should not be empty
-        r.get("doxsite.d/repository/artifacts/textus-core.json") should not be empty
-        r.get("doxsite.d/metadata/samples/textus-tutorial/items/09-b-aggregate-relation-boundary-model/0.1.0/files/entity/model.yaml") should not be empty
+        r.get("doxsite.d/metadata/catalog/projects/textus-tutorial.json") should not be empty
+        r.get("doxsite.d/metadata/samples/textus-tutorial/metadata.json") should not be empty
+        r.get("doxsite.d/metadata/artifacts/repository/textus-core.json") should not be empty
+        r.get("doxsite.d/metadata/source-manifest/textus-tutorial.json") should not be empty
+        r.get("doxsite.d/textus-tutorial.json") shouldBe empty
       }
 
       "generates antora pages from publication paths and repository fallback" in {
         val in = Realm.create(new File("src/test/resources/site-mini"))
-        val g = new AntoraGenerator(ctx, DoxSite.Config.default, publish)
+        val g = new AntoraGenerator(ctx, DoxSite.Config.default, publication)
         val r = g.generate(in)
         r.get("antora.d/en/docs/textus/modules/tutorial/pages/index.adoc") should not be empty
         r.get("antora.d/en/docs/textus/modules/tutorial/pages/textus-tutorial/index.adoc") should not be empty

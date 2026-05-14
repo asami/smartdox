@@ -14,7 +14,7 @@ import org.smartdox.doxsite.DoxSite
 /*
  * @since   Jun.  3, 2025
  *  version Apr.  9, 2026
- * @version May. 13, 2026
+ * @version May. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 
@@ -27,7 +27,7 @@ package object operations {
 
   case class SiteParameters(
     in: File,
-    publish: Option[File],
+    publication: Option[File],
     strategy: Option[DoxSite.Strategy],
     outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy],
     target: Option[List[Regex]]
@@ -61,7 +61,7 @@ package object operations {
       def siteParameters: SiteParameters
 
       def in: File = siteParameters.in
-      def publish: Option[File] = siteParameters.publish
+      def publication: Option[File] = siteParameters.publication
       def strategy: Option[DoxSite.Strategy] = siteParameters.strategy
       def outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy] = siteParameters.outputScopePolicy
       def target: Option[List[Regex]] = siteParameters.target
@@ -69,7 +69,7 @@ package object operations {
 
     trait Specification {
       val in = spec.Parameter.argumentFile("in")
-      val publish = spec.Parameter.propertyFileOption("publish")
+      val publication = spec.Parameter.propertyFileOption("publication")
       val strategy = spec.Parameter.propertyPowertypeOption(DoxSite.Strategy, "strategy")
       val outputScopePolicy = spec.Parameter.propertyPowertypeOption(TreeTransformer.Config.Scope.Policy, "output.scope.policy")
       val target = spec.Parameter.propertyRegexSequence("target")
@@ -80,25 +80,25 @@ package object operations {
     def createC(req: Request): Consequence[SiteParameters] =
       for {
         in <- req.cFile(params.in)
-        publish <- req.cFileOption(params.publish)
+        publication <- req.cFileOption(params.publication)
         strategy <- req.cPowertypeOption(params.strategy)
         outputscopepolicy <- req.cPowertypeOption(params.outputScopePolicy)
         target <- req.cRegexListOption(params.target)
       } yield {
-        SiteParameters(in, _effective_publish(publish), strategy, outputscopepolicy, target)
+        SiteParameters(in, _effective_publication(publication), strategy, outputscopepolicy, target)
       }
 
     def request: spec.Request = spec.Request(
       params.in,
-      params.publish,
+      params.publication,
       params.strategy,
       params.outputScopePolicy,
       params.target
     )
 
-    private def _effective_publish(p: Option[File]): Option[File] =
+    private def _effective_publication(p: Option[File]): Option[File] =
       p.orElse {
-        val default = new File("publish.d")
+        val default = new File("src/main/publication")
         if (default.exists) Some(default) else None
       }
   }
