@@ -2,12 +2,28 @@
   "schema": "cozy.publish-project.v1",
   "type": "sample.metadata",
   "publication": {
-    "path": "samples/textus/tutorial"
+    "path": "textus/tutorial/textus-tutorial"
   },
   "project": {
     "name": "textus-tutorial",
     "title": "Textus Tutorial",
     "kind": "sample-single",
     "version": "0.1.0"
-  }
+  },
+  "samples": [
+    {
+      "name": "01-minimal",
+      "title": "textus-samples-01-minimal",
+      "summary": "Smallest executable Textus sample.",
+      "summary_i18n": {
+        "ja": "最小の実行可能な Textus サンプルです。"
+      },
+      "description": "Introduces the basic command execution shape.",
+      "description_i18n": {
+        "ja": "基本的なコマンド実行の形を確認します。"
+      },
+      "version": "0.1.0",
+      "directory": "01-minimal"
+    }
+  ]
 }

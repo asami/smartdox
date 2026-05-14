@@ -2,7 +2,7 @@
   "schema": "cozy.publish-project.v1",
   "type": "catalog.project",
   "publication": {
-    "path": "samples/textus/tutorial"
+    "path": "textus/tutorial/textus-tutorial"
   },
   "project": {
     "name": "textus-tutorial",

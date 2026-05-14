@@ -50,7 +50,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Aug. 17, 2025
  *  version Oct. 15, 2025
  *  version Nov. 17, 2025
- * @version May. 13, 2026
+ * @version May. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -544,9 +544,16 @@ object AntoraGenerator {
           override def enter_Container(
             node: TreeNode[Module.Navigation.Reference]
           ) {
-            val title = StringUtils.makeTitleFromPathname(node.pathname)
+            val title = _container_title(node)
             sb_println(title)
           }
+
+          private def _container_title(
+            node: TreeNode[Module.Navigation.Reference]
+          ): String =
+            node.children.find(_.pathname.endsWith("/index.dox")).flatMap(_.getContent).
+              map(_.title.distill(_locale)).
+              getOrElse(StringUtils.makeTitleFromPathname(node.pathname))
 
           override def enter_Content(
             node: TreeNode[Module.Navigation.Reference],

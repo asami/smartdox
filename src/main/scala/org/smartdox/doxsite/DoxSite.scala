@@ -57,6 +57,7 @@ import org.smartdox.transformers.AutoWireTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
 import org.smartdox.semanticweb._
 import org.smartdox.semanticweb.Site.SiteModel
+import org.smartdox.semanticweb.Site.SiteMetadata
 import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
 
 /*
@@ -72,7 +73,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Oct. 30, 2025
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
- * @version May. 13, 2026
+ * @version May. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -428,6 +429,7 @@ object DoxSite {
     outputTreeTransformerConfig: Option[TreeTransformer.Config] = None,
     strategy: Strategy = Strategy.Overview,
     localeSetting: Config.LocaleSetting = Config.LocaleSetting.jaen,
+    siteMetadata: SiteMetadata = SiteMetadata.empty,
     origin: Option[File] = None,
     includeFilePatterns: Vector[Regex] = Vector(""".*\.(dox|org|md|markdown|ya?ml|png|jpg|jpeg|svg)$""").map(_.r),
     excludeFilePatterns: Vector[Regex] = Vector(
@@ -461,10 +463,14 @@ object DoxSite {
     def textMark = Config.WorkAround.textMark
 
     def +(rhs: Config): Config = copy(
-      lastOption(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
-      lastOption(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
-      lastOption(outputTreeTransformerConfig, rhs.outputTreeTransformerConfig),
-      rhs.strategy
+      inputTreeTransformerConfig = lastOption(inputTreeTransformerConfig, rhs.inputTreeTransformerConfig),
+      transformTreeTransformerConfig = lastOption(transformTreeTransformerConfig, rhs.transformTreeTransformerConfig),
+      outputTreeTransformerConfig = lastOption(outputTreeTransformerConfig, rhs.outputTreeTransformerConfig),
+      strategy = rhs.strategy,
+      siteMetadata = lastOption(
+        Option(siteMetadata).filterNot(_.isEmpty),
+        Option(rhs.siteMetadata).filterNot(_.isEmpty)
+      ).getOrElse(SiteMetadata.empty)
     )
   }
   object Config {
@@ -1086,7 +1092,7 @@ object DoxSite {
     val ctx1 = ctx.withMetaData(metadata0)
     val (c, links) = _enable_link(ctx1, b, a0x)
     val metadata1 = metadata0.copy(linkCollection = links)
-    val metadata = _build_site_model(metadata1)
+    val metadata = _build_site_model(metadata1, config.siteMetadata)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
@@ -1189,11 +1195,14 @@ object DoxSite {
     Bibliography.empty // TODO
   }
 
-  private def _build_site_model(p: MetaData): MetaData = {
+  private def _build_site_model(
+    p: MetaData,
+    siteMetadata: SiteMetadata
+  ): MetaData = {
     val articles = _article_site_resources(p)
     val glossaries = _glossary_site_resources(p)
     val resourcs = articles ++ glossaries
-    val site = SiteModel.create(p, resourcs)
+    val site = SiteModel.create(p, resourcs, siteMetadata)
     p.copy(site = site)
   }
 
@@ -1314,10 +1323,25 @@ object DoxSite {
       val c = for {
         json <- ConfigLoader.loadConfigJson(realm, n)
         output <- _tree_transformer_config(json.hcursor.downField("output").focus)
+        siteMetadata <- _site_metadata(json.hcursor.downField("site").downField("metadata").focus)
       } yield {
-        Config(None, None, output, origin = realm.origin)
+        Config(None, None, output, siteMetadata = siteMetadata, origin = realm.origin)
       }
       c.take
+    }
+
+  private def _site_metadata(json: Option[Json]): Consequence[SiteMetadata] =
+    json match {
+      case Some(s) => _site_metadata(s)
+      case None => Consequence.success(SiteMetadata.empty)
+    }
+
+  private def _site_metadata(json: Json): Consequence[SiteMetadata] =
+    Consequence run {
+      json.as[SiteMetadata] match {
+        case Right(r) => Consequence.success(r)
+        case Left(l) => Consequence.syntaxErrorFault(l.toString)
+      }
     }
 
   private def _tree_transformer_config(json: Option[Json]): Consequence[Option[TreeTransformer.Config]] =

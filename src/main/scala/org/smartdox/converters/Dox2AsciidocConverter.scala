@@ -21,7 +21,8 @@ import org.smartdox.converter._
  *  version Aug. 31, 2025
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
- * @version Nov. 30, 2025
+ *  version Nov. 30, 2025
+ * @version May. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -52,6 +53,12 @@ class Dox2AsciidocConverter(
 
   private var _is_in_pass_count: Int = 0
   private def _is_in_pass = _is_in_pass_count > 0
+  private var _document_depth: Int = 0
+  private var _has_document_title: Boolean = false
+  private var _body_section_depth: Int = 0
+  private var _promoted_title_section_depth: Option[Int] = None
+  private var _current_asciidoc_section_level: Int = 0
+  private var _asciidoc_section_level_stack: List[Int] = Nil
 
   private lazy val _kroki_generator = KrokiGenerator(
     context.context.context,
@@ -71,52 +78,107 @@ class Dox2AsciidocConverter(
     case _ => false
   }
 
+  override protected def enter_Document(p: Document): Unit = {
+    _document_depth = _document_depth + 1
+  }
+
+  override protected def leave_Document(p: Document): Unit = {
+    _document_depth = _document_depth - 1
+  }
+
   override protected def enter_Head(p: Head): Unit = {
     p.titleDefault match {
       case Nil => // do nothing
-      case xs => enter_asciidoc_section(p, to_text(xs))
+      case xs if _document_depth <= 1 && _current_asciidoc_section_level == 0 =>
+        _has_document_title = true
+        enter_asciidoc_section(p, to_text(xs))
+      case xs =>
+        val level = math.max(_current_asciidoc_section_level + 1, 2)
+        _sb_asciidoc_section_title(level, to_text(xs))
     }
   }
 
   protected final def enter_asciidoc_section(head: Head, title: String): Unit = {
-    section_up()
     val attachment = _make_title_attachment(head)
-    sb_section_title(title, attachment)
+    _sb_asciidoc_section_title(1, title, attachment)
     _author(head)
   }
 
   private def _author(head: Head): Unit = {
     val (author, created, updated) = if (_is_ja) {
-      val author = head.getAuthorString(LocaleUtils.ja) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.ja))
+      val author = head.getAuthorString(LocaleUtils.ja)
       val created = head.getPublisedAtString(LocaleUtils.ja)
       val updated = head.getModefinedAtString(LocaleUtils.ja)
       (author, created, updated)
     } else {
-      val author = head.getAuthorString(LocaleUtils.en) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.en))
+      val author = head.getAuthorString(LocaleUtils.en)
       val created = head.getPublisedAtString(LocaleUtils.en)
       val updated = head.getModefinedAtString(LocaleUtils.en)
       (author, created, updated)
     }
-    sb_println("++++")
-    sb_println("""<div class="doc-meta">""")
-    sb_println("""<span class="doc-meta-bg">""")
-    for (x <- author) {
-      sb_println(s"""<span class="author meta-item">${x}</span>""")
+    if (author.nonEmpty || created.nonEmpty || updated.nonEmpty) {
+      sb_println("++++")
+      sb_println("""<div class="doc-meta">""")
+      sb_println("""<span class="doc-meta-bg">""")
+      for (x <- author) {
+        sb_println(s"""<span class="author meta-item">${x}</span>""")
+      }
+      for (x <- created) {
+        sb_println(s"""<span class="created meta-item">Created: ${x}</span>""")
+      }
+      for (x <- updated) {
+        sb_println(s"""<span class="updated meta-item">Updated: ${x}</span>""")
+      }
+      sb_println("""</span>""")
+      sb_println("""</div>""")
+      sb_println("++++")
+      sb_println()
     }
-    for (x <- created) {
-      sb_println(s"""<span class="created meta-item">Created: ${x}</span>""")
-    }
-    for (x <- updated) {
-      sb_println(s"""<span class="updated meta-item">Updated: ${x}</span>""")
-    }
-    sb_println("""</span>""")
-    sb_println("""</div>""")
-    sb_println("++++")
-    sb_println()
   }
 
   protected final def leave_asciidoc_section(): Unit = {
+  }
+
+  override protected def enter_section(node: TreeNode[Dox], p: Section): Unit = {
+    _body_section_depth = _body_section_depth + 1
+    section_up()
+    p.getClassName.foreach(x => sb_println(s"[.$x]"))
+    val level = _asciidoc_section_level()
+    _asciidoc_section_level_stack = _current_asciidoc_section_level :: _asciidoc_section_level_stack
+    _current_asciidoc_section_level = level
+    _sb_asciidoc_section_title(level, to_text(p.title))
+  }
+
+  override protected def leave_section(node: TreeNode[Dox], p: Section): Unit = {
+    leave_Section(p)
+    if (_promoted_title_section_depth.contains(_body_section_depth))
+      _promoted_title_section_depth = None
     section_down()
+    _body_section_depth = _body_section_depth - 1
+    _current_asciidoc_section_level = _asciidoc_section_level_stack.headOption.getOrElse(0)
+    _asciidoc_section_level_stack = _asciidoc_section_level_stack.drop(1)
+  }
+
+  private def _asciidoc_section_level(): Int =
+    if (!_has_document_title && _body_section_depth == 1) {
+      _has_document_title = true
+      _promoted_title_section_depth = Some(_body_section_depth)
+      1
+    } else {
+      _promoted_title_section_depth match {
+        case Some(d) if _body_section_depth > d => _body_section_depth
+        case _ => _body_section_depth + 1
+      }
+    }
+
+  private def _sb_asciidoc_section_title(level: Int, title: String): Unit =
+    _sb_asciidoc_section_title(level, title, Nil)
+
+  private def _sb_asciidoc_section_title(level: Int, title: String, attachment: Seq[String]): Unit = {
+    sb_println(s"${section_Mark * level} $title")
+    for (s <- attachment)
+      sb_println(s)
+    sb_println()
   }
 
   private def _make_title_attachment(head: Head): Vector[String] = {
@@ -127,7 +189,7 @@ class Dox2AsciidocConverter(
 
   private def _make_title_attachment_locale(head: Head): Vector[String] = {
     if (_is_ja) {
-      val author = head.getAuthorString(LocaleUtils.ja) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.ja))
+      val author = head.getAuthorString(LocaleUtils.ja)
       val created = head.getPublisedAtString(LocaleUtils.ja)
       val updated = head.getModefinedAtString(LocaleUtils.ja)
       Vector(
@@ -142,7 +204,7 @@ class Dox2AsciidocConverter(
         updated.map(x => s":updated: $x")
       ).flatten
     } else {
-      val author = head.getAuthorString(LocaleUtils.en) orElse context.getDefaultAuthor.map(_.as(LocaleUtils.en))
+      val author = head.getAuthorString(LocaleUtils.en)
       val created = head.getPublisedAtString(LocaleUtils.en)
       val updated = head.getModefinedAtString(LocaleUtils.en)
       Vector(

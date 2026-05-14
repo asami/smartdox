@@ -1,0 +1,31 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "download-artifact",
+  "publication": {
+    "path": "textus/tutorial/textus-tutorial"
+  },
+  "project": {
+    "name": "textus-tutorial",
+    "title": "Textus Tutorial",
+    "kind": "sample-single",
+    "version": "0.1.0"
+  },
+  "artifact": {
+    "layer": "download",
+    "status": "planned",
+    "files": [
+      {
+        "type": "sample-collection-zip",
+        "version": "0.1.0",
+        "publicPath": "repository/download/textus/tutorial/textus-tutorial/0.1.0/textus-tutorial-0.1.0.zip",
+        "name": "textus-tutorial-0.1.0.zip"
+      },
+      {
+        "type": "sample-zip",
+        "version": "0.1.0",
+        "publicPath": "repository/download/textus/tutorial/textus-tutorial/0.1.0/01-minimal/01-minimal-0.1.0.zip",
+        "name": "01-minimal-0.1.0.zip"
+      }
+    ]
+  }
+}

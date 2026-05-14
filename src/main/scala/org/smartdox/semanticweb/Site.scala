@@ -28,7 +28,8 @@ import org.smartdox.doxsite.LinkCollection.DoxLinks
  *   - site.ttl
  *
  * @since   Nov. 20, 2025
- * @version Nov. 29, 2025
+ *  version Nov. 29, 2025
+ * @version May. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 object Site {
@@ -56,6 +57,159 @@ object Site {
   // ------------------------------------------------------------
   // Data Model
   // ------------------------------------------------------------
+
+  case class SiteMetadata(
+    name: Option[String] = None,
+    alternateName: Option[String] = None,
+    url: Option[String] = None,
+    description: Option[String] = None,
+    author: Option[SiteMetadata.Agent] = None,
+    publisher: Option[SiteMetadata.Agent] = None,
+    inLanguage: Vector[String] = Vector.empty,
+    license: Option[String] = None,
+    keywords: Vector[String] = Vector.empty,
+    datePublished: Option[String] = None,
+    dateModified: Option[String] = None
+  ) {
+    def isEmpty: Boolean =
+      name.isEmpty &&
+      alternateName.isEmpty &&
+      url.isEmpty &&
+      description.isEmpty &&
+      author.isEmpty &&
+      publisher.isEmpty &&
+      inLanguage.isEmpty &&
+      license.isEmpty &&
+      keywords.isEmpty &&
+      datePublished.isEmpty &&
+      dateModified.isEmpty
+
+    def toTriples(root: Node.Uri): Seq[Triple] =
+      if (isEmpty)
+        Vector.empty
+      else
+        _literal(root, "name", name) ++
+        _literal(root, "alternateName", alternateName) ++
+        _literal(root, "url", url) ++
+        _literal(root, "description", description) ++
+        _literal(root, "license", license) ++
+        _literal(root, "datePublished", datePublished) ++
+        _literal(root, "dateModified", dateModified) ++
+        inLanguage.map(x => Triple(root, Node.Uri(schemaUri("inLanguage")), Node.Literal(x))) ++
+        keywords.map(x => Triple(root, Node.Uri(schemaUri("keywords")), Node.Literal(x))) ++
+        _agent(root, "author", "author", "Person", author) ++
+        _agent(root, "publisher", "publisher", "Organization", publisher)
+
+    private def _literal(
+      root: Node.Uri,
+      property: String,
+      value: Option[String]
+    ): Seq[Triple] =
+      value.toVector.map(x => Triple(root, Node.Uri(schemaUri(property)), Node.Literal(x)))
+
+    private def _agent(
+      root: Node.Uri,
+      id: String,
+      property: String,
+      schemaType: String,
+      agent: Option[SiteMetadata.Agent]
+    ): Seq[Triple] =
+      agent.toVector.flatMap { a =>
+        val node = Node.Blank(id)
+        Vector(
+          Triple(root, Node.Uri(schemaUri(property)), node),
+          Triple(node, RdfType, Node.Uri(schemaUri(schemaType)))
+        ) ++ a.name.toVector.map(x => Triple(node, Node.Uri(schemaUri("name")), Node.Literal(x)))
+      }
+  }
+  object SiteMetadata {
+    case class Agent(
+      name: Option[String] = None
+    ) {
+      def isEmpty: Boolean = name.isEmpty
+    }
+
+    val empty = SiteMetadata()
+
+    import io.circe.{Decoder, Encoder, HCursor, Json}
+    import io.circe.syntax._
+
+    implicit val agentDecoder: Decoder[Agent] = Decoder.instance { c =>
+      for {
+        name <- c.downField("name").as[Option[String]]
+      } yield Agent(name)
+    }
+
+    implicit val agentEncoder: Encoder[Agent] = Encoder.instance { a =>
+      Json.obj(
+        "name" -> a.name.fold(Json.Null)(Json.fromString)
+      )
+    }
+
+    implicit val siteMetadataDecoder: Decoder[SiteMetadata] = Decoder.instance { c =>
+      for {
+        name <- c.downField("name").as[Option[String]]
+        alternateName <- _string(c, "alternate_name", "alternateName")
+        url <- c.downField("url").as[Option[String]]
+        description <- c.downField("description").as[Option[String]]
+        author <- c.downField("author").as[Option[Agent]]
+        publisher <- c.downField("publisher").as[Option[Agent]]
+        inLanguage <- _string_vector(c, "in_language", "inLanguage")
+        license <- c.downField("license").as[Option[String]]
+        keywords <- c.downField("keywords").as[Option[Vector[String]]]
+        datePublished <- _string(c, "date_published", "datePublished")
+        dateModified <- _string(c, "date_modified", "dateModified")
+      } yield SiteMetadata(
+        name = name,
+        alternateName = alternateName,
+        url = url,
+        description = description,
+        author = author.filterNot(_.isEmpty),
+        publisher = publisher.filterNot(_.isEmpty),
+        inLanguage = inLanguage,
+        license = license,
+        keywords = keywords.getOrElse(Vector.empty),
+        datePublished = datePublished,
+        dateModified = dateModified
+      )
+    }
+
+    implicit val siteMetadataEncoder: Encoder[SiteMetadata] = Encoder.instance { a =>
+      Json.obj(
+        "name" -> a.name.fold(Json.Null)(Json.fromString),
+        "alternate_name" -> a.alternateName.fold(Json.Null)(Json.fromString),
+        "url" -> a.url.fold(Json.Null)(Json.fromString),
+        "description" -> a.description.fold(Json.Null)(Json.fromString),
+        "author" -> a.author.fold(Json.Null)(_.asJson),
+        "publisher" -> a.publisher.fold(Json.Null)(_.asJson),
+        "in_language" -> Json.arr(a.inLanguage.map(Json.fromString): _*),
+        "license" -> a.license.fold(Json.Null)(Json.fromString),
+        "keywords" -> Json.arr(a.keywords.map(Json.fromString): _*),
+        "date_published" -> a.datePublished.fold(Json.Null)(Json.fromString),
+        "date_modified" -> a.dateModified.fold(Json.Null)(Json.fromString)
+      )
+    }
+
+    private def _string(
+      c: HCursor,
+      snake: String,
+      camel: String
+    ): Decoder.Result[Option[String]] =
+      c.downField(snake).as[Option[String]].flatMap {
+        case Some(s) => Right(Some(s))
+        case None => c.downField(camel).as[Option[String]]
+      }
+
+    private def _string_vector(
+      c: HCursor,
+      snake: String,
+      camel: String
+    ): Decoder.Result[Vector[String]] =
+      c.downField(snake).as[Option[Vector[String]]].flatMap {
+        case Some(s) => Right(s)
+        case None => c.downField(camel).as[Option[Vector[String]]].map(_.getOrElse(Vector.empty))
+      }
+  }
 
   /**
    * Represents one page or document inside the site.
@@ -257,6 +411,7 @@ object Site {
     metadata: MetaData = MetaData.empty,
     resources: Seq[SiteResource] = Seq.empty,
     locales: Seq[String] = Seq("ja", "en"),
+    siteMetadata: SiteMetadata = SiteMetadata.empty,
     ontology: Option[String] = None,
     schema: Option[String] = None,
     vocabulary: Option[String] = None
@@ -280,7 +435,11 @@ object Site {
       val rootBase: Seq[Triple] = Seq(
         Triple(root, RdfType, Node.Uri(uri("Site"))),
         Triple(root, Rdfs.node.label, Node.Literal("SimpleModeling.org"))
-      )
+      ) ++
+      siteMetadata.toTriples(root) ++
+      (if (siteMetadata.isEmpty) Vector.empty else Vector(
+        Triple(root, RdfType, Node.Uri(schemaUri("WebSite")))
+      ))
 
       val siteClassTriples: Seq[Triple] = Seq(
         Triple(Node.Uri(uri("Site")), RdfType, Owl.node.Class),
@@ -401,15 +560,15 @@ object Site {
       )
     }
 
-    private def _to_triples(sourceNode: Node)(p: DoxLinks) = {
+    private def _to_triples(sourcenode: Node)(p: DoxLinks) = {
       val internaltriples = p.internalLinks.links.flatMap { link =>
-        val targetId = rule.resourceIri(sourceNode, link)
-        resources.find(_.id == targetId).toSeq.flatMap(_ => rule.articleToArticle(sourceNode, targetId))
+        val targetid = rule.resourceIri(sourcenode, link)
+        resources.find(_.id == targetid).toSeq.flatMap(_ => rule.articleToArticle(sourcenode, targetid))
       }
 
       val glossarytriples = p.glossaryLinks.links.flatMap { link =>
-        val targetId = rule.resourceIri(sourceNode, link)
-        resources.find(_.id == targetId).toSeq.flatMap(_ => rule.articleToGlossaryUse(sourceNode, targetId))
+        val targetid = rule.resourceIri(sourcenode, link)
+        resources.find(_.id == targetid).toSeq.flatMap(_ => rule.articleToGlossaryUse(sourcenode, targetid))
       }
 
       internaltriples ++ glossarytriples
@@ -473,13 +632,14 @@ object Site {
 
     def create(
       metadata: MetaData,
-      resources: Seq[SiteResource]
+      resources: Seq[SiteResource],
+      siteMetadata: SiteMetadata = SiteMetadata.empty
     ): SiteModel = {
       val locals = List("ja", "en")
       val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#") + "/index.jsonld"
       val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#") + "/index.jsonld"
       val v = Vocabulary.Rdf.namespace.stripSuffix("#")
-      SiteModel(metadata, resources, locals, Some(o), Some(s), Some(v))
+      SiteModel(metadata, resources, locals, siteMetadata, Some(o), Some(s), Some(v))
     }
   }
 
@@ -504,7 +664,7 @@ object Site {
   )
 
   /** Default rendering policy for JSON-LD. */
-  private def defaultPolicy: RdfRenderer.Policy =
+  private def _default_policy: RdfRenderer.Policy =
     RdfRenderer.Policy(
       prettyJson    = true,
       prettyContext = true,
@@ -521,7 +681,7 @@ object Site {
       model.toGraph,
       RdfRenderer.JsonLDProfile.BoK,   // BoK profile fits site structural data
       userContext = jsonldContext,
-      policy = defaultPolicy
+      policy = _default_policy
     )
 
   /**

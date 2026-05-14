@@ -21,7 +21,8 @@ import org.smartdox.generators.AntoraGenerator
  * @since   Jun. 20, 2025
  *  version Jul.  1, 2025
  *  version Aug. 16, 2025
- * @version Oct. 12, 2025
+ *  version Oct. 12, 2025
+ * @version May. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -68,6 +69,52 @@ B
 = X
 
 B
+""")
+      }
+      "multiple top sections" in {
+        val s = make_asciidoc("""# Title
+
+# One
+
+A
+
+# Two
+
+B
+""")
+        s should be_success("""= Title
+
+
+== One
+
+A
+
+== Two
+
+B
+""")
+      }
+      "nested org title" in {
+        val s = make_asciidoc("""# Title
+
+## Constant
+
+#+TITLE: Example
+```
+val A: Int = ???
+```
+""")
+        s should be_success("""= Title
+
+== Constant
+
+=== Example
+
+
+[source,text]
+----
+val A: Int = ???
+----
 """)
       }
       "Ul" in {

@@ -49,7 +49,7 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.26"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.27-SNAPSHOT"
 
 libraryDependencies += "org.goldenport" %% "goldenport-record" % "2.2.4"
 
