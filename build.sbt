@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.4.13-SNAPSHOT"
+version := "2.4.13"
 
 scalaVersion := "2.12.18"
 
@@ -49,7 +49,7 @@ resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/
 
 // // libraryDependencies += "org.goldenport" % "goldenport-java-lib" % "0.1.2"
 
-libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.27-SNAPSHOT"
+libraryDependencies += "org.goldenport" %% "goldenport-scala-lib" % "2.3.27"
 
 libraryDependencies += "org.goldenport" %% "goldenport-record" % "2.2.4"
 
