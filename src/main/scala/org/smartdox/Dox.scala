@@ -102,7 +102,8 @@ import org.smartdox.util.DoxUtils
  *  version Oct. 28, 2025
  *  version Nov. 22, 2025
  *  version Dec. 11, 2025
- * @version Apr. 16, 2026
+ *  version Apr. 16, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -1551,10 +1552,11 @@ object Head extends DoxFactory {
   def create(
     title: InlineContents,
     author: InlineContents,
-    date: InlineContents
+    date: InlineContents,
+    organization: InlineContents = Nil
   )(implicit dctx: DateTimeContext): Head = {
-    val metadata = DocumentMetaData.create(title, date)
-    new Head(seo = Seo.author(author), metadata = metadata)
+    val metadata = DocumentMetaData.create(title, date, author, organization)
+    new Head(metadata = metadata)
   }
 
   def title(title: Inline): Head = Head(metadata = DocumentMetaData.create(title))
@@ -1565,8 +1567,9 @@ object Head extends DoxFactory {
     var title: InlineContents = Nil
     var author: InlineContents = Nil
     var date: InlineContents = Nil
+    var organization: InlineContents = Nil
 
-    def build() = create(title, author, date)
+    def build() = create(title, author, date, organization)
   }
 }
 
@@ -4291,6 +4294,58 @@ case class Error(
 }
 object Error {
   def apply(msg: String): Error = Error(Conclusion.syntaxErrorFault(msg))
+}
+
+case class DiagnosticBlock(
+  title: String,
+  message: String,
+  sourceLabel: Option[String] = None,
+  source: Option[String] = None,
+  location: Option[ParseLocation] = None
+) extends Block {
+  override val elements = Nil
+  def attributes: VectorMap[String, String] = VectorMap.empty
+  override def showTerm = "diagnostic"
+  override def isOpenClose = false
+
+  override protected def equals_Value(o: Dox) = o == this
+
+  override protected def show_Contents(buf: StringBuilder) {
+    _append_contents(buf)
+  }
+
+  override protected def print_Contents(buf: StringBuilder) {
+    _append_contents(buf)
+  }
+
+  override protected def to_Text(buf: StringBuilder) {
+    _append_contents(buf)
+  }
+
+  override protected def to_Plain_Text(buf: StringBuilder) {
+    _append_contents(buf)
+  }
+
+  private def _append_contents(buf: StringBuilder) {
+    buf.append(title)
+    buf.append("\n")
+    buf.append(message)
+    buf.append("\n")
+    for (label <- sourceLabel; value <- source) {
+      buf.append(label)
+      buf.append(":\n")
+      buf.append(value)
+      if (!value.endsWith("\n"))
+        buf.append("\n")
+    }
+  }
+}
+object DiagnosticBlock {
+  def error(title: String, message: String): DiagnosticBlock =
+    DiagnosticBlock(title, message)
+
+  def error(title: String, message: String, sourceLabel: String, source: String): DiagnosticBlock =
+    DiagnosticBlock(title, message, Some(sourceLabel), Some(source))
 }
 
 // 2025-09-01

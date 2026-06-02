@@ -34,7 +34,8 @@ import org.smartdox.metadata.web.JsonLd
  *  version Jul.  3, 2025
  *  version Aug.  5, 2025
  *  version Oct. 26, 2025
- * @version Apr. 16, 2026
+ *  version Apr. 16, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -248,6 +249,7 @@ class Dox2DomHtmlTransformer(
     case m: Li => _node(m)
 //    case m: Hyperlink => _hyperlink(m)
     case m: Figure => _figure(m)
+    case m: DiagnosticBlock => _diagnostic_block(m)
     case m: org.smartdox.Error => _error(m)
     case m: Inline => _inline(m)
     case m: Block => _block(m)
@@ -397,6 +399,23 @@ class Dox2DomHtmlTransformer(
 
   private def _error(p: org.smartdox.Error): Node = {
     _factory.element("ERROR", p.message)
+  }
+
+  private def _diagnostic_block(p: DiagnosticBlock): Node = {
+    val source = for {
+      label <- p.sourceLabel
+      value <- p.source
+    } yield _factory.element("div", List(
+      _factory.element("strong", label),
+      _factory.element("pre", value)
+    )
+    )
+    _factory.element("section",
+      Map("class" -> "smartdox-diagnostic"),
+      _factory.element("strong", p.title) +:
+        _factory.element("p", p.message) +:
+        source.toList
+    )
   }
 }
 

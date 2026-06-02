@@ -126,6 +126,109 @@ libraryDependencies += "org.simplemodeling" %% "smartdox" % "<version>"
 
 ---
 
+## PDF Dependency Image
+
+`dox pdf` / `cozy pdf` prefers locally installed tools. If Chrome/Chromium,
+`asciidoctor-pdf`, or a Japanese TeX environment is not available locally, PDF
+generation can run through the SmartDox PDF dependency image.
+
+Build the image:
+
+```bash
+docker build -t simplemodeling/smartdox-pdf:latest docker/smartdox-pdf
+```
+
+The image includes `asciidoctor-pdf`, Japanese TeX packages, CJK fonts, and
+Kroki. Docker-based Asciidoctor PDF generation uses a bundled IPA Gothic TTF
+theme so Japanese text is rendered without local font setup.
+`cozy pdf` / `dox pdf` uses the LaTeX renderer by default. The LaTeX renderer
+uses SmartDox -> LaTeX -> LuaLaTeX by default, with an optional UpLaTeX ->
+`dvipdfmx` route. The image warms both TeX routes during build so the first
+runtime PDF generation does not pay the format or font cache cost. Local tools
+remain the default in `dependency-mode=auto`.
+
+Diagram generation supports fenced `plantuml` blocks and uses SmartDox's local
+Kroki cache. When
+`SMARTDOX_KROKI_SERVER_URL` is not set, SmartDox invokes the same dependency
+image in command mode for each uncached Kroki rendering. This makes diagram PDF
+generation work after installation without asking users to run a separate
+service. For performance-oriented environments, run the image as a Kroki server
+and point SmartDox at it.
+
+Examples:
+
+```bash
+cozy pdf system.dox
+cozy pdf system.dox --renderer latex
+cozy pdf system.dox --renderer latex --latex-engine uplatex
+cozy pdf system.dox --renderer latex --latex-format business \
+  --latex-date 2026-06-02 --latex-affiliation "Knowledge Hub" --latex-author "Taro Yamada"
+cozy pdf system.dox --renderer chrome-headless
+cozy pdf system.dox --renderer asciidoc
+cozy pdf system.dox --dependency-mode docker
+cozy pdf system.dox --renderer latex --dependency-mode docker
+cozy pdf system.dox --renderer latex --latex-engine uplatex --dependency-mode docker
+cozy pdf system.dox --renderer asciidoc --dependency-mode docker
+cozy pdf system.dox --docker-image simplemodeling/smartdox-pdf:latest
+```
+
+Kroki command mode is the default for uncached diagrams:
+
+```bash
+cozy pdf system.dox
+```
+
+Kroki server mode is optional:
+
+```bash
+docker run --rm -p 9609:8000 simplemodeling/smartdox-pdf:latest kroki-server
+export SMARTDOX_KROKI_SERVER_URL=http://localhost:9609
+cozy pdf system.dox
+```
+
+The Kroki command image can be changed with `SMARTDOX_KROKI_DOCKER_IMAGE`.
+If it is not set, `SMARTDOX_PDF_DOCKER_IMAGE` is used, then
+`simplemodeling/smartdox-pdf:latest`.
+
+`--dependency-mode local` disables Docker fallback and fails if the local tool
+is missing. `--dependency-mode docker` forces Docker even when local tools
+exist.
+
+`--latex-format business` renders a business-document title block: centered
+document title, one blank line, right-aligned date, right-aligned affiliation
+and author, one blank line, then the body. Without `--latex-format`, the
+standard LaTeX title block is used.
+
+For the business layout, date, affiliation, and author can be written in the
+SmartDox document head. All three are optional; omitted values are not rendered.
+Command-line values override document metadata.
+
+```text
+Business Report
+===============
+
+date = "2026-06-02"
+affiliation = "Knowledge Hub"
+author = "Taro Yamada"
+
+Body starts here.
+```
+
+`published_at` / `publishedAt` are accepted as the canonical publication date
+property, and `organization` is accepted as the canonical affiliation property.
+
+When invoked through Cozy, the same PDF options can be set in
+`$HOME/.cozy/config.yaml` or `$PWD/.cozy/config.yaml`. Cozy reads these files
+and passes the effective operation properties to SmartDox. Local working-
+directory config overrides home config; command-line options override both.
+
+```yaml
+pdf:
+  latex-format: business
+```
+
+---
+
 ## Related Projects
 
 - **Cozy** — Code generation engine  

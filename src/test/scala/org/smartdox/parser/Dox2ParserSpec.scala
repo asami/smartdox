@@ -1,11 +1,13 @@
 package org.smartdox.parser
 
 import scalaz._, Scalaz._
+import java.io.{ByteArrayOutputStream, PrintStream}
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
+import org.smartdox.Document
 
 /*
  * @since   Oct. 14, 2018
@@ -13,11 +15,88 @@ import org.goldenport.scalatest.ScalazMatchers
  *  version Dec. 31, 2018
  *  version Sep.  5, 2024
  *  version Aug. 16, 2025
- * @version Apr. 19, 2026
+ *  version Apr. 19, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser {
+  "HEAD section" should {
+    "be merged into document metadata from SmartDox properties" in {
+      val dox = parse_dox("""業務報告
+===
+
+# HEAD
+
+published_at=2026-06-02
+organization=知識基盤開発室
+author=山田 太郎
+
+# 本文
+
+本文です。
+""").asInstanceOf[Document]
+      val meta = dox.head.metadata
+      meta.getPublishedString(java.util.Locale.JAPANESE) should be (Some("2026-06-02"))
+      meta.getOrganizationString(java.util.Locale.JAPANESE) should be (Some("知識基盤開発室"))
+      meta.getAuthorString(java.util.Locale.JAPANESE) should be (Some("山田 太郎"))
+    }
+
+    "keep HOCON metadata support" in {
+      val dox = parse_dox("""業務報告
+===
+
+# HEAD
+
+published_at="2026-06-02"
+organization="知識基盤開発室"
+author="山田 太郎"
+
+# 本文
+
+本文です。
+""").asInstanceOf[Document]
+      val meta = dox.head.metadata
+      meta.getPublishedString(java.util.Locale.JAPANESE) should be (Some("2026-06-02"))
+      meta.getOrganizationString(java.util.Locale.JAPANESE) should be (Some("知識基盤開発室"))
+      meta.getAuthorString(java.util.Locale.JAPANESE) should be (Some("山田 太郎"))
+    }
+
+    "report explicit HEAD metadata parse errors" in {
+      val stderr = new ByteArrayOutputStream()
+      val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
+        parse_dox("""業務報告
+===
+
+# HEAD
+
+{
+
+# 本文
+
+本文です。
+""").asInstanceOf[Document]
+      }
+      val message = "SmartDox HEAD metadata parse error:"
+      stderr.toString("UTF-8") should include (message)
+      dox.toString should include (message)
+      dox.toString should include ("本文です。")
+    }
+
+    "leave malformed metadata-looking text as body when HEAD is absent" in {
+      val dox = parse_dox("""業務報告
+===
+
+{
+
+本文です。
+""").asInstanceOf[Document]
+      dox.head.metadata.getPublishedString(java.util.Locale.JAPANESE) should be (None)
+      dox.toString should include ("{")
+      dox.toString should include ("本文です。")
+    }
+  }
+
   "Foundation" should {
     "simple" which {
     //   val in = "* OK"

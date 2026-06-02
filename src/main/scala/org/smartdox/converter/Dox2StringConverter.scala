@@ -18,7 +18,8 @@ import Dox._
  *  version Aug. 31, 2025
  *  version Sep. 14, 2025
  *  version Oct. 26, 2025
- * @version Nov. 30, 2025
+ *  version Nov. 30, 2025
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
@@ -58,6 +59,15 @@ trait Dox2StringConverter extends DoxTreeVisitor with StringBuildFeature {
   }
 
   override protected def leave_Error(p: Error): Unit = {}
+
+  override protected def enter_DiagnosticBlock(p: DiagnosticBlock): Unit = {
+    sb_println(p.title)
+    sb_println(p.message)
+    for (label <- p.sourceLabel; source <- p.source) {
+      sb_println(s"$label:")
+      sb_println(source)
+    }
+  }
 
   override protected def enter_Html_Element(p: Dox): Unit =
     sb_print(p.showOpenText)

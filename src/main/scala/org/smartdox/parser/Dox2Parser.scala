@@ -7,7 +7,6 @@ import com.typesafe.config.{Config => Hocon}
 import org.goldenport.RAISE
 import org.goldenport.context._
 import org.goldenport.parser._
-import org.goldenport.config.ConfigLoader
 import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NElement
@@ -20,6 +19,7 @@ import org.goldenport.util.StringUtils
 import org.goldenport.util.ExceptionUtils
 import org.smartdox._
 import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.metadata.DocumentPropertiesParser
 import org.smartdox.metadata.Explanation
 import org.smartdox.transformer._
 import Dox._
@@ -50,7 +50,8 @@ import Dox._
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
  *  version Nov. 17, 2025
- * @version Dec. 10, 2025
+ *  version Dec. 10, 2025
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -146,14 +147,33 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     ctx: ParseContext,
     p: LogicalSection
   ): Vector[Dox] =
-    p.mark match {
+    if (_is_head(p))
+      _head(p)
+    else p.mark match {
       case Some("=") =>
-        val xs = _blocks(ctx, p.blocks)
-        val (xs1, meta) = _section_head(p, xs)
+        val (blocks, meta0) = _distill_logical_meta(p.blocks)
+        val xs = _blocks(ctx, blocks)
+        val meta = meta0.withTitle(List(_to_dox(p.title)))
         val head = Head(metadata = meta)
-        head +: xs1
+        head +: xs
       case _ => Vector(_section(ctx.levelUp, p))
     }
+
+  private def _is_head(p: LogicalSection) = p.keyForModel == "head"
+
+  private def _head(p: LogicalSection): Vector[Dox] = {
+    val parsed = _parse_head(p)
+    val head = Head(metadata = parsed.metadata)
+    parsed.errorMessage.fold(Vector[Dox](head))(x =>
+      Vector[Dox](head, DiagnosticBlock.error("SmartDox HEAD metadata parse error", x, "HEAD source", parsed.source))
+    )
+  }
+
+  private case class HeadParseResult(
+    metadata: DocumentMetaData,
+    errorMessage: Option[String] = None,
+    source: String = ""
+  )
 
   // private def _section_head(
   //   p: LogicalSection,
@@ -186,6 +206,46 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     meta + a.take
   }
 
+  private def _parse_head(p: LogicalSection): HeadParseResult = {
+    val propertiesText = _logical_section_properties_text(p)
+    val (propertiesMeta, errorMessage) = DocumentPropertiesParser.parse(propertiesText).fold(
+      c => {
+        val message = s"SmartDox HEAD metadata parse error: ${c.message}"
+        scala.Console.err.println(message)
+        (DocumentMetaData.empty, Some(message))
+      },
+      hocon => (DocumentMetaData.create(hocon), None)
+    )
+    val section = _section(context.levelUp, p)
+    val a = for {
+      ex <- Explanation.parse(section)
+      updatehistory <- DocumentMetaData.UpdateHistory.parse(section)
+      relations <- DocumentMetaData.Relations.parse(section)
+    } yield DocumentMetaData.create(ex, updatehistory, relations)
+    HeadParseResult(propertiesMeta + a.take, errorMessage, propertiesText)
+  }
+
+  private def _logical_section_properties_text(p: LogicalSection): String =
+    p.blocks.lines.lines.flatMap(_.physicalLines).mkString("\n")
+
+  private def _distill_logical_meta(p: LogicalBlocks): (LogicalBlocks, DocumentMetaData) =
+    p.blocks match {
+      case Vector(x: LogicalParagraph, xs @ _*) =>
+        val text = _logical_paragraph_properties_text(x)
+        if (DocumentPropertiesParser.isPropertiesText(text)) {
+          val meta = DocumentPropertiesParser.parse(text).
+            map(DocumentMetaData.create(_)).
+            getOrElse(DocumentMetaData.empty)
+          (LogicalBlocks(xs.toVector), meta)
+        } else {
+          (p, DocumentMetaData.empty)
+        }
+      case _ => (p, DocumentMetaData.empty)
+    }
+
+  private def _logical_paragraph_properties_text(p: LogicalParagraph): String =
+    p.lines.lines.flatMap(_.physicalLines).mkString("\n")
+
   private def _distill_meta(ps: Vector[Dox]): (Vector[Dox], DocumentMetaData) = {
     val (xs, props) = _distill_props(ps)
     val meta = props.fold(DocumentMetaData.empty)(DocumentMetaData.create(_))
@@ -210,24 +270,36 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   private def _parse_properties(p: Dox): Either[String, Option[Hocon]] =
     _get_text_data_in_simple_paragraph(p) match {
       case Some(s) =>
-        val in = InputSource(s)
-        ConfigLoader.loadConfigHocon(in).map(Some.apply).toEitherString
+        DocumentPropertiesParser.parse(s).
+          map(Some.apply).
+          toEitherString
       case None => Right(None)
     }
 
   private def _get_text_data_in_simple_paragraph(p: Dox): Option[String] = p match {
-    case m: Paragraph => m.contents match {
-      case Nil => None
-      case x :: Nil => x match {
-        case _: Text => m.toData match {
-          case m if (m.contains('=')) => Some(m)
-          case _ => None
-        }
-        case _ => None
-      }
-      case _ => None
-    }
+    case m: Paragraph =>
+      val data = m.toData
+      if (_is_property_data(data))
+        Some(data)
+      else
+        None
     case _ => None
+  }
+
+  private def _is_property_data(p: String): Boolean = {
+    val lines = _property_candidate_lines(p)
+    lines.nonEmpty && lines.forall(_is_property_line)
+  }
+
+  private def _property_candidate_lines(p: String): Vector[String] =
+    p.linesIterator.map(_.trim).filterNot(x => x.isEmpty || x.startsWith("#")).toVector
+
+  private def _is_property_line(p: String): Boolean = {
+    val i = p.indexOf('=')
+    i > 0 && {
+      val key = p.substring(0, i).trim
+      key.nonEmpty && key.forall(c => c.isLetterOrDigit || c == '_' || c == '-' || c == '.')
+    }
   }
 
   private def _section(
@@ -309,6 +381,27 @@ object Dox2Parser {
       copy(linesConfig = linesConfig.withInlineConfig(p))
 
     def withoutComplementParagraph() = copy(linesConfig = linesConfig.withoutComplementParagraph())
+
+    def withDoxStyle(p: Config.DoxStyle): Config =
+      p match {
+        case Config.DoxStyle.SmartDox => copy(
+          linesConfig = linesConfig.withInlineConfig(DoxInlineParser.Config.smartdox),
+          style = Config.DoxStyle.SmartDox
+        )
+        case Config.DoxStyle.Markdown => copy(
+          linesConfig = linesConfig.withInlineConfig(DoxInlineParser.Config.markdown),
+          style = Config.DoxStyle.Markdown
+        )
+        case Config.DoxStyle.OrgMode => copy(
+          linesConfig = linesConfig.withInlineConfig(DoxInlineParser.Config.orgmode),
+          style = Config.DoxStyle.OrgMode
+        )
+      }
+
+    def withFilename(filename: String): Config =
+      Config.doxStyleForFilename(filename).
+        fold(this)(withDoxStyle).
+        withPathname(filename)
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
@@ -358,6 +451,15 @@ object Dox2Parser {
       blocksConfig = LogicalBlocks.Config.literateModel,
       linesConfig = DoxLinesParser.Config.literateModel
     )
+
+    def doxStyleForFilename(filename: String): Option[DoxStyle] =
+      StringUtils.getSuffix(filename).flatMap {
+        case "dox" => Some(DoxStyle.SmartDox)
+        case "org" => Some(DoxStyle.OrgMode)
+        case "md" => Some(DoxStyle.Markdown)
+        case "markdown" => Some(DoxStyle.Markdown)
+        case _ => None
+      }
   }
 
   case class ParseContext(
@@ -392,19 +494,11 @@ object Dox2Parser {
 
   def parse(in: String): Dox = parse(Config.default, in)
 
-  def parseWithFilename(filename: String, in: String): Dox = {
-    def _default_ = Dox2Parser.Config.default
+  def parseWithFilename(filename: String, in: String): Dox =
+    parseWithFilename(Config.default, filename, in)
 
-    val cfg0 = StringUtils.getSuffix(filename).fold(_default_) {
-      case "dox" => Dox2Parser.Config.smartdox
-      case "org" => Dox2Parser.Config.orgmode
-      case "md" => Dox2Parser.Config.markdown
-      case "markdown" => Dox2Parser.Config.markdown
-      case _ => _default_
-    }
-    val cfg = cfg0.withPathname(filename)
-    parse(cfg, in)
-  }
+  def parseWithFilename(config: Config, filename: String, in: String): Dox =
+    parse(config.withFilename(filename), in)
 
   def parse(config: Config, in: String): Dox = {
     val ctx = ParseContext.now(config)

@@ -15,7 +15,8 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Sep. 14, 2025
  *  version Oct. 26, 2025
  *  version Nov. 30, 2025
- * @version Apr. 16, 2026
+ *  version Apr. 16, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -141,6 +142,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Fragment => enter_fragment(m)
       case m: I18NFragment => enter_i18nfragment(m)
       case m: Program => enter_program(node, m)
+      case m: DiagnosticBlock => enter_DiagnosticBlock(m)
       case m: Document => enter_Document(m)
       case m: Head => enter_head(node, m)
       case m: Body => enter_Body(m)
@@ -252,6 +254,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Section(p: Section): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Section: $p")
   protected def enter_I18NFragment(p: I18NFragment): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] I18NFragment: $p")
   protected def enter_Program(p: Program): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Program: $p")
+  protected def enter_DiagnosticBlock(p: DiagnosticBlock): Unit = {}
   protected def enter_Document(p: Document): Unit = {}
   protected def enter_Head(p: Head): Unit = {}
   protected def enter_Body(p: Body): Unit = {}
@@ -313,6 +316,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Fragment => leave_fragment(m)
       case m: I18NFragment => leave_i18nfragment(m)
       case m: Program => leave_program(node, m)
+      case m: DiagnosticBlock => leave_DiagnosticBlock(m)
       case m: Document => leave_Document(m)
       case m: Head => leave_head(node, m)
       case m: Body => leave_Body(m)
@@ -429,6 +433,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Section(p: Section): Unit = {}
   protected def leave_I18NFragment(p: I18NFragment): Unit = {}
   protected def leave_Program(p: Program): Unit = {}
+  protected def leave_DiagnosticBlock(p: DiagnosticBlock): Unit = {}
   protected def leave_Document(p: Document): Unit = {}
   protected def leave_Head(p: Head): Unit = {}
   protected def leave_Body(p: Body): Unit = {}

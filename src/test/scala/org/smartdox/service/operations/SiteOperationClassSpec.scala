@@ -15,11 +15,24 @@ import org.smartdox.service.operations._
 
 /*
  * @since   Mar.  9, 2025
- * @version Aug. 16, 2025
+ *  version Aug. 16, 2025
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class SiteOperationClassSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDoxParser {
+  "PdfRenderer" should {
+    "default to LaTeX" in {
+      PdfOperationClass.PdfRenderer.create(None) should be (PdfOperationClass.PdfRenderer.Latex)
+    }
+
+    "keep explicit renderer selection" in {
+      PdfOperationClass.PdfRenderer.create(Some("chrome-headless")) should be (PdfOperationClass.PdfRenderer.ChromeHeadless)
+      PdfOperationClass.PdfRenderer.create(Some("asciidoc")) should be (PdfOperationClass.PdfRenderer.Asciidoc)
+      PdfOperationClass.PdfRenderer.create(Some("latex")) should be (PdfOperationClass.PdfRenderer.Latex)
+    }
+  }
+
   "DoxSiteGenerator" should {
     val env = Environment.createJaJp()
     "plain" which {

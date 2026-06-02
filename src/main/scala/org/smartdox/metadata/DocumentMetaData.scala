@@ -53,7 +53,8 @@ import org.smartdox.structure.ValueListProperty
  *  version Sep. 28, 2025
  *  version Oct. 26, 2025
  *  version Nov. 30, 2025
- * @version Dec. 11, 2025
+ *  version Dec. 11, 2025
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DocumentMetaData(
@@ -257,6 +258,7 @@ case class DocumentMetaData(
       PROP_CATEGORY -> category,
       PROP_DESCRIPTION -> getDescriptionStringDefault,
       PROP_AUTHOR -> author.map(_.print),
+      PROP_ORGANIZATION -> organization.map(_.print),
       PROP_KEYWORDS -> _keywords_string,
       PROP_PUBLISHED_AT -> publishedAt.map(_to_string), // TODO DatePublished
       PROP_MODIFIED_AT -> modifiedAtHistory.marshall, // TODO DateModified
@@ -282,6 +284,7 @@ case class DocumentMetaData(
     printObject(buf, "category", category)
     explanation.printFlat(buf)
     Dox.printDox(buf, "author", author)
+    Dox.printDox(buf, "organization", organization)
     printObject(buf, "keywords", kws)
     printObject(buf, "publishedAt", publishedAt)
     printObject(buf, "modifiedAt", modifiedAt)
@@ -305,8 +308,11 @@ object DocumentMetaData {
   final val PROP_DESCRIPTION = "description"
   final val PROP_AUTHOR = "author"
   final val PROP_ORGANIZATION = "organization"
+  final val PROP_AFFILIATION = "affiliation"
   final val PROP_KEYWORDS = "keywords"
   final val PROP_PUBLISHED_AT = "published_at"
+  final val PROP_PUBLISHED_AT_CAMEL = "publishedAt"
+  final val PROP_DATE = "date"
   final val PROP_MODIFIED_AT = "modified_at"
   final val PROP_UPDATE = "update"
   final val PROP_KIND = "kind"
@@ -657,10 +663,10 @@ object DocumentMetaData {
       titleimage <- hocon.cUriOption(PROP_TITLE_IMAGE)
       category <- hocon.cStringOption(PROP_CATEGORY)
       exp <- Explanation.parse(hocon)
-      auth <- hocon.cStringOption(PROP_AUTHOR)
-      organization <- hocon.cStringOption(PROP_ORGANIZATION)
+      auth <- _string_option(hocon, PROP_AUTHOR)
+      organization <- _string_option(hocon, PROP_ORGANIZATION, PROP_AFFILIATION)
       keywords <- hocon.cEagerStringList(PROP_KEYWORDS)
-      published <- _get_localdateordatetime(hocon, PROP_PUBLISHED_AT)
+      published <- _get_localdateordatetime(hocon, PROP_PUBLISHED_AT, PROP_PUBLISHED_AT_CAMEL, PROP_DATE)
       modified <- _take_update_history(hocon, PROP_MODIFIED_AT)
       kind <- hocon.cValueOption(Kind, PROP_KIND)
       status <- hocon.cValueOption(Status, PROP_STATUS)
@@ -688,11 +694,30 @@ object DocumentMetaData {
       )
     }
 
+  private def _string_option(
+    hocon: Hocon,
+    key: String,
+    aliases: String*
+  ): Consequence[Option[String]] =
+    Consequence {
+      (key +: aliases).toStream.flatMap { k =>
+        if (hocon.hasPath(k))
+          Some(hocon.getString(k))
+        else
+          None
+      }.headOption
+    }
+
   private def _get_localdateordatetime(
     hocon: Hocon,
-    key: String
+    key: String,
+    aliases: String*
   )(implicit ctx: DateTimeContext): Consequence[Option[LocalDateOrDateTime]] =
-    Consequence(hocon.cLocalDateOrDateTimeOption(key).toOption.flatten)
+    Consequence {
+      (key +: aliases).toStream.flatMap { k =>
+        hocon.cLocalDateOrDateTimeOption(k).toOption.flatten.toSeq
+      }.headOption
+    }
 
   private def _take_localdateordatetime_set(
     hocon: Hocon,
@@ -716,14 +741,27 @@ object DocumentMetaData {
 
   def create(
     title: InlineContents,
-    date: InlineContents
+    date: InlineContents,
+    author: InlineContents = Nil,
+    organization: InlineContents = Nil
   )(implicit ctx: DateTimeContext): DocumentMetaData = {
     val d = date match {
       case Nil => None
       case xs => LocalDateOrDateTime.parse(Dox.toText(date)).toOption
     }
-    DocumentMetaData(Some(I18NFragment.create(title)), publishedAt = d)
+    DocumentMetaData(
+      Some(I18NFragment.create(title)),
+      author = _i18n_fragment_option(author),
+      organization = _i18n_fragment_option(organization),
+      publishedAt = d
+    )
   }
+
+  private def _i18n_fragment_option(p: InlineContents): Option[I18NFragment] =
+    if (p.isEmpty)
+      None
+    else
+      Some(I18NFragment.create(p))
 
   def create(p: Explanation): DocumentMetaData =
     DocumentMetaData.empty.withExplanation(p)

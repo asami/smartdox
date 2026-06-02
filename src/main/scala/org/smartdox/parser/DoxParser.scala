@@ -30,7 +30,8 @@ import org.goldenport.collection.VectorMap
  *  version May.  4, 2025
  *  version Jun. 16, 2025
  *  version Jul.  2, 2025
- * @version Apr. 20, 2026
+ *  version Apr. 20, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxParser(
@@ -166,6 +167,7 @@ class DoxParser(
             case "title" => builder.title = value
             case "author" => builder.author = value
             case "date" => builder.date = value
+            case "organization" | "affiliation" => builder.organization = value
             case _ => {}
           }
         }

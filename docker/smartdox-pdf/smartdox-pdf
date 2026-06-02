@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SMARTDOX_KROKI_PORT="${SMARTDOX_KROKI_PORT:-8000}"
+KROKI_PID=""
+
+find_kroki_jar() {
+  for jar in \
+    /usr/local/kroki/kroki-server.jar \
+    /usr/local/kroki/kroki.jar \
+    /usr/local/kroki/*.jar \
+    /opt/kroki/kroki-server.jar \
+    /opt/kroki/kroki.jar \
+    /opt/kroki/*.jar
+  do
+    if [[ -f "$jar" ]]; then
+      printf '%s\n' "$jar"
+      return 0
+    fi
+  done
+  echo "smartdox-pdf: Kroki jar not found in /usr/local/kroki or /opt/kroki" >&2
+  return 1
+}
+
+cleanup() {
+  if [[ -n "$KROKI_PID" ]]; then
+    kill "$KROKI_PID" 2>/dev/null || true
+  fi
+}
+
+run_kroki_server() {
+  local jar
+  jar="$(find_kroki_jar)"
+  trap cleanup EXIT INT TERM
+  java ${JAVA_OPTS:-} ${SMARTDOX_KROKI_JAVA_OPTS:-} \
+    -Dquarkus.http.host=0.0.0.0 \
+    -Dquarkus.http.port="${SMARTDOX_KROKI_PORT}" \
+    -jar "$jar" "$@"
+}
+
+start_kroki_server() {
+  local jar
+  jar="$(find_kroki_jar)"
+  trap cleanup EXIT INT TERM
+  java ${JAVA_OPTS:-} ${SMARTDOX_KROKI_JAVA_OPTS:-} \
+    -Dquarkus.http.host=127.0.0.1 \
+    -Dquarkus.http.port="${SMARTDOX_KROKI_PORT}" \
+    -jar "$jar" \
+    >/tmp/smartdox-kroki.log 2>&1 &
+  KROKI_PID="$!"
+  trap cleanup EXIT INT TERM
+  for _ in $(seq 1 60); do
+    if curl -fsS "http://127.0.0.1:${SMARTDOX_KROKI_PORT}/" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  echo "smartdox-pdf: Kroki server did not become ready on port ${SMARTDOX_KROKI_PORT}" >&2
+  exit 1
+}
+
+case "${1:-}" in
+  "")
+    exec bash
+    ;;
+  kroki-server)
+    shift
+    run_kroki_server "$@"
+    ;;
+  kroki-render)
+    shift
+    language="${1:?smartdox-pdf kroki-render requires a diagram language}"
+    format="${2:-svg}"
+    start_kroki_server
+    source_file="$(mktemp)"
+    output_file="$(mktemp)"
+    cat > "$source_file"
+    for _ in $(seq 1 30); do
+      status="$(curl -sS \
+        -X POST \
+        -H 'Content-Type: text/plain; charset=UTF-8' \
+        --data-binary @"$source_file" \
+        -o "$output_file" \
+        -w '%{http_code}' \
+        "http://127.0.0.1:${SMARTDOX_KROKI_PORT}/${language}/${format}" || true)"
+      if [[ "$status" == "200" ]]; then
+        cat "$output_file"
+        rm -f "$source_file" "$output_file"
+        exit 0
+      fi
+      if [[ "$status" != "000" && "$status" != 5* ]]; then
+        if [[ -s "$output_file" ]]; then
+          cat "$output_file" >&2
+          printf '\n' >&2
+        fi
+        rm -f "$source_file" "$output_file"
+        echo "smartdox-pdf: Kroki render failed for ${language}/${format}: HTTP ${status}" >&2
+        exit 1
+      fi
+      sleep 0.5
+    done
+    rm -f "$source_file" "$output_file"
+    echo "smartdox-pdf: Kroki render failed for ${language}/${format}" >&2
+    exit 1
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

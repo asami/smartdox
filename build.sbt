@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.4.13"
+version := "2.4.14-SNAPSHOT"
 
 scalaVersion := "2.12.18"
 
@@ -38,7 +38,7 @@ resolvers += "GitHab releases 2020" at "https://raw.github.com/asami/maven-repos
 
 resolvers += "GitHab releases" at "https://raw.github.com/asami/maven-repository/2025/releases"
 
-resolvers += "GitHub Packages" at "https://maven.pkg.github.com/asami/maven-repository"
+resolvers += "SimpleModeling.org" at "https://www.simplemodeling.org/repository/maven"
 
 // resolvers += "Asami Maven Repository" at "http://www.asamioffice.com/maven"
 
@@ -97,9 +97,12 @@ Compile / mainClass := Some("org.smartdox.service.SmartDoxService")
 
 // publishTo := Some(Resolver.file("asamioffice", file("target/maven-repository")))
 
-publishTo := Some(
-  "GitHub Packages" at "https://maven.pkg.github.com/asami/maven-repository"
-)
+publishTo := {
+  val repo = sys.env.get("SIMPLEMODELING_MAVEN_LOCAL")
+    .map(file)
+    .getOrElse(baseDirectory.value / "maven-local")
+  Some(Resolver.file("local-simplemodeling-maven", repo))
+}
 
 credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 

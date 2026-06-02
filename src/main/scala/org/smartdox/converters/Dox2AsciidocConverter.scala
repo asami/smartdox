@@ -22,7 +22,8 @@ import org.smartdox.converter._
  *  version Sep. 15, 2025
  *  version Oct. 26, 2025
  *  version Nov. 30, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -490,7 +491,7 @@ class Dox2AsciidocConverter(
 }
 
 object Dox2AsciidocConverter {
-  val KrokiSource = Vector("plantuml")
+  val KrokiSource = Vector("plantuml", "mermaid")
 
   case class Context(
     context: AntoraGenerator.Context,
