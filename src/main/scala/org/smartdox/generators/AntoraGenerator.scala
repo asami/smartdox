@@ -50,7 +50,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Aug. 17, 2025
  *  version Oct. 15, 2025
  *  version Nov. 17, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -64,12 +65,12 @@ class AntoraGenerator(
     val extrapages = PublishMetadata.load(publication).map(_.generatedPages).getOrElse(Vector.empty)
     val site = DoxSite.create(context, realm, "antora", config, extrapages)
     // record_message("XXX")
-    val builder = new Builder(Builder.Config(config, site.metadata))
+    val builder = new Builder(Builder.Config(site.config, site.metadata))
     // record_info("INFO")
     site.traverse(builder)
     val antora = builder.build()
     // record_message("YYY")
-    val actx = Context(context, config)
+    val actx = Context(context, site.config)
     val out = antora.toRealm(actx)
     val r = Realm.create() // .withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)
@@ -91,6 +92,24 @@ object AntoraGenerator {
 
     def getDefaultAuthor: Option[I18NString] = config.siteDefaultAuthor
 
+    def configuredLocales: List[Locale] =
+      config.siteMetadata.inLanguage.toList.flatMap(_to_locale) match {
+        case Nil => List(LocaleUtils.en, LocaleUtils.ja)
+        case xs => xs
+      }
+
+    def defaultLocale: Locale =
+      _to_locale(config.siteOutput.defaultLocale).orElse(configuredLocales.headOption).getOrElse(LocaleUtils.ja)
+
+    private def _to_locale(p: String): Option[Locale] =
+      p.toLowerCase match {
+        case "en" => Some(LocaleUtils.en)
+        case "ja" => Some(LocaleUtils.ja)
+        case "en-us" => Some(Locale.US)
+        case "ja-jp" => Some(Locale.JAPAN)
+        case _ => None
+      }
+
     def withTargetI18NContext(locale: Locale) =
       copy(context = context.withTargetI18NContext(locale))
   }
@@ -100,10 +119,12 @@ object AntoraGenerator {
     components: List[Antora.Component]
   ) {
     def toRealm(implicit context: Context): Realm = {
-      val targets = List(LocaleUtils.en, LocaleUtils.ja) // TODO
-      targets match {
-        case Nil => _build_plain(context)
-        case xs => _build_multi(context)
+      context.config.siteOutput.localeMode match {
+        case DoxSite.Config.SiteOutput.LocaleMode.SingleLocaleRoot => _build_single_locale_root(context.withTargetI18NContext(context.defaultLocale))
+        case DoxSite.Config.SiteOutput.LocaleMode.MultiLocaleSubdirs => context.configuredLocales match {
+          case Nil => _build_plain(context)
+          case xs => _build_multi(context, xs)
+        }
       }
     }
 
@@ -119,24 +140,25 @@ object AntoraGenerator {
     }
 
     private def _build_multi(
-      context: Context
+      context: Context,
+      locales: List[Locale]
     ) = {
-      val en = _build_locale(context.withTargetI18NContext(LocaleUtils.en))
-      val ja = _build_locale(context.withTargetI18NContext(LocaleUtils.ja))
       val realm = Realm.create()
-      val a = realm.merge("en", en)
-      a.merge("ja", ja)
+      locales.foldLeft(realm) { (z, locale) =>
+        z.merge(locale.toString, _build_locale(context.withTargetI18NContext(locale)))
+      }
     }
 
     private def _build_locale(
       implicit context: Context
     ) = {
       val locale = context.targetI18NContext.locale
-      val pb = playbook.
+      val pb0 = playbook.
         withLang(context.locale).
         withAntoraCacheDir(s"../../antora-cache.d/${locale}").
         withKrokiCacheDir(s"../../kroki-cache.d")
       val realm = Realm.create()
+      val pb = _setup_supplemental_ui(realm, pb0)
       realm.setContent("antora-playbook.yml", pb.serialize())
       realm.setNode("docs")
       val xs = components.map(_.canonize(context))
@@ -145,6 +167,81 @@ object AntoraGenerator {
         c.export(cursor)
       }
       realm.withGitInitAndCommit("docs")
+    }
+
+    private def _build_single_locale_root(
+      implicit context: Context
+    ) = {
+      val locale = context.targetI18NContext.locale
+      val pb0 = playbook.
+        withAntoraCacheDir(s"../antora-cache.d/${locale}").
+        withKrokiCacheDir(s"../kroki-cache.d")
+      val realm = Realm.create()
+      val pb = _setup_supplemental_ui(realm, pb0)
+      realm.setContent("antora-playbook.yml", pb.serialize())
+      realm.setNode("docs")
+      val xs = components.map(_.canonize(context))
+      val cursor = realm.takeCursor("docs")
+      for (c <- xs) {
+        c.export(cursor)
+      }
+      realm.withGitInitAndCommit("docs")
+    }
+
+    private def _setup_supplemental_ui(
+      realm: Realm,
+      playbook: Antora.Playbook
+    )(implicit context: Context): Antora.Playbook =
+      context.config.siteNavigation.mode match {
+        case DoxSite.Config.SiteNavigation.Mode.Category =>
+          realm.setContent("supplemental-ui/partials/header-content.hbs", _category_header_content(context.config.siteHeader.languageToggle))
+          playbook.copy(ui = playbook.ui.withSupplementalFiles(new URI("./supplemental-ui")))
+        case DoxSite.Config.SiteNavigation.Mode.SimpleModeling =>
+          playbook
+      }
+
+    private def _category_header_content(languageToggle: Boolean): String = {
+      val toggle =
+        if (languageToggle)
+          """        <div class="navbar-item">
+            |          <div class="lang-toggle-wrapper">
+            |            <div class="lang-toggle">
+            |              <a class="lang-btn" data-lang="ja" href="{{siteRootPath}}/ja/">JA</a>
+            |              <a class="lang-btn" data-lang="en" href="{{siteRootPath}}/en/">EN</a>
+            |            </div>
+            |          </div>
+            |        </div>
+            |""".stripMargin
+        else
+          ""
+      s"""<header class="header">
+         |  <nav class="navbar">
+         |    <div class="navbar-brand">
+         |      <a class="navbar-item" href="{{{or site.url siteRootPath}}}/">{{site.title}}</a>
+         |      {{#if env.SITE_SEARCH_PROVIDER}}
+         |      <div class="navbar-item search hide-for-print">
+         |        <div id="search-field" class="field">
+         |          <input id="search-input" type="text" placeholder="Search the docs"{{#if page.home}} autofocus{{/if}}>
+         |        </div>
+         |      </div>
+         |      {{/if}}
+         |      <button class="navbar-burger" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+         |        <span></span>
+         |        <span></span>
+         |        <span></span>
+         |      </button>
+         |    </div>
+         |    <div id="topbar-nav" class="navbar-menu">
+         |      <div class="navbar-end">
+         |        <a class="navbar-item" href="{{siteRootPath}}/index.html">Home</a>
+         |        {{#each site.components}}
+         |        <a class="navbar-item" href="{{{relativize ./url}}}">{{{./title}}}</a>
+         |        {{/each}}
+         |$toggle      </div>
+         |    </div>
+         |  </nav>
+         |</header>
+         |""".stripMargin
     }
 
     // private def _build_en(
@@ -235,7 +332,8 @@ object AntoraGenerator {
       def apply(c: HCursor): Decoder.Result[Playbook.Ui] =
         for {
           b <- c.downField("bundle").as[Playbook.Ui.Bundle]
-        } yield Playbook.Ui(b)
+          s <- c.downField("supplemental_files").as[Option[URI]]
+        } yield Playbook.Ui(b, s)
     }
 
     implicit val outputDecoder: Decoder[Playbook.Output] = new Decoder[Playbook.Output] {
@@ -303,7 +401,8 @@ object AntoraGenerator {
     implicit val uiEncoder: Encoder[Playbook.Ui] = new Encoder[Playbook.Ui] {
       def apply(p: Playbook.Ui): Json =
         CirceUtils.toJson(
-          "bundle" -> p.bundle.asJson
+          "bundle" -> p.bundle.asJson,
+          "supplemental_files" -> p.supplemental_files
         )
     }
 
@@ -388,8 +487,11 @@ object AntoraGenerator {
       }
 
       case class Ui(
-        bundle: Ui.Bundle
-      )
+        bundle: Ui.Bundle,
+        supplemental_files: Option[URI] = None
+      ) {
+        def withSupplementalFiles(p: URI): Ui = copy(supplemental_files = Some(p))
+      }
       object Ui {
 //        val default = Ui(Bundle(new URI("https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable").toURL))
         val default = Ui(Bundle(new URI("./ui-bundle.zip")))
@@ -408,14 +510,17 @@ object AntoraGenerator {
 
       case class Asciidoc(
         extensions: List[String] = List("asciidoctor-kroki"),
-        attributes: Map[String, String] = Map(
+        attributes: Map[String, String] = Asciidoc.defaultAttributes
+      ) {
+        def withKrokiCacheDir(p: String): Asciidoc =
+          copy(attributes = attributes + ("kroki-fetch-diagram-dir" -> p))
+      }
+      object Asciidoc {
+        val defaultAttributes: Map[String, String] = Map(
           "kroki-server-url" -> "http://localhost:9609", // "https://kroki.io",
           "kroki-default-format" -> "svg",
           "kroki-fetch-diagram" -> "true"
         )
-      ) {
-        def withKrokiCacheDir(p: String): Asciidoc =
-          copy(attributes = attributes + ("kroki-fetch-diagram-dir" -> p))
       }
 
       case class Runtime(
@@ -811,7 +916,7 @@ object AntoraGenerator {
 //        val redirects = Playbook.Redirects(false)
         val ui = Playbook.Ui.default
         val output = Playbook.Output.default
-        Playbook(site, content, ui, output, Playbook.Asciidoc(), None)
+        Playbook(site, content, ui, output, Playbook.Asciidoc(attributes = Playbook.Asciidoc.defaultAttributes ++ config.siteAttributes), None)
       }
 
       private def _sources(comps: List[Component]): List[Playbook.Content.Source] = {
@@ -884,6 +989,10 @@ object AntoraGenerator {
         def title: String = doxSiteConfig.siteTitle
         def url: Option[URL] = doxSiteConfig.siteUrl
         def defaultAuthor: Option[I18NString] = doxSiteConfig.siteDefaultAuthor
+        def siteAttributes: Map[String, String] = Map(
+          "smartdox-site-navigation-mode" -> doxSiteConfig.siteNavigation.mode.name,
+          "smartdox-site-language-toggle" -> doxSiteConfig.siteHeader.languageToggle.toString
+        )
       }
       object Config {
         // val default = Config()

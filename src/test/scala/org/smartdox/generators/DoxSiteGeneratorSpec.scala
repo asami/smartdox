@@ -21,7 +21,8 @@ import org.smartdox.semanticweb.Site.SiteMetadata
  *  version May.  2, 2025
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -54,6 +55,49 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         val merged = lhs + rhs
         merged.siteMetadata shouldBe metadata
         merged.strategy shouldBe DoxSite.Strategy.Full
+      }
+
+      "keeps simplemodelingorg antora output compatible with multi locale subdirectories" in {
+        val in = Realm.create(new File("src/test/resources/site-mini"))
+        val g = new AntoraGenerator(ctx, DoxSite.Config.default, publication = Some(new File("src/test/resources/publish-fixture")))
+        val r = g.generate(in)
+        r.get("antora.d/en/antora-playbook.yml") should not be empty
+        r.get("antora.d/ja/antora-playbook.yml") should not be empty
+        r.get("antora.d/antora-playbook.yml") shouldBe empty
+        val playbook = r.get("antora.d/ja/antora-playbook.yml").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        playbook should include ("title: SimpleModeling")
+        playbook should include ("url: https://www.simplemodeling.org/ja/")
+        playbook should include ("smartdox-site-navigation-mode: simplemodeling")
+        playbook should include ("smartdox-site-language-toggle: 'true'")
+      }
+
+      "uses general defaults for category navigation metadata and single locale root antora output" in {
+        val in = Realm.create(new File("src/test/resources/site-single-locale-root"))
+        val g = new AntoraGenerator(ctx, DoxSite.Config.default)
+        val r = g.generate(in)
+        withClue(r.print) {
+        r.get("antora.d/antora-playbook.yml") should not be empty
+        r.get("antora.d/ja/antora-playbook.yml") shouldBe empty
+        r.get("antora.d/en/antora-playbook.yml") shouldBe empty
+        r.get("antora.d/supplemental-ui/partials/header-content.hbs") should not be empty
+        }
+        val playbook = r.get("antora.d/antora-playbook.yml").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        playbook should include ("title: KnowledgeHub BoK")
+        playbook should include ("url: https://www.asamioffice.com/kokubunji/knowledgehub")
+        playbook should not include ("/ja/")
+        playbook should include ("smartdox-site-navigation-mode: category")
+        playbook should include ("smartdox-site-language-toggle: 'false'")
+        playbook should include ("supplemental_files: ./supplemental-ui")
+        val header = r.get("antora.d/supplemental-ui/partials/header-content.hbs").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        header should include ("{{#each site.components}}")
+        header should not include ("Overview")
+        header should not include ("lang-btn")
       }
 
       "mini" ignore {

@@ -73,11 +73,12 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Oct. 30, 2025
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun.  3, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
-  config: DoxSite.Config,
+  val config: DoxSite.Config,
   space: Tree[Node],
   val metadata: MetaData
 ) {
@@ -430,6 +431,10 @@ object DoxSite {
     strategy: Strategy = Strategy.Overview,
     localeSetting: Config.LocaleSetting = Config.LocaleSetting.jaen,
     siteMetadata: SiteMetadata = SiteMetadata.empty,
+    siteNavigation: Config.SiteNavigation = Config.SiteNavigation.default,
+    siteOutput: Config.SiteOutput = Config.SiteOutput.default,
+    siteHeader: Config.SiteHeader = Config.SiteHeader.default,
+    simplemodelingOrg: Boolean = false,
     origin: Option[File] = None,
     includeFilePatterns: Vector[Regex] = Vector(""".*\.(dox|org|md|markdown|ya?ml|png|jpg|jpeg|svg)$""").map(_.r),
     excludeFilePatterns: Vector[Regex] = Vector(
@@ -456,9 +461,26 @@ object DoxSite {
     def isLinkEnable: Boolean = strategy.isLinkEnable
     def isLinkEnable(p: Page): Boolean = strategy.isLinkEnable(p)
 
-    def siteTitle: String = "SimpleModeling"
-    def siteUrl: Option[URL] = Some(new URI("https://www.simplemodeling.org").toURL)
-    def siteDefaultAuthor: Option[I18NString] = Some(I18NString.enja("ASAMI, Tomoharu", "浅海 智晴"))
+    def siteTitle: String = siteMetadata.name getOrElse {
+      if (simplemodelingOrg)
+        "SimpleModeling"
+      else
+        "SmartDox Site"
+    }
+    def siteUrl: Option[URL] =
+      siteMetadata.url.map(x => new URI(x).toURL).orElse {
+        if (simplemodelingOrg)
+          Some(new URI("https://www.simplemodeling.org").toURL)
+        else
+          None
+      }
+    def siteDefaultAuthor: Option[I18NString] =
+      siteMetadata.author.flatMap(_.name).map(I18NString(_)).orElse {
+        if (simplemodelingOrg)
+          Some(I18NString.enja("ASAMI, Tomoharu", "浅海 智晴"))
+        else
+          None
+      }
 
     def textMark = Config.WorkAround.textMark
 
@@ -470,11 +492,92 @@ object DoxSite {
       siteMetadata = lastOption(
         Option(siteMetadata).filterNot(_.isEmpty),
         Option(rhs.siteMetadata).filterNot(_.isEmpty)
-      ).getOrElse(SiteMetadata.empty)
+      ).getOrElse(SiteMetadata.empty),
+      siteNavigation = if (rhs.siteNavigation == Config.SiteNavigation.default) siteNavigation else rhs.siteNavigation,
+      siteOutput = if (rhs.siteOutput == Config.SiteOutput.default) siteOutput else rhs.siteOutput,
+      siteHeader = if (rhs.siteHeader == Config.SiteHeader.default) siteHeader else rhs.siteHeader,
+      simplemodelingOrg = simplemodelingOrg || rhs.simplemodelingOrg
+    )
+
+    def withSimpleModelingOrgCompatibility: Config = copy(
+      siteNavigation = Config.SiteNavigation.simplemodelingOrgCompatibility,
+      siteOutput = Config.SiteOutput.simplemodelingOrgCompatibility,
+      siteHeader = Config.SiteHeader.simplemodelingOrgCompatibility,
+      simplemodelingOrg = true
     )
   }
   object Config {
     val default = Config()
+
+    case class SiteNavigation(
+      mode: SiteNavigation.Mode = SiteNavigation.Mode.Category
+    )
+    object SiteNavigation {
+      val default = SiteNavigation()
+      val simplemodelingOrgCompatibility = SiteNavigation(SiteNavigation.Mode.SimpleModeling)
+
+      sealed trait Mode extends NamedValueInstance
+      object Mode extends EnumerationClass[Mode] {
+        val elements = Vector(SimpleModeling, Category)
+
+        case object SimpleModeling extends Mode {
+          val name = "simplemodeling"
+        }
+        case object Category extends Mode {
+          val name = "category"
+        }
+
+        implicit val modeDecoder: Decoder[Mode] = Decoder.decodeString.emap(_create)
+        implicit val modeEncoder: Encoder[Mode] = Encoder.encodeString.contramap(_.name)
+
+        private def _create(p: String): Either[String, Mode] =
+          get(p).toRight(s"Unknown site.navigation.mode: $p")
+      }
+
+      implicit val siteNavigationDecoder: Decoder[SiteNavigation] = deriveConfiguredDecoder
+      implicit val siteNavigationEncoder: Encoder[SiteNavigation] = deriveConfiguredEncoder
+    }
+
+    case class SiteOutput(
+      localeMode: SiteOutput.LocaleMode = SiteOutput.LocaleMode.SingleLocaleRoot,
+      defaultLocale: String = "ja"
+    )
+    object SiteOutput {
+      val default = SiteOutput()
+      val simplemodelingOrgCompatibility = SiteOutput(SiteOutput.LocaleMode.MultiLocaleSubdirs, "ja")
+
+      sealed trait LocaleMode extends NamedValueInstance
+      object LocaleMode extends EnumerationClass[LocaleMode] {
+        val elements = Vector(MultiLocaleSubdirs, SingleLocaleRoot)
+
+        case object MultiLocaleSubdirs extends LocaleMode {
+          val name = "multi_locale_subdirs"
+        }
+        case object SingleLocaleRoot extends LocaleMode {
+          val name = "single_locale_root"
+        }
+
+        implicit val localeModeDecoder: Decoder[LocaleMode] = Decoder.decodeString.emap(_create)
+        implicit val localeModeEncoder: Encoder[LocaleMode] = Encoder.encodeString.contramap(_.name)
+
+        private def _create(p: String): Either[String, LocaleMode] =
+          get(p).toRight(s"Unknown site.output.locale_mode: $p")
+      }
+
+      implicit val siteOutputDecoder: Decoder[SiteOutput] = deriveConfiguredDecoder
+      implicit val siteOutputEncoder: Encoder[SiteOutput] = deriveConfiguredEncoder
+    }
+
+    case class SiteHeader(
+      languageToggle: Boolean = false
+    )
+    object SiteHeader {
+      val default = SiteHeader()
+      val simplemodelingOrgCompatibility = SiteHeader(languageToggle = true)
+
+      implicit val siteHeaderDecoder: Decoder[SiteHeader] = deriveConfiguredDecoder
+      implicit val siteHeaderEncoder: Encoder[SiteHeader] = deriveConfiguredEncoder
+    }
 
     case class LocaleSetting(
       slots: Vector[LocaleSetting.Slot] = Vector.empty
@@ -1319,15 +1422,53 @@ object DoxSite {
     realm: Realm,
     configname: Option[String]
   )(implicit ctx: I18NContext): DoxSite.Config =
-    configname.fold(DoxSite.Config.default) { n =>
+    configname match {
+      case Some("site") => _named_config(realm, "site")
+      case Some(n) => _named_config(realm, "site") + _named_config(realm, n)
+      case None => DoxSite.Config.default
+    }
+
+  private def _named_config(
+    realm: Realm,
+    name: String
+  )(implicit ctx: I18NContext): DoxSite.Config = {
       val c = for {
-        json <- ConfigLoader.loadConfigJson(realm, n)
+        json <- ConfigLoader.loadConfigJson(realm, name)
+        simplemodelingOrg <- _simplemodeling_org(json)
         output <- _tree_transformer_config(json.hcursor.downField("output").focus)
         siteMetadata <- _site_metadata(json.hcursor.downField("site").downField("metadata").focus)
+        siteNavigation <- _site_navigation(json.hcursor.downField("site").downField("navigation").focus)
+        siteOutput <- _site_output(json.hcursor.downField("site").downField("output").focus)
+        siteHeader <- _site_header(json.hcursor.downField("site").downField("header").focus)
       } yield {
-        Config(None, None, output, siteMetadata = siteMetadata, origin = realm.origin)
+        val config = Config(
+          None,
+          None,
+          output,
+          siteMetadata = siteMetadata,
+          siteNavigation = siteNavigation,
+          siteOutput = siteOutput,
+          siteHeader = siteHeader,
+          simplemodelingOrg = simplemodelingOrg,
+          origin = realm.origin
+        )
+        if (simplemodelingOrg)
+          config.withSimpleModelingOrgCompatibility
+        else
+          config
       }
       c.take
+    }
+
+  private def _simplemodeling_org(json: Json): Consequence[Boolean] =
+    json.hcursor.downField("simplemodelingorg").focus match {
+      case Some(s) => Consequence run {
+        s.as[Boolean] match {
+          case Right(r) => Consequence.success(r)
+          case Left(l) => Consequence.syntaxErrorFault(l.toString)
+        }
+      }
+      case None => Consequence.success(false)
     }
 
   private def _site_metadata(json: Option[Json]): Consequence[SiteMetadata] =
@@ -1340,6 +1481,57 @@ object DoxSite {
     Consequence run {
       json.as[SiteMetadata] match {
         case Right(r) => Consequence.success(r)
+        case Left(l) => Consequence.syntaxErrorFault(l.toString)
+      }
+    }
+
+  private def _site_navigation(json: Option[Json]): Consequence[Config.SiteNavigation] =
+    json match {
+      case Some(s) => _site_navigation(s)
+      case None => Consequence.success(Config.SiteNavigation.default)
+    }
+
+  private def _site_navigation(json: Json): Consequence[Config.SiteNavigation] =
+    Consequence run {
+      val cursor = json.hcursor
+      cursor.downField("mode").as[Option[Config.SiteNavigation.Mode]] match {
+        case Right(mode) => Consequence.success(Config.SiteNavigation(mode.getOrElse(Config.SiteNavigation.default.mode)))
+        case Left(l) => Consequence.syntaxErrorFault(l.toString)
+      }
+    }
+
+  private def _site_output(json: Option[Json]): Consequence[Config.SiteOutput] =
+    json match {
+      case Some(s) => _site_output(s)
+      case None => Consequence.success(Config.SiteOutput.default)
+    }
+
+  private def _site_output(json: Json): Consequence[Config.SiteOutput] =
+    Consequence run {
+      val cursor = json.hcursor
+      val r = for {
+        localeMode <- cursor.downField("locale_mode").as[Option[Config.SiteOutput.LocaleMode]]
+        defaultLocale <- cursor.downField("default_locale").as[Option[String]]
+      } yield Config.SiteOutput(
+        localeMode.getOrElse(Config.SiteOutput.default.localeMode),
+        defaultLocale.getOrElse(Config.SiteOutput.default.defaultLocale)
+      )
+      r match {
+        case Right(s) => Consequence.success(s)
+        case Left(l) => Consequence.syntaxErrorFault(l.toString)
+      }
+    }
+
+  private def _site_header(json: Option[Json]): Consequence[Config.SiteHeader] =
+    json match {
+      case Some(s) => _site_header(s)
+      case None => Consequence.success(Config.SiteHeader.default)
+    }
+
+  private def _site_header(json: Json): Consequence[Config.SiteHeader] =
+    Consequence run {
+      json.hcursor.downField("language_toggle").as[Option[Boolean]] match {
+        case Right(s) => Consequence.success(Config.SiteHeader(s.getOrElse(Config.SiteHeader.default.languageToggle)))
         case Left(l) => Consequence.syntaxErrorFault(l.toString)
       }
     }
