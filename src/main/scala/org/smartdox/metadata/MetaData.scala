@@ -11,7 +11,8 @@ import org.smartdox.semanticweb.Site.SiteModel
  *  version Jun. 23, 2025
  *  version Jul. 23, 2025
  *  version Aug. 24, 2025
- * @version Nov. 22, 2025
+ *  version Nov. 22, 2025
+ * @version Jun.  5, 2026
  * @author  ASAMI, Tomoharu
  */
 case class MetaData(
@@ -24,6 +25,7 @@ case class MetaData(
   notices: Notices = Notices.empty,
   atomFeed: Option[AtomFeedBag] = None,
   history: History = History.empty,
+  dashboard: DoxSiteDashboard = DoxSiteDashboard.empty,
   linkCollection: Option[LinkCollection] = None,
   site: SiteModel = SiteModel.empty
 )

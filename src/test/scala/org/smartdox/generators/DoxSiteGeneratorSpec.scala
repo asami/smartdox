@@ -22,7 +22,7 @@ import org.smartdox.semanticweb.Site.SiteMetadata
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
  *  version May. 14, 2026
- * @version Jun.  3, 2026
+ * @version Jun.  5, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -46,6 +46,20 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         jsonld should include (""""schema:description": "Example site metadata."""")
         jsonld should include (""""schema:keywords": ["SmartDox", "Site Metadata"]""")
         jsonld should include (""""schema:datePublished": "2026-05-14"""")
+      }
+
+      "emits dashboard metadata" in {
+        val in = Realm.create(new File("src/test/resources/site-single-locale-root"))
+        val g = new DoxSiteGenerator(ctx, DoxSite.Config.default)
+        val r = g.generate(in)
+        val json = r.get("doxsite.d/metadata/dashboard/site.json").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+
+        json should include ("\"counts\"")
+        json should include ("\"rdf\"")
+        json should include ("\"triple_count\"")
+        json should include ("\"categories\"")
       }
 
       "keeps site metadata when configs are merged" in {

@@ -38,6 +38,7 @@ import org.goldenport.util.RegexUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
+import org.smartdox.metadata.DoxSiteDashboard
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
@@ -74,7 +75,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun.  3, 2026
+ * @version Jun.  5, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -86,15 +87,16 @@ class DoxSite(
 
   def toRealm(context: Context): Realm = {
     val targets = List(LocaleUtils.en, LocaleUtils.ja) // TODO
-    targets match {
+    val realm = targets match {
       case Nil => _build_plain(context)
       case xs => _build_multi(context)
     }
+    _build_machine_metadata(realm)
   }
 
   private def _build_plain(
     context: Context
-  ) = {
+  ): Realm = {
     val rule = RealmBuilder.Rule(config.outputTreeTransformerConfig)
     val a = space.transform(new RealmBuilder(context, rule))
     Realm(a)
@@ -102,7 +104,7 @@ class DoxSite(
 
   private def _build_multi(
     context: Context
-  ) = {
+  ): Realm = {
     val en = _build_locale(context, RealmBuilder.Rule.en.withConfig(config.outputTreeTransformerConfig))
     val ja = _build_locale(context, RealmBuilder.Rule.ja.withConfig(config.outputTreeTransformerConfig))
     val realm = Realm.create()
@@ -360,6 +362,11 @@ class DoxSite(
     val turtle = metadata.site.toTurtle
     realm.setContent("site.jsonld", jsonld)
     realm.setContent("site.ttl", turtle)
+  }
+
+  private def _build_machine_metadata(realm: Realm): Realm = {
+    realm.setContent("metadata/dashboard/site.json", DoxSiteDashboard.toJsonString(metadata.dashboard))
+    realm
   }
 
   private def _path(namespace: String): PathName = {
@@ -1183,7 +1190,7 @@ object DoxSite {
     val keywords = _collect_keywords()
     val tags = _collect_tags()
     val history = _build_history(history0, glossary, bibliography, keywords, tags)
-    val metadata0 = MetaData(
+    val metadata0x = MetaData(
       glossary = glossary,
       categories = categories,
       keywords = keywords,
@@ -1192,6 +1199,7 @@ object DoxSite {
       atomFeed = atoms,
       history = history
     )
+    val metadata0 = metadata0x.copy(dashboard = DoxSiteDashboard.create(metadata0x))
     val ctx1 = ctx.withMetaData(metadata0)
     val (c, links) = _enable_link(ctx1, b, a0x)
     val metadata1 = metadata0.copy(linkCollection = links)
@@ -1306,7 +1314,8 @@ object DoxSite {
     val glossaries = _glossary_site_resources(p)
     val resourcs = articles ++ glossaries
     val site = SiteModel.create(p, resourcs, siteMetadata)
-    p.copy(site = site)
+    val metadata = p.copy(site = site)
+    metadata.copy(dashboard = DoxSiteDashboard.create(metadata))
   }
 
   private def _article_site_resources(p: MetaData) =

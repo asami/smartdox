@@ -27,7 +27,8 @@ import org.smartdox.metadata._
  *  version Sep. 28, 2025
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
- * @version Dec. 19, 2025
+ *  version Dec. 19, 2025
+ * @version Jun.  5, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -43,10 +44,23 @@ class LinkEnabler(
     node: TreeNode[Node],
     p: Page
   ): List[HomoTreeTransformer[Dox]] =
-    if (context.config.doxsiteConfig.fold(true)(_.isLinkEnable(p)))
+    if (_is_link_enable(context, node, p))
       List(new LinkEmbedder(context, node, this))
     else
       Nil
+
+  private def _is_link_enable(
+    context: DoxSiteTransformer.Context,
+    node: TreeNode[Node],
+    page: Page
+  ): Boolean =
+    !_is_manual_path(node.pathname) &&
+      context.config.doxsiteConfig.fold(true)(_.isLinkEnable(page))
+
+  private def _is_manual_path(pathname: String): Boolean = {
+    val path = pathname.stripPrefix("/")
+    path == "manual" || path.startsWith("manual/")
+  }
 
   def getMetaData(path: String): Option[DocumentMetaData] =
     site.getContent(path).flatMap {
@@ -91,7 +105,7 @@ object LinkEnabler {
     private var _definitions: Vector[Glossary.Definition] = Vector.empty
 
     // Shared across all glossary terms within the same page
-    private val expandedDefinitions = scala.collection.mutable.Set.empty[Glossary.Definition]
+    private val _expanded_definitions = scala.collection.mutable.Set.empty[Glossary.Definition]
 
     private var _internal_links: LinkHolder = LinkHolder.empty
 
@@ -291,8 +305,8 @@ object LinkEnabler {
           _create_href_,
           Vector(m),
           used,
-          expandedDefinitions = this.expandedDefinitions,
-          expandDefinition = expand
+          expandeddefinitions = this._expanded_definitions,
+          expanddefinition = expand
         )
       )(_+_)
       addGlossary(x.definitions)
@@ -643,8 +657,8 @@ object LinkEnabler {
     createhref: Glossary.Definition => URI,
     dox: Vector[Dox],
     definitions: ListSet[Glossary.Definition] = ListSet.empty,
-    expandedDefinitions: scala.collection.mutable.Set[Glossary.Definition] = scala.collection.mutable.Set.empty,
-    expandDefinition: Boolean = true,
+    expandeddefinitions: scala.collection.mutable.Set[Glossary.Definition] = scala.collection.mutable.Set.empty,
+    expanddefinition: Boolean = true,
     boundaryConfig: TextLinkProcessor.GlossaryBoundaryConfig = TextLinkProcessor.GlossaryBoundaryConfig.default
   ) {
     import TextLinkProcessor._
@@ -657,8 +671,8 @@ object LinkEnabler {
           createhref,
           holder.xs,
           holder.ds,
-          expandedDefinitions = expandedDefinitions,
-          expandDefinition = expandDefinition
+          expandeddefinitions = expandeddefinitions,
+          expanddefinition = expanddefinition
         )
 
         def +(rhs: Dox) = {
@@ -718,11 +732,11 @@ object LinkEnabler {
           _can_aux(s, found + token.length)
         else
           false
-        // Only expand if expandDefinition is true and this definition hasn't been expanded yet
-        if (expandDefinition && !expandedDefinitions.contains(definition)) {
+        // Expand each definition only once per page when expansion is enabled
+        if (expanddefinition && !expandeddefinitions.contains(definition)) {
           // First occurrence outside table → expand
           buf += _make_glossary_link(definition, token, canaux = true, expand = true)
-          expandedDefinitions += definition
+          expandeddefinitions += definition
           expanded = true
         } else {
           // Table or subsequent → link only
