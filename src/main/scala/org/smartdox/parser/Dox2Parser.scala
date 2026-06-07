@@ -51,7 +51,7 @@ import Dox._
  *  version Oct. 26, 2025
  *  version Nov. 17, 2025
  *  version Dec. 10, 2025
- * @version Jun.  3, 2026
+ * @version Jun.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -207,8 +207,8 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   }
 
   private def _parse_head(p: LogicalSection): HeadParseResult = {
-    val propertiesText = _logical_section_properties_text(p)
-    val (propertiesMeta, errorMessage) = DocumentPropertiesParser.parse(propertiesText).fold(
+    val propertiestext = _logical_section_properties_text(p)
+    val (propertiesmeta, errormessage) = DocumentPropertiesParser.parse(propertiestext).fold(
       c => {
         val message = s"SmartDox HEAD metadata parse error: ${c.message}"
         scala.Console.err.println(message)
@@ -222,11 +222,13 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       updatehistory <- DocumentMetaData.UpdateHistory.parse(section)
       relations <- DocumentMetaData.Relations.parse(section)
     } yield DocumentMetaData.create(ex, updatehistory, relations)
-    HeadParseResult(propertiesMeta + a.take, errorMessage, propertiesText)
+    HeadParseResult(propertiesmeta + a.take, errormessage, propertiestext)
   }
 
   private def _logical_section_properties_text(p: LogicalSection): String =
-    p.blocks.lines.lines.flatMap(_.physicalLines).mkString("\n")
+    p.blocks.blocks.headOption.collect {
+      case m: LogicalParagraph => _logical_paragraph_properties_text(m)
+    }.getOrElse("")
 
   private def _distill_logical_meta(p: LogicalBlocks): (LogicalBlocks, DocumentMetaData) =
     p.blocks match {
