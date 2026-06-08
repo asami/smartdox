@@ -8,7 +8,7 @@ import org.goldenport.context.Consequence
 
 /*
  * @since   Jun.  2, 2026
- * @version Jun.  3, 2026
+ * @version Jun.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 object DocumentPropertiesParser {
@@ -55,7 +55,7 @@ object DocumentPropertiesParser {
 
   private def _property_entries(p: String): Vector[(String, String)] = {
     val s = _property_candidate_lines(p).mkString("\n")
-    val pattern = "([A-Za-z0-9_.-]+)\\s*=".r
+    val pattern = """(?<![A-Za-z0-9_.?&/;-])([A-Za-z0-9_.-]+)\s*=""".r
     val matches = pattern.findAllMatchIn(s).toVector
     matches.zipWithIndex.map { case (m, i) =>
       val key = m.group(1)

@@ -24,7 +24,7 @@ import org.smartdox.transformers.AutoI18nTransformer
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun.  5, 2026
+ * @version Jun.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -41,7 +41,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
       val config = DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
       val site = DoxSite.create(context, new File("src/test/resources/site-link"), None, config)
       val realm = site.toRealm(context)
-      implicit val i18nContext: I18NContext = context.i18NContext
+      implicit val i18ncontext: I18NContext = context.i18NContext
       val html = realm.getString("/en/index.html").orElse(realm.getString("en/index.html")).get
 
       html should include ("href=\"target.html\"")
@@ -124,12 +124,57 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
             |""".stripMargin)
         val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
         val realm = site.toRealm(context)
-        implicit val i18nContext: I18NContext = context.i18NContext
+        implicit val i18ncontext: I18NContext = context.i18NContext
         val html = realm.getString("/ja/manual/index.html").orElse(realm.getString("ja/manual/index.html")).get
 
         html should include ("Runtime is a manual operation word")
         html should not include ("class=\"glossary\"")
         html should not include ("glossary/architecture/runtime")
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "keep published dox pages in production strategy" in {
+      val dir = Files.createTempDirectory("smartdox-production-published")
+      try {
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("published.dox"),
+          """Published Article
+            |=================
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-08
+            |
+            |## SUMMARY
+            |
+            |Published summary.
+            |
+            |# Body
+            |
+            |Published body.
+            |""".stripMargin)
+        _write(dir.resolve("wip.dox"),
+          """Work In Progress Article
+            |========================
+            |
+            |# HEAD
+            |
+            |status=work-in-progress
+            |published_at=2026-06-08
+            |
+            |# Body
+            |
+            |WIP body.
+            |""".stripMargin)
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+
+        realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get should include ("Published body.")
+        realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
       } finally {
         _delete(dir)
       }

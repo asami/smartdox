@@ -93,6 +93,36 @@ published_at=2026-06-08
       dox.toString should include ("本文です。")
     }
 
+    "parse leading metadata paragraph through filename based SmartDox parsing" in {
+      val stderr = new ByteArrayOutputStream()
+      val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
+        Dox2Parser.parseWithFilename("published.dox", """Published Article
+=================
+
+# HEAD
+
+status=published
+published_at=2026-06-08
+title_image="https://example.com/image.jpg?q=80&w=1200"
+
+## SUMMARY
+
+Published summary.
+
+# Body
+
+Published body.
+""").asInstanceOf[Document]
+      }
+      val meta = dox.head.metadata
+      stderr.toString("UTF-8") should not include ("SmartDox HEAD metadata parse error:")
+      meta.status should be (org.smartdox.metadata.DocumentMetaData.Status.Published)
+      meta.getPublishedString(java.util.Locale.ENGLISH) should be (Some("2026-06-08"))
+      meta.titleImage.map(_.toString) should be (Some("https://example.com/image.jpg?q=80&w=1200"))
+      meta.getEffectiveSummaryString(java.util.Locale.ENGLISH) should be (Some("Published summary."))
+      dox.toString should include ("Published body.")
+    }
+
     "report explicit HEAD metadata parse errors" in {
       val stderr = new ByteArrayOutputStream()
       val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
