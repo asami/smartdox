@@ -8,6 +8,7 @@ target
 *.orig
 *.rej
 *.d
+maven-local
 
 ### Metals (VS Code Scala extension) ###
 .metals/
