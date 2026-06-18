@@ -2,6 +2,7 @@ package org.smartdox.doxsite
 
 import scalaz.{Tree => ZTree, Category => _, _}, Scalaz._
 import scala.util.control.NonFatal
+import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 import java.io.File
 import java.net.URI
@@ -26,6 +27,7 @@ import org.goldenport.realm.RealmTransformer
 import org.goldenport.value._
 import org.goldenport.values.PathName
 import org.goldenport.collection.NonEmptyVector
+import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
@@ -38,6 +40,7 @@ import org.goldenport.util.RegexUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
+import org.smartdox.metadata.PublishMetadata
 import org.smartdox.metadata.DoxSiteDashboard
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
@@ -75,7 +78,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun.  5, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1166,7 +1169,8 @@ object DoxSite {
     realm: Realm,
     configname: Option[String],
     inconfig: DoxSite.Config,
-    extraPages: Seq[(String, Page)]
+    extraPages: Seq[(String, Page)],
+    videopublications: Seq[PublishMetadata.VideoPublication] = Nil
   ): DoxSite = {
     val config = _config(inconfig, realm, configname)(context.i18NContext)
     val nodectx = TreeTransformer.Context.default[Node]
@@ -1178,7 +1182,8 @@ object DoxSite {
       doxctx
     )
     val rule = DoxSiteBuilder.Rule(config)
-    val a0: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
+    val a00: Tree[Node] = realm.transformTree(new DoxSiteBuilder(rule, ctx))
+    val a0: Tree[Node] = _deploy_video_source_pages(a00, videopublications)
     val a1: Tree[Node] = a0.transform(new DoxSiteEnabler(ctx, rule))
     val a0x = _deploy_extra_pages(a0, extraPages)
     val a = _deploy_extra_pages(a1.transform(new DoxSitePreTransformer(ctx)), extraPages)
@@ -1208,6 +1213,68 @@ object DoxSite {
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
     new DoxSite(config, z, metadata)
+  }
+
+  private def _deploy_video_source_pages(base: Tree[Node], videopublications: Seq[PublishMetadata.VideoPublication]): Tree[Node] = {
+    val rewrites = ArrayBuffer.empty[(String, String, Page)]
+    base.traverse(new DoxSiteVisitor {
+      override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
+        content match {
+          case page: Page =>
+            _video_source_page(node.pathname, page, videopublications).foreach(rewrites += _)
+          case _ =>
+        }
+    })
+    rewrites.foreach {
+      case (source, target, page) =>
+        base.setContent(target, page)
+        base.remove(source)
+    }
+    base
+  }
+
+  private def _video_source_page(path: String, page: Page, videopublications: Seq[PublishMetadata.VideoPublication]): Option[(String, String, Page)] = {
+    val normalized = path.stripPrefix("/")
+    val suffix = "/index.dox"
+    if (!normalized.endsWith(suffix)) {
+      None
+    } else {
+      val directory = normalized.stripSuffix(suffix)
+      if (!directory.endsWith(".video")) {
+        None
+      } else {
+        val segments = directory.split('/').toVector.filter(_.nonEmpty)
+        val slug = segments.last.stripSuffix(".video")
+        val parent = segments.dropRight(1).mkString("/")
+        val target = if (parent.isEmpty) s"$slug.dox" else s"$parent/$slug.dox"
+        val embedded = _embed_video_publication(page, slug, directory, videopublications)
+        Some((directory, target, embedded.copy(name = Node.Name(s"$slug.dox"))))
+      }
+    }
+  }
+
+
+  private def _embed_video_publication(
+    page: Page,
+    slug: String,
+    directory: String,
+    videopublications: Seq[PublishMetadata.VideoPublication]
+  ): Page = {
+    val extra = videopublications.find(_.matchesPackage(directory)) match {
+      case Some(video) =>
+        Html5(
+          "video",
+          VectorMap("controls" -> "controls", "src" -> video.publicPath, "class" -> "smartdox-video-player"),
+          List(Text(s"Video: ${video.name}"))
+        )
+      case None =>
+        DiagnosticBlock.error(
+          "Missing video publication metadata",
+          s"No publication metadata found for $directory. Rendered the article without running video generation."
+        )
+    }
+    val dox = page.dox.copy(body = page.dox.body.copy(contents = page.dox.body.contents :+ extra))
+    page.copy(dox = dox)
   }
 
   private def _deploy_extra_pages(

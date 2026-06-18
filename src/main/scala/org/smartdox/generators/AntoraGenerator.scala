@@ -62,8 +62,10 @@ class AntoraGenerator(
   import AntoraGenerator._
 
   def generate(realm: Realm): Realm = {
-    val extrapages = PublishMetadata.load(publication).map(_.generatedPages).getOrElse(Vector.empty)
-    val site = DoxSite.create(context, realm, "antora", config, extrapages)
+    val publishmetadata = PublishMetadata.load(publication)
+    val extrapages = publishmetadata.map(_.generatedPages).getOrElse(Vector.empty)
+    val videopublications = publishmetadata.map(_.videoPublications).getOrElse(Vector.empty)
+    val site = DoxSite.create(context, realm, Some("antora"), config, extrapages, videopublications)
     // record_message("XXX")
     val builder = new Builder(Builder.Config(site.config, site.metadata))
     // record_info("INFO")

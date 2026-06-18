@@ -24,6 +24,9 @@ case class PublishMetadata(
 ) {
   import PublishMetadata._
 
+  def videoPublications: Vector[VideoPublication] =
+    entries.flatMap(_.videoPublication)
+
   def generatedPages: Vector[(String, Page)] =
     _catalog_page +: (_tutorial_catalog_pages ++ _groups.flatMap(_.pages))
 
@@ -384,6 +387,27 @@ object PublishMetadata {
     descriptive: DescriptiveAttributes
   )
 
+  case class VideoPublication(
+    name: String,
+    sourcePackage: Option[String],
+    articlePath: Option[String],
+    publicPath: String
+  ) {
+    def matchesPackage(directory: String): Boolean =
+      sourcePackage.map(_normalize_path).contains(_normalize_path(directory))
+  }
+
+  private def _normalize_path(path: String): String =
+    path.trim.replace('\\', '/').stripPrefix("/")
+
+  private def _public_path(path: String): String = {
+    val normalized = _normalize_path(path)
+    if (normalized.startsWith("repository/"))
+      s"/$normalized"
+    else
+      normalized
+  }
+
   case class Entry(
     path: String,
     key: String,
@@ -419,6 +443,19 @@ object PublishMetadata {
       array("files") ++ array("source_manifest")
     def sampleRefs: Vector[SampleRef] =
       array("samples").flatMap(SampleRef.fromJson)
+    def videoPublication: Option[VideoPublication] =
+      if (typeOption.contains("video-publication"))
+        for {
+          name <- string("video", "name")
+          publicpath <- string("video", "artifact", "repositoryPublicPath").orElse(string("video", "artifact", "publicPath")).orElse(string("video", "publish", "publicPath"))
+        } yield VideoPublication(
+          name = name,
+          sourcePackage = string("video", "sourcePackage"),
+          articlePath = string("video", "articlePath"),
+          publicPath = _public_path(publicpath)
+        )
+      else
+        None
     def displayTitle: String =
       List(typeOption, Some(path)).flatten.mkString(" - ")
     def isSourceManifest: Boolean =

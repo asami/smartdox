@@ -22,7 +22,7 @@ import org.smartdox.semanticweb.Site.SiteMetadata
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
  *  version May. 14, 2026
- * @version Jun.  5, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -194,6 +194,20 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         r.get("antora.d/en/docs/catalog/modules/textus-core/pages/artifacts.adoc") should not be empty
         r.get("antora.d/en/docs/catalog/modules/textus-core/pages/releases.adoc") should not be empty
         r.get("antora.d/en/docs/repository/modules/09-b-aggregate-relation-boundary-model/pages/index.adoc") shouldBe empty
+      }
+
+      "renders .video source package index as slug article" in {
+        val in = Realm.create(new File("src/test/resources/video-package-site"))
+        val g = new AntoraGenerator(ctx, DoxSite.Config.default, Some(new File("src/test/resources/video-publication-fixture")))
+        val r = g.generate(in)
+        val article = r.get("antora.d/docs/concepts/modules/ROOT/pages/tutorial.adoc").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        article should include ("Video Tutorial")
+        article should include ("This is a video article.")
+        article should include ("pass:[<video")
+        article should include ("src=\"/repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4\"")
+        r.get("antora.d/docs/concepts/modules/ROOT/pages/tutorial.video/index.adoc") shouldBe empty
       }
 
       "fails on invalid metadata syntax" in {

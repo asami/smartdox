@@ -1,0 +1,30 @@
+{
+  "schema": "cozy.publish-project.v1",
+  "type": "publication-bundle",
+  "publication": {"name": "tutorial"},
+  "sourceRepository": "smartdox-test",
+  "sourcePath": "concepts/tutorial.video",
+  "entries": [
+    {
+      "path": "metadata/videos/tutorial/metadata.json",
+      "key": "videos/tutorial/metadata",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "video-publication",
+        "video": {
+          "type": "video",
+          "name": "tutorial",
+          "title": "Video Tutorial",
+          "version": "0.1.0",
+          "articlePath": "index.dox",
+          "sourcePackage": "concepts/tutorial.video",
+          "artifact": {
+            "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4",
+            "publicPath": "videos/tutorial.mp4",
+            "repositoryPublicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4"
+          }
+        }
+      }
+    }
+  ]
+}
