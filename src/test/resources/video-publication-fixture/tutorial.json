@@ -18,10 +18,61 @@
           "version": "0.1.0",
           "articlePath": "index.dox",
           "sourcePackage": "concepts/tutorial.video",
+          "captions": {
+            "type": "captions",
+            "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.srt",
+            "publicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.srt",
+            "sha256": "caption-sha256"
+          },
+          "transcript": {
+            "type": "transcript",
+            "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.transcript.json",
+            "publicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.transcript.json",
+            "sha256": "transcript-sha256"
+          },
           "artifact": {
+            "type": "video",
             "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4",
             "publicPath": "videos/tutorial.mp4",
-            "repositoryPublicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4"
+            "repositoryPublicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4",
+            "sha256": "video-sha256"
+          },
+          "rdf": {
+            "registryPath": "metadata/video/tutorial/0.1.0/rdf",
+            "manifestPath": "metadata/video/tutorial/0.1.0/manifest",
+            "latestPath": "metadata/video/tutorial/latest"
+          }
+        }
+      }
+    },
+    {
+      "path": "metadata/video/tutorial/0.1.0/rdf.json",
+      "key": "video/tutorial/0.1.0/rdf",
+      "metadata": {
+        "schema": "cozy.publish-project.v1",
+        "type": "video-rdf",
+        "video": {
+          "name": "tutorial",
+          "version": "0.1.0"
+        },
+        "registryPath": "metadata/video/tutorial/0.1.0/rdf",
+        "files": {
+          "turtle": {
+            "type": "turtle",
+            "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl",
+            "publicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl",
+            "sha256": "ttl-sha256"
+          },
+          "jsonLd": {
+            "type": "jsonld",
+            "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.jsonld",
+            "publicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.jsonld",
+            "sha256": "jsonld-sha256"
+          },
+          "manifest": {
+            "type": "rdf-manifest",
+            "warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.rdf-manifest.json",
+            "publicPath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.rdf-manifest.json"
           }
         }
       }

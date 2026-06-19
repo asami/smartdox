@@ -20,7 +20,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
  *  version May. 24, 2025
  *  version Jun.  9, 2025
  *  version Oct. 25, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteGenerator(
@@ -31,7 +32,9 @@ class DoxSiteGenerator(
   import DoxSiteGenerator._
 
   def generate(realm: Realm): Realm = {
-    val site = DoxSite.create(context, realm, "site", config)
+    val publishmetadata = PublishMetadata.load(publication)
+    val videopublications = publishmetadata.map(_.videoPublications).getOrElse(Vector.empty)
+    val site = DoxSite.create(context, realm, Some("site"), config, Nil, videopublications)
     val out = site.toRealm(context)
     val doxsite = PublishMetadata.publicRealm(publication).fold(out)(out + _)
     val r = Realm.create()

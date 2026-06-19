@@ -16,7 +16,8 @@ import org.smartdox.doxsite.Page
 
 /*
  * @since   May. 13, 2026
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 case class PublishMetadata(
@@ -24,8 +25,13 @@ case class PublishMetadata(
 ) {
   import PublishMetadata._
 
-  def videoPublications: Vector[VideoPublication] =
-    entries.flatMap(_.videoPublication)
+  def videoPublications: Vector[VideoPublication] = {
+    val rdfs = entries.flatMap(_.videoRdfPublication)
+    entries.flatMap(_.videoPublication).map { video =>
+      val rdf = rdfs.find(x => x.name == video.name && x.version == video.version)
+      video.copy(rdf = rdf)
+    }
+  }
 
   def generatedPages: Vector[(String, Page)] =
     _catalog_page +: (_tutorial_catalog_pages ++ _groups.flatMap(_.pages))
@@ -387,11 +393,32 @@ object PublishMetadata {
     descriptive: DescriptiveAttributes
   )
 
+  case class VideoArtifactReference(
+    kind: String,
+    publicPath: String,
+    warehousePath: Option[String] = None,
+    sha256: Option[String] = None
+  )
+
+  case class VideoRdfPublication(
+    name: String,
+    version: String,
+    registryPath: String,
+    turtle: Option[VideoArtifactReference] = None,
+    jsonLd: Option[VideoArtifactReference] = None,
+    manifest: Option[VideoArtifactReference] = None
+  )
+
   case class VideoPublication(
     name: String,
+    version: String,
     sourcePackage: Option[String],
     articlePath: Option[String],
-    publicPath: String
+    publicPath: String,
+    artifact: Option[VideoArtifactReference] = None,
+    caption: Option[VideoArtifactReference] = None,
+    transcript: Option[VideoArtifactReference] = None,
+    rdf: Option[VideoRdfPublication] = None
   ) {
     def matchesPackage(directory: String): Boolean =
       sourcePackage.map(_normalize_path).contains(_normalize_path(directory))
@@ -444,16 +471,40 @@ object PublishMetadata {
     def sampleRefs: Vector[SampleRef] =
       array("samples").flatMap(SampleRef.fromJson)
     def videoPublication: Option[VideoPublication] =
-      if (typeOption.contains("video-publication"))
+      if (typeOption.contains("video-publication")) {
+        val artifact = artifactReference("video", "video", "artifact")
         for {
           name <- string("video", "name")
-          publicpath <- string("video", "artifact", "repositoryPublicPath").orElse(string("video", "artifact", "publicPath")).orElse(string("video", "publish", "publicPath"))
+          publicpath <- artifact.map(_.publicPath).
+            orElse(string("video", "artifact", "repositoryPublicPath").map(_public_path)).
+            orElse(string("video", "artifact", "publicPath").map(_public_path)).
+            orElse(string("video", "publish", "publicPath").map(_public_path))
         } yield VideoPublication(
           name = name,
+          version = string("video", "version").getOrElse(""),
           sourcePackage = string("video", "sourcePackage"),
           articlePath = string("video", "articlePath"),
-          publicPath = _public_path(publicpath)
+          publicPath = publicpath,
+          artifact = artifact,
+          caption = artifactReference("captions", "video", "captions").orElse(artifactReference("captions", "video", "caption")),
+          transcript = artifactReference("transcript", "video", "transcript")
         )
+      } else {
+        None
+      }
+
+    def videoRdfPublication: Option[VideoRdfPublication] =
+      if (typeOption.contains("video-rdf"))
+        string("video", "name").map { name =>
+          VideoRdfPublication(
+            name = name,
+            version = string("video", "version").getOrElse(""),
+            registryPath = string("registryPath").getOrElse(path.stripSuffix(".json")),
+            turtle = artifactReference("turtle", "files", "turtle"),
+            jsonLd = artifactReference("jsonld", "files", "jsonLd"),
+            manifest = artifactReference("rdf-manifest", "files", "manifest")
+          )
+        }
       else
         None
     def displayTitle: String =
@@ -492,6 +543,19 @@ object PublishMetadata {
 
     def array(path: String*): Vector[Json] =
       field(path: _*).flatMap(_.asArray).getOrElse(Vector.empty)
+
+    def artifactReference(kind: String, path: String*): Option[VideoArtifactReference] =
+      field(path: _*).flatMap { json =>
+        _json_string(json, "repositoryPublicPath").orElse(_json_string(json, "publicPath")).orElse(_json_string(json, "warehousePath")).
+          map { publicpath =>
+            VideoArtifactReference(
+              _json_string(json, "type").getOrElse(kind),
+              _public_path(publicpath),
+              _json_string(json, "warehousePath"),
+              _json_string(json, "sha256")
+            )
+          }
+      }
 
     def projectRows: Vector[(String, String)] = {
       val keys = Vector("kind", "version", "scala_version", "scalaVersion", "sbt_version", "sbtVersion")

@@ -207,7 +207,23 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         article should include ("This is a video article.")
         article should include ("pass:[<video")
         article should include ("src=\"/repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4\"")
+        article should include ("<track")
+        article should include ("kind=\"captions\"")
+        article should include ("src=\"/repository/video/tutorial/0.1.0/tutorial-0.1.0.srt\"")
         r.get("antora.d/docs/concepts/modules/ROOT/pages/tutorial.video/index.adoc") shouldBe empty
+
+        val sitegenerator = new DoxSiteGenerator(ctx, DoxSite.Config.default, Some(new File("src/test/resources/video-publication-fixture")))
+        val siter = sitegenerator.generate(in)
+        val ttl = siter.get("doxsite.d/site.ttl").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        ttl should include ("hasVideo")
+        ttl should include ("hasRdfArtifact")
+        ttl should include ("hasCaption")
+        ttl should include ("hasTranscript")
+        ttl should include ("/repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4")
+        ttl should include ("/repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl")
+        ttl should include ("/repository/video/tutorial/0.1.0/tutorial-0.1.0.srt")
       }
 
       "fails on invalid metadata syntax" in {

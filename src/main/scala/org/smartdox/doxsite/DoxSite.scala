@@ -45,6 +45,7 @@ import org.smartdox.metadata.DoxSiteDashboard
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
+import org.smartdox.metadata.PublishMetadata
 import org.smartdox.metadata.Bibliography
 import org.smartdox.metadata.CategoryCollection
 import org.smartdox.metadata.Category
@@ -1208,7 +1209,7 @@ object DoxSite {
     val ctx1 = ctx.withMetaData(metadata0)
     val (c, links) = _enable_link(ctx1, b, a0x)
     val metadata1 = metadata0.copy(linkCollection = links)
-    val metadata = _build_site_model(metadata1, config.siteMetadata)
+    val metadata = _build_site_model(metadata1, config.siteMetadata, videopublications)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
@@ -1262,10 +1263,17 @@ object DoxSite {
   ): Page = {
     val extra = videopublications.find(_.matchesPackage(directory)) match {
       case Some(video) =>
+        val track = video.caption.map { caption =>
+          Html5(
+            "track",
+            VectorMap("kind" -> "captions", "src" -> caption.publicPath, "label" -> "Captions"),
+            Nil
+          )
+        }
         Html5(
           "video",
           VectorMap("controls" -> "controls", "src" -> video.publicPath, "class" -> "smartdox-video-player"),
-          List(Text(s"Video: ${video.name}"))
+          track.toList :+ Text(s"Video: ${video.name}")
         )
       case None =>
         DiagnosticBlock.error(
@@ -1375,12 +1383,13 @@ object DoxSite {
 
   private def _build_site_model(
     p: MetaData,
-    siteMetadata: SiteMetadata
+    siteMetadata: SiteMetadata,
+    videopublications: Seq[PublishMetadata.VideoPublication]
   ): MetaData = {
     val articles = _article_site_resources(p)
     val glossaries = _glossary_site_resources(p)
     val resourcs = articles ++ glossaries
-    val site = SiteModel.create(p, resourcs, siteMetadata)
+    val site = SiteModel.create(p, resourcs, siteMetadata, videopublications)
     val metadata = p.copy(site = site)
     metadata.copy(dashboard = DoxSiteDashboard.create(metadata))
   }

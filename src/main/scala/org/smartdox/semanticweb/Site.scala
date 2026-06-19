@@ -10,6 +10,7 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Glossary
+import org.smartdox.metadata.PublishMetadata
 import org.smartdox.doxsite.LinkCollection.DoxLinks
 
 /**
@@ -29,7 +30,8 @@ import org.smartdox.doxsite.LinkCollection.DoxLinks
  *
  * @since   Nov. 20, 2025
  *  version Nov. 29, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 object Site {
@@ -414,7 +416,8 @@ object Site {
     siteMetadata: SiteMetadata = SiteMetadata.empty,
     ontology: Option[String] = None,
     schema: Option[String] = None,
-    vocabulary: Option[String] = None
+    vocabulary: Option[String] = None,
+    videoPublications: Seq[PublishMetadata.VideoPublication] = Seq.empty
   ) {
     def glossary: Glossary = metadata.glossary
 
@@ -535,6 +538,9 @@ object Site {
       val resourceTriples: Seq[Triple] =
         resources.flatMap(_.toTriples)
 
+      val videoTriples: Seq[Triple] =
+        videoPublications.flatMap(_video_publication_triples(root, _))
+
       // ------------------------------------------------------------
       // BoK integration
       // ------------------------------------------------------------
@@ -556,9 +562,82 @@ object Site {
 //        relatedTriples ++
         mentionsTriples ++
         resourceTriples ++
+        videoTriples ++
         bokTriples
       )
     }
+
+    private def _video_publication_triples(root: Node.Uri, video: PublishMetadata.VideoPublication): Seq[Triple] = {
+      val version = if (video.version.nonEmpty) video.version else "default"
+      val videonode = Node.Uri(uri(s"Video/${_iri_segment(video.name)}/${_iri_segment(version)}"))
+      val documenttriples = video.sourcePackage.map { source =>
+        val document = Node.Uri(_video_document_uri(source))
+        Vector(
+          Triple(document, Node.Uri(uri("hasVideo")), videonode),
+          Triple(videonode, Node.Uri(Vocabulary.Dcterms.source), document)
+        )
+      }.getOrElse(Vector.empty)
+      val base = Vector(
+        Triple(root, Node.Uri(uri("hasVideo")), videonode),
+        Triple(videonode, RdfType, Node.Uri(schemaUri("VideoObject"))),
+        Triple(videonode, Rdfs.node.label, Node.Literal(video.name))
+      )
+      val artifacts =
+        video.artifact.toVector.flatMap(_video_artifact_triples(videonode, "hasArtifact", _)) ++
+        video.caption.toVector.flatMap(_video_artifact_triples(videonode, "hasCaption", _)) ++
+        video.transcript.toVector.flatMap(_video_artifact_triples(videonode, "hasTranscript", _)) ++
+        video.rdf.toVector.flatMap(_video_rdf_triples(videonode, _))
+      base ++ documenttriples ++ artifacts
+    }
+
+    private def _video_rdf_triples(videonode: Node.Uri, rdf: PublishMetadata.VideoRdfPublication): Seq[Triple] = {
+      val version = if (rdf.version.nonEmpty) rdf.version else "default"
+      val registry = Node.Uri(uri(s"VideoRdf/${_iri_segment(rdf.name)}/${_iri_segment(version)}"))
+      val base = Vector(
+        Triple(videonode, Node.Uri(uri("hasRdfRegistry")), registry),
+        Triple(registry, Rdfs.node.label, Node.Literal(rdf.registryPath))
+      )
+      base ++
+        rdf.turtle.toVector.flatMap(_video_artifact_triples(videonode, "hasRdfArtifact", _)) ++
+        rdf.jsonLd.toVector.flatMap(_video_artifact_triples(videonode, "hasRdfArtifact", _)) ++
+        rdf.manifest.toVector.flatMap(_video_artifact_triples(videonode, "hasRdfManifest", _))
+    }
+
+    private def _video_artifact_triples(
+      videonode: Node.Uri,
+      relation: String,
+      artifact: PublishMetadata.VideoArtifactReference
+    ): Seq[Triple] = {
+      val artifactnode = Node.Uri(_public_uri(artifact.publicPath))
+      Vector(
+        Triple(videonode, Node.Uri(uri(relation)), artifactnode),
+        Triple(artifactnode, RdfType, Node.Uri(schemaUri("MediaObject"))),
+        Triple(artifactnode, Node.Uri(schemaUri("contentUrl")), Node.Uri(_public_uri(artifact.publicPath))),
+        Triple(artifactnode, Node.Uri(schemaUri("encodingFormat")), Node.Literal(artifact.kind))
+      ) ++ artifact.sha256.map(x => Triple(artifactnode, Node.Uri(schemaUri("sha256")), Node.Literal(x))).toVector
+    }
+
+    private def _video_document_uri(sourcepackage: String): String = {
+      val path = sourcepackage.stripPrefix("/").stripSuffix(".video")
+      s"https://www.simplemodeling.org/$path"
+    }
+
+    private def _public_uri(path: String): String =
+      if (path.startsWith("http://") || path.startsWith("https://"))
+        path
+      else
+        s"https://www.simplemodeling.org/${path.stripPrefix("/")}"
+
+    private def _iri_segment(value: String): String =
+      value.toLowerCase(Locale.ROOT).map {
+        case c if c.isLetterOrDigit => c
+        case '-' => '-'
+        case '_' => '-'
+        case _ => '-'
+      }.mkString.replaceAll("-+", "-").stripPrefix("-").stripSuffix("-") match {
+        case "" => "unknown"
+        case s => s
+      }
 
     private def _to_triples(sourcenode: Node)(p: DoxLinks) = {
       val internaltriples = p.internalLinks.links.flatMap { link =>
@@ -633,13 +712,14 @@ object Site {
     def create(
       metadata: MetaData,
       resources: Seq[SiteResource],
-      siteMetadata: SiteMetadata = SiteMetadata.empty
+      siteMetadata: SiteMetadata = SiteMetadata.empty,
+      videoPublications: Seq[PublishMetadata.VideoPublication] = Nil
     ): SiteModel = {
       val locals = List("ja", "en")
       val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#") + "/index.jsonld"
       val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#") + "/index.jsonld"
       val v = Vocabulary.Rdf.namespace.stripSuffix("#")
-      SiteModel(metadata, resources, locals, siteMetadata, Some(o), Some(s), Some(v))
+      SiteModel(metadata, resources, locals, siteMetadata, Some(o), Some(s), Some(v), videoPublications)
     }
   }
 
