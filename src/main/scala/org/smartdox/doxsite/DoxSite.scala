@@ -45,7 +45,7 @@ import org.smartdox.metadata.DoxSiteDashboard
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
-import org.smartdox.metadata.PublishMetadata
+import org.smartdox.semanticweb.Rdf
 import org.smartdox.metadata.Bibliography
 import org.smartdox.metadata.CategoryCollection
 import org.smartdox.metadata.Category
@@ -1171,7 +1171,8 @@ object DoxSite {
     configname: Option[String],
     inconfig: DoxSite.Config,
     extraPages: Seq[(String, Page)],
-    videopublications: Seq[PublishMetadata.VideoPublication] = Nil
+    videopublications: Seq[PublishMetadata.VideoPublication] = Nil,
+    publicationtriples: Seq[Rdf.Triple] = Nil
   ): DoxSite = {
     val config = _config(inconfig, realm, configname)(context.i18NContext)
     val nodectx = TreeTransformer.Context.default[Node]
@@ -1209,7 +1210,7 @@ object DoxSite {
     val ctx1 = ctx.withMetaData(metadata0)
     val (c, links) = _enable_link(ctx1, b, a0x)
     val metadata1 = metadata0.copy(linkCollection = links)
-    val metadata = _build_site_model(metadata1, config.siteMetadata, videopublications)
+    val metadata = _build_site_model(metadata1, config.siteMetadata, videopublications, publicationtriples)
     val d: Tree[Node] = _deploy_metadata(c, metadata)
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
@@ -1270,10 +1271,15 @@ object DoxSite {
             Nil
           )
         }
-        Html5(
+        val player = Html5(
           "video",
           VectorMap("controls" -> "controls", "src" -> video.publicPath, "class" -> "smartdox-video-player"),
           track.toList :+ Text(s"Video: ${video.name}")
+        )
+        Html5(
+          "div",
+          VectorMap("class" -> "smartdox-video-publication"),
+          player :: _video_publication_links(video).toList
         )
       case None =>
         DiagnosticBlock.error(
@@ -1284,6 +1290,31 @@ object DoxSite {
     val dox = page.dox.copy(body = page.dox.body.copy(contents = page.dox.body.contents :+ extra))
     page.copy(dox = dox)
   }
+
+
+  private def _video_publication_links(video: PublishMetadata.VideoPublication): Option[Html5] = {
+    val links = Vector(
+      video.transcript.map(x => _video_publication_link("Transcript", x.publicPath)),
+      video.rdf.flatMap(_.turtle).map(x => _video_publication_link("RDF Turtle", x.publicPath)),
+      video.rdf.flatMap(_.jsonLd).map(x => _video_publication_link("RDF JSON-LD", x.publicPath)),
+      video.rdf.flatMap(_.manifest).map(x => _video_publication_link("RDF Manifest", x.publicPath))
+    ).flatten
+    if (links.isEmpty)
+      None
+    else
+      Some(Html5(
+        "ul",
+        VectorMap("class" -> "smartdox-video-publication-links"),
+        links.toList
+      ))
+  }
+
+  private def _video_publication_link(label: String, href: String): Html5 =
+    Html5(
+      "li",
+      VectorMap.empty,
+      List(Html5("a", VectorMap("href" -> href), List(Text(label))))
+    )
 
   private def _deploy_extra_pages(
     base: Tree[Node],
@@ -1384,12 +1415,13 @@ object DoxSite {
   private def _build_site_model(
     p: MetaData,
     siteMetadata: SiteMetadata,
-    videopublications: Seq[PublishMetadata.VideoPublication]
+    videopublications: Seq[PublishMetadata.VideoPublication],
+    publicationtriples: Seq[Rdf.Triple]
   ): MetaData = {
     val articles = _article_site_resources(p)
     val glossaries = _glossary_site_resources(p)
     val resourcs = articles ++ glossaries
-    val site = SiteModel.create(p, resourcs, siteMetadata, videopublications)
+    val site = SiteModel.create(p, resourcs, siteMetadata, videopublications, publicationtriples)
     val metadata = p.copy(site = site)
     metadata.copy(dashboard = DoxSiteDashboard.create(metadata))
   }

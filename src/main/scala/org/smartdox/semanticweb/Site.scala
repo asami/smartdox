@@ -417,7 +417,8 @@ object Site {
     ontology: Option[String] = None,
     schema: Option[String] = None,
     vocabulary: Option[String] = None,
-    videoPublications: Seq[PublishMetadata.VideoPublication] = Seq.empty
+    videoPublications: Seq[PublishMetadata.VideoPublication] = Seq.empty,
+    publicationTriples: Seq[Triple] = Seq.empty
   ) {
     def glossary: Glossary = metadata.glossary
 
@@ -563,6 +564,7 @@ object Site {
         mentionsTriples ++
         resourceTriples ++
         videoTriples ++
+        publicationTriples ++
         bokTriples
       )
     }
@@ -713,13 +715,14 @@ object Site {
       metadata: MetaData,
       resources: Seq[SiteResource],
       siteMetadata: SiteMetadata = SiteMetadata.empty,
-      videoPublications: Seq[PublishMetadata.VideoPublication] = Nil
+      videoPublications: Seq[PublishMetadata.VideoPublication] = Nil,
+      publicationTriples: Seq[Triple] = Nil
     ): SiteModel = {
       val locals = List("ja", "en")
       val o = SimpleModelingOrgPublicOntology.namespace.stripSuffix("#") + "/index.jsonld"
       val s = SimpleModelingOrgPublicSchema.namespace.stripSuffix("#") + "/index.jsonld"
       val v = Vocabulary.Rdf.namespace.stripSuffix("#")
-      SiteModel(metadata, resources, locals, siteMetadata, Some(o), Some(s), Some(v), videoPublications)
+      SiteModel(metadata, resources, locals, siteMetadata, Some(o), Some(s), Some(v), videoPublications, publicationTriples)
     }
   }
 

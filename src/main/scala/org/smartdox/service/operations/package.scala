@@ -14,7 +14,7 @@ import org.smartdox.doxsite.DoxSite
 /*
  * @since   Jun.  3, 2025
  *  version Apr.  9, 2026
- * @version May. 14, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 
@@ -30,7 +30,9 @@ package object operations {
     publication: Option[File],
     strategy: Option[DoxSite.Strategy],
     outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy],
-    target: Option[List[Regex]]
+    target: Option[List[Regex]],
+    publicationRepository: Option[File] = None,
+    publicationRdfMissingPolicy: Option[String] = None
   )
   object SiteInputRealm {
     def create(p: SiteParameters.Holder): Realm =
@@ -65,6 +67,8 @@ package object operations {
       def strategy: Option[DoxSite.Strategy] = siteParameters.strategy
       def outputScopePolicy: Option[TreeTransformer.Config.Scope.Policy] = siteParameters.outputScopePolicy
       def target: Option[List[Regex]] = siteParameters.target
+      def publicationRepository: Option[File] = siteParameters.publicationRepository
+      def publicationRdfMissingPolicy: Option[String] = siteParameters.publicationRdfMissingPolicy
     }
 
     trait Specification {
@@ -73,6 +77,8 @@ package object operations {
       val strategy = spec.Parameter.propertyPowertypeOption(DoxSite.Strategy, "strategy")
       val outputScopePolicy = spec.Parameter.propertyPowertypeOption(TreeTransformer.Config.Scope.Policy, "output.scope.policy")
       val target = spec.Parameter.propertyRegexSequence("target")
+      val publicationRepository = spec.Parameter.propertyFileOption("publication.repository")
+      val publicationRdfMissingPolicy = spec.Parameter.property("publication.rdf.missing.policy")
     }
 
     object params extends Specification
@@ -84,8 +90,9 @@ package object operations {
         strategy <- req.cPowertypeOption(params.strategy)
         outputscopepolicy <- req.cPowertypeOption(params.outputScopePolicy)
         target <- req.cRegexListOption(params.target)
+        publicationrepository <- req.cFileOption(params.publicationRepository)
       } yield {
-        SiteParameters(in, _effective_publication(publication), strategy, outputscopepolicy, target)
+        SiteParameters(in, _effective_publication(publication), strategy, outputscopepolicy, target, publicationrepository, _string_option(req, params.publicationRdfMissingPolicy.name))
       }
 
     def request: spec.Request = spec.Request(
@@ -93,8 +100,14 @@ package object operations {
       params.publication,
       params.strategy,
       params.outputScopePolicy,
-      params.target
+      params.target,
+      params.publicationRepository,
+      params.publicationRdfMissingPolicy
     )
+
+
+    private def _string_option(req: Request, name: String): Option[String] =
+      req.properties.find(_.name == name).map(_.asString).map(_.trim).filter(_.nonEmpty)
 
     private def _effective_publication(p: Option[File]): Option[File] =
       p.orElse {

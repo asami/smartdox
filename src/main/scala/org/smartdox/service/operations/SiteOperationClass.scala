@@ -18,7 +18,7 @@ import org.smartdox.doxsite.DoxSite
  * @since   Feb. 28, 2025
  *  version Mar.  2, 2025
  *  version Apr.  9, 2026
- * @version May. 14, 2026
+ * @version Jun. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 case object SiteOperationClass extends OperationClassWithOperation {
@@ -36,7 +36,7 @@ case object SiteOperationClass extends OperationClassWithOperation {
     val realm = SiteInputRealm.create(cmd)
     val ctx = DoxContext.create(env)
     val config = DoxSite.Config.create(cmd)
-    val site = new DoxSiteGenerator(ctx, config, cmd.publication)
+    val site = new DoxSiteGenerator(ctx, config, cmd.publication, cmd.publicationRepository, cmd.publicationRdfMissingPolicy.getOrElse("warn"))
     val out = site.generate(realm)
     SiteResult(out)
   }

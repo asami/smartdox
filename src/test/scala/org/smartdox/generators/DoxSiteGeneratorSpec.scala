@@ -2,6 +2,8 @@ package org.smartdox.generators
 
 import scalaz._, Scalaz._
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
@@ -14,6 +16,7 @@ import org.smartdox.parser.UseDoxParser
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.generator._
 import org.smartdox.semanticweb.Site.SiteMetadata
+import org.smartdox.semanticweb.{Rdf, RdfRenderer}
 
 /*
  * @since   Mar.  2, 2025
@@ -205,7 +208,8 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         }.getOrElse("")
         article should include ("Video Tutorial")
         article should include ("This is a video article.")
-        article should include ("pass:[<video")
+        article should include ("smartdox-video-publication")
+        article should include ("<video")
         article should include ("src=\"/repository/video/tutorial/0.1.0/tutorial-0.1.0.mp4\"")
         article should include ("<track")
         article should include ("kind=\"captions\"")
@@ -226,6 +230,127 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         ttl should include ("/repository/video/tutorial/0.1.0/tutorial-0.1.0.srt")
       }
 
+
+
+      "merges registered Turtle RDF artifacts into site graph" in {
+        val repository = Files.createTempDirectory("smartdox-video-rdf-repository")
+        try {
+          val ttl = repository.resolve("repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl")
+          Files.createDirectories(ttl.getParent)
+          val graph = Rdf.Graph(Vector(
+            Rdf.Triple(
+              Rdf.Node.Uri("https://example.com/video/tutorial"),
+              Rdf.Node.Uri("https://schema.org/name"),
+              Rdf.Node.Literal("Merged Video RDF")
+            ),
+            Rdf.Triple(
+              Rdf.Node.Uri("https://example.com/video/tutorial"),
+              Rdf.Node.Uri("https://www.simplemodeling.org/ns/cozy/video#artifactKind"),
+              Rdf.Node.Literal("tutorial-video")
+            )
+          ))
+          Files.write(ttl, RdfRenderer.toTurtle(graph, Map(
+            "schema" -> "https://schema.org/",
+            "cozy-video" -> "https://www.simplemodeling.org/ns/cozy/video#"
+          )).getBytes(StandardCharsets.UTF_8))
+          val in = Realm.create(new File("src/test/resources/video-package-site"))
+          val g = new DoxSiteGenerator(
+            ctx,
+            DoxSite.Config.default,
+            Some(new File("src/test/resources/video-publication-fixture")),
+            Some(repository.toFile),
+            "fail"
+          )
+          val r = g.generate(in)
+          val site = r.get("doxsite.d/site.ttl").collect {
+            case m: StringData => m.string
+          }.getOrElse("")
+
+          site should include ("Merged Video RDF")
+          site should include ("https://example.com/video/tutorial")
+          site should include ("tutorial-video")
+        } finally {
+          _delete(repository)
+        }
+      }
+
+      "rejects registered Turtle RDF artifacts outside repository root" in {
+        val repository = Files.createTempDirectory("smartdox-video-rdf-repository")
+        val publicationdir = Files.createTempDirectory("smartdox-video-rdf-publication")
+        try {
+          val fixture = new String(
+            Files.readAllBytes(new File("src/test/resources/video-publication-fixture/tutorial.json").toPath),
+            StandardCharsets.UTF_8
+          )
+          Files.write(
+            publicationdir.resolve("tutorial.json"),
+            fixture.replace(
+              """"warehousePath": "repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl"""",
+              """"warehousePath": "../outside.ttl""""
+            ).getBytes(StandardCharsets.UTF_8)
+          )
+          val in = Realm.create(new File("src/test/resources/video-package-site"))
+          val g = new DoxSiteGenerator(
+            ctx,
+            DoxSite.Config.default,
+            Some(publicationdir.toFile),
+            Some(repository.toFile),
+            "fail"
+          )
+
+          an [IllegalArgumentException] should be thrownBy {
+            g.generate(in)
+          }
+        } finally {
+          _delete(repository)
+          _delete(publicationdir)
+        }
+      }
+
+      "warns by reference-only behavior when registered Turtle RDF artifact is missing" in {
+        val repository = Files.createTempDirectory("smartdox-video-rdf-missing-warn")
+        try {
+          val in = Realm.create(new File("src/test/resources/video-package-site"))
+          val g = new DoxSiteGenerator(
+            ctx,
+            DoxSite.Config.default,
+            Some(new File("src/test/resources/video-publication-fixture")),
+            Some(repository.toFile),
+            "warn"
+          )
+          val r = g.generate(in)
+          val site = r.get("doxsite.d/site.ttl").collect {
+            case m: StringData => m.string
+          }.getOrElse("")
+
+          site should include ("hasRdfArtifact")
+          site should include ("/repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl")
+          site should not include ("Merged Video RDF")
+        } finally {
+          _delete(repository)
+        }
+      }
+
+      "fails in production policy when registered Turtle RDF artifact is missing" in {
+        val repository = Files.createTempDirectory("smartdox-video-rdf-missing-fail")
+        try {
+          val in = Realm.create(new File("src/test/resources/video-package-site"))
+          val g = new DoxSiteGenerator(
+            ctx,
+            DoxSite.Config.default,
+            Some(new File("src/test/resources/video-publication-fixture")),
+            Some(repository.toFile),
+            "fail"
+          )
+
+          intercept[IllegalArgumentException] {
+            g.generate(in)
+          }.getMessage should include ("Missing RDF artifact")
+        } finally {
+          _delete(repository)
+        }
+      }
+
       "fails on invalid metadata syntax" in {
         val in = Realm.create(new File("src/test/resources/site-mini"))
         val g = new AntoraGenerator(ctx, DoxSite.Config.default, Some(new File("src/test/resources/publish-invalid-fixture")))
@@ -243,4 +368,15 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
       }
     }
   }
+
+  private def _delete(path: java.nio.file.Path): Unit =
+    if (Files.exists(path)) {
+      val stream = Files.walk(path)
+      try {
+        import scala.collection.JavaConverters._
+        stream.iterator.asScala.toVector.reverse.foreach(Files.deleteIfExists)
+      } finally {
+        stream.close()
+      }
+    }
 }

@@ -27,14 +27,17 @@ import org.smartdox.transformers.Dox2HtmlTransformer
 class DoxSiteGenerator(
   val context: Context,
   val config: DoxSite.Config,
-  val publication: Option[File] = None
+  val publication: Option[File] = None,
+  val publicationRepository: Option[File] = None,
+  val publicationRdfMissingPolicy: String = "warn"
 ) extends GeneratorBase {
   import DoxSiteGenerator._
 
   def generate(realm: Realm): Realm = {
     val publishmetadata = PublishMetadata.load(publication)
     val videopublications = publishmetadata.map(_.videoPublications).getOrElse(Vector.empty)
-    val site = DoxSite.create(context, realm, Some("site"), config, Nil, videopublications)
+    val publicationtriples = publishmetadata.map(_.videoRdfArtifactTriples(PublishMetadata.RdfMergeConfig(publicationRepository, publicationRdfMissingPolicy))).getOrElse(Vector.empty)
+    val site = DoxSite.create(context, realm, Some("site"), config, Nil, videopublications, publicationtriples)
     val out = site.toRealm(context)
     val doxsite = PublishMetadata.publicRealm(publication).fold(out)(out + _)
     val r = Realm.create()
