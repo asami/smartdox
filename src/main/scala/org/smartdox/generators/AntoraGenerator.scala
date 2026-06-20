@@ -51,7 +51,7 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Oct. 15, 2025
  *  version Nov. 17, 2025
  *  version May. 14, 2026
- * @version Jun.  3, 2026
+ * @version Jun. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -296,7 +296,7 @@ object AntoraGenerator {
       def apply(c: HCursor): Decoder.Result[Playbook.Site] =
         for {
           title <- c.downField("title").as[I18NString]
-          startpage <- c.downField("start_page").as[Reference]
+          startpage <- c.downField("start_page").as[Option[Reference]]
           url <- c.downField("url").as[Option[URL]]
         } yield Playbook.Site(I18NTitle(title), startpage, url)
     }
@@ -366,7 +366,7 @@ object AntoraGenerator {
       def apply(p: Playbook.Site): Json =
         CirceUtils.toJson(
           "title" -> p.title.distillDefault,
-          "start_page" -> p.start_page.path,
+          "start_page" -> p.start_page.map(_.path),
           "url" -> p.url.map(_.toString)
         )
     }
@@ -460,7 +460,7 @@ object AntoraGenerator {
     object Playbook {
       case class Site(
         title: I18NTitle,
-        start_page: Reference,
+        start_page: Option[Reference],
         url: Option[URL] = None
       ) {
         def withLang(p: Locale) = url match {
@@ -904,14 +904,13 @@ object AntoraGenerator {
       private def _build_playbook(comps: List[Component]): Playbook = _playbook getOrElse {
         val title = config.title
         val startpage = comps.headOption.map { x =>
-          val name = x.name.name
           val file = x.homePage
           s"${x.name.name}::${file.name}"
-        } getOrElse "index.adoc"
+        }
         val url = config.url
         val site = Playbook.Site(
           I18NTitle(title),
-          Reference(startpage),
+          startpage.map(Reference.apply),
           url
         )
         val content = Playbook.Content(_sources(comps))

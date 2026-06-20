@@ -25,7 +25,7 @@ import org.smartdox.semanticweb.{Rdf, RdfRenderer}
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
  *  version May. 14, 2026
- * @version Jun. 19, 2026
+ * @version Jun. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -85,6 +85,8 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
           case m: StringData => m.string
         }.getOrElse("")
         playbook should include ("title: SimpleModeling")
+        playbook should include ("start_page:")
+        playbook should include ("::")
         playbook should include ("url: https://www.simplemodeling.org/ja/")
         playbook should include ("smartdox-site-navigation-mode: simplemodeling")
         playbook should include ("smartdox-site-language-toggle: 'true'")
@@ -104,6 +106,8 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
           case m: StringData => m.string
         }.getOrElse("")
         playbook should include ("title: KnowledgeHub BoK")
+        playbook should include ("start_page:")
+        playbook should include ("knowledgehub::index.adoc")
         playbook should include ("url: https://www.asamioffice.com/kokubunji/knowledgehub")
         playbook should not include ("/ja/")
         playbook should include ("smartdox-site-navigation-mode: category")
@@ -115,6 +119,19 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         header should include ("{{#each site.components}}")
         header should not include ("Overview")
         header should not include ("lang-btn")
+      }
+
+      "omits antora start_page when no component content exists" in {
+        val empty = Files.createTempDirectory("smartdox-empty-antora")
+        val in = Realm.create(empty.toFile)
+        val g = new AntoraGenerator(ctx, DoxSite.Config.default)
+        val r = g.generate(in)
+        val playbook = r.get("antora.d/antora-playbook.yml").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+
+        playbook should include ("title:")
+        playbook should not include ("start_page")
       }
 
       "mini" ignore {
