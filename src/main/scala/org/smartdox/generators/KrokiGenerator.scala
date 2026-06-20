@@ -15,7 +15,7 @@ import org.smartdox.generator.Context
  *
  * @since   Oct. 12, 2025
  *  version Oct. 15, 2025
- * @version Jun.  3, 2026
+ * @version Jun. 21, 2026
  * @author  ASAMI
  */
 class KrokiGenerator(
@@ -174,7 +174,7 @@ class KrokiGenerator(
 }
 
 object KrokiGenerator {
-  private val DefaultDockerImage = "simplemodeling/smartdox-pdf:latest"
+  private[generators] val _default_direct_docker_image = "simplemodeling/smartdox-pdf:latest"
 
   def defaultServerUrl: Option[String] =
     _sysprop("smartdox.kroki.server.url")
@@ -184,8 +184,9 @@ object KrokiGenerator {
   def defaultDockerImage: String =
     _sysprop("smartdox.kroki.docker.image")
       .orElse(_env("SMARTDOX_KROKI_DOCKER_IMAGE"))
+      .orElse(_env("SMARTDOX_COZY_TOOLCHAIN_IMAGE"))
       .orElse(_env("SMARTDOX_PDF_DOCKER_IMAGE"))
-      .getOrElse(DefaultDockerImage)
+      .getOrElse(_default_direct_docker_image)
 
   def defaultDockerCommand: String =
     _sysprop("smartdox.docker.command")
