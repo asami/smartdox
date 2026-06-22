@@ -79,7 +79,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun. 19, 2026
+ * @version Jun. 22, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -370,6 +370,8 @@ class DoxSite(
 
   private def _build_machine_metadata(realm: Realm): Realm = {
     realm.setContent("metadata/dashboard/site.json", DoxSiteDashboard.toJsonString(metadata.dashboard))
+    realm.setContent("metadata/rdf/graph.json", DoxSiteDashboard.toRdfGraphJsonString(metadata))
+    realm.setContent("metadata/glossary/terms.json", DoxSiteDashboard.toGlossaryTermsJsonString(metadata))
     realm
   }
 

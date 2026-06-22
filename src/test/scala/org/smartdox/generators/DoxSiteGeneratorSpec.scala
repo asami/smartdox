@@ -25,7 +25,7 @@ import org.smartdox.semanticweb.{Rdf, RdfRenderer}
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
  *  version May. 14, 2026
- * @version Jun. 21, 2026
+ * @version Jun. 22, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -63,6 +63,15 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
         json should include ("\"rdf\"")
         json should include ("\"triple_count\"")
         json should include ("\"categories\"")
+        val graph = r.get("doxsite.d/metadata/rdf/graph.json").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        graph should include ("\"nodes\"")
+        graph should include ("\"edges\"")
+        val terms = r.get("doxsite.d/metadata/glossary/terms.json").collect {
+          case m: StringData => m.string
+        }.getOrElse("")
+        terms should include ("\"terms\"")
       }
 
       "keeps site metadata when configs are merged" in {

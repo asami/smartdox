@@ -7,10 +7,15 @@ import io.circe.syntax._
 import io.circe.generic.extras._
 import io.circe.generic.extras.semiauto._
 import org.smartdox.metadata.History.{ContentKind, EventKind}
+import org.goldenport.context.Consequence
+import org.smartdox._
+import org.smartdox.generator.Context
+import org.smartdox.transformers.Dox2HtmlTransformer
+import org.smartdox.semanticweb.Rdf
 
 /*
  * @since   Jun.  4, 2026
- * @version Jun.  5, 2026
+ * @version Jun. 22, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDashboard(
@@ -72,10 +77,103 @@ object DoxSiteDashboard {
     name: String,
     title: String,
     counts: Counts,
-    increments: Increments
+    increments: Increments,
+    rdf: RdfSummary = RdfSummary.empty
   )
   object CategoryDashboard {
     implicit val categoryDashboardEncoder: Encoder.AsObject[CategoryDashboard] = deriveConfiguredEncoder
+  }
+
+  case class RdfGraph(
+    nodes: Vector[RdfGraphNode] = Vector.empty,
+    edges: Vector[RdfGraphEdge] = Vector.empty,
+    truncated: Boolean = false
+  )
+  object RdfGraph {
+    val empty: RdfGraph = RdfGraph()
+    implicit val rdfGraphEncoder: Encoder.AsObject[RdfGraph] = deriveConfiguredEncoder
+  }
+
+  case class RdfGraphNode(
+    id: String,
+    label: String,
+    nodeType: String,
+    category: Option[String],
+    degree: Int,
+    terms: Vector[String] = Vector.empty
+  )
+  object RdfGraphNode {
+    implicit val rdfGraphNodeEncoder: Encoder.AsObject[RdfGraphNode] = deriveConfiguredEncoder
+  }
+
+  case class RdfGraphEdge(
+    source: String,
+    target: String,
+    predicate: String,
+    label: String,
+    category: Option[String],
+    terms: Vector[String] = Vector.empty
+  )
+  object RdfGraphEdge {
+    implicit val rdfGraphEdgeEncoder: Encoder.AsObject[RdfGraphEdge] = deriveConfiguredEncoder
+  }
+
+  case class TermIndex(
+    terms: Vector[TermEntry] = Vector.empty
+  )
+  object TermIndex {
+    val empty: TermIndex = TermIndex()
+    implicit val termIndexEncoder: Encoder.AsObject[TermIndex] = deriveConfiguredEncoder
+  }
+
+  case class TermEntry(
+    id: String,
+    slug: String,
+    title: String,
+    reading: Option[String],
+    category: Option[String],
+    sourcePath: String,
+    publicPath: String,
+    definitionHtml: String,
+    summary: Option[String] = None,
+    aliases: Vector[String] = Vector.empty,
+    articleRefs: Vector[TermReference] = Vector.empty,
+    termRefs: Vector[TermReference] = Vector.empty,
+    rdfRefs: Vector[TermRdfReference] = Vector.empty,
+    videoRefs: Vector[TermReference] = Vector.empty,
+    quality: TermQuality = TermQuality.empty
+  )
+  object TermEntry {
+    implicit val termEntryEncoder: Encoder.AsObject[TermEntry] = deriveConfiguredEncoder
+  }
+
+  case class TermReference(
+    title: String,
+    path: String,
+    relation: String = "related"
+  )
+  object TermReference {
+    implicit val termReferenceEncoder: Encoder.AsObject[TermReference] = deriveConfiguredEncoder
+  }
+
+  case class TermRdfReference(
+    resource: String,
+    label: String,
+    predicate: Option[String] = None,
+    direction: String = "node"
+  )
+  object TermRdfReference {
+    implicit val termRdfReferenceEncoder: Encoder.AsObject[TermRdfReference] = deriveConfiguredEncoder
+  }
+
+  case class TermQuality(
+    isolated: Boolean = false,
+    unreferenced: Boolean = false,
+    weaklyConnected: Boolean = false
+  )
+  object TermQuality {
+    val empty: TermQuality = TermQuality()
+    implicit val termQualityEncoder: Encoder.AsObject[TermQuality] = deriveConfiguredEncoder
   }
 
   implicit val dashboardEncoder: Encoder.AsObject[DoxSiteDashboard] = deriveConfiguredEncoder
@@ -89,11 +187,11 @@ object DoxSiteDashboard {
       val categoryarticles = articles.count(_.category.exists(_.containerString == key))
       val categoryglossary = glossary.count(x => _category_from_glossary_page(x.page.toString).contains(key))
       val counts = _counts(0, categoryarticles, categoryglossary)
-      CategoryDashboard(key, category.effectiveTitle, counts, _increments(meta.history, Some(key)))
+      CategoryDashboard(key, category.effectiveTitle, counts, _increments(meta.history, Some(key)), _rdf_summary(meta, Some(key)))
     }
     DoxSiteDashboard(
       _counts(categories.size, articles.size, glossary.size),
-      _rdf_summary(meta),
+      _rdf_summary(meta, None),
       _increments(meta.history, None),
       categorydashboards
     )
@@ -102,22 +200,236 @@ object DoxSiteDashboard {
   def toJsonString(p: DoxSiteDashboard): String =
     p.asJson.spaces2 + "\n"
 
+  def toRdfGraphJsonString(meta: MetaData): String =
+    _rdf_graph(meta).asJson.spaces2 + "\n"
+
+  def toGlossaryTermsJsonString(meta: MetaData): String =
+    _term_index(meta).asJson.spaces2 + "\n"
+
+  private case class RdfCategoryIndex(
+    categories: Set[String],
+    resourceCategories: Map[String, String],
+    resourceTerms: Map[String, Vector[String]] = Map.empty
+  ) {
+    def categoryOf(node: Rdf.Node): Option[String] = node match {
+      case Rdf.Node.Uri(value) => resourceCategories.get(value).orElse(_category_from_rdf_uri(value, categories))
+      case _ => None
+    }
+    def termsOf(node: Rdf.Node): Vector[String] = node match {
+      case Rdf.Node.Uri(value) => resourceTerms.getOrElse(value, Vector.empty)
+      case _ => Vector.empty
+    }
+  }
+
+  private case class TermReferenceIndex(
+    articleRefs: Map[String, TermReference],
+    termRefs: Map[String, TermReference],
+    videoRefs: Map[String, TermReference]
+  )
+
   private def _counts(categorycount: Int, articlecount: Int, glossarytermcount: Int): Counts =
     Counts(categorycount, articlecount, glossarytermcount, articlecount + glossarytermcount)
 
-  private def _rdf_summary(meta: MetaData): RdfSummary =
+  private def _rdf_summary(meta: MetaData, category: Option[String]): RdfSummary =
     if (meta.site.metadata == null)
       RdfSummary.empty
     else {
       val graph = meta.site.toGraph
-      val triples = graph.triples
+      val index = _rdf_category_index(meta)
+      val triples = category.fold(graph.triples)(key => graph.triples.filter(_triple_in_category(_, key, index)))
+      val resourcecount = category match {
+        case Some(_) => triples.flatMap(t => Vector(t.subject, t.obj)).distinct.size
+        case None => meta.site.resources.size
+      }
       RdfSummary(
-        meta.site.resources.size,
+        resourcecount,
         triples.size,
         triples.map(_.subject).distinct.size,
         triples.map(_.predicate).distinct.size
       )
     }
+
+  private def _rdf_graph(meta: MetaData): RdfGraph =
+    if (meta.site.metadata == null)
+      RdfGraph.empty
+    else {
+      val graph = meta.site.toGraph
+      val index = _rdf_category_index(meta)
+      val triples = graph.triples.sortBy(t => (_node_id(t.subject), t.predicate.value, _node_id(t.obj)))
+      val limit = 500
+      val selected = triples.take(limit)
+      val degree = selected.foldLeft(Map.empty[String, Int]) { (z, t) =>
+        val s = _node_id(t.subject)
+        val o = _node_id(t.obj)
+        z + (s -> (z.getOrElse(s, 0) + 1)) + (o -> (z.getOrElse(o, 0) + 1))
+      }
+      val nodes = selected.flatMap(t => Vector(t.subject, t.obj)).distinct.map { node =>
+        val id = _node_id(node)
+        RdfGraphNode(id, _node_label(node), _node_type(node), index.categoryOf(node), degree.getOrElse(id, 0), index.termsOf(node))
+      }.sortBy(_.id)
+      val edges = selected.map { t =>
+        val category = index.categoryOf(t.subject).orElse(index.categoryOf(t.obj))
+        RdfGraphEdge(_node_id(t.subject), _node_id(t.obj), t.predicate.value, _short_label(t.predicate.value), category, (index.termsOf(t.subject) ++ index.termsOf(t.obj)).distinct)
+      }
+      RdfGraph(nodes, edges, triples.size > limit)
+    }
+
+  private def _triple_in_category(t: Rdf.Triple, key: String, index: RdfCategoryIndex): Boolean =
+    index.categoryOf(t.subject).contains(key) || index.categoryOf(t.obj).contains(key)
+
+  private def _rdf_category_index(meta: MetaData): RdfCategoryIndex = {
+    val categories = meta.categories.categoryVector.filterNot(_is_special_category).map(_.containerString).toSet
+    val articles = meta.notices.notices.flatMap { notice =>
+      notice.category.map(_.containerString).filter(categories.contains).filter(_ => _is_article(notice.effectiveKind)).map { key =>
+        notice.toSiteResource.id -> key
+      }
+    }
+    val glossaries = meta.glossary.definitions.collect {
+      case m: Glossary.Definition.InGlossary
+        if _category_from_glossary_page(m.page.toString).exists(categories.contains) =>
+        m.toSiteResource.id -> _category_from_glossary_page(m.page.toString).get
+    }
+    val terms = glossaries.map { case (resource, category) => resource -> Vector(_term_id(category, _slug_from_resource(resource))) }.toMap
+    RdfCategoryIndex(categories, (articles ++ glossaries).toMap, terms)
+  }
+
+  private def _term_index(meta: MetaData): TermIndex = {
+    val referenceindex = _term_reference_index(meta)
+    val entries = meta.glossary.definitions.collect { case m: Glossary.Definition.InGlossary => m }.map { term =>
+      val path = term.page.toString.stripPrefix("/")
+      val category = _category_from_glossary_page(path)
+      val slug = _term_slug(path)
+      val id = _term_id(category.getOrElse("glossary"), slug)
+      val resource = term.toSiteResource.id
+      val adjacent = _term_adjacent_uri_resources(meta, resource)
+      val articleRefs = adjacent.flatMap(referenceindex.articleRefs.get).distinct.sortBy(_.path)
+      val termRefs = adjacent.flatMap(referenceindex.termRefs.get).filterNot(_.path == path).distinct.sortBy(_.path)
+      val videoRefs = adjacent.flatMap(x => referenceindex.videoRefs.get(x).orElse(_video_reference(x))).distinct.sortBy(_.path)
+      val rdfrefs = _term_rdf_refs(meta, resource)
+      val hasrefs = articleRefs.nonEmpty || termRefs.nonEmpty || videoRefs.nonEmpty || rdfrefs.nonEmpty
+      TermEntry(
+        id,
+        slug,
+        term.term.name.en,
+        _reading(term),
+        category,
+        _source_path(path),
+        path,
+        _definition_html(term.description),
+        term.term.effectiveSummary.map(_.en),
+        term.term.aliases.valueVector,
+        articleRefs,
+        termRefs,
+        rdfrefs,
+        videoRefs,
+        TermQuality(
+          isolated = !hasrefs,
+          unreferenced = !hasrefs,
+          weaklyConnected = rdfrefs.size <= 1 && articleRefs.isEmpty && termRefs.isEmpty && videoRefs.isEmpty
+        )
+      )
+    }.sortBy(x => (x.category.getOrElse(""), x.slug))
+    TermIndex(entries)
+  }
+
+  private def _term_reference_index(meta: MetaData): TermReferenceIndex = {
+    val articleRefs = meta.notices.notices.filter(x => _is_article(x.effectiveKind) && !_is_special_notice(x)).map { notice =>
+      notice.toSiteResource.id -> TermReference(notice.title.en, notice.uri.toString, "article")
+    }.toMap
+    val termRefs = meta.glossary.definitions.collect { case m: Glossary.Definition.InGlossary =>
+      m.toSiteResource.id -> TermReference(m.term.name.en, m.page.toString.stripPrefix("/"), "term")
+    }.toMap
+    TermReferenceIndex(articleRefs, termRefs, Map.empty)
+  }
+
+  private def _term_adjacent_uri_resources(meta: MetaData, resource: String): Vector[String] =
+    if (meta.site.metadata == null)
+      Vector.empty
+    else {
+      val graph = meta.site.toGraph
+      graph.triples.filter(t => _node_id(t.subject) == resource || _node_id(t.obj) == resource).flatMap { t =>
+        Vector(t.subject, t.obj).collect {
+          case u: Rdf.Node.Uri if _node_id(u) != resource => _node_id(u)
+        }
+      }.distinct.sorted
+    }
+
+  private def _video_reference(resource: String): Option[TermReference] =
+    if (resource.contains("/repository/video/") || resource.endsWith(".mp4"))
+      Some(TermReference(_short_label(resource), resource, "video"))
+    else
+      None
+
+  private def _term_rdf_refs(meta: MetaData, resource: String): Vector[TermRdfReference] =
+    if (meta.site.metadata == null)
+      Vector.empty
+    else {
+      val graph = meta.site.toGraph
+      graph.triples.filter(t => _node_id(t.subject) == resource || _node_id(t.obj) == resource).flatMap { t =>
+        val refs = Vector(t.subject, t.obj).filterNot(_node_id(_) == resource).collect {
+          case u: Rdf.Node.Uri => TermRdfReference(_node_id(u), _node_label(u), Some(t.predicate.value), if (_node_id(t.subject) == resource) "outgoing" else "incoming")
+        }
+        if (refs.isEmpty)
+          Vector(TermRdfReference(resource, _short_label(resource), Some(t.predicate.value), "self"))
+        else
+          refs
+      }.distinct.sortBy(x => (x.resource, x.predicate.getOrElse("")))
+    }
+
+  private def _definition_html(dox: Dox): String = {
+    val rule = Dox2HtmlTransformer.Rule(isDocument = false, isDefaultCss = false)
+    Consequence.from(Dox2HtmlTransformer(Context.create(), rule).transform(dox)).foldConclusion(_.message)
+  }
+
+  private def _reading(term: Glossary.Definition.InGlossary): Option[String] =
+    term.term.name.localeMapWithoutC.collectFirst { case (locale, value) if locale.getLanguage == "ja" && value != term.term.name.en => value }
+
+  private def _source_path(publicpath: String): String =
+    publicpath.stripSuffix(".html") + ".dox"
+
+  private def _term_slug(path: String): String =
+    path.split('/').filter(_.nonEmpty).lastOption.getOrElse(path).stripSuffix(".html")
+
+  private def _slug_from_resource(resource: String): String =
+    resource.split('/').filter(_.nonEmpty).lastOption.getOrElse(resource)
+
+  private def _term_id(category: String, slug: String): String =
+    s"${category}:${slug}"
+
+  private def _category_from_rdf_uri(value: String, categories: Set[String]): Option[String] = {
+    val path = value.stripPrefix("https://www.simplemodeling.org/").stripPrefix("/")
+    val parts = path.split('/').filter(_.nonEmpty).toVector
+    parts match {
+      case Vector("glossary", category, _*) if categories.contains(category) => Some(category)
+      case Vector(category, _*) if categories.contains(category) => Some(category)
+      case _ => None
+    }
+  }
+
+  private def _node_id(node: Rdf.Node): String = node match {
+    case Rdf.Node.Uri(value) => value
+    case Rdf.Node.Blank(value) => s"_:${value}"
+    case Rdf.Node.Literal(value, datatype, lang) =>
+      val suffix = Vector(datatype, lang).flatten.mkString("|")
+      s"literal:${value}:${suffix}"
+  }
+
+  private def _node_label(node: Rdf.Node): String = node match {
+    case Rdf.Node.Uri(value) => _short_label(value)
+    case Rdf.Node.Blank(value) => value
+    case Rdf.Node.Literal(value, _, _) => if (value.length > 80) value.take(77) + "..." else value
+  }
+
+  private def _node_type(node: Rdf.Node): String = node match {
+    case Rdf.Node.Uri(_) => "uri"
+    case Rdf.Node.Blank(_) => "blank"
+    case Rdf.Node.Literal(_, _, _) => "literal"
+  }
+
+  private def _short_label(value: String): String = {
+    val a = value.split('#').lastOption.getOrElse(value)
+    a.split('/').filter(_.nonEmpty).lastOption.getOrElse(a)
+  }
 
   private def _is_article(kind: DocumentMetaData.Kind): Boolean = kind match {
     case DocumentMetaData.Kind.Article => true

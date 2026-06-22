@@ -9,10 +9,11 @@ import org.goldenport.i18n.I18NString
 import org.smartdox.metadata.History.{ContentKind, EventKind}
 import org.smartdox.metadata.Notices.Notice
 import org.smartdox.semanticweb.Site.SiteModel
+import org.smartdox.semanticweb.Rdf
 
 /*
  * @since   Jun.  4, 2026
- * @version Jun.  5, 2026
+ * @version Jun. 22, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteDashboardSpec extends AnyWordSpec with Matchers {
@@ -87,6 +88,72 @@ class DoxSiteDashboardSpec extends AnyWordSpec with Matchers {
       dashboard.rdf.tripleCount should be > 0
       dashboard.rdf.subjectCount should be > 0
       dashboard.rdf.predicateCount should be > 0
+      val category = dashboard.categories.find(_.name == "architecture").get
+      category.rdf.tripleCount should be > 0
+      category.rdf.subjectCount should be > 0
+      category.rdf.predicateCount should be > 0
+    }
+
+    "emit deterministic graph metadata for the RDF viewer" in {
+      val architecture = _category("architecture", "Architecture")
+      val notices = Notices(Vector(
+        _notice("Architecture One", "architecture/one.html", architecture, DocumentMetaData.Kind.Article, Some("2026-01-01"))
+      ))
+      val meta = MetaData(
+        categories = CategoryCollection(VectorMap("architecture" -> architecture)),
+        notices = notices
+      )
+      val site = SiteModel.create(meta, notices.notices.map(_.toSiteResource))
+      val json = DoxSiteDashboard.toRdfGraphJsonString(meta.copy(site = site))
+
+      json should include ("\"nodes\"")
+      json should include ("\"edges\"")
+      json should include ("\"category\" : \"architecture\"")
+      json should include ("https://www.simplemodeling.org/architecture/one")
+    }
+
+    "emit glossary term metadata for term hubs" in {
+      val architecture = _category("architecture", "Architecture")
+      val termNotice = _notice("Runtime", "glossary/architecture/runtime.html", architecture, DocumentMetaData.Kind.Article, Some("2026-01-01"))
+      val articleNotice = _notice("Runtime Article", "architecture/runtime-article.html", architecture, DocumentMetaData.Kind.Article, Some("2026-01-02"))
+      val glossaryDefinition = Glossary.Definition.InGlossary(
+        Glossary.Definition.Ingredients(
+          Glossary.Term.make("Runtime"),
+          new URI("glossary/architecture/runtime.html"),
+          org.smartdox.Paragraph(List(org.smartdox.Text("Runtime definition.")))
+        ),
+        null,
+        termNotice.metadata
+      )
+      val meta0 = MetaData(
+        categories = CategoryCollection(VectorMap("architecture" -> architecture)),
+        notices = Notices(Vector(articleNotice)),
+        glossary = Glossary(Vector(glossaryDefinition))
+      )
+      val termResource = glossaryDefinition.toSiteResource.id
+      val articleResource = articleNotice.toSiteResource.id
+      val videoResource = "https://www.simplemodeling.org/repository/video/tutorial/0.1.0/runtime.mp4"
+      val publicationTriples = Vector(
+        Rdf.Triple(Rdf.Node.Uri(termResource), Rdf.Node.Uri("https://schema.org/about"), Rdf.Node.Uri(articleResource)),
+        Rdf.Triple(Rdf.Node.Uri(termResource), Rdf.Node.Uri("https://schema.org/video"), Rdf.Node.Uri(videoResource))
+      )
+      val site = SiteModel.create(meta0, Vector(glossaryDefinition.toSiteResource, articleNotice.toSiteResource), publicationTriples = publicationTriples)
+      val meta = meta0.copy(site = site)
+      val terms = DoxSiteDashboard.toGlossaryTermsJsonString(meta)
+      val graph = DoxSiteDashboard.toRdfGraphJsonString(meta)
+
+      terms should include (""""terms"""")
+      terms should include (""""id" : "architecture:runtime"""")
+      terms should include (""""public_path" : "glossary/architecture/runtime.html"""")
+      terms should include ("Runtime definition")
+      terms should include (""""article_refs"""")
+      terms should include (""""path" : "architecture/runtime-article.html"""")
+      terms should include (""""video_refs"""")
+      terms should include ("runtime.mp4")
+      terms should include (""""rdf_refs"""")
+      terms should include ("\"unreferenced\" : false")
+      graph should include (""""terms"""")
+      graph should include ("architecture:runtime")
     }
 
     "choose month buckets for long spans" in {
