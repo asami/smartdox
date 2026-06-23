@@ -7,6 +7,7 @@ import java.nio.file.Files
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.GivenWhenThen
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.goldenport.cli.{Environment, Config => CliConfig}
@@ -25,11 +26,11 @@ import org.smartdox.semanticweb.{Rdf, RdfRenderer}
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
  *  version May. 14, 2026
- * @version Jun. 22, 2026
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDoxParser {
+class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers with GivenWhenThen with UseDoxParser {
   "DoxSiteGenerator" should {
     val env = Environment.createJaJp()
     val cliconfig = CliConfig.buildJaJp()
@@ -258,10 +259,11 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
 
 
 
-      "merges registered Turtle RDF artifacts into site graph" in {
+      "merges registered Turtle RDF artifacts when the repository root is passed directly" in {
+        Given("a publication registry whose RDF artifact path uses the public repository prefix")
         val repository = Files.createTempDirectory("smartdox-video-rdf-repository")
         try {
-          val ttl = repository.resolve("repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl")
+          val ttl = repository.resolve("video/tutorial/0.1.0/tutorial-0.1.0.ttl")
           Files.createDirectories(ttl.getParent)
           val graph = Rdf.Graph(Vector(
             Rdf.Triple(
@@ -287,16 +289,59 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
             Some(repository.toFile),
             "fail"
           )
+
+          When("SmartDox generates site RDF with the direct repository root")
           val r = g.generate(in)
           val site = r.get("doxsite.d/site.ttl").collect {
             case m: StringData => m.string
           }.getOrElse("")
 
+          Then("the RDF body is resolved below the direct repository root and merged into the site graph")
           site should include ("Merged Video RDF")
           site should include ("https://example.com/video/tutorial")
           site should include ("tutorial-video")
         } finally {
           _delete(repository)
+        }
+      }
+
+      "merges registered Turtle RDF artifacts when the warehouse root is passed" in {
+        Given("a publication registry whose RDF artifact path is stored below a warehouse repository directory")
+        val warehouse = Files.createTempDirectory("smartdox-video-rdf-warehouse")
+        try {
+          val ttl = warehouse.resolve("repository/video/tutorial/0.1.0/tutorial-0.1.0.ttl")
+          Files.createDirectories(ttl.getParent)
+          val graph = Rdf.Graph(Vector(
+            Rdf.Triple(
+              Rdf.Node.Uri("https://example.com/video/tutorial"),
+              Rdf.Node.Uri("https://schema.org/name"),
+              Rdf.Node.Literal("Merged Warehouse Video RDF")
+            )
+          ))
+          Files.write(ttl, RdfRenderer.toTurtle(graph, Map(
+            "schema" -> "https://schema.org/",
+            "cozy-video" -> "https://www.simplemodeling.org/ns/cozy/video#"
+          )).getBytes(StandardCharsets.UTF_8))
+          val in = Realm.create(new File("src/test/resources/video-package-site"))
+          val g = new DoxSiteGenerator(
+            ctx,
+            DoxSite.Config.default,
+            Some(new File("src/test/resources/video-publication-fixture")),
+            Some(warehouse.toFile),
+            "fail"
+          )
+
+          When("SmartDox generates site RDF with the warehouse root")
+          val r = g.generate(in)
+          val site = r.get("doxsite.d/site.ttl").collect {
+            case m: StringData => m.string
+          }.getOrElse("")
+
+          Then("the RDF body is resolved below the warehouse repository directory and merged into the site graph")
+          site should include ("Merged Warehouse Video RDF")
+          site should include ("https://example.com/video/tutorial")
+        } finally {
+          _delete(warehouse)
         }
       }
 

@@ -19,7 +19,7 @@ import org.smartdox.semanticweb.Rdf
 /*
  * @since   May. 13, 2026
  *  version May. 14, 2026
- * @version Jun. 19, 2026
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 case class PublishMetadata(
@@ -414,13 +414,26 @@ object PublishMetadata {
       repository.map { root =>
         val path = artifact.warehousePath.getOrElse(artifact.publicPath).stripPrefix("/")
         val rootfile = root.getCanonicalFile
-        val artifactfile = new File(rootfile, path).getCanonicalFile
+        val candidates = _repository_candidates(rootfile, path)
+        val artifactfile = candidates.find(_.isFile).getOrElse(candidates.head)
         val rootpath = rootfile.toPath
         val artifactpath = artifactfile.toPath
         if (!artifactpath.startsWith(rootpath))
           throw new IllegalArgumentException(s"RDF artifact is outside repository root: ${artifact.warehousePath.getOrElse(artifact.publicPath)}")
         artifactfile
       }
+
+    private def _repository_candidates(rootfile: File, path: String): Vector[File] = {
+      val primary = new File(rootfile, path).getCanonicalFile
+      if (path == "repository")
+        Vector(primary)
+      else if (path.startsWith("repository/")) {
+        val stripped = new File(rootfile, path.stripPrefix("repository/")).getCanonicalFile
+        Vector(primary, stripped).distinct
+      } else {
+        Vector(primary)
+      }
+    }
 
     def handleMissing(message: String): Vector[Rdf.Triple] =
       missingArtifactPolicy match {
