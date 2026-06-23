@@ -79,7 +79,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun. 22, 2026
+ *  version Jun. 22, 2026
+ * @version Jun. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -902,8 +903,8 @@ object DoxSite {
                   val r: List[Node] = s match {
                     case "dox" => _dox_page(node, m.string, m.lastModifiedOption)
                     case "org" => _org_page(name, m.string)
-                    case "md" => _markdown_page(name, m.string)
-                    case "markdown" => _markdown_page(name, m.string)
+                    case "md" => _markdown_page(node, m.string)
+                    case "markdown" => _markdown_page(node, m.string)
                     case "yaml" => _yaml_metadata(node.pathname, name, m.string)
                     case _ => Nil
                   }
@@ -958,9 +959,13 @@ object DoxSite {
       _create_dox(name, dox)
     }
 
-    private def _markdown_page(name: String, c: String) = {
-      val dox = Dox2Parser.parse(c)
-      _create_dox(name, dox)
+    private def _markdown_page(node: TreeNode[Realm.Data], c: String) = {
+      val pathname = rule.doxSiteConfig.origin match {
+        case Some(s) => new File(s, node.pathname).toString
+        case None => node.pathname
+      }
+      val dox = Dox2Parser.parseWithFilename(pathname, c)
+      _create_dox(node.name, dox)
     }
 
     // private def _create_dox(name: String, dox: Dox, lastmodified: Option[Instant] = None) =
@@ -1018,8 +1023,8 @@ object DoxSite {
           p.getNameSuffix.collect {
             case "dox" => s"${p.nameBody}.dox"
             case "org" => s"${p.nameBody}.dox"
-            case "md" => s"${p.nameBody}.dox"
-            case "markdown" => s"${p.nameBody}.dox"
+            case "md" => p.name
+            case "markdown" => p.name
             case "yaml" => s"${p.nameBody}.yaml"
             case "png" => s"${p.nameBody}.png"
             case "jpg" => s"${p.nameBody}.jpg"

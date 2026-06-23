@@ -15,7 +15,8 @@ import org.smartdox.semanticweb.Rdf
 
 /*
  * @since   Jun.  4, 2026
- * @version Jun. 22, 2026
+ *  version Jun. 22, 2026
+ * @version Jun. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDashboard(
@@ -297,6 +298,7 @@ object DoxSiteDashboard {
     val referenceindex = _term_reference_index(meta)
     val entries = meta.glossary.definitions.collect { case m: Glossary.Definition.InGlossary => m }.map { term =>
       val path = term.page.toString.stripPrefix("/")
+      val sourcepath = Option(term.node).map(_.pathname.stripPrefix("/")).getOrElse(path.stripSuffix(".html") + ".dox")
       val category = _category_from_glossary_page(path)
       val slug = _term_slug(path)
       val id = _term_id(category.getOrElse("glossary"), slug)
@@ -313,10 +315,10 @@ object DoxSiteDashboard {
         term.term.name.en,
         _reading(term),
         category,
-        _source_path(path),
+        sourcepath,
         path,
         _definition_html(term.description),
-        term.term.effectiveSummary.map(_.en),
+        _term_summary(term),
         term.term.aliases.valueVector,
         articleRefs,
         termRefs,
@@ -384,8 +386,23 @@ object DoxSiteDashboard {
   private def _reading(term: Glossary.Definition.InGlossary): Option[String] =
     term.term.name.localeMapWithoutC.collectFirst { case (locale, value) if locale.getLanguage == "ja" && value != term.term.name.en => value }
 
-  private def _source_path(publicpath: String): String =
-    publicpath.stripSuffix(".html") + ".dox"
+  private def _term_summary(term: Glossary.Definition.InGlossary): Option[String] =
+    _metadata_string(term.metadata, "summary", Glossary.PROP_BRIEF, "description", Glossary.PROP_DEFINITION).
+      orElse(term.term.effectiveSummary.map(_.en))
+
+  private def _metadata_string(metadata: DocumentMetaData, keys: String*): Option[String] =
+    metadata.properties.flatMap { hocon =>
+      keys.toStream.flatMap { key =>
+        try {
+          if (hocon.hasPath(key))
+            Some(hocon.getString(key)).filter(_.nonEmpty)
+          else
+            None
+        } catch {
+          case scala.util.control.NonFatal(_) => None
+        }
+      }.headOption
+    }
 
   private def _term_slug(path: String): String =
     path.split('/').filter(_.nonEmpty).lastOption.getOrElse(path).stripSuffix(".html")

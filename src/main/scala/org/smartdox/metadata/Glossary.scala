@@ -4,6 +4,7 @@ import scalaz.{Value => _, _}
 import Scalaz._
 import java.net.URI
 import java.util.Locale
+import scala.util.control.NonFatal
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.LocaleUtils
@@ -24,7 +25,8 @@ import org.smartdox.semanticweb.Site._
  *  version Aug. 31, 2025
  *  version Sep. 22, 2025
  *  version Oct. 28, 2025
- * @version Nov. 27, 2025
+ *  version Nov. 27, 2025
+ * @version Jun. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Glossary(
@@ -51,6 +53,8 @@ object Glossary {
   final val PROP_ACRONYM = "acronym"
   final val PROP_REMARKS = "remarks"
   final val PROP_REFERENCE = "reference"
+  final val PROP_READING = "reading"
+  final val PROP_YOMI = "yomi"
 
   val empty = Glossary()
 
@@ -216,7 +220,7 @@ object Glossary {
       remarks: Option[I18NString] = None
     ): Term = {
       val kind = Kind.make(name)
-      Term(kind, name, aliases, abbreviation, summary)
+      Term(kind, name, aliases, abbreviation, summary, brief)
     }
   }
 
@@ -352,10 +356,10 @@ object Glossary {
 
     def register(node: TreeNode[Node], name: String, tag: Tag.TagName, p: Document): Unit = {
       for (so <- _make_structure(p)) {
-        val term = _make_term(so)
-        val uri = new URI(s"""glossary/${tag.name.replace(".", "/")}/$name.html""")
         val meta = p.head.metadata
-        val dox = _make_description(term, so)
+        val term = _make_term(so, meta)
+        val uri = new URI(s"""glossary/${tag.name.replace(".", "/")}/$name.html""")
+        val dox = _make_description(term, so, p.body.elements)
         val d = Definition.InGlossary(Definition.Ingredients(term, uri, dox), node, meta)
         add(name, d)
       }
@@ -372,15 +376,23 @@ object Glossary {
       Some(a)
     }
 
-    private def _make_term(p: StructureObject): Term = {
+    private def _make_term(p: StructureObject, metadata: DocumentMetaData): Term = {
       val title = p.title
       val aliases = p.getAsI18NValue(PROP_ALIASES)
       val abbreviation = p.getAsI18NValue(PROP_ABBREVIATION) orElse p.getAsI18NValue(PROP_ACRONYM)
-      val summary = p.getAsI18NFragment(PROP_DEFINITION).map(_.toI18NString)
-      val brief = p.getAsI18NFragment(PROP_BRIEF).map(_.toI18NString)
+      val summary = _metadata_i18n_string(metadata, "summary", PROP_BRIEF, "description", PROP_DEFINITION).
+        orElse(metadata.getEffectiveSummary).
+        orElse(p.getAsI18NFragment(PROP_DEFINITION).map(_.toI18NString))
+      val brief = _metadata_i18n_string(metadata, PROP_BRIEF, "summary", "description").
+        orElse(metadata.getEffectiveBrief).
+        orElse(p.getAsI18NFragment(PROP_BRIEF).map(_.toI18NString))
       val remarks = p.getAsI18NFragment(PROP_REMARKS).map(_.toI18NString)
+      val titlei18n = title.contents.toI18NString
+      val name = _reading(metadata).filterNot(_ == titlei18n.en).
+        map(reading => I18NString.enja(titlei18n.en, reading)).
+        getOrElse(titlei18n)
       Term.make(
-        title.contents.toI18NString,
+        name,
         aliases.map(_.toI18NHangar) getOrElse I18NHangar.empty,
         abbreviation.map(_.toPlainText),
         summary,
@@ -389,12 +401,42 @@ object Glossary {
       )
     }
 
-    private def _make_term(p: Document): Option[Term] =
-      for (title <- p.head.title) yield {
-        Term.make(title.toI18NString)
+    private def _make_term(p: Document): Option[Term] = {
+      val metadata = p.head.metadata
+      val title = p.head.title.map(_.toI18NString).orElse(metadata.title.map(_.toI18NString))
+      title.map { titlei18n =>
+        val name = _reading(metadata).filterNot(_ == titlei18n.en).
+          map(reading => I18NString.enja(titlei18n.en, reading)).
+          getOrElse(titlei18n)
+        Term.make(
+          name,
+          summary = _metadata_i18n_string(metadata, "summary", PROP_BRIEF, "description", PROP_DEFINITION).orElse(metadata.getEffectiveSummary),
+          brief = _metadata_i18n_string(metadata, PROP_BRIEF, "summary", "description").orElse(metadata.getEffectiveBrief)
+        )
+      }
+    }
+
+    private def _reading(metadata: DocumentMetaData): Option[String] =
+      _metadata_string(metadata, PROP_READING, PROP_YOMI, "読み")
+
+    private def _metadata_i18n_string(metadata: DocumentMetaData, keys: String*): Option[I18NString] =
+      _metadata_string(metadata, keys: _*).map(I18NString(_))
+
+    private def _metadata_string(metadata: DocumentMetaData, keys: String*): Option[String] =
+      metadata.properties.flatMap { hocon =>
+        keys.toStream.flatMap { key =>
+          try {
+            if (hocon.hasPath(key))
+              Some(hocon.getString(key)).filter(_.nonEmpty)
+            else
+              None
+          } catch {
+            case NonFatal(_) => None
+          }
+        }.headOption
       }
 
-    private def _make_description(term: Term, so: StructureObject): Dox = {
+    private def _make_description(term: Term, so: StructureObject, fallbackcontents: List[Dox]): Dox = {
       val ja = Div.create(LocaleUtils.ja, _make_ja_table(term))
       val en = Div.create(LocaleUtils.en, _make_en_table(term))
       val definition = so.getAsI18NFragment(PROP_DEFINITION).map { s =>
@@ -406,7 +448,8 @@ object Glossary {
       val reference = so.getAsI18NFragment(PROP_REFERENCE).map { s =>
         Section.create(_enja("Reference", "参照"), s)
       }.toList
-      val rs = ja +: en +: definition ::: so.contents ++ reference ++ reference
+      val contents = if (so.contents.nonEmpty) so.contents else fallbackcontents
+      val rs = ja +: en +: definition ::: contents ++ reference ++ reference
       Fragment(rs)
     }
 

@@ -3,7 +3,9 @@ package org.smartdox.parser
 import scalaz._, Scalaz._, Validation._, Tree._
 import java.net.URI
 import java.util.Locale
-import com.typesafe.config.{Config => Hocon}
+import java.text.SimpleDateFormat
+import scala.collection.JavaConverters._
+import com.typesafe.config.{Config => Hocon, ConfigFactory}
 import org.goldenport.RAISE
 import org.goldenport.context._
 import org.goldenport.parser._
@@ -51,7 +53,8 @@ import Dox._
  *  version Oct. 26, 2025
  *  version Nov. 17, 2025
  *  version Dec. 10, 2025
- * @version Jun.  8, 2026
+ *  version Jun.  8, 2026
+ * @version Jun. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -139,7 +142,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   private def _sections(ctx: ParseContext, p: LogicalSection): Vector[Dox] =
     config.style match {
       case Config.DoxStyle.SmartDox => _section_smartdox(ctx, p)
-      case Config.DoxStyle.Markdown => Vector(_section(ctx, p))
+      case Config.DoxStyle.Markdown => if (_is_head(p)) _head(p) else Vector(_section(ctx, p))
       case Config.DoxStyle.OrgMode => Vector(_section(ctx, p))
     }
 
@@ -216,7 +219,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
       },
       hocon => (DocumentMetaData.create(hocon), None)
     )
-    val section = _section(context.levelUp, p)
+    val section = _head_explanation_section(p)
     val a = for {
       ex <- Explanation.parse(section)
       updatehistory <- DocumentMetaData.UpdateHistory.parse(section)
@@ -229,6 +232,14 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
     p.blocks.blocks.headOption.collect {
       case m: LogicalParagraph => _logical_paragraph_properties_text(m)
     }.getOrElse("")
+
+  private def _head_explanation_section(p: LogicalSection): Section = {
+    val blocks = p.blocks.blocks match {
+      case Vector(_: LogicalParagraph, xs @ _*) => LogicalBlocks(xs.toVector)
+      case _ => p.blocks
+    }
+    Section(List(_to_dox(p.title)), _blocks(context.levelUp, blocks).toList, context.level)
+  }
 
   private def _distill_logical_meta(p: LogicalBlocks): (LogicalBlocks, DocumentMetaData) =
     p.blocks match {
@@ -503,15 +514,72 @@ object Dox2Parser {
     parse(config.withFilename(filename), in)
 
   def parse(config: Config, in: String): Dox = {
+    val (body, frontmatter) = _take_markdown_front_matter(config, in)
     val ctx = ParseContext.now(config)
     val parser = new Dox2Parser(ctx)
-    val result = parser.apply(in)
+    val result = parser.apply(body)
     result match {
-      case ParseSuccess(dox, _) => dox
+      case ParseSuccess(dox, _) => frontmatter.fold(dox)(_merge_metadata(dox, _))
       case ParseFailure(_, _) => RAISE.notImplementedYetDefect
       case EmptyParseResult() => RAISE.notImplementedYetDefect
     }
   }
+
+  private def _take_markdown_front_matter(config: Config, in: String): (String, Option[DocumentMetaData]) =
+    if (config.style != Config.DoxStyle.Markdown)
+      (in, None)
+    else {
+      val lines = Option(in).getOrElse("").linesIterator.toVector
+      if (lines.headOption.exists(_.trim == "---")) {
+        lines.zipWithIndex.drop(1).find(_._1.trim == "---") match {
+          case Some((_, end)) =>
+            val yaml = lines.slice(1, end).mkString("\n")
+            val body = lines.drop(end + 1).mkString("\n")
+            implicit val dtctx: DateTimeContext = DateTimeContext.now()
+            val metadata = _parse_markdown_front_matter(yaml)
+            (body, metadata)
+          case None => (in, None)
+        }
+      } else {
+        (in, None)
+      }
+    }
+
+
+  private def _parse_markdown_front_matter(yaml: String)(implicit ctx: DateTimeContext): Option[DocumentMetaData] =
+    Option(new org.yaml.snakeyaml.Yaml().load[Any](Option(yaml).getOrElse(""))).collect {
+      case m: java.util.Map[_, _] =>
+        val normalized = new java.util.LinkedHashMap[String, AnyRef]()
+        m.asScala.foreach { case (key, value) =>
+          normalized.put(key.toString, _normalize_yaml_value(value))
+        }
+        DocumentMetaData.create(ConfigFactory.parseMap(normalized))
+    }
+
+  private def _normalize_yaml_value(value: Any): AnyRef =
+    value match {
+      case null => ""
+      case m: java.util.Map[_, _] =>
+        val normalized = new java.util.LinkedHashMap[String, AnyRef]()
+        m.asScala.foreach { case (key, value) =>
+          normalized.put(key.toString, _normalize_yaml_value(value))
+        }
+        normalized
+      case xs: java.util.List[_] =>
+        xs.asScala.map(x => _normalize_yaml_value(x)).asJava
+      case d: java.util.Date =>
+        new SimpleDateFormat("yyyy-MM-dd").format(d)
+      case v: java.lang.Boolean => v
+      case v: java.lang.Number => v
+      case v: String => v
+      case v => v.toString
+    }
+
+  private def _merge_metadata(dox: Document, metadata: DocumentMetaData): Document =
+    dox match {
+      case Document(head, body, foot, attributes, location) =>
+        Document(head.merge(metadata), body, foot, attributes, location)
+    }
 
   def parse(config: Config, in: LogicalBlock): Dox = {
     val ctx = ParseContext.now(config)

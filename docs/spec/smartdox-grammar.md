@@ -19,6 +19,8 @@ The parser produces a Dox document tree containing document head metadata,
 sections, paragraphs, lists, tables, figures, programs, links, and inline
 markup.
 
+Descriptive metadata effective semantics are defined in `docs/design/descriptive-effective-semantics.md`.
+
 ## Document
 
 A document is a sequence of block elements.
@@ -71,6 +73,41 @@ First
 
 The visible section title is parsed as inline content.
 
+### Section Title Termination
+
+A blank line terminates the section title. This rule is intentional: SmartDox
+allows a section title to span multiple adjacent non-blank lines. Therefore, when
+a section title is meant to be one line, the heading line must be followed by a
+blank line before body content or child sections.
+
+Correct one-line title:
+
+```dox
+# Overview
+
+This is body text.
+```
+
+Correct multi-line title:
+
+```dox
+# Long section title
+continued title line
+
+This is body text.
+```
+
+Incorrect when the second line is intended as body content:
+
+```dox
+# Overview
+This is body text.
+```
+
+Reserved metadata section names such as `HEAD`, `HEADLINE`, `BRIEF`, `SUMMARY`,
+and `DESCRIPTION` are single-line names. Their metadata body must start after a
+blank line.
+
 ## Metadata Head
 
 A top-level section named `HEAD` is treated as document metadata.
@@ -83,7 +120,10 @@ published_at=2026-04-06
 ```
 
 Metadata text inside `HEAD` is parsed as HOCON-style properties and merged into
-the document head.
+the document head. This rule applies in both SmartDox authoring and Markdown
+mode; `.md` / `.markdown` sources may use `# HEAD` for SmartDox operational
+metadata when YAML front matter is not enough. The leading properties paragraph
+inside `HEAD` is metadata-only and is not parsed as Markdown body text.
 
 ## Summary And Lead
 
@@ -392,6 +432,19 @@ Markdown parsing supports:
 - Definition lists using `- term :: definition`
 
 Markdown mode shares the SmartDox document tree with the Org-style parser.
+YAML front matter is accepted as document metadata. SmartDox operational
+metadata sections such as `# HEAD`, `## HEADLINE`, `## BRIEF`, `## SUMMARY`, and
+`## DESCRIPTION` are also accepted in Markdown mode and are normalized into the
+same Dox metadata IR.
+
+Glossary term sources may also use Markdown. The term title is resolved from the
+SmartDox document title or Markdown front matter `title`; metadata properties
+such as `reading`, `brief`, `summary`, `status`, and `published_at` are resolved
+through the same Dox metadata path. The generated glossary metadata is therefore
+independent of whether the source file is `.dox`, `.md`, or `.markdown`.
+
+Multilingual authoring remains a SmartDox authoring feature, not a Markdown-mode
+feature.
 
 ## Stability
 

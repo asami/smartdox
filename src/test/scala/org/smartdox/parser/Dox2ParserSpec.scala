@@ -16,7 +16,8 @@ import org.smartdox.Document
  *  version Sep.  5, 2024
  *  version Aug. 16, 2025
  *  version Apr. 19, 2026
- * @version Jun.  8, 2026
+ *  version Jun.  8, 2026
+ * @version Jun. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -91,6 +92,34 @@ published_at=2026-06-08
       meta.getPublishedString(java.util.Locale.JAPANESE) should be (Some("2026-06-08"))
       meta.getEffectiveSummaryString(java.util.Locale.JAPANESE) should be (Some("日本語の概要です。"))
       dox.toString should include ("本文です。")
+    }
+
+    "parse SmartDox HEAD metadata inside Markdown documents" in {
+      val stderr = new ByteArrayOutputStream()
+      val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
+        Dox2Parser.parseWithFilename("published.md", """# HEAD
+
+status=published
+published_at=2026-06-23
+author=山田 太郎
+
+## SUMMARY
+
+Markdown summary from SmartDox metadata section.
+
+# Body
+
+Markdown body.
+""").asInstanceOf[Document]
+      }
+      val meta = dox.head.metadata
+      stderr.toString("UTF-8") should not include ("SmartDox HEAD metadata parse error:")
+      meta.status should be (org.smartdox.metadata.DocumentMetaData.Status.Published)
+      meta.getPublishedString(java.util.Locale.ENGLISH) should be (Some("2026-06-23"))
+      meta.getAuthorString(java.util.Locale.JAPANESE) should be (Some("山田 太郎"))
+      meta.getEffectiveSummaryString(java.util.Locale.ENGLISH) should be (Some("Markdown summary from SmartDox metadata section."))
+      dox.toString should include ("Markdown body.")
+      dox.toString should not include ("status=published")
     }
 
     "parse leading metadata paragraph through filename based SmartDox parsing" in {

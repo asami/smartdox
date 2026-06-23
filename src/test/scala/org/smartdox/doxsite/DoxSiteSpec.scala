@@ -24,7 +24,8 @@ import org.smartdox.transformers.AutoI18nTransformer
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun.  8, 2026
+ *  version Jun.  8, 2026
+ * @version Jun. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -175,6 +176,118 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
 
         realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get should include ("Published body.")
         realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "parse Markdown pages through Markdown mode and YAML front matter metadata" in {
+      val dir = Files.createTempDirectory("smartdox-markdown-front-matter")
+      try {
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("published.md"),
+          """---
+            |title: Published Markdown
+            |headline: Published Markdown Headline
+            |brief: Published Markdown brief.
+            |status: published
+            |published_at: 2026-06-23
+            |---
+            |
+            |# Published Markdown Body
+            |
+            |Markdown body with **bold** text and [a link](https://example.com).
+            |""".stripMargin)
+        _write(dir.resolve("wip.md"),
+          """---
+            |title: WIP Markdown
+            |status: work-in-progress
+            |published_at: 2026-06-23
+            |---
+            |
+            |# WIP Markdown Body
+            |
+            |WIP markdown body.
+            |""".stripMargin)
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val html = realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get
+
+        html should include ("Published Markdown Body")
+        html should include ("Markdown body with")
+        html should include ("https://example.com")
+        realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "use Markdown SmartDox HEAD metadata for site strategy" in {
+      val dir = Files.createTempDirectory("smartdox-markdown-head-metadata")
+      try {
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("published.md"),
+          """# HEAD
+            |
+            |status=published
+            |published_at=2026-06-23
+            |
+            |## SUMMARY
+            |
+            |Published Markdown HEAD summary.
+            |
+            |# Published Body
+            |
+            |Published markdown body.
+            |""".stripMargin)
+        _write(dir.resolve("wip.md"),
+          """# HEAD
+            |
+            |status=work-in-progress
+            |published_at=2026-06-23
+            |
+            |# WIP Body
+            |
+            |WIP markdown body.
+            |""".stripMargin)
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+
+        realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get should include ("Published markdown body.")
+        realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "emit Markdown glossary term metadata through Dox IR" in {
+      val dir = Files.createTempDirectory("smartdox-markdown-glossary-term")
+      try {
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("glossary/architecture/runtime.md"),
+          """---
+            |title: Runtime
+            |brief: Runtime summary from Markdown front matter.
+            |reading: らんたいむ
+            |status: published
+            |published_at: 2026-06-23
+            |---
+            |
+            |Runtime definition from Markdown.
+            |""".stripMargin)
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val terms = realm.getString("metadata/glossary/terms.json").get
+
+        terms should include (""""id" : "architecture:runtime"""")
+        terms should include (""""title" : "Runtime"""")
+        terms should include (""""reading" : "らんたいむ"""")
+        terms should include ("Runtime summary from Markdown front matter.")
+        terms should include ("\"source_path\" : \"glossary/architecture/runtime.md\"")
+        terms should include ("Runtime definition from Markdown.")
       } finally {
         _delete(dir)
       }
