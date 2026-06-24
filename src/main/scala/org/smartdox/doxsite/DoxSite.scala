@@ -6,6 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.util.matching.Regex
 import java.io.File
+import java.nio.file.{Files, Path}
 import java.net.URI
 import java.net.URL
 import java.time.Instant
@@ -540,7 +541,7 @@ object DoxSite {
     siteHeader: Config.SiteHeader = Config.SiteHeader.default,
     simplemodelingOrg: Boolean = false,
     origin: Option[File] = None,
-    includeFilePatterns: Vector[Regex] = Vector(""".*\.(dox|org|md|markdown|ya?ml|png|jpg|jpeg|svg)$""").map(_.r),
+    includeFilePatterns: Vector[Regex] = Vector(""".*\.(dox|org|md|markdown|bib|ya?ml|png|jpg|jpeg|svg)$""").map(_.r),
     excludeFilePatterns: Vector[Regex] = Vector(
       """^_.*""",      // filenames starting with "_" (include-only partials)
       """.*[~]$""",    // editor temporary files
@@ -1220,7 +1221,7 @@ object DoxSite {
     }
   }
 
-  val realmConfig = Realm.Builder.Config.default.addTextSuffixes("yaml")
+  val realmConfig = Realm.Builder.Config.default.addTextSuffixes("yaml", "bib")
 
   def create(
     context: Context,
@@ -1271,7 +1272,8 @@ object DoxSite {
     videopublications: Seq[PublishMetadata.VideoPublication] = Nil,
     publicationtriples: Seq[Rdf.Triple] = Nil
   ): DoxSite = {
-    val config = _config(inconfig, realm, configname)(context.i18NContext)
+    val config0 = _config(inconfig, realm, configname)(context.i18NContext)
+    val config = if (config0.origin.isDefined) config0 else config0.copy(origin = realm.origin)
     val nodectx = TreeTransformer.Context.default[Node]
     val doxctx = context.doxContext
     val ctx = DoxSiteTransformer.Context(
@@ -1508,14 +1510,29 @@ object DoxSite {
     p: Tree[Node]
   ): Bibliography = {
     val entries = ArrayBuffer.empty[Bibliography.Entry]
+    val refs = ArrayBuffer.empty[(String, String, String)]
     p.traverse(new DoxSiteVisitor {
       override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
         content match {
-          case page: Page => _bibliography_entry(ctx, node, page).foreach(entries += _)
+          case page: Page =>
+            _bibliography_entry(ctx, node, page).foreach(entries += _)
+            refs ++= _bibliography_refs(node.pathnameRelative, page)
+          case file: FileData =>
+            _bibliography_bibtex_entry(node.pathnameRelative, file.file.toPath).foreach(entries += _)
           case _ =>
         }
     })
-    Bibliography(entries.toVector.sortBy(x => (x.category.getOrElse(""), x.slug, x.id)))
+    ctx.doxSiteConfig.origin.foreach { root =>
+      entries ++= _bibliography_bibtex_entries(root.toPath)
+      refs ++= _bibliography_source_refs(root.toPath)
+    }
+    val definedentries = entries.toVector.sortBy(_bibliography_entry_priority).groupBy(_.id).mapValues(_.head).values.toVector
+    val byid = definedentries.map(x => x.id -> x).toMap
+    val externalrefs = refs.toVector.distinct.collect {
+      case (bibid, sourcepath, category) if !byid.contains(bibid) =>
+        _bibliography_external_ref_entry(bibid, sourcepath, category)
+    }
+    Bibliography((definedentries ++ externalrefs).sortBy(x => (x.category.getOrElse(""), x.slug, x.id)))
   }
 
   private def _bibliography_entry(
@@ -1574,10 +1591,16 @@ object DoxSite {
         identifiers = identifiers,
         bibtex = bibtex,
         bodyHtml = _bibliography_body_html(ctx.generatorContext, page.dox),
+        sourceKind = "internal",
+        refs = Vector(id),
+        needsResolution = false,
         quality = Bibliography.Quality(
           missingCitation = citation.isEmpty,
           missingTerms = terms.isEmpty,
-          missingSource = sourceurl.isEmpty && identifiers.url.isEmpty && bibtex.sourceUrl.isEmpty
+          missingSource = sourceurl.isEmpty && identifiers.url.isEmpty && bibtex.sourceUrl.isEmpty,
+          missingNarrative = false,
+          bibtexOnly = false,
+          needsCuration = false
         )
       )
     }
@@ -1590,6 +1613,284 @@ object DoxSite {
       case _ => None
     }
   }
+
+  private def _bibliography_refs(sourcepath: String, page: Page): Vector[(String, String, String)] = {
+    if (_bibliography_source_category(sourcepath).nonEmpty)
+      Vector.empty
+    else {
+      val metadata = page.dox.head.metadata
+      val refs = _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
+      val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
+      refs.map(x => (_normalize_bibid(x), sourcepath, category)).filter(_._1.nonEmpty)
+    }
+  }
+
+  private def _bibliography_reference_category(sourcepath: String): Option[String] = {
+    val parts = sourcepath.split('/').toVector.filter(_.nonEmpty)
+    val special = Set("assets", "bibliography", "history", "manual", "metadata", "rdf")
+    parts match {
+      case Vector("glossary", category, _*) if category.nonEmpty => Some(category)
+      case Vector("projects", category, _*) if category.nonEmpty => Some(category)
+      case Vector("scenarios", category, _*) if category.nonEmpty => Some(category)
+      case category +: _ if category.nonEmpty && !special(category) => Some(category)
+      case _ => None
+    }
+  }
+
+  private def _bibliography_source_refs(root: Path): Vector[(String, String, String)] = {
+    val stream = Files.walk(root)
+    try {
+      stream.iterator.asScala.toVector.filter(_is_bibliography_ref_source).flatMap { path =>
+        val sourcepath = root.relativize(path).toString.replace(File.separatorChar, '/')
+        val dox = _parse_source_document(path)
+        Dox.getMetadata(dox).flatMap(_.toOption).toVector.flatMap { metadata =>
+          val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
+          _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids").
+            map(x => (_normalize_bibid(x), sourcepath, category)).
+            filter(_._1.nonEmpty)
+        }
+      }
+    } finally {
+      stream.close()
+    }
+  }
+
+  private def _is_bibliography_ref_source(path: Path): Boolean = {
+    val name = path.getFileName.toString.toLowerCase(java.util.Locale.ROOT)
+    Files.isRegularFile(path) &&
+      (name.endsWith(".dox") || name.endsWith(".md") || name.endsWith(".markdown")) &&
+      !path.toString.replace(File.separatorChar, '/').contains("/bibliography/")
+  }
+
+  private def _parse_source_document(path: Path): Dox = {
+    val name = path.getFileName.toString.toLowerCase(java.util.Locale.ROOT)
+    val config =
+      if (name.endsWith(".md") || name.endsWith(".markdown"))
+        Dox2Parser.Config.markdown
+      else
+        Dox2Parser.Config.default
+    Dox2Parser.parseWithFilename(config, path.toString, Files.readString(path))
+  }
+
+  private def _bibliography_bibtex_entries(root: Path): Vector[Bibliography.Entry] = {
+    val bibliography = root.resolve("bibliography")
+    if (!Files.isDirectory(bibliography))
+      Vector.empty
+    else {
+      val stream = Files.walk(bibliography)
+      try {
+        stream.iterator.asScala.toVector.filter(path => Files.isRegularFile(path) && path.toString.endsWith(".bib")).flatMap { path =>
+          val sourcepath = root.relativize(path).toString.replace(File.separatorChar, '/')
+          _bibliography_bibtex_entry(sourcepath, path)
+        }
+      } finally {
+        stream.close()
+      }
+    }
+  }
+
+  private def _bibliography_entry_priority(entry: Bibliography.Entry): Int =
+    entry.sourceKind match {
+      case "internal" => 0
+      case "bibtex-only" => 1
+      case "external-ref" => 2
+      case _ => 3
+    }
+
+  private def _bibliography_bibtex_entry(sourcepath: String, path: Path): Option[Bibliography.Entry] =
+    if (!sourcepath.endsWith(".bib"))
+      None
+    else
+      _bibliography_source_category(sourcepath).flatMap { category =>
+        val raw = Files.readString(path)
+        _parse_bibtex(raw).map { bib =>
+          val id = bib.get("id").map("bib:" + _).getOrElse(s"${category}:${StringUtils.toPathnameBody(path.getFileName.toString)}")
+          val slug = StringUtils.toPathnameBody(path.getFileName.toString)
+          Bibliography.Entry(
+            id = id,
+            slug = slug,
+            entryType = bib.getOrElse("type", "other"),
+            title = bib.getOrElse("title", slug),
+            summary = None,
+            category = Some(category),
+            sourcePath = sourcepath,
+            publicPath = StringUtils.changeSuffix(sourcepath, "html"),
+            authors = bib.get("author").map(_bibtex_authors).getOrElse(Vector.empty),
+            publishedAt = bib.get("year"),
+            publisher = bib.get("publisher"),
+            sourceUrl = bib.get("url"),
+            accessedAt = None,
+            terms = Vector.empty,
+            citation = _bibtex_citation(bib),
+            identifiers = Bibliography.Identifiers(doi = bib.get("doi"), isbn = bib.get("isbn"), url = bib.get("url")),
+            bibtex = Bibliography.Bibtex(key = bib.get("id"), entryType = bib.get("type"), raw = Some(raw)),
+            bodyHtml = "",
+            sourceKind = "bibtex-only",
+            refs = Vector(id),
+            needsResolution = false,
+            quality = Bibliography.Quality(missingCitation = false, missingTerms = true, missingSource = bib.get("url").isEmpty && bib.get("doi").isEmpty && bib.get("isbn").isEmpty, missingNarrative = true, bibtexOnly = true, needsCuration = true)
+          )
+        }
+      }
+
+  private def _bibliography_external_ref_entry(bibid: String, sourcepath: String, category: String): Bibliography.Entry = {
+    val slug = _bibid_slug(bibid)
+    Bibliography.Entry(
+      id = bibid,
+      slug = slug,
+      entryType = _bibid_entry_type(bibid),
+      title = bibid,
+      summary = Some(s"Unresolved bibliography reference from ${sourcepath}"),
+      category = Some(category),
+      sourcePath = sourcepath,
+      publicPath = s"bibliography/${category}/${slug}.html",
+      sourceUrl = _bibid_source_url(bibid),
+      identifiers = _bibid_identifiers(bibid),
+      sourceKind = "external-ref",
+      refs = Vector(bibid),
+      needsResolution = true,
+      quality = Bibliography.Quality(missingCitation = true, missingTerms = true, missingSource = _bibid_source_url(bibid).isEmpty, missingNarrative = true, needsCuration = true)
+    )
+  }
+
+  private def _normalize_bibid(value: String): String = value.trim
+
+  private def _bibid_slug(bibid: String): String =
+    bibid.replaceAll("[^A-Za-z0-9_-]+", "-").stripPrefix("-").stripSuffix("-")
+
+  private def _bibid_entry_type(bibid: String): String =
+    if (bibid.startsWith("doi:")) "article"
+    else if (bibid.startsWith("isbn:")) "book"
+    else if (bibid.startsWith("openlibrary:")) "book"
+    else if (bibid.startsWith("dblp:")) "paper"
+    else "other"
+
+  private def _bibid_source_url(bibid: String): Option[String] =
+    if (bibid.startsWith("doi:")) Some("https://doi.org/" + bibid.stripPrefix("doi:"))
+    else if (bibid.startsWith("openlibrary:")) Some("https://openlibrary.org/" + bibid.stripPrefix("openlibrary:"))
+    else None
+
+  private def _bibid_identifiers(bibid: String): Bibliography.Identifiers =
+    if (bibid.startsWith("doi:")) Bibliography.Identifiers(doi = Some(bibid.stripPrefix("doi:")))
+    else if (bibid.startsWith("isbn:")) Bibliography.Identifiers(isbn = Some(bibid.stripPrefix("isbn:")))
+    else Bibliography.Identifiers.empty
+
+  private def _parse_bibtex(text: String): Option[Map[String, String]] = {
+    val bib = "(?s)@([A-Za-z]+)\\s*\\{\\s*([^,]+),(.+)\\}".r
+    text.trim match {
+      case bib(kind, id, body) =>
+        Some(_parse_bibtex_fields(body) ++ Map("type" -> kind.toLowerCase(java.util.Locale.ROOT), "id" -> id.trim))
+      case _ => None
+    }
+  }
+
+  private def _parse_bibtex_fields(body: String): Map[String, String] = {
+    var rest = body.trim
+    var fields = Map.empty[String, String]
+    while (rest.nonEmpty) {
+      _read_bibtex_field(rest) match {
+        case Some((key, value, tail)) =>
+          if (value.nonEmpty)
+            fields += key.toLowerCase(java.util.Locale.ROOT) -> value
+          rest = tail.dropWhile(c => c == ',' || c.isWhitespace)
+        case None =>
+          rest = ""
+      }
+    }
+    fields
+  }
+
+  private def _read_bibtex_field(text: String): Option[(String, String, String)] = {
+    val field = """^\s*([A-Za-z][A-Za-z0-9_-]*)\s*=""".r
+    field.findFirstMatchIn(text).flatMap { m =>
+      val key = m.group(1)
+      val start = m.end
+      _read_bibtex_value(text, start).map { case (value, end) =>
+        (key, value.trim, text.substring(end))
+      }
+    }
+  }
+
+  private def _read_bibtex_value(text: String, start: Int): Option[(String, Int)] = {
+    val offset = _skip_bibtex_space(text, start)
+    if (offset >= text.length)
+      None
+    else
+      text.charAt(offset) match {
+        case '{' => Some(_read_braced_bibtex_value(text, offset))
+        case '\"' => Some(_read_quoted_bibtex_value(text, offset))
+        case _ => Some(_read_bare_bibtex_value(text, offset))
+      }
+  }
+
+  private def _read_braced_bibtex_value(text: String, start: Int): (String, Int) = {
+    var i = start + 1
+    var depth = 1
+    val out = new StringBuilder
+    while (i < text.length && depth > 0) {
+      val c = text.charAt(i)
+      if (c == '{') {
+        depth += 1
+        out.append(c)
+      } else if (c == '}') {
+        depth -= 1
+        if (depth > 0)
+          out.append(c)
+      } else {
+        out.append(c)
+      }
+      i += 1
+    }
+    (out.toString, i)
+  }
+
+  private def _read_quoted_bibtex_value(text: String, start: Int): (String, Int) = {
+    var i = start + 1
+    val out = new StringBuilder
+    var escaped = false
+    var done = false
+    while (i < text.length && !done) {
+      val c = text.charAt(i)
+      if (escaped) {
+        out.append(c)
+        escaped = false
+      } else if (c == '\\') {
+        out.append(c)
+        escaped = true
+      } else if (c == '\"') {
+        done = true
+      } else {
+        out.append(c)
+      }
+      i += 1
+    }
+    (out.toString, i)
+  }
+
+  private def _read_bare_bibtex_value(text: String, start: Int): (String, Int) = {
+    val end = text.indexOf(',', start) match {
+      case -1 => text.length
+      case n => n
+    }
+    (text.substring(start, end).trim, end)
+  }
+
+  private def _skip_bibtex_space(text: String, start: Int): Int = {
+    var i = start
+    while (i < text.length && text.charAt(i).isWhitespace)
+      i += 1
+    i
+  }
+
+  private def _bibtex_authors(value: String): Vector[String] =
+    value.split("\\s+and\\s+").toVector.map(_.trim).filter(_.nonEmpty)
+
+  private def _bibtex_citation(bib: Map[String, String]): Option[String] =
+    bib.get("title").map { title =>
+      val author = bib.get("author").map(_bibtex_authors).getOrElse(Vector.empty).headOption.getOrElse("-")
+      val year = bib.get("year").getOrElse("n.d.")
+      s"${author}. ${title}. ${year}."
+    }
 
   private def _bibliography_body_html(context: Context, dox: Document): String = {
     val body = dox.body.contents

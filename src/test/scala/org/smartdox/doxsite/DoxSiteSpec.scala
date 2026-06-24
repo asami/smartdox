@@ -454,6 +454,48 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |
             |A web reference used for bibliography search.
             |""".stripMargin)
+        _write(dir.resolve("technology/design-article.md"),
+          """---
+            |title: Design Article
+            |bibliography:
+            |  refs:
+            |    - bib:design-patterns
+            |    - doi:10.5555/unresolved-reference
+            |---
+            |
+            |# Design Article
+            |
+            |This article cites a local bibliography entry and an external DOI.
+            |""".stripMargin)
+        _write(dir.resolve("technology/dox-design-article.dox"),
+          """Dox Design Article
+            |==================
+            |
+            |# HEAD
+            |
+            |title = "Dox Design Article"
+            |bibliography.refs = ["openlibrary:works/OL31219436W"]
+            |
+            |# Overview
+            |
+            |This Dox article cites an external OpenLibrary bibliography id.
+            |""".stripMargin)
+        _write(dir.resolve("bibliography/concept/design-patterns.bib"),
+          """@book{design-patterns,
+            |  title = {BibTeX Shadow Design Patterns},
+            |  author = {Shadow, Writer},
+            |  year = {1999}
+            |}
+            |""".stripMargin)
+        _write(dir.resolve("bibliography/technology/refactoring.bib"),
+          """@book{fowler1999refactoring,
+            |  title = {Refactoring: {Improving} the Design of Existing Code},
+            |  author = {Fowler, Martin},
+            |  year = {1999},
+            |  publisher = {Addison-Wesley},
+            |  isbn = {9780201485677}
+            |}
+            |""".stripMargin)
 
         When("SmartDox builds BoK site metadata")
         val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
@@ -471,7 +513,18 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
         bibliography should include ("\"id\" : \"bib:crossref-api\"")
         bibliography should include ("\"entry_type\" : \"web-page\"")
         bibliography should include ("\"source_url\" : \"https://api.crossref.org\"")
+        bibliography should include ("\"id\" : \"doi:10.5555/unresolved-reference\"")
+        bibliography should include ("\"id\" : \"openlibrary:works/OL31219436W\"")
+        bibliography should include ("\"source_kind\" : \"external-ref\"")
+        bibliography should include ("\"needs_resolution\" : true")
+        bibliography should include ("\"id\" : \"bib:fowler1999refactoring\"")
+        bibliography should include ("\"source_kind\" : \"bibtex-only\"")
+        bibliography should include ("Refactoring: {Improving} the Design of Existing Code")
+        bibliography should include ("\"isbn\" : \"9780201485677\"")
         bibliography.indexOf("bib:design-patterns") should be < bibliography.indexOf("bib:crossref-api")
+        "\"id\" : \"bib:design-patterns\"".r.findAllIn(bibliography).size shouldBe 1
+        bibliography should include ("\"source_path\" : \"bibliography/concept/design-patterns.dox\"")
+        bibliography should not include ("BibTeX Shadow Design Patterns")
 
         And("bibliography pages are represented in the site RDF graph")
         ttl should include ("bibliography/concept/design-patterns")

@@ -56,7 +56,10 @@ object Bibliography {
   case class Quality(
     missingCitation: Boolean = false,
     missingTerms: Boolean = false,
-    missingSource: Boolean = false
+    missingSource: Boolean = false,
+    missingNarrative: Boolean = false,
+    bibtexOnly: Boolean = false,
+    needsCuration: Boolean = false
   )
   object Quality {
     val empty: Quality = Quality()
@@ -82,6 +85,9 @@ object Bibliography {
     identifiers: Identifiers = Identifiers.empty,
     bibtex: Bibtex = Bibtex.empty,
     bodyHtml: String = "",
+    sourceKind: String = "internal",
+    refs: Vector[String] = Vector.empty,
+    needsResolution: Boolean = false,
     quality: Quality = Quality.empty
   ) {
     def toHistorySlot: Vector[History.Slot] = Vector.empty
