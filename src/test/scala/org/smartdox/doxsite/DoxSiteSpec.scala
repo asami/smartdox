@@ -13,6 +13,7 @@ import java.nio.file.Files
 import org.goldenport.i18n.I18NContext
 import org.goldenport.tree.TreeTransformer
 import org.smartdox._
+import org.smartdox.SmartDoxSpecVocabulary
 import org.smartdox.parser.UseDoxParser
 import org.smartdox.generator.Context
 import org.smartdox.transformers.AutoI18nTransformer
@@ -30,25 +31,38 @@ import io.circe.parser
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseDoxParser {
+class DoxSiteSpec
+    extends AnyWordSpec
+    with GivenWhenThen
+    with UseDoxParser
+    with SmartDoxSpecVocabulary {
   val context = Context.create()
   implicit val dctx = context.dateTimeContext
   "DoxSite" should {
     "create" in {
-      val site = DoxSite.create(context, new File("src/test/resources/site1"))
-      println(site)
+      Given("an existing SmartDox site source directory")
+      When("SmartDox creates a DoxSite model from the source directory")
+      val site = create_site(context, new File("src/test/resources/site1"))
+
+      Then("the site model is created for downstream site generation")
+      site should not be null
     }
 
     "resolve site inline macro as internal link" in {
+      Given("a site source that uses the site:[...] inline macro")
       val config = DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
-      val site = DoxSite.create(context, new File("src/test/resources/site-link"), None, config)
-      val realm = site.toRealm(context)
-      implicit val i18ncontext: I18NContext = context.i18NContext
-      val html = realm.getString("/en/index.html").orElse(realm.getString("en/index.html")).get
 
-      html should include ("href=\"target.html\"")
-      html should include ("Target Page")
-      html should not include ("site:[target.dox]")
+      When("SmartDox renders the site through the DoxSite pipeline")
+      val site = create_site(context, new File("src/test/resources/site-link"), config)
+      val realm = site_realm(site, context)
+      implicit val i18ncontext: I18NContext = context.i18NContext
+      val html = html_at(realm, "/en/index.html", "en/index.html")
+
+      Then("the site macro is resolved to a local HTML link")
+      html should include_html("href=\"target.html\"")
+      html should include_html("Target Page")
+      And("the unresolved source macro does not leak into the generated page")
+      html should not (include_text("site:[target.dox]"))
     }
 
     "emit localized document fragments after glossary and site link processing" in {
@@ -126,21 +140,21 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
         val manualbody = _fragment_body(fragments, "manual/index.dox", "ja")
 
         Then("the fragment metadata contains localized document identity and effective description")
-        fragments should include (""""source_path" : "index.dox"""")
-        fragments should include (""""public_path" : "index.html"""")
-        fragments should include (""""headline" : "Fragment headline."""")
-        fragments should include (""""brief" : "Fragment brief."""")
-        fragments should include (""""locale" : "ja"""")
-        fragments should not include (""""locale" : "en"""")
+        fragments should include_metadata(""""source_path" : "index.dox"""")
+        fragments should include_metadata(""""public_path" : "index.html"""")
+        fragments should include_metadata(""""headline" : "Fragment headline."""")
+        fragments should include_metadata(""""brief" : "Fragment brief."""")
+        fragments should include_metadata(""""locale" : "ja"""")
+        fragments should not (include_metadata(""""locale" : "en""""))
 
         And("the body HTML is produced after site link and glossary processing")
-        homebody should include ("""href="target.html"""")
-        homebody should include ("""class="glossary"""")
-        homebody should not include ("site:[target.dox]")
+        homebody should include_html("""href="target.html"""")
+        homebody should include_html("""class="glossary"""")
+        homebody should not (include_text("site:[target.dox]"))
 
         And("manual fragments keep the existing glossary auto-link exclusion")
-        manualbody should include ("Runtime is a manual operation word")
-        manualbody should not include ("""class="glossary"""")
+        manualbody should include_html("Runtime is a manual operation word")
+        manualbody should not (include_html("""class="glossary""""))
 
         And("document fragments remain available when public HTML output is scoped to Home only")
         val homeonlyconfig = DoxSite.Config.default.copy(
@@ -157,14 +171,15 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
         val homeonlyrealm = homeonlysite.toRealm(context)
         val homeonlyfragments =
           homeonlyrealm.getString("metadata/documents/fragments.json").get
-        homeonlyfragments should include (""""source_path" : "index.dox"""")
-        homeonlyfragments should include (""""source_path" : "manual/index.dox"""")
+        homeonlyfragments should include_metadata(""""source_path" : "index.dox"""")
+        homeonlyfragments should include_metadata(""""source_path" : "manual/index.dox"""")
       } finally {
         _delete(dir)
       }
     }
 
     "keep program text opaque during auto i18n" in {
+      Given("a document whose program block contains auto-i18n separator text")
       val dox = Document(Head(), Body(List(Program.create("alpha｜beta"))))
       val txctx = DoxSiteTransformer.Context(
         DoxSiteTransformer.Config(),
@@ -172,11 +187,16 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
         TreeTransformer.Context.default[Node],
         context.doxContext
       )
+
+      When("the automatic i18n transformer processes the document")
       val transformed = Dox.transform(dox, new AutoI18nTransformer(txctx))
-      Dox.toDox(Dox.toTree(transformed))
+
+      Then("program text remains opaque and is not split into localized spans")
+      transformed should contain_program_text("alpha｜beta")
     }
 
     "keep auto i18n active in section title and list items" in {
+      Given("a document whose section title and list item contain auto-i18n separator text")
       val dox = Document(
         Head(),
         Body(
@@ -193,24 +213,22 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
         TreeTransformer.Context.default[Node],
         context.doxContext
       )
+
+      When("the automatic i18n transformer processes structured text outside program blocks")
       val transformed = Dox.transform(dox, new AutoI18nTransformer(txctx))
 
-      transformed match {
-        case document: Document =>
-          val section = document.body.contents.head.asInstanceOf[Section]
-          section.title should have size 2
-          section.title.head shouldBe a [Span]
-          section.contents.head shouldBe a [Ul]
-          section.contents.head.asInstanceOf[Ul].contents.head.contents.head shouldBe a [Span]
-        case other =>
-          fail(s"Unexpected transformed dox: $other")
-      }
+      Then("the section title is converted into localized span alternatives")
+      transformed should have_first_section_title_alternatives(2)
+      transformed should have_first_section_title_span
+      And("list item text is also converted into localized span alternatives")
+      transformed should have_first_list_item_span
     }
 
 
     "skip automatic glossary links in Manual pages" in {
       val dir = Files.createTempDirectory("smartdox-manual-glossary-skip")
       try {
+        Given("a Manual page that contains a term also defined in the site glossary")
         _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
         _write(dir.resolve("manual/index.dox"),
           """Manual
@@ -237,14 +255,17 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |# Definition
             |Runtime term.
             |""".stripMargin)
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
-        val realm = site.toRealm(context)
+        When("SmartDox generates the site with glossary auto-linking enabled")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
-        val html = realm.getString("/ja/manual/index.html").orElse(realm.getString("ja/manual/index.html")).get
+        val html = html_at(realm, "/ja/manual/index.html", "ja/manual/index.html")
 
-        html should include ("Runtime is a manual operation word")
-        html should not include ("class=\"glossary\"")
-        html should not include ("glossary/architecture/runtime")
+        Then("Manual content is rendered as normal text")
+        html should include_html("Runtime is a manual operation word")
+        And("Manual pages keep the glossary auto-link exclusion")
+        html should not (include_html("class=\"glossary\""))
+        html should not (include_html("glossary/architecture/runtime"))
       } finally {
         _delete(dir)
       }
@@ -253,6 +274,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
     "keep published dox pages in production strategy" in {
       val dir = Files.createTempDirectory("smartdox-production-published")
       try {
+        Given("a production site with one published SmartDox article and one work-in-progress article")
         _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
         _write(dir.resolve("published.dox"),
           """Published Article
@@ -284,11 +306,14 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |
             |WIP body.
             |""".stripMargin)
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
-        val realm = site.toRealm(context)
+        When("SmartDox generates the site with the production strategy")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
 
-        realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get should include ("Published body.")
+        Then("published pages are included in the production output")
+        html_at(realm, "/ja/published.html", "ja/published.html") should include_html("Published body.")
+        And("work-in-progress pages are excluded from the production output")
         realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
       } finally {
         _delete(dir)
@@ -298,6 +323,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
     "parse Markdown pages through Markdown mode and YAML front matter metadata" in {
       val dir = Files.createTempDirectory("smartdox-markdown-front-matter")
       try {
+        Given("a Markdown article with YAML front matter and GitHub-style Markdown body")
         _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
         _write(dir.resolve("published.md"),
           """---
@@ -323,14 +349,17 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |
             |WIP markdown body.
             |""".stripMargin)
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
-        val realm = site.toRealm(context)
+        When("SmartDox parses Markdown through filename-based Markdown mode")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
-        val html = realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get
+        val html = html_at(realm, "/ja/published.html", "ja/published.html")
 
-        html should include ("Published Markdown Body")
-        html should include ("Markdown body with")
-        html should include ("https://example.com")
+        Then("Markdown body syntax is rendered through the Dox IR")
+        html should include_html("Published Markdown Body")
+        html should include_html("Markdown body with")
+        html should include_html("https://example.com")
+        And("YAML front matter participates in production status filtering")
         realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
       } finally {
         _delete(dir)
@@ -340,6 +369,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
     "use Markdown SmartDox HEAD metadata for site strategy" in {
       val dir = Files.createTempDirectory("smartdox-markdown-head-metadata")
       try {
+        Given("a Markdown document that uses SmartDox HEAD metadata instead of YAML front matter")
         _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
         _write(dir.resolve("published.md"),
           """# HEAD
@@ -365,11 +395,14 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |
             |WIP markdown body.
             |""".stripMargin)
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
-        val realm = site.toRealm(context)
+        When("SmartDox parses the Markdown document through the Dox parser path")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
 
-        realm.getString("/ja/published.html").orElse(realm.getString("ja/published.html")).get should include ("Published markdown body.")
+        Then("SmartDox HEAD metadata controls production inclusion")
+        html_at(realm, "/ja/published.html", "ja/published.html") should include_html("Published markdown body.")
+        And("work-in-progress Markdown HEAD metadata keeps draft content out of production")
         realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
       } finally {
         _delete(dir)
@@ -379,6 +412,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
     "emit Markdown glossary term metadata through Dox IR" in {
       val dir = Files.createTempDirectory("smartdox-markdown-glossary-term")
       try {
+        Given("a glossary term authored as Markdown with front matter metadata")
         _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
         _write(dir.resolve("glossary/architecture/runtime.md"),
           """---
@@ -391,17 +425,20 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |
             |Runtime definition from Markdown.
             |""".stripMargin)
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
-        val realm = site.toRealm(context)
+        When("SmartDox builds glossary metadata from the normalized Dox IR")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
-        val terms = realm.getString("metadata/glossary/terms.json").get
+        val terms = metadata_at(realm, "metadata/glossary/terms.json")
 
-        terms should include (""""id" : "architecture:runtime"""")
-        terms should include (""""title" : "Runtime"""")
-        terms should include (""""reading" : "らんたいむ"""")
-        terms should include ("Runtime summary from Markdown front matter.")
-        terms should include ("\"source_path\" : \"glossary/architecture/runtime.md\"")
-        terms should include ("Runtime definition from Markdown.")
+        Then("front matter metadata becomes glossary term metadata")
+        terms should include_metadata(""""id" : "architecture:runtime"""")
+        terms should include_metadata(""""title" : "Runtime"""")
+        terms should include_metadata(""""reading" : "らんたいむ"""")
+        terms should include_metadata("Runtime summary from Markdown front matter.")
+        terms should include_metadata("\"source_path\" : \"glossary/architecture/runtime.md\"")
+        And("the Markdown body becomes the glossary definition fragment")
+        terms should include_metadata("Runtime definition from Markdown.")
       } finally {
         _delete(dir)
       }
@@ -411,7 +448,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
       "emit bibliography metadata with inline citations and RDF source refs" in {
         val dir = Files.createTempDirectory("smartdox-bibliography-metadata")
         try {
-          Given("a site with bibliography entries for a book and a web reference")
+          Given("a BoK site with curated bibliography source documents")
           _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
           _write(dir.resolve("bibliography/concept/design-patterns.bib.dox"),
             """Design Patterns
@@ -454,6 +491,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
               |
               |A web reference used for bibliography search.
               |""".stripMargin)
+          And("article documents declare structured bibliography references in Markdown and SmartDox HEAD metadata")
           _write(dir.resolve("technology/design-article.md"),
             """---
               |title: Design Article
@@ -480,6 +518,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
               |
               |This Dox article cites an external OpenLibrary bibliography id.
               |""".stripMargin)
+          And("article body text uses inline bib citation keys for prose citations")
           _write(dir.resolve("technology/inline-bibliography.dox"),
             """Inline Bibliography
               |===================
@@ -492,6 +531,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
               |
               |This article cites Design Patterns with bib:[gamma1995designpatterns] and Refactoring with bib:[fowler1999refactoring].
               |""".stripMargin)
+          And("local BibTeX collections are available as resolver sources and supplement sources")
           _write(dir.resolve("bibliography/concept/design-patterns.bib"),
             """@book{design-patterns,
               |  title = {BibTeX Shadow Design Patterns},
@@ -509,61 +549,64 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
               |}
               |""".stripMargin)
 
-          When("SmartDox builds BoK site metadata")
+          When("SmartDox builds BoK site metadata from the normal DoxSite pipeline")
           val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
           val realm = site.toRealm(context)
           implicit val i18ncontext: I18NContext = context.i18NContext
           val bibliography = realm.getString("metadata/bibliography/bibliography.json").get
           val ttl = realm.getString("site.ttl").get
 
-          Then("bibliography entries are generated deterministically from the bibliography source tree")
-          bibliography should include ("\"id\" : \"bib:design-patterns\"")
-          bibliography should include ("\"entry_type\" : \"book\"")
-          bibliography should include ("\"category\" : \"concept\"")
-          bibliography should include ("\"isbn\" : \"9780201633610\"")
-          bibliography should include ("\"key\" : \"gamma1995designpatterns\"")
-          bibliography should include ("\"id\" : \"bib:crossref-api\"")
-          bibliography should include ("\"entry_type\" : \"web-page\"")
-          bibliography should include ("\"source_url\" : \"https://api.crossref.org\"")
-          bibliography should include ("\"id\" : \"doi:10.5555/unresolved-reference\"")
-          bibliography should include ("\"id\" : \"openlibrary:works/OL31219436W\"")
-          bibliography should include ("\"source_refs\"")
-          bibliography should include ("\"citation_key\" : \"gamma1995designpatterns\"")
-          bibliography should include ("\"citation_key\" : \"fowler1999refactoring\"")
-          bibliography should include ("\"public_path\" : \"technology/inline-bibliography.html\"")
-          bibliography should not include ("\"id\" : \"gamma1995designpatterns\"")
-          bibliography should include ("\"id\" : \"bib:fowler1999refactoring\"")
-          bibliography should include ("\"source_kind\" : \"bibtex-only\"")
-          bibliography should include ("Refactoring: {Improving} the Design of Existing Code")
-          bibliography should include ("\"isbn\" : \"9780201485677\"")
+          Then("curated bibliography sources become deterministic bibliography entries")
+          bibliography should include_metadata("\"id\" : \"bib:design-patterns\"")
+          bibliography should include_metadata("\"entry_type\" : \"book\"")
+          bibliography should include_metadata("\"category\" : \"concept\"")
+          bibliography should include_metadata("\"isbn\" : \"9780201633610\"")
+          bibliography should include_metadata("\"key\" : \"gamma1995designpatterns\"")
+          bibliography should include_metadata("\"id\" : \"bib:crossref-api\"")
+          bibliography should include_metadata("\"entry_type\" : \"web-page\"")
+          bibliography should include_metadata("\"source_url\" : \"https://api.crossref.org\"")
+          And("structured article references that have no local definition become unresolved external references")
+          bibliography should include_metadata("\"id\" : \"doi:10.5555/unresolved-reference\"")
+          bibliography should include_metadata("\"id\" : \"openlibrary:works/OL31219436W\"")
+          And("inline bib citations resolve by bibliography id, bibliography key, and BibTeX citation key")
+          bibliography should include_metadata("\"source_refs\"")
+          bibliography should include_metadata("\"citation_key\" : \"gamma1995designpatterns\"")
+          bibliography should include_metadata("\"citation_key\" : \"fowler1999refactoring\"")
+          bibliography should include_metadata("\"public_path\" : \"technology/inline-bibliography.html\"")
+          bibliography should not (include_metadata("\"id\" : \"gamma1995designpatterns\""))
+          bibliography should include_metadata("\"id\" : \"bib:fowler1999refactoring\"")
+          And("BibTeX-only entries are materialized without overriding curated bibliography metadata")
+          bibliography should include_metadata("\"source_kind\" : \"bibtex-only\"")
+          bibliography should include_metadata("Refactoring: {Improving} the Design of Existing Code")
+          bibliography should include_metadata("\"isbn\" : \"9780201485677\"")
           bibliography.indexOf("bib:design-patterns") should be < bibliography.indexOf("bib:crossref-api")
           "\"id\" : \"bib:design-patterns\"".r.findAllIn(bibliography).size shouldBe 1
-          bibliography should include ("\"source_path\" : \"bibliography/concept/design-patterns.bib.dox\"")
-          bibliography should not include ("BibTeX Shadow Design Patterns")
+          bibliography should include_metadata("\"source_path\" : \"bibliography/concept/design-patterns.bib.dox\"")
+          bibliography should not (include_metadata("BibTeX Shadow Design Patterns"))
 
-          And("article citation links are represented in the site RDF graph")
-          ttl should include ("technology/inline-bibliography")
-          ttl should include ("https://schema.org/citation")
-          ttl should include ("http://purl.org/dc/terms/references")
+          And("article-to-bibliography source references are represented in the site RDF graph")
+          ttl should include_metadata("technology/inline-bibliography")
+          ttl should include_metadata("https://schema.org/citation")
+          ttl should include_metadata("http://purl.org/dc/terms/references")
 
-          And("article pages render inline bibliography citations and a References section")
+          And("article pages render inline citation links and a generated References section")
           val article = realm.getString("/ja/technology/inline-bibliography.html").
             orElse(realm.getString("ja/technology/inline-bibliography.html")).
             orElse(realm.getString("/en/technology/inline-bibliography.html")).
             orElse(realm.getString("en/technology/inline-bibliography.html")).
             get
-          article should include ("bibliography-citation")
-          article should include ("[Gamma et al. 1994]")
-          article should include ("[Fowler 1999]")
-          article should include ("Bibliography")
+          article should include_html("bibliography-citation")
+          article should include_html("[Gamma et al. 1994]")
+          article should include_html("[Fowler 1999]")
+          article should include_html("Bibliography")
 
-          And("bibliography pages are represented in the site RDF graph")
-          ttl should include ("bibliography/concept/design-patterns")
-          ttl should include ("BibliographicResource")
-          ttl should include ("isbn:9780201633610")
-          ttl should include ("Gamma et al. Design Patterns.")
-          ttl should include ("object-oriented design")
-          ttl should include ("https://api.crossref.org")
+          And("bibliography entries themselves are represented in the site RDF graph")
+          ttl should include_metadata("bibliography/concept/design-patterns")
+          ttl should include_metadata("BibliographicResource")
+          ttl should include_metadata("isbn:9780201633610")
+          ttl should include_metadata("Gamma et al. Design Patterns.")
+          ttl should include_metadata("object-oriented design")
+          ttl should include_metadata("https://api.crossref.org")
         } finally {
           _delete(dir)
         }
@@ -608,15 +651,17 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
             |""".stripMargin)
 
         When("SmartDox builds the site through the normal Dox parser path")
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
-        val realm = site.toRealm(context)
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
-        val markdown = realm.getString("/ja/concept/reserve-room.html").orElse(realm.getString("ja/concept/reserve-room.html")).get
-        val smartdox = realm.getString("/ja/concept/simple.html").orElse(realm.getString("ja/concept/simple.html")).get
+        val markdown = html_at(realm, "/ja/concept/reserve-room.html", "ja/concept/reserve-room.html")
+        val smartdox = html_at(realm, "/ja/concept/simple.html", "ja/concept/simple.html")
 
-        Then("SmartDox renders the documents but does not emit scenario semantic metadata")
-        markdown should include ("会議室を予約する")
-        smartdox should include ("Simple Scenario")
+        Then("SmartDox renders Markdown scenario source documents as ordinary pages")
+        markdown should include_html("会議室を予約する")
+        And("SmartDox renders SmartDox scenario source documents as ordinary pages")
+        smartdox should include_html("Simple Scenario")
+        And("SmartDox does not own scenario semantic extraction metadata")
         realm.getString("metadata/scenarios/scenarios.json") shouldBe None
       } finally {
         _delete(dir)
@@ -624,6 +669,7 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
     }
 
     "preserve multilingual head title" in {
+      Given("a document head with English and Japanese title alternatives")
       val dox = Document(
         Head(metadata = org.smartdox.metadata.DocumentMetaData.empty.withTitle(List(
           Span.createEn("Literate Model Example: Address"),
@@ -637,10 +683,14 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
         TreeTransformer.Context.default[Node],
         context.doxContext
       )
+      When("the automatic i18n transformer processes the document head")
       val transformed = Dox.transform(dox, new AutoI18nTransformer(txctx)).asInstanceOf[Document]
       implicit val jactx = context.targetI18NContext.withLocale(java.util.Locale.JAPANESE)
-      transformed.head.distillTitleStringDefault shouldBe Some("Literate Model Example: Address")
-      transformed.head.distillTitleString shouldBe Some("文芸モデルの実例：住所")
+
+      Then("the default title remains available for fallback consumers")
+      transformed should have_default_head_title("Literate Model Example: Address")
+      And("the target locale title is selected for localized consumers")
+      transformed should have_localized_head_title("文芸モデルの実例：住所")
     }
   }
 
