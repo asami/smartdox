@@ -12,12 +12,13 @@ import org.smartdox.semanticweb.Site.SiteModel
  *  version Jul. 23, 2025
  *  version Aug. 24, 2025
  *  version Nov. 22, 2025
- * @version Jun.  5, 2026
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 case class MetaData(
   index: Index = Index.empty,
   glossary: Glossary = Glossary.empty,
+  bibliography: Bibliography = Bibliography.empty,
   references: References = References.empty,
   categories: CategoryCollection = CategoryCollection.empty,
   keywords: KeywordCollection = KeywordCollection.empty,

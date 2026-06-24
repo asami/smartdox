@@ -31,7 +31,7 @@ import org.smartdox.doxsite.LinkCollection.DoxLinks
  * @since   Nov. 20, 2025
  *  version Nov. 29, 2025
  *  version May. 14, 2026
- * @version Jun. 19, 2026
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 object Site {
@@ -378,16 +378,43 @@ object Site {
 
     case class Bibliography(
       id: String,            // canonical article IRI
-      meta: DocumentMetaData // SmartDox document metadata
+      meta: DocumentMetaData, // SmartDox document metadata
+      extraTriples: Seq[Triple] = Seq.empty
     ) extends SiteResource {
       val typeTriple =
         Triple(Node.Uri(id), RdfType, Dcterms.node.BibliographicResource)
+
+      override def toTriples: Seq[Triple] =
+        super.toTriples ++ extraTriples
     }
     object Bibliography {
-      def create(path: URI, meta: DocumentMetaData): Bibliography = {
+      def create(
+        path: URI,
+        meta: DocumentMetaData,
+        entrytype: Option[String] = None,
+        identifiers: Vector[String] = Vector.empty,
+        sourceurl: Option[String] = None,
+        citation: Option[String] = None,
+        terms: Vector[String] = Vector.empty
+      ): Bibliography = {
         val cid = _create_canonical_id(path)
-        Bibliography(cid, meta)
+        val subject = Node.Uri(cid)
+        val triples =
+          entrytype.toVector.map(x => Triple(subject, Dcterms.node.type_, Node.Literal(x))) ++
+          identifiers.map(x => Triple(subject, Dcterms.node.identifier, Node.Literal(x))) ++
+          sourceurl.toVector.map(x => Triple(subject, Dcterms.node.source, _uri_or_literal(x))) ++
+          citation.toVector.map(x => Triple(subject, Schema.node.citation, Node.Literal(x))) ++
+          terms.map(x => Triple(subject, Dcterms.node.subject, Node.Literal(x)))
+        Bibliography(cid, meta, triples)
       }
+
+      private def _uri_or_literal(value: String): Node =
+        try {
+          val uri = new URI(value)
+          if (uri.isAbsolute) Node.Uri(value) else Node.Literal(value)
+        } catch {
+          case _: Exception => Node.Literal(value)
+        }
     }
 
     private def _create_canonical_id(path: URI): String = {

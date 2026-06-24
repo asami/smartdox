@@ -17,7 +17,7 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  * a semantic graph aligned with DocumentModelOntology.
  *
  * @since   Nov. 28, 2025
- * @version Nov. 28, 2025
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 object DocumentModelSchema extends SchemaModel {
@@ -119,7 +119,7 @@ object DocumentModelSchema extends SchemaModel {
     val kus = res.collect {
       case Site.SiteResource.Article(id, meta) =>
         KnowledgeUnitInstance(id, meta.getTitleString(java.util.Locale.JAPANESE).getOrElse(id))
-      case Site.SiteResource.Bibliography(id, meta) =>
+      case Site.SiteResource.Bibliography(id, meta, _) =>
         KnowledgeUnitInstance(id, meta.getTitleString(java.util.Locale.JAPANESE).getOrElse(id))
     }
 

@@ -407,6 +407,84 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
       }
     }
 
+    "emit bibliography metadata for reference source knowledge" in {
+      val dir = Files.createTempDirectory("smartdox-bibliography-metadata")
+      try {
+        Given("a site with bibliography entries for a book and a web reference")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("bibliography/concept/design-patterns.dox"),
+          """Design Patterns
+            |===============
+            |
+            |# HEAD
+            |
+            |title = "Design Patterns"
+            |brief = "Reusable object-oriented design catalog."
+            |status = "published"
+            |published_at = "1994-10-21"
+            |bibliography.id = "bib:design-patterns"
+            |bibliography.type = "book"
+            |bibliography.authors = ["Erich Gamma", "Richard Helm", "Ralph Johnson", "John Vlissides"]
+            |bibliography.publisher = "Addison-Wesley"
+            |bibliography.identifiers.isbn = "9780201633610"
+            |bibliography.terms = ["pattern", "object-oriented design"]
+            |bibliography.citation = "Gamma et al. Design Patterns. Addison-Wesley, 1994."
+            |bibliography.bibtex.key = "gamma1994designpatterns"
+            |
+            |# Overview
+            |
+            |A reference book for design patterns.
+            |""".stripMargin)
+        _write(dir.resolve("bibliography/technology/crossref.md"),
+          """---
+            |title: Crossref REST API
+            |brief: Metadata search API for scholarly references.
+            |bibliography:
+            |  id: bib:crossref-api
+            |  type: web-page
+            |  source_url: https://api.crossref.org
+            |  accessed_at: 2026-06-24
+            |  terms:
+            |    - bibliography
+            |bibtex:
+            |  source_url: https://api.crossref.org/works
+            |---
+            |
+            |# Crossref REST API
+            |
+            |A web reference used for bibliography search.
+            |""".stripMargin)
+
+        When("SmartDox builds BoK site metadata")
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val bibliography = realm.getString("metadata/bibliography/bibliography.json").get
+        val ttl = realm.getString("site.ttl").get
+
+        Then("bibliography entries are generated deterministically from the bibliography source tree")
+        bibliography should include ("\"id\" : \"bib:design-patterns\"")
+        bibliography should include ("\"entry_type\" : \"book\"")
+        bibliography should include ("\"category\" : \"concept\"")
+        bibliography should include ("\"isbn\" : \"9780201633610\"")
+        bibliography should include ("\"key\" : \"gamma1994designpatterns\"")
+        bibliography should include ("\"id\" : \"bib:crossref-api\"")
+        bibliography should include ("\"entry_type\" : \"web-page\"")
+        bibliography should include ("\"source_url\" : \"https://api.crossref.org\"")
+        bibliography.indexOf("bib:design-patterns") should be < bibliography.indexOf("bib:crossref-api")
+
+        And("bibliography pages are represented in the site RDF graph")
+        ttl should include ("bibliography/concept/design-patterns")
+        ttl should include ("BibliographicResource")
+        ttl should include ("isbn:9780201633610")
+        ttl should include ("Gamma et al. Design Patterns.")
+        ttl should include ("object-oriented design")
+        ttl should include ("https://api.crossref.org")
+      } finally {
+        _delete(dir)
+      }
+    }
+
     "keep scenario metadata as DocumentMetaData properties without semantic extraction" in {
       val dir = Files.createTempDirectory("smartdox-scenario-source-metadata")
       try {

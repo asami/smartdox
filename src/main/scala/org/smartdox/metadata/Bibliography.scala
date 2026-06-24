@@ -1,25 +1,97 @@
 package org.smartdox.metadata
 
-import org.smartdox._
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.extras._
+import io.circe.generic.extras.semiauto._
 
 /*
  * @since   Feb. 23, 2025
- * @version Nov. 21, 2025
+ *  version Nov. 21, 2025
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Bibliography(
-  definitions: Vector[Bibliography.Definition] = Vector.empty
+  entries: Vector[Bibliography.Entry] = Vector.empty
 ) {
+  def definitions: Vector[Bibliography.Entry] = entries
+
   def toHistory: History = {
-    val slots = definitions.flatMap(_.toHistorySlot)
+    val slots = entries.flatMap(_.toHistorySlot)
     History(slots)
   }
 }
 
 object Bibliography {
+  implicit val circeconf: Configuration = Configuration.default.withDefaults.withSnakeCaseMemberNames
+
   val empty = Bibliography()
 
-  case class Definition() {
+  case class Identifiers(
+    doi: Option[String] = None,
+    isbn: Option[String] = None,
+    issn: Option[String] = None,
+    url: Option[String] = None,
+    urn: Option[String] = None,
+    arxiv: Option[String] = None,
+    github: Option[String] = None,
+    wikidata: Option[String] = None
+  )
+  object Identifiers {
+    val empty: Identifiers = Identifiers()
+    implicit val identifiersEncoder: Encoder.AsObject[Identifiers] = deriveConfiguredEncoder
+  }
+
+  case class Bibtex(
+    key: Option[String] = None,
+    entryType: Option[String] = None,
+    sourceUrl: Option[String] = None,
+    raw: Option[String] = None
+  )
+  object Bibtex {
+    val empty: Bibtex = Bibtex()
+    implicit val bibtexEncoder: Encoder.AsObject[Bibtex] = deriveConfiguredEncoder
+  }
+
+  case class Quality(
+    missingCitation: Boolean = false,
+    missingTerms: Boolean = false,
+    missingSource: Boolean = false
+  )
+  object Quality {
+    val empty: Quality = Quality()
+    implicit val qualityEncoder: Encoder.AsObject[Quality] = deriveConfiguredEncoder
+  }
+
+  case class Entry(
+    id: String,
+    slug: String,
+    entryType: String,
+    title: String,
+    summary: Option[String],
+    category: Option[String],
+    sourcePath: String,
+    publicPath: String,
+    authors: Vector[String] = Vector.empty,
+    publishedAt: Option[String] = None,
+    publisher: Option[String] = None,
+    sourceUrl: Option[String] = None,
+    accessedAt: Option[String] = None,
+    terms: Vector[String] = Vector.empty,
+    citation: Option[String] = None,
+    identifiers: Identifiers = Identifiers.empty,
+    bibtex: Bibtex = Bibtex.empty,
+    bodyHtml: String = "",
+    quality: Quality = Quality.empty
+  ) {
     def toHistorySlot: Vector[History.Slot] = Vector.empty
   }
+  object Entry {
+    implicit val entryEncoder: Encoder.AsObject[Entry] = deriveConfiguredEncoder
+  }
+
+  implicit val bibliographyEncoder: Encoder.AsObject[Bibliography] = deriveConfiguredEncoder
+
+  def toJsonString(p: Bibliography): String =
+    p.asJson.spaces2 + "\n"
 }

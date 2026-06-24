@@ -3,6 +3,7 @@ package org.smartdox.doxsite
 import scalaz.{Tree => ZTree, Category => _, _}, Scalaz._
 import scala.util.control.NonFatal
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 import scala.util.matching.Regex
 import java.io.File
 import java.net.URI
@@ -80,7 +81,6 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- *  version Jun. 22, 2026
  * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
@@ -374,6 +374,7 @@ class DoxSite(
     realm.setContent("metadata/dashboard/site.json", DoxSiteDashboard.toJsonString(metadata.dashboard))
     realm.setContent("metadata/rdf/graph.json", DoxSiteDashboard.toRdfGraphJsonString(metadata))
     realm.setContent("metadata/glossary/terms.json", DoxSiteDashboard.toGlossaryTermsJsonString(metadata))
+    realm.setContent("metadata/bibliography/bibliography.json", Bibliography.toJsonString(metadata.bibliography))
     realm.setContent("metadata/documents/fragments.json", DoxSiteDocumentFragments.toJsonString(_document_fragments(context)))
     realm
   }
@@ -1295,6 +1296,7 @@ object DoxSite {
     val history = _build_history(history0, glossary, bibliography, keywords, tags)
     val metadata0x = MetaData(
       glossary = glossary,
+      bibliography = bibliography,
       categories = categories,
       keywords = keywords,
       tags = tags,
@@ -1505,7 +1507,140 @@ object DoxSite {
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
   ): Bibliography = {
-    Bibliography.empty // TODO
+    val entries = ArrayBuffer.empty[Bibliography.Entry]
+    p.traverse(new DoxSiteVisitor {
+      override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
+        content match {
+          case page: Page => _bibliography_entry(ctx, node, page).foreach(entries += _)
+          case _ =>
+        }
+    })
+    Bibliography(entries.toVector.sortBy(x => (x.category.getOrElse(""), x.slug, x.id)))
+  }
+
+  private def _bibliography_entry(
+    ctx: DoxSiteTransformer.Context,
+    node: TreeNode[Node],
+    page: Page
+  ): Option[Bibliography.Entry] = {
+    val sourcepath = node.pathnameRelative
+    _bibliography_source_category(sourcepath).map { category =>
+      val metadata = page.dox.head.metadata
+      val slug = StringUtils.toPathnameBody(sourcepath.split('/').lastOption.getOrElse(sourcepath))
+      val id = _metadata_string(metadata, "bibliography.id", "bib.id", "id").getOrElse(s"${category}:${slug}")
+      val title = _metadata_string(metadata, "bibliography.title", "title").
+        orElse(metadata.getTitleStringDefault).
+        getOrElse(slug)
+      val summary = _metadata_string(metadata, "bibliography.summary", "summary", "brief", "description").
+        orElse(metadata.getEffectiveSummaryString(LocaleUtils.en)).
+        orElse(metadata.getEffectiveBriefString(LocaleUtils.en))
+      val entrytype = _metadata_string(metadata, "bibliography.type", "type").getOrElse("other")
+      val sourceurl = _metadata_string(metadata, "bibliography.source_url", "source_url", "url")
+      val citation = _metadata_string(metadata, "bibliography.citation", "citation")
+      val terms = _metadata_string_list(metadata, "bibliography.terms", "terms")
+      val authors = _metadata_string_list(metadata, "bibliography.authors", "authors", "author")
+      val identifiers = Bibliography.Identifiers(
+        doi = _metadata_string(metadata, "bibliography.identifiers.doi", "bibliography.doi", "doi"),
+        isbn = _metadata_string(metadata, "bibliography.identifiers.isbn", "bibliography.isbn", "isbn"),
+        issn = _metadata_string(metadata, "bibliography.identifiers.issn", "bibliography.issn", "issn"),
+        url = _metadata_string(metadata, "bibliography.identifiers.url", "bibliography.url", "url"),
+        urn = _metadata_string(metadata, "bibliography.identifiers.urn", "bibliography.urn", "urn"),
+        arxiv = _metadata_string(metadata, "bibliography.identifiers.arxiv", "bibliography.arxiv", "arxiv"),
+        github = _metadata_string(metadata, "bibliography.identifiers.github", "bibliography.github", "github"),
+        wikidata = _metadata_string(metadata, "bibliography.identifiers.wikidata", "bibliography.wikidata", "wikidata")
+      )
+      val bibtex = Bibliography.Bibtex(
+        key = _metadata_string(metadata, "bibliography.bibtex.key", "bibtex.key"),
+        entryType = _metadata_string(metadata, "bibliography.bibtex.entry_type", "bibliography.bibtex.entryType", "bibtex.entry_type", "bibtex.entryType"),
+        sourceUrl = _metadata_string(metadata, "bibliography.bibtex.source_url", "bibliography.bibtex.sourceUrl", "bibtex.source_url", "bibtex.sourceUrl"),
+        raw = _metadata_string(metadata, "bibliography.bibtex.raw", "bibtex.raw")
+      )
+      Bibliography.Entry(
+        id = id,
+        slug = slug,
+        entryType = entrytype,
+        title = title,
+        summary = summary,
+        category = Some(category),
+        sourcePath = sourcepath,
+        publicPath = StringUtils.changeSuffix(sourcepath, "html"),
+        authors = authors,
+        publishedAt = _metadata_string(metadata, "bibliography.published_at", "bibliography.publishedAt", "published_at", "publishedAt").orElse(metadata.publishedAt.map(_.print)),
+        publisher = _metadata_string(metadata, "bibliography.publisher", "publisher"),
+        sourceUrl = sourceurl,
+        accessedAt = _metadata_string(metadata, "bibliography.accessed_at", "bibliography.accessedAt", "accessed_at", "accessedAt"),
+        terms = terms,
+        citation = citation,
+        identifiers = identifiers,
+        bibtex = bibtex,
+        bodyHtml = _bibliography_body_html(ctx.generatorContext, page.dox),
+        quality = Bibliography.Quality(
+          missingCitation = citation.isEmpty,
+          missingTerms = terms.isEmpty,
+          missingSource = sourceurl.isEmpty && identifiers.url.isEmpty && bibtex.sourceUrl.isEmpty
+        )
+      )
+    }
+  }
+
+  private def _bibliography_source_category(sourcepath: String): Option[String] = {
+    val parts = sourcepath.split('/').toVector.filter(_.nonEmpty)
+    parts match {
+      case Vector("bibliography", category, _*) if category.nonEmpty => Some(category)
+      case _ => None
+    }
+  }
+
+  private def _bibliography_body_html(context: Context, dox: Document): String = {
+    val body = dox.body.contents
+    val rule = Dox2HtmlTransformer.Rule(isDocument = false, sectionBaseNumber = Some(2), isDefaultCss = false)
+    Consequence.from(Dox2HtmlTransformer(context, rule).transform(Dox.toDox(body))).foldConclusion(_.message).trim
+  }
+
+  private def _metadata_string(metadata: DocumentMetaData, keys: String*): Option[String] =
+    metadata.properties.flatMap { hocon =>
+      keys.toStream.flatMap { key =>
+        try {
+          if (hocon.hasPath(key))
+            Some(hocon.getString(key)).filter(_.trim.nonEmpty)
+          else
+            None
+        } catch {
+          case NonFatal(_) => None
+        }
+      }.headOption
+    }
+
+  private def _metadata_string_list(metadata: DocumentMetaData, keys: String*): Vector[String] =
+    metadata.properties.map { hocon =>
+      keys.toStream.flatMap(key => _hocon_string_list(hocon, key)).headOption.getOrElse(Vector.empty)
+    }.getOrElse(Vector.empty)
+
+  private def _hocon_string_list(hocon: com.typesafe.config.Config, key: String): Option[Vector[String]] =
+    try {
+      if (!hocon.hasPath(key))
+        None
+      else
+        Some(hocon.getStringList(key).asScala.toVector.map(_.trim).filter(_.nonEmpty))
+    } catch {
+      case NonFatal(_) =>
+        try {
+          Some(_string_list(hocon.getString(key))).filter(_.nonEmpty)
+        } catch {
+          case NonFatal(_) => None
+        }
+    }
+
+  private def _string_list(value: String): Vector[String] = {
+    val trimmed = value.trim
+    if (trimmed.startsWith("[") && trimmed.endsWith("]"))
+      trimmed.drop(1).dropRight(1).split(',').toVector.map(_.trim.stripPrefix("\"").stripSuffix("\"")).filter(_.nonEmpty)
+    else if (trimmed.contains(","))
+      trimmed.split(',').toVector.map(_.trim).filter(_.nonEmpty)
+    else if (trimmed.nonEmpty)
+      Vector(trimmed)
+    else
+      Vector.empty
   }
 
   private def _build_site_model(
@@ -1516,7 +1651,8 @@ object DoxSite {
   ): MetaData = {
     val articles = _article_site_resources(p)
     val glossaries = _glossary_site_resources(p)
-    val resourcs = articles ++ glossaries
+    val bibliographies = _bibliography_site_resources(p)
+    val resourcs = articles ++ glossaries ++ bibliographies
     val site = SiteModel.create(p, resourcs, siteMetadata, videopublications, publicationtriples)
     val metadata = p.copy(site = site)
     metadata.copy(dashboard = DoxSiteDashboard.create(metadata))
@@ -1535,6 +1671,32 @@ object DoxSite {
       case m: Glossary.Definition.InGlossary => Some(m.toSiteResource)
     }
   }
+
+  private def _bibliography_site_resources(p: MetaData) =
+    p.bibliography.entries.map { entry =>
+      val metadata = DocumentMetaData.empty.withTitle(entry.title).withSummary(entry.summary.getOrElse(""))
+      Site.SiteResource.Bibliography.create(
+        new URI(entry.publicPath),
+        metadata,
+        entrytype = Some(entry.entryType),
+        identifiers = _bibliography_identifiers(entry),
+        sourceurl = entry.sourceUrl.orElse(entry.identifiers.url),
+        citation = entry.citation,
+        terms = entry.terms
+      )
+    }
+
+  private def _bibliography_identifiers(entry: Bibliography.Entry): Vector[String] =
+    Vector(
+      entry.identifiers.doi.map("doi:" + _),
+      entry.identifiers.isbn.map("isbn:" + _),
+      entry.identifiers.issn.map("issn:" + _),
+      entry.identifiers.url.map("url:" + _),
+      entry.identifiers.urn.map("urn:" + _),
+      entry.identifiers.arxiv.map("arxiv:" + _),
+      entry.identifiers.github.map("github:" + _),
+      entry.identifiers.wikidata.map("wikidata:" + _)
+    ).flatten
 
   private def _enable_link(
     ctx: DoxSiteTransformer.Context,
