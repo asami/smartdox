@@ -26,7 +26,7 @@ import io.circe.parser
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun. 24, 2026
+ * @version Jun. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -407,134 +407,166 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseD
       }
     }
 
-    "emit bibliography metadata for reference source knowledge" in {
-      val dir = Files.createTempDirectory("smartdox-bibliography-metadata")
-      try {
-        Given("a site with bibliography entries for a book and a web reference")
-        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
-        _write(dir.resolve("bibliography/concept/design-patterns.dox"),
-          """Design Patterns
-            |===============
-            |
-            |# HEAD
-            |
-            |title = "Design Patterns"
-            |brief = "Reusable object-oriented design catalog."
-            |status = "published"
-            |published_at = "1994-10-21"
-            |bibliography.id = "bib:design-patterns"
-            |bibliography.type = "book"
-            |bibliography.authors = ["Erich Gamma", "Richard Helm", "Ralph Johnson", "John Vlissides"]
-            |bibliography.publisher = "Addison-Wesley"
-            |bibliography.identifiers.isbn = "9780201633610"
-            |bibliography.terms = ["pattern", "object-oriented design"]
-            |bibliography.citation = "Gamma et al. Design Patterns. Addison-Wesley, 1994."
-            |bibliography.bibtex.key = "gamma1994designpatterns"
-            |
-            |# Overview
-            |
-            |A reference book for design patterns.
-            |""".stripMargin)
-        _write(dir.resolve("bibliography/technology/crossref.md"),
-          """---
-            |title: Crossref REST API
-            |brief: Metadata search API for scholarly references.
-            |bibliography:
-            |  id: bib:crossref-api
-            |  type: web-page
-            |  source_url: https://api.crossref.org
-            |  accessed_at: 2026-06-24
-            |  terms:
-            |    - bibliography
-            |bibtex:
-            |  source_url: https://api.crossref.org/works
-            |---
-            |
-            |# Crossref REST API
-            |
-            |A web reference used for bibliography search.
-            |""".stripMargin)
-        _write(dir.resolve("technology/design-article.md"),
-          """---
-            |title: Design Article
-            |bibliography:
-            |  refs:
-            |    - bib:design-patterns
-            |    - doi:10.5555/unresolved-reference
-            |---
-            |
-            |# Design Article
-            |
-            |This article cites a local bibliography entry and an external DOI.
-            |""".stripMargin)
-        _write(dir.resolve("technology/dox-design-article.dox"),
-          """Dox Design Article
-            |==================
-            |
-            |# HEAD
-            |
-            |title = "Dox Design Article"
-            |bibliography.refs = ["openlibrary:works/OL31219436W"]
-            |
-            |# Overview
-            |
-            |This Dox article cites an external OpenLibrary bibliography id.
-            |""".stripMargin)
-        _write(dir.resolve("bibliography/concept/design-patterns.bib"),
-          """@book{design-patterns,
-            |  title = {BibTeX Shadow Design Patterns},
-            |  author = {Shadow, Writer},
-            |  year = {1999}
-            |}
-            |""".stripMargin)
-        _write(dir.resolve("bibliography/technology/refactoring.bib"),
-          """@book{fowler1999refactoring,
-            |  title = {Refactoring: {Improving} the Design of Existing Code},
-            |  author = {Fowler, Martin},
-            |  year = {1999},
-            |  publisher = {Addison-Wesley},
-            |  isbn = {9780201485677}
-            |}
-            |""".stripMargin)
+    "bibliography/reference source knowledge" which {
+      "emit bibliography metadata with inline citations and RDF source refs" in {
+        val dir = Files.createTempDirectory("smartdox-bibliography-metadata")
+        try {
+          Given("a site with bibliography entries for a book and a web reference")
+          _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+          _write(dir.resolve("bibliography/concept/design-patterns.bib.dox"),
+            """Design Patterns
+              |===============
+              |
+              |# HEAD
+              |
+              |title = "Design Patterns"
+              |brief = "Reusable object-oriented design catalog."
+              |status = "published"
+              |published_at = "1994-10-21"
+              |id = "bib:design-patterns"
+              |key = "gamma1995designpatterns"
+              |type = "book"
+              |authors = ["Erich Gamma", "Richard Helm", "Ralph Johnson", "John Vlissides"]
+              |publisher = "Addison-Wesley"
+              |identifiers.isbn = "9780201633610"
+              |terms = ["pattern", "object-oriented design"]
+              |citation = "Gamma et al. Design Patterns. Addison-Wesley, 1994."
+              |
+              |# Overview
+              |
+              |A reference book for design patterns.
+              |""".stripMargin)
+          _write(dir.resolve("bibliography/technology/crossref.bib.md"),
+            """---
+              |title: Crossref REST API
+              |brief: Metadata search API for scholarly references.
+              |id: bib:crossref-api
+              |type: web-page
+              |source_url: https://api.crossref.org
+              |accessed_at: 2026-06-24
+              |terms:
+              |  - bibliography
+              |bibtex:
+              |  source_url: https://api.crossref.org/works
+              |---
+              |
+              |# Crossref REST API
+              |
+              |A web reference used for bibliography search.
+              |""".stripMargin)
+          _write(dir.resolve("technology/design-article.md"),
+            """---
+              |title: Design Article
+              |bibliography:
+              |  refs:
+              |    - bib:design-patterns
+              |    - doi:10.5555/unresolved-reference
+              |---
+              |
+              |# Design Article
+              |
+              |This article cites a local bibliography entry and an external DOI.
+              |""".stripMargin)
+          _write(dir.resolve("technology/dox-design-article.dox"),
+            """Dox Design Article
+              |==================
+              |
+              |# HEAD
+              |
+              |title = "Dox Design Article"
+              |bibliography.refs = ["openlibrary:works/OL31219436W"]
+              |
+              |# Overview
+              |
+              |This Dox article cites an external OpenLibrary bibliography id.
+              |""".stripMargin)
+          _write(dir.resolve("technology/inline-bibliography.dox"),
+            """Inline Bibliography
+              |===================
+              |
+              |# HEAD
+              |
+              |title = "Inline Bibliography"
+              |
+              |# Overview
+              |
+              |This article cites Design Patterns with bib:[gamma1995designpatterns] and Refactoring with bib:[fowler1999refactoring].
+              |""".stripMargin)
+          _write(dir.resolve("bibliography/concept/design-patterns.bib"),
+            """@book{design-patterns,
+              |  title = {BibTeX Shadow Design Patterns},
+              |  author = {Shadow, Writer},
+              |  year = {1999}
+              |}
+              |""".stripMargin)
+          _write(dir.resolve("bibliography/technology/refactoring.bib"),
+            """@book{fowler1999refactoring,
+              |  title = {Refactoring: {Improving} the Design of Existing Code},
+              |  author = {Fowler, Martin},
+              |  year = {1999},
+              |  publisher = {Addison-Wesley},
+              |  isbn = {9780201485677}
+              |}
+              |""".stripMargin)
 
-        When("SmartDox builds BoK site metadata")
-        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
-        val realm = site.toRealm(context)
-        implicit val i18ncontext: I18NContext = context.i18NContext
-        val bibliography = realm.getString("metadata/bibliography/bibliography.json").get
-        val ttl = realm.getString("site.ttl").get
+          When("SmartDox builds BoK site metadata")
+          val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+          val realm = site.toRealm(context)
+          implicit val i18ncontext: I18NContext = context.i18NContext
+          val bibliography = realm.getString("metadata/bibliography/bibliography.json").get
+          val ttl = realm.getString("site.ttl").get
 
-        Then("bibliography entries are generated deterministically from the bibliography source tree")
-        bibliography should include ("\"id\" : \"bib:design-patterns\"")
-        bibliography should include ("\"entry_type\" : \"book\"")
-        bibliography should include ("\"category\" : \"concept\"")
-        bibliography should include ("\"isbn\" : \"9780201633610\"")
-        bibliography should include ("\"key\" : \"gamma1994designpatterns\"")
-        bibliography should include ("\"id\" : \"bib:crossref-api\"")
-        bibliography should include ("\"entry_type\" : \"web-page\"")
-        bibliography should include ("\"source_url\" : \"https://api.crossref.org\"")
-        bibliography should include ("\"id\" : \"doi:10.5555/unresolved-reference\"")
-        bibliography should include ("\"id\" : \"openlibrary:works/OL31219436W\"")
-        bibliography should include ("\"source_kind\" : \"external-ref\"")
-        bibliography should include ("\"needs_resolution\" : true")
-        bibliography should include ("\"id\" : \"bib:fowler1999refactoring\"")
-        bibliography should include ("\"source_kind\" : \"bibtex-only\"")
-        bibliography should include ("Refactoring: {Improving} the Design of Existing Code")
-        bibliography should include ("\"isbn\" : \"9780201485677\"")
-        bibliography.indexOf("bib:design-patterns") should be < bibliography.indexOf("bib:crossref-api")
-        "\"id\" : \"bib:design-patterns\"".r.findAllIn(bibliography).size shouldBe 1
-        bibliography should include ("\"source_path\" : \"bibliography/concept/design-patterns.dox\"")
-        bibliography should not include ("BibTeX Shadow Design Patterns")
+          Then("bibliography entries are generated deterministically from the bibliography source tree")
+          bibliography should include ("\"id\" : \"bib:design-patterns\"")
+          bibliography should include ("\"entry_type\" : \"book\"")
+          bibliography should include ("\"category\" : \"concept\"")
+          bibliography should include ("\"isbn\" : \"9780201633610\"")
+          bibliography should include ("\"key\" : \"gamma1995designpatterns\"")
+          bibliography should include ("\"id\" : \"bib:crossref-api\"")
+          bibliography should include ("\"entry_type\" : \"web-page\"")
+          bibliography should include ("\"source_url\" : \"https://api.crossref.org\"")
+          bibliography should include ("\"id\" : \"doi:10.5555/unresolved-reference\"")
+          bibliography should include ("\"id\" : \"openlibrary:works/OL31219436W\"")
+          bibliography should include ("\"source_refs\"")
+          bibliography should include ("\"citation_key\" : \"gamma1995designpatterns\"")
+          bibliography should include ("\"citation_key\" : \"fowler1999refactoring\"")
+          bibliography should include ("\"public_path\" : \"technology/inline-bibliography.html\"")
+          bibliography should not include ("\"id\" : \"gamma1995designpatterns\"")
+          bibliography should include ("\"id\" : \"bib:fowler1999refactoring\"")
+          bibliography should include ("\"source_kind\" : \"bibtex-only\"")
+          bibliography should include ("Refactoring: {Improving} the Design of Existing Code")
+          bibliography should include ("\"isbn\" : \"9780201485677\"")
+          bibliography.indexOf("bib:design-patterns") should be < bibliography.indexOf("bib:crossref-api")
+          "\"id\" : \"bib:design-patterns\"".r.findAllIn(bibliography).size shouldBe 1
+          bibliography should include ("\"source_path\" : \"bibliography/concept/design-patterns.bib.dox\"")
+          bibliography should not include ("BibTeX Shadow Design Patterns")
 
-        And("bibliography pages are represented in the site RDF graph")
-        ttl should include ("bibliography/concept/design-patterns")
-        ttl should include ("BibliographicResource")
-        ttl should include ("isbn:9780201633610")
-        ttl should include ("Gamma et al. Design Patterns.")
-        ttl should include ("object-oriented design")
-        ttl should include ("https://api.crossref.org")
-      } finally {
-        _delete(dir)
+          And("article citation links are represented in the site RDF graph")
+          ttl should include ("technology/inline-bibliography")
+          ttl should include ("https://schema.org/citation")
+          ttl should include ("http://purl.org/dc/terms/references")
+
+          And("article pages render inline bibliography citations and a References section")
+          val article = realm.getString("/ja/technology/inline-bibliography.html").
+            orElse(realm.getString("ja/technology/inline-bibliography.html")).
+            orElse(realm.getString("/en/technology/inline-bibliography.html")).
+            orElse(realm.getString("en/technology/inline-bibliography.html")).
+            get
+          article should include ("bibliography-citation")
+          article should include ("[Gamma et al. 1994]")
+          article should include ("[Fowler 1999]")
+          article should include ("Bibliography")
+
+          And("bibliography pages are represented in the site RDF graph")
+          ttl should include ("bibliography/concept/design-patterns")
+          ttl should include ("BibliographicResource")
+          ttl should include ("isbn:9780201633610")
+          ttl should include ("Gamma et al. Design Patterns.")
+          ttl should include ("object-oriented design")
+          ttl should include ("https://api.crossref.org")
+        } finally {
+          _delete(dir)
+        }
       }
     }
 

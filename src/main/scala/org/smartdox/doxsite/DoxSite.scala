@@ -82,7 +82,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun. 24, 2026
+ * @version Jun. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1505,12 +1505,27 @@ object DoxSite {
       (p, Glossary.empty)
     }
 
+  private final case class BibliographyRef(
+    bibid: String,
+    sourcePath: String,
+    category: String,
+    ordinal: Int
+  ) {
+    def sourceRef: Bibliography.SourceRef = Bibliography.SourceRef(
+      sourcePath,
+      StringUtils.changeSuffix(sourcePath, "html"),
+      Some(category),
+      bibid,
+      ordinal
+    )
+  }
+
   private def _collect_bibliography(
     ctx: DoxSiteTransformer.Context,
     p: Tree[Node]
   ): Bibliography = {
     val entries = ArrayBuffer.empty[Bibliography.Entry]
-    val refs = ArrayBuffer.empty[(String, String, String)]
+    val refs = ArrayBuffer.empty[BibliographyRef]
     p.traverse(new DoxSiteVisitor {
       override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
         content match {
@@ -1526,14 +1541,37 @@ object DoxSite {
       entries ++= _bibliography_bibtex_entries(root.toPath)
       refs ++= _bibliography_source_refs(root.toPath)
     }
-    val definedentries = entries.toVector.sortBy(_bibliography_entry_priority).groupBy(_.id).mapValues(_.head).values.toVector
+    val definedentries = entries.toVector.
+      sortBy(_bibliography_entry_priority).
+      groupBy(_.id).
+      map { case (_, xs) => xs.head }.
+      toVector
     val byid = definedentries.map(x => x.id -> x).toMap
-    val externalrefs = refs.toVector.distinct.collect {
-      case (bibid, sourcepath, category) if !byid.contains(bibid) =>
-        _bibliography_external_ref_entry(bibid, sourcepath, category)
+    val bykey = definedentries.flatMap { entry =>
+      entry.key.map(key => _normalize_bibid(key) -> entry)
+    }.toMap
+    def resolve(ref: BibliographyRef): Option[Bibliography.Entry] =
+      byid.get(ref.bibid).orElse(bykey.get(ref.bibid))
+
+    val resolvedrefs = refs.toVector.flatMap { ref =>
+      resolve(ref).map(entry => entry.id -> ref.sourceRef)
+    }.groupBy(_._1).map { case (id, xs) => id -> _distinct_source_refs(xs.map(_._2)) }
+    val enrichedentries = definedentries.map { entry =>
+      entry.copy(sourceRefs = _distinct_source_refs(entry.sourceRefs ++ resolvedrefs.getOrElse(entry.id, Vector.empty)))
     }
-    Bibliography((definedentries ++ externalrefs).sortBy(x => (x.category.getOrElse(""), x.slug, x.id)))
+    val externalrefs = refs.toVector.filter(ref => resolve(ref).isEmpty).
+      groupBy(_.bibid).
+      toVector.
+      map { case (bibid, xs) =>
+        val ordered = xs.sortBy(x => (x.sourcePath, x.ordinal, x.bibid))
+        val first = ordered.head
+        _bibliography_external_ref_entry(bibid, first.sourcePath, first.category, _distinct_source_refs(ordered.map(_.sourceRef)))
+      }
+    Bibliography((enrichedentries ++ externalrefs).sortBy(x => (x.category.getOrElse(""), x.slug, x.id)))
   }
+
+  private def _distinct_source_refs(refs: Vector[Bibliography.SourceRef]): Vector[Bibliography.SourceRef] =
+    refs.distinct.sortBy(x => (x.sourcePath, x.ordinal, x.citationKey))
 
   private def _bibliography_entry(
     ctx: DoxSiteTransformer.Context,
@@ -1543,56 +1581,57 @@ object DoxSite {
     val sourcepath = node.pathnameRelative
     _bibliography_source_category(sourcepath).map { category =>
       val metadata = page.dox.head.metadata
-      val slug = StringUtils.toPathnameBody(sourcepath.split('/').lastOption.getOrElse(sourcepath))
-      val id = _metadata_string(metadata, "bibliography.id", "bib.id", "id").getOrElse(s"${category}:${slug}")
-      val title = _metadata_string(metadata, "bibliography.title", "title").
+      val slug = _bibliography_slug(sourcepath)
+      val id = _metadata_string(metadata, "id").getOrElse(s"${category}:${slug}")
+      val key = _metadata_string(metadata, "key")
+      val title = _metadata_string(metadata, "title").
         orElse(metadata.getTitleStringDefault).
         getOrElse(slug)
-      val summary = _metadata_string(metadata, "bibliography.summary", "summary", "brief", "description").
+      val summary = _metadata_string(metadata, "summary", "brief", "description").
         orElse(metadata.getEffectiveSummaryString(LocaleUtils.en)).
         orElse(metadata.getEffectiveBriefString(LocaleUtils.en))
-      val entrytype = _metadata_string(metadata, "bibliography.type", "type").getOrElse("other")
-      val sourceurl = _metadata_string(metadata, "bibliography.source_url", "source_url", "url")
-      val citation = _metadata_string(metadata, "bibliography.citation", "citation")
-      val terms = _metadata_string_list(metadata, "bibliography.terms", "terms")
-      val authors = _metadata_string_list(metadata, "bibliography.authors", "authors", "author")
+      val entrytype = _metadata_string(metadata, "type").getOrElse("other")
+      val sourceurl = _metadata_string(metadata, "source_url", "url")
+      val citation = _metadata_string(metadata, "citation")
+      val terms = _metadata_string_list(metadata, "terms")
+      val authors = _metadata_string_list(metadata, "authors", "author")
       val identifiers = Bibliography.Identifiers(
-        doi = _metadata_string(metadata, "bibliography.identifiers.doi", "bibliography.doi", "doi"),
-        isbn = _metadata_string(metadata, "bibliography.identifiers.isbn", "bibliography.isbn", "isbn"),
-        issn = _metadata_string(metadata, "bibliography.identifiers.issn", "bibliography.issn", "issn"),
-        url = _metadata_string(metadata, "bibliography.identifiers.url", "bibliography.url", "url"),
-        urn = _metadata_string(metadata, "bibliography.identifiers.urn", "bibliography.urn", "urn"),
-        arxiv = _metadata_string(metadata, "bibliography.identifiers.arxiv", "bibliography.arxiv", "arxiv"),
-        github = _metadata_string(metadata, "bibliography.identifiers.github", "bibliography.github", "github"),
-        wikidata = _metadata_string(metadata, "bibliography.identifiers.wikidata", "bibliography.wikidata", "wikidata")
+        doi = _metadata_string(metadata, "identifiers.doi", "doi"),
+        isbn = _metadata_string(metadata, "identifiers.isbn", "isbn"),
+        issn = _metadata_string(metadata, "identifiers.issn", "issn"),
+        url = _metadata_string(metadata, "identifiers.url", "url"),
+        urn = _metadata_string(metadata, "identifiers.urn", "urn"),
+        arxiv = _metadata_string(metadata, "identifiers.arxiv", "arxiv"),
+        github = _metadata_string(metadata, "identifiers.github", "github"),
+        wikidata = _metadata_string(metadata, "identifiers.wikidata", "wikidata")
       )
       val bibtex = Bibliography.Bibtex(
-        key = _metadata_string(metadata, "bibliography.bibtex.key", "bibtex.key"),
-        entryType = _metadata_string(metadata, "bibliography.bibtex.entry_type", "bibliography.bibtex.entryType", "bibtex.entry_type", "bibtex.entryType"),
-        sourceUrl = _metadata_string(metadata, "bibliography.bibtex.source_url", "bibliography.bibtex.sourceUrl", "bibtex.source_url", "bibtex.sourceUrl"),
-        raw = _metadata_string(metadata, "bibliography.bibtex.raw", "bibtex.raw")
+        entryType = _metadata_string(metadata, "bibtex.entry_type", "bibtex.entryType"),
+        sourceUrl = _metadata_string(metadata, "bibtex.source_url", "bibtex.sourceUrl"),
+        raw = _metadata_string(metadata, "bibtex.raw")
       )
       Bibliography.Entry(
         id = id,
+        key = key,
         slug = slug,
         entryType = entrytype,
         title = title,
         summary = summary,
         category = Some(category),
         sourcePath = sourcepath,
-        publicPath = StringUtils.changeSuffix(sourcepath, "html"),
+        publicPath = _bibliography_public_path(sourcepath, slug),
         authors = authors,
-        publishedAt = _metadata_string(metadata, "bibliography.published_at", "bibliography.publishedAt", "published_at", "publishedAt").orElse(metadata.publishedAt.map(_.print)),
-        publisher = _metadata_string(metadata, "bibliography.publisher", "publisher"),
+        publishedAt = _metadata_string(metadata, "published_at", "publishedAt").orElse(metadata.publishedAt.map(_.print)),
+        publisher = _metadata_string(metadata, "publisher"),
         sourceUrl = sourceurl,
-        accessedAt = _metadata_string(metadata, "bibliography.accessed_at", "bibliography.accessedAt", "accessed_at", "accessedAt"),
+        accessedAt = _metadata_string(metadata, "accessed_at", "accessedAt"),
         terms = terms,
         citation = citation,
         identifiers = identifiers,
         bibtex = bibtex,
         bodyHtml = _bibliography_body_html(ctx.generatorContext, page.dox),
         sourceKind = "internal",
-        refs = Vector(id),
+        refs = Vector(id) ++ key.toVector,
         needsResolution = false,
         quality = Bibliography.Quality(
           missingCitation = citation.isEmpty,
@@ -1606,23 +1645,64 @@ object DoxSite {
     }
   }
 
+  private def _bibliography_slug(sourcepath: String): String = {
+    val filename = sourcepath.split('/').lastOption.getOrElse(sourcepath)
+    val lower = filename.toLowerCase(java.util.Locale.ROOT)
+    val body =
+      if (lower.endsWith(".bib.dox")) filename.dropRight(".bib.dox".length)
+      else if (lower.endsWith(".bib.md")) filename.dropRight(".bib.md".length)
+      else if (lower.endsWith(".bib.markdown")) filename.dropRight(".bib.markdown".length)
+      else filename
+    StringUtils.toPathnameBody(body)
+  }
+
+  private def _bibliography_public_path(sourcepath: String, slug: String): String = {
+    val dir = sourcepath.split('/').dropRight(1).mkString("/")
+    if (dir.isEmpty) s"${slug}.html" else s"${dir}/${slug}.html"
+  }
+
   private def _bibliography_source_category(sourcepath: String): Option[String] = {
     val parts = sourcepath.split('/').toVector.filter(_.nonEmpty)
     parts match {
-      case Vector("bibliography", category, _*) if category.nonEmpty => Some(category)
+      case Vector("bibliography", file) if _is_bibliography_entry_file(file) => Some("bibliography")
+      case Vector("bibliography", category, file) if category.nonEmpty && _is_bibliography_entry_file(file) => Some(category)
       case _ => None
     }
   }
 
-  private def _bibliography_refs(sourcepath: String, page: Page): Vector[(String, String, String)] = {
+  private def _is_bibliography_entry_file(name: String): Boolean = {
+    val lower = name.toLowerCase(java.util.Locale.ROOT)
+    lower.endsWith(".bib.dox") || lower.endsWith(".bib.md") || lower.endsWith(".bib.markdown") || lower.endsWith(".bib")
+  }
+
+  private def _bibliography_refs(sourcepath: String, page: Page): Vector[BibliographyRef] = {
     if (_bibliography_source_category(sourcepath).nonEmpty)
       Vector.empty
     else {
       val metadata = page.dox.head.metadata
-      val refs = _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
+      val metadatarefs = _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
+      val inlinerefs = _bibliography_inline_refs(page.dox)
       val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
-      refs.map(x => (_normalize_bibid(x), sourcepath, category)).filter(_._1.nonEmpty)
+      _bibliography_refs(sourcepath, category, metadatarefs ++ inlinerefs)
     }
+  }
+
+  private def _bibliography_refs(sourcepath: String, category: String, refs: Vector[String]): Vector[BibliographyRef] =
+    refs.zipWithIndex.map { case (value, index) =>
+      BibliographyRef(_normalize_bibid(value), sourcepath, category, index + 1)
+    }.filter(_.bibid.nonEmpty)
+
+  private def _bibliography_inline_refs(dox: Dox): Vector[String] = {
+    val refs = ArrayBuffer.empty[String]
+    def collect(p: Dox): Unit = {
+      p match {
+        case m: InlineMacro if m.name == "bib" => refs += m.contents.trim
+        case _ =>
+      }
+      p.elements.foreach(collect)
+    }
+    collect(dox)
+    refs.toVector
   }
 
   private def _bibliography_reference_category(sourcepath: String): Option[String] = {
@@ -1637,18 +1717,18 @@ object DoxSite {
     }
   }
 
-  private def _bibliography_source_refs(root: Path): Vector[(String, String, String)] = {
+  private def _bibliography_source_refs(root: Path): Vector[BibliographyRef] = {
     val stream = Files.walk(root)
     try {
       stream.iterator.asScala.toVector.filter(_is_bibliography_ref_source).flatMap { path =>
         val sourcepath = root.relativize(path).toString.replace(File.separatorChar, '/')
         val dox = _parse_source_document(path)
-        Dox.getMetadata(dox).flatMap(_.toOption).toVector.flatMap { metadata =>
-          val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
-          _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids").
-            map(x => (_normalize_bibid(x), sourcepath, category)).
-            filter(_._1.nonEmpty)
+        val metadatarefs = Dox.getMetadata(dox).flatMap(_.toOption).toVector.flatMap { metadata =>
+          _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
         }
+        val inlinerefs = _bibliography_inline_refs(dox)
+        val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
+        _bibliography_refs(sourcepath, category, metadatarefs ++ inlinerefs)
       }
     } finally {
       stream.close()
@@ -1708,6 +1788,7 @@ object DoxSite {
           val slug = StringUtils.toPathnameBody(path.getFileName.toString)
           Bibliography.Entry(
             id = id,
+            key = bib.get("id"),
             slug = slug,
             entryType = bib.getOrElse("type", "other"),
             title = bib.getOrElse("title", slug),
@@ -1723,20 +1804,26 @@ object DoxSite {
             terms = Vector.empty,
             citation = _bibtex_citation(bib),
             identifiers = Bibliography.Identifiers(doi = bib.get("doi"), isbn = bib.get("isbn"), url = bib.get("url")),
-            bibtex = Bibliography.Bibtex(key = bib.get("id"), entryType = bib.get("type"), raw = Some(raw)),
+            bibtex = Bibliography.Bibtex(entryType = bib.get("type"), raw = Some(raw)),
             bodyHtml = "",
             sourceKind = "bibtex-only",
-            refs = Vector(id),
+            refs = Vector(id) ++ bib.get("id").toVector,
             needsResolution = false,
             quality = Bibliography.Quality(missingCitation = false, missingTerms = true, missingSource = bib.get("url").isEmpty && bib.get("doi").isEmpty && bib.get("isbn").isEmpty, missingNarrative = true, bibtexOnly = true, needsCuration = true)
           )
         }
       }
 
-  private def _bibliography_external_ref_entry(bibid: String, sourcepath: String, category: String): Bibliography.Entry = {
+  private def _bibliography_external_ref_entry(
+    bibid: String,
+    sourcepath: String,
+    category: String,
+    sourcerefs: Vector[Bibliography.SourceRef]
+  ): Bibliography.Entry = {
     val slug = _bibid_slug(bibid)
     Bibliography.Entry(
       id = bibid,
+      key = None,
       slug = slug,
       entryType = _bibid_entry_type(bibid),
       title = bibid,
@@ -1748,6 +1835,7 @@ object DoxSite {
       identifiers = _bibid_identifiers(bibid),
       sourceKind = "external-ref",
       refs = Vector(bibid),
+      sourceRefs = sourcerefs,
       needsResolution = true,
       quality = Bibliography.Quality(missingCitation = true, missingTerms = true, missingSource = _bibid_source_url(bibid).isEmpty, missingNarrative = true, needsCuration = true)
     )
@@ -1983,7 +2071,8 @@ object DoxSite {
         identifiers = _bibliography_identifiers(entry),
         sourceurl = entry.sourceUrl.orElse(entry.identifiers.url),
         citation = entry.citation,
-        terms = entry.terms
+        terms = entry.terms,
+        sourceRefs = entry.sourceRefs
       )
     }
 

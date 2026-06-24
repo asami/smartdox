@@ -10,6 +10,7 @@ import org.goldenport.tree._
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
+import org.goldenport.collection.VectorMap
 import org.goldenport.values.PathName
 import org.goldenport.util.StringUtils
 import org.smartdox._
@@ -28,7 +29,7 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Jun.  5, 2026
+ * @version Jun. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -146,6 +147,7 @@ object LinkEnabler {
         case m: Dfn => directive_node(m)
         case m: Dt => directive_node(m)
         case m: Hyperlink => _transform_hyperlink(_locale_, m)
+        case m: InlineMacro if m.name == "bib" => _transform_bibliography_macro(m)
         case m: Preserve => directive_node(m)
         case m if m.isStable => directive_node(m) // CAUTION
         case m: Body => directive_container_content_after(m, _create_references)
@@ -258,9 +260,68 @@ object LinkEnabler {
     }
 
     private def _create_bibliography: Vector[Dox] = {
-      val xs = Vector(
-      ).flatten
-      _create_section(xs, "Bibliography", "参考文献")
+      val xs = _page_bibliography_entries.zipWithIndex.map {
+        case (entry, index) =>
+          val href = create_href(pageNode, new URI(entry.publicPath))
+          val label = _bibliography_reference_label(entry)
+          val citation = entry.citation.orElse(entry.summary).getOrElse(entry.title)
+          val contents: Vector[ListContent] = Vector(
+            Text(s"[${index + 1}] "),
+            Hyperlink(List(Text(label)), href, None, VectorMap("class" -> "bibliography-reference")),
+            Text(s". ${citation}")
+          )
+          Li(contents)
+      }
+      _create_section(if (xs.isEmpty) Vector.empty else Vector(Ol(xs)), "Bibliography", "参考文献")
+    }
+
+    private def _transform_bibliography_macro(m: InlineMacro): TreeTransformer.Directive[Dox] =
+      directive_node(_bibliography_link(m.contents.trim))
+
+    private def _bibliography_link(key: String): Dox = {
+      val normalized = key.trim
+      _bibliography_entry(normalized) match {
+        case Some(entry) =>
+          val href = create_href(pageNode, new URI(entry.publicPath))
+          Hyperlink(List(Text(s"[${_bibliography_citation_label(entry, normalized)}]")), href, None, VectorMap("class" -> "bibliography-citation"))
+        case None =>
+          Span(List(Text(s"[${normalized}]")), VectorMap("class" -> "bibliography-citation unresolved"))
+      }
+    }
+
+    private def _page_bibliography_entries: Vector[org.smartdox.metadata.Bibliography.Entry] = {
+      val current = StringUtils.changeSuffix(pageNode.pathnameRelative, "html")
+      context.metadata.bibliography.entries.filter { entry =>
+        entry.sourceRefs.exists(_.publicPath == current)
+      }.sortBy { entry =>
+        entry.sourceRefs.find(_.publicPath == current).map(_.ordinal).getOrElse(Int.MaxValue)
+      }
+    }
+
+    private def _bibliography_entry(key: String): Option[org.smartdox.metadata.Bibliography.Entry] =
+      context.metadata.bibliography.entries.find { entry =>
+        entry.id == key || entry.key.contains(key) || entry.refs.contains(key)
+      }
+
+    private def _bibliography_citation_label(entry: org.smartdox.metadata.Bibliography.Entry, fallback: String): String = {
+      val author = entry.authors.headOption.map(_author_label)
+      val year = entry.publishedAt.flatMap("""([0-9]{4})""".r.findFirstIn)
+      (author, year) match {
+        case (Some(a), Some(y)) if entry.authors.size > 1 => s"${a} et al. ${y}"
+        case (Some(a), Some(y)) => s"${a} ${y}"
+        case (Some(a), None) => a
+        case (None, Some(y)) => s"${entry.title} ${y}"
+        case _ => fallback
+      }
+    }
+
+    private def _bibliography_reference_label(entry: org.smartdox.metadata.Bibliography.Entry): String =
+      _bibliography_citation_label(entry, entry.key.getOrElse(entry.id))
+
+    private def _author_label(value: String): String = {
+      val trimmed = value.trim
+      if (trimmed.contains(",")) trimmed.takeWhile(_ != ',').trim
+      else trimmed.split("\\s+").lastOption.getOrElse(trimmed)
     }
 
     private def _create_section(xs: Vector[Dox], classname: String, en: String, ja: String): Vector[Dox] =

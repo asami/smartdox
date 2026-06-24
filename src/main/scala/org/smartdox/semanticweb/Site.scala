@@ -31,7 +31,7 @@ import org.smartdox.doxsite.LinkCollection.DoxLinks
  * @since   Nov. 20, 2025
  *  version Nov. 29, 2025
  *  version May. 14, 2026
- * @version Jun. 24, 2026
+ * @version Jun. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 object Site {
@@ -395,16 +395,25 @@ object Site {
         identifiers: Vector[String] = Vector.empty,
         sourceurl: Option[String] = None,
         citation: Option[String] = None,
-        terms: Vector[String] = Vector.empty
+        terms: Vector[String] = Vector.empty,
+        sourceRefs: Vector[org.smartdox.metadata.Bibliography.SourceRef] = Vector.empty
       ): Bibliography = {
         val cid = _create_canonical_id(path)
         val subject = Node.Uri(cid)
+        val citationlinks = sourceRefs.flatMap { ref =>
+          val source = Node.Uri(_create_canonical_id(new URI(ref.publicPath)))
+          Vector(
+            Triple(source, Schema.node.citation, subject),
+            Triple(source, Dcterms.node.references, subject)
+          )
+        }
         val triples =
           entrytype.toVector.map(x => Triple(subject, Dcterms.node.type_, Node.Literal(x))) ++
           identifiers.map(x => Triple(subject, Dcterms.node.identifier, Node.Literal(x))) ++
           sourceurl.toVector.map(x => Triple(subject, Dcterms.node.source, _uri_or_literal(x))) ++
           citation.toVector.map(x => Triple(subject, Schema.node.citation, Node.Literal(x))) ++
-          terms.map(x => Triple(subject, Dcterms.node.subject, Node.Literal(x)))
+          terms.map(x => Triple(subject, Dcterms.node.subject, Node.Literal(x))) ++
+          citationlinks
         Bibliography(cid, meta, triples)
       }
 

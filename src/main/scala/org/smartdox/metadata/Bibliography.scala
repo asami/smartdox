@@ -8,7 +8,7 @@ import io.circe.generic.extras.semiauto._
 /*
  * @since   Feb. 23, 2025
  *  version Nov. 21, 2025
- * @version Jun. 24, 2026
+ * @version Jun. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Bibliography(
@@ -43,7 +43,6 @@ object Bibliography {
   }
 
   case class Bibtex(
-    key: Option[String] = None,
     entryType: Option[String] = None,
     sourceUrl: Option[String] = None,
     raw: Option[String] = None
@@ -51,6 +50,17 @@ object Bibliography {
   object Bibtex {
     val empty: Bibtex = Bibtex()
     implicit val bibtexEncoder: Encoder.AsObject[Bibtex] = deriveConfiguredEncoder
+  }
+
+  case class SourceRef(
+    sourcePath: String,
+    publicPath: String,
+    category: Option[String],
+    citationKey: String,
+    ordinal: Int
+  )
+  object SourceRef {
+    implicit val sourceRefEncoder: Encoder.AsObject[SourceRef] = deriveConfiguredEncoder
   }
 
   case class Quality(
@@ -68,6 +78,7 @@ object Bibliography {
 
   case class Entry(
     id: String,
+    key: Option[String],
     slug: String,
     entryType: String,
     title: String,
@@ -87,6 +98,7 @@ object Bibliography {
     bodyHtml: String = "",
     sourceKind: String = "internal",
     refs: Vector[String] = Vector.empty,
+    sourceRefs: Vector[SourceRef] = Vector.empty,
     needsResolution: Boolean = false,
     quality: Quality = Quality.empty
   ) {
