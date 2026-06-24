@@ -42,6 +42,7 @@ import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.PublishMetadata
 import org.smartdox.metadata.DoxSiteDashboard
+import org.smartdox.metadata.DoxSiteDocumentFragments
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
@@ -80,7 +81,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Dec.  8, 2025
  *  version May. 14, 2026
  *  version Jun. 22, 2026
- * @version Jun. 23, 2026
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -96,7 +97,7 @@ class DoxSite(
       case Nil => _build_plain(context)
       case xs => _build_multi(context)
     }
-    _build_machine_metadata(realm)
+    _build_machine_metadata(realm, context)
   }
 
   private def _build_plain(
@@ -369,12 +370,100 @@ class DoxSite(
     realm.setContent("site.ttl", turtle)
   }
 
-  private def _build_machine_metadata(realm: Realm): Realm = {
+  private def _build_machine_metadata(realm: Realm, context: Context): Realm = {
     realm.setContent("metadata/dashboard/site.json", DoxSiteDashboard.toJsonString(metadata.dashboard))
     realm.setContent("metadata/rdf/graph.json", DoxSiteDashboard.toRdfGraphJsonString(metadata))
     realm.setContent("metadata/glossary/terms.json", DoxSiteDashboard.toGlossaryTermsJsonString(metadata))
+    realm.setContent("metadata/documents/fragments.json", DoxSiteDocumentFragments.toJsonString(_document_fragments(context)))
     realm
   }
+
+  private def _document_fragments(context: Context): DoxSiteDocumentFragments = {
+    val entries = ArrayBuffer.empty[DoxSiteDocumentFragments.Fragment]
+    val locales = _document_fragment_locales
+    space.traverse(new DoxSiteVisitor {
+      override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
+        content match {
+          case page: Page =>
+            val sourcepath = node.pathnameRelative
+            locales.foreach { locale =>
+              entries += _document_fragment(context, sourcepath, page, locale)
+            }
+          case _ =>
+        }
+    })
+    DoxSiteDocumentFragments(entries.toVector.sortBy(x => (x.sourcePath, x.locale)))
+  }
+
+  private def _document_fragment_locales: Vector[Locale] =
+    config.siteOutput.localeMode match {
+      case Config.SiteOutput.LocaleMode.SingleLocaleRoot =>
+        Vector(_to_locale(config.siteOutput.defaultLocale))
+      case Config.SiteOutput.LocaleMode.MultiLocaleSubdirs =>
+        config.localeSetting.slots.map(_.locale).distinct
+    }
+
+  private def _to_locale(value: String): Locale =
+    value match {
+      case "ja" => LocaleUtils.ja
+      case "en" => LocaleUtils.en
+      case other => Locale.forLanguageTag(other)
+    }
+
+  private def _document_fragment(
+    context: Context,
+    sourcepath: String,
+    page: Page,
+    locale: Locale
+  ): DoxSiteDocumentFragments.Fragment = {
+    val metadata = page.dox.head.metadata
+    DoxSiteDocumentFragments.Fragment(
+      sourcePath = sourcepath,
+      publicPath = _document_public_path(sourcepath),
+      locale = locale.getLanguage,
+      kind = metadata.kindOption.map(_.name),
+      category = _document_category(sourcepath, metadata.category),
+      title = metadata.getTitleString(locale).orElse(metadata.getTitleStringDefault),
+      headline = metadata.getEffectiveHeadlineString(locale),
+      brief = metadata.getEffectiveBriefString(locale),
+      bodyHtml = _document_body_html(context, page.dox, locale)
+    )
+  }
+
+  private def _document_public_path(sourcepath: String): String =
+    StringUtils.changeSuffix(sourcepath, "html")
+
+  private def _document_category(sourcepath: String, category: Option[String]): Option[String] =
+    category.orElse {
+      val parts = sourcepath.split('/').toVector.filter(_.nonEmpty)
+      parts match {
+        case head +: _ if parts.size >= 2 && !_is_special_document_root(head) => Some(head)
+        case _ => None
+      }
+    }
+
+  private def _is_special_document_root(value: String): Boolean =
+    Set("assets", "glossary", "history", "manual", "metadata", "rdf").contains(value)
+
+  private def _document_body_html(context: Context, dox: Document, locale: Locale): String = {
+    val filtered = _filter_document_locale(context, dox, locale)
+    val body = _document_body_dox(filtered)
+    val rule = Dox2HtmlTransformer.Rule(isDocument = false, sectionBaseNumber = Some(2), isDefaultCss = false)
+    Consequence.from(Dox2HtmlTransformer(context, rule).transform(body)).foldConclusion(_.message).trim
+  }
+
+  private def _filter_document_locale(context: Context, dox: Dox, locale: Locale): Dox = {
+    val i18n = context.i18NContext.withLocale(locale)
+    val doxcontext = context.doxContext.withI18NContext(i18n)
+    Dox.transform(dox, new LanguageFilterTransformer(doxcontext))
+  }
+
+  private def _document_body_dox(dox: Dox): Dox =
+    dox match {
+      case m: Document => Dox.toDox(m.body.contents)
+      case m: Body => Dox.toDox(m.contents)
+      case m => m
+    }
 
   private def _path(namespace: String): PathName = {
     val a = namespace.takeWhile(_ != '#')

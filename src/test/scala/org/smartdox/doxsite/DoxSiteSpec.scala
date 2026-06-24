@@ -5,6 +5,7 @@ import scalaz._, Scalaz._
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.GivenWhenThen
 import org.junit.runner.RunWith
 import java.io.File
 import java.nio.charset.StandardCharsets
@@ -15,6 +16,7 @@ import org.smartdox._
 import org.smartdox.parser.UseDoxParser
 import org.smartdox.generator.Context
 import org.smartdox.transformers.AutoI18nTransformer
+import io.circe.parser
 
 /*
  * @since   Feb. 24, 2025
@@ -24,12 +26,11 @@ import org.smartdox.transformers.AutoI18nTransformer
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- *  version Jun.  8, 2026
- * @version Jun. 23, 2026
+ * @version Jun. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
+class DoxSiteSpec extends AnyWordSpec with Matchers with GivenWhenThen with UseDoxParser {
   val context = Context.create()
   implicit val dctx = context.dateTimeContext
   "DoxSite" should {
@@ -48,6 +49,119 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
       html should include ("href=\"target.html\"")
       html should include ("Target Page")
       html should not include ("site:[target.dox]")
+    }
+
+    "emit localized document fragments after glossary and site link processing" in {
+      val dir = Files.createTempDirectory("smartdox-document-fragments")
+      try {
+        Given("a site with a home document, an internal site link, a glossary term, and a manual page")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("index.dox"),
+          """Fragment Home
+            |=============
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-24
+            |
+            |## HEADLINE
+            |
+            |Fragment headline.
+            |
+            |## BRIEF
+            |
+            |Fragment brief.
+            |
+            |# Body
+            |
+            |Runtime refers to site:[target.dox].
+            |""".stripMargin)
+        _write(dir.resolve("target.dox"),
+          """Target Page
+            |===========
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-24
+            |
+            |# Body
+            |
+            |Target body.
+            |""".stripMargin)
+        _write(dir.resolve("manual/index.dox"),
+          """Manual
+            |======
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-24
+            |
+            |# Body
+            |
+            |Runtime is a manual operation word.
+            |""".stripMargin)
+        _write(dir.resolve("glossary/architecture/runtime.dox"),
+          """Runtime
+            |=======
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-24
+            |
+            |# Definition
+            |
+            |Runtime term.
+            |""".stripMargin)
+
+        When("SmartDox builds the site and machine-readable metadata")
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val fragments = realm.getString("metadata/documents/fragments.json").get
+        val homebody = _fragment_body(fragments, "index.dox", "ja")
+        val manualbody = _fragment_body(fragments, "manual/index.dox", "ja")
+
+        Then("the fragment metadata contains localized document identity and effective description")
+        fragments should include (""""source_path" : "index.dox"""")
+        fragments should include (""""public_path" : "index.html"""")
+        fragments should include (""""headline" : "Fragment headline."""")
+        fragments should include (""""brief" : "Fragment brief."""")
+        fragments should include (""""locale" : "ja"""")
+        fragments should not include (""""locale" : "en"""")
+
+        And("the body HTML is produced after site link and glossary processing")
+        homebody should include ("""href="target.html"""")
+        homebody should include ("""class="glossary"""")
+        homebody should not include ("site:[target.dox]")
+
+        And("manual fragments keep the existing glossary auto-link exclusion")
+        manualbody should include ("Runtime is a manual operation word")
+        manualbody should not include ("""class="glossary"""")
+
+        And("document fragments remain available when public HTML output is scoped to Home only")
+        val homeonlyconfig = DoxSite.Config.default.copy(
+          strategy = DoxSite.Strategy.Full,
+          outputTreeTransformerConfig = Some(
+            TreeTransformer.Config(
+              TreeTransformer.Config.Scope(
+                TreeTransformer.Config.Scope.Policy.HomeOnly
+              )
+            )
+          )
+        )
+        val homeonlysite = DoxSite.create(context, dir.toFile, None, homeonlyconfig)
+        val homeonlyrealm = homeonlysite.toRealm(context)
+        val homeonlyfragments =
+          homeonlyrealm.getString("metadata/documents/fragments.json").get
+        homeonlyfragments should include (""""source_path" : "index.dox"""")
+        homeonlyfragments should include (""""source_path" : "manual/index.dox"""")
+      } finally {
+        _delete(dir)
+      }
     }
 
     "keep program text opaque during auto i18n" in {
@@ -293,6 +407,59 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
       }
     }
 
+    "keep scenario metadata as DocumentMetaData properties without semantic extraction" in {
+      val dir = Files.createTempDirectory("smartdox-scenario-source-metadata")
+      try {
+        Given("a BoK source tree that contains scenario metadata in Markdown front matter and SmartDox HEAD")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("concept/reserve-room.md"),
+          """---
+            |title: 会議室を予約する
+            |brief: 会議室予約のユースケース。
+            |scenario:
+            |  type: use-case
+            |  id: UC-ROOM-RESERVE
+            |  primary_actor: 社員
+            |  goal: 会議室を予約する
+            |status: published
+            |published_at: 2026-06-24
+            |---
+            |
+            |# UseCase
+            |
+            |## 会議室を予約する
+            |""".stripMargin)
+        _write(dir.resolve("concept/simple.dox"),
+          """Simple Scenario
+            |===============
+            |
+            |# HEAD
+            |
+            |scenario.type = "simple"
+            |scenario.id = "SC-SIMPLE"
+            |status = "published"
+            |
+            |# Steps
+            |
+            |- 知識を探す
+            |""".stripMargin)
+
+        When("SmartDox builds the site through the normal Dox parser path")
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val markdown = realm.getString("/ja/concept/reserve-room.html").orElse(realm.getString("ja/concept/reserve-room.html")).get
+        val smartdox = realm.getString("/ja/concept/simple.html").orElse(realm.getString("ja/concept/simple.html")).get
+
+        Then("SmartDox renders the documents but does not emit scenario semantic metadata")
+        markdown should include ("会議室を予約する")
+        smartdox should include ("Simple Scenario")
+        realm.getString("metadata/scenarios/scenarios.json") shouldBe None
+      } finally {
+        _delete(dir)
+      }
+    }
+
     "preserve multilingual head title" in {
       val dox = Document(
         Head(metadata = org.smartdox.metadata.DocumentMetaData.empty.withTitle(List(
@@ -317,6 +484,20 @@ class DoxSiteSpec extends AnyWordSpec with Matchers with UseDoxParser {
   private def _write(path: java.nio.file.Path, content: String): Unit = {
     Option(path.getParent).foreach(Files.createDirectories(_))
     Files.write(path, content.getBytes(StandardCharsets.UTF_8))
+  }
+
+  private def _fragment_body(content: String, sourcepath: String, locale: String): String = {
+    val json = parser.parse(content).toOption.get
+    val fragments = json.hcursor.downField("fragments").as[Vector[io.circe.Json]].toOption.get
+    fragments.flatMap { fragment =>
+      val cursor = fragment.hcursor
+      val source = cursor.downField("source_path").as[String].toOption
+      val lang = cursor.downField("locale").as[String].toOption
+      if (source.contains(sourcepath) && lang.contains(locale))
+        cursor.downField("body_html").as[String].toOption
+      else
+        None
+    }.head
   }
 
   private def _delete(path: java.nio.file.Path): Unit =
