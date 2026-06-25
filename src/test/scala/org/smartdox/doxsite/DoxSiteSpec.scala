@@ -421,9 +421,51 @@ class DoxSiteSpec
             |reading: らんたいむ
             |status: published
             |published_at: 2026-06-23
+            |term_type: event
+            |event:
+            |  occurred_at: 2026-06-25
+            |  location: KnowledgeHub
+            |  actors:
+            |    - architecture:operator
+            |  roles:
+            |    - architecture:reviewer
             |---
             |
             |Runtime definition from Markdown.
+            |""".stripMargin)
+        _write(dir.resolve("glossary/architecture/operator.md"),
+          """---
+            |title: Operator
+            |brief: Operator actor summary.
+            |status: published
+            |published_at: 2026-06-23
+            |term_type: actor
+            |actor:
+            |  organization: KnowledgeHub
+            |  roles:
+            |    - architecture:reviewer
+            |  description: Operates the BoK source workflow.
+            |---
+            |
+            |Operator definition from Markdown.
+            |""".stripMargin)
+        _write(dir.resolve("glossary/architecture/reviewer.md"),
+          """---
+            |title: Reviewer
+            |brief: Reviewer role summary.
+            |status: published
+            |published_at: 2026-06-23
+            |term_type: role
+            |role:
+            |  actors:
+            |    - architecture:operator
+            |  responsibilities:
+            |    - Review content quality
+            |  permissions:
+            |    - Approve changes
+            |---
+            |
+            |Reviewer definition from Markdown.
             |""".stripMargin)
         When("SmartDox builds glossary metadata from the normalized Dox IR")
         val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
@@ -437,8 +479,24 @@ class DoxSiteSpec
         terms should include_metadata(""""reading" : "らんたいむ"""")
         terms should include_metadata("Runtime summary from Markdown front matter.")
         terms should include_metadata("\"source_path\" : \"glossary/architecture/runtime.md\"")
+        And("glossary term type metadata is preserved for event terms")
+        terms should include_metadata("\"term_type\" : \"event\"")
+        terms should include_metadata("\"occurred_at\" : \"2026-06-25\"")
+        terms should include_metadata("architecture:operator")
+        terms should include_metadata("architecture:reviewer")
+        And("actor and role terms preserve their type-specific metadata")
+        terms should include_metadata("\"id\" : \"architecture:operator\"")
+        terms should include_metadata("\"term_type\" : \"actor\"")
+        terms should include_metadata("KnowledgeHub")
+        terms should include_metadata("Operates the BoK source workflow.")
+        terms should include_metadata("\"id\" : \"architecture:reviewer\"")
+        terms should include_metadata("\"term_type\" : \"role\"")
+        terms should include_metadata("Review content quality")
+        terms should include_metadata("Approve changes")
         And("the Markdown body becomes the glossary definition fragment")
         terms should include_metadata("Runtime definition from Markdown.")
+        terms should include_metadata("Operator definition from Markdown.")
+        terms should include_metadata("Reviewer definition from Markdown.")
       } finally {
         _delete(dir)
       }

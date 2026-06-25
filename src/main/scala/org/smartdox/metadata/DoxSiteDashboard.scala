@@ -12,11 +12,11 @@ import org.smartdox._
 import org.smartdox.generator.Context
 import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.semanticweb.Rdf
+import scala.collection.JavaConverters._
 
 /*
  * @since   Jun.  4, 2026
- *  version Jun. 22, 2026
- * @version Jun. 23, 2026
+ * @version Jun. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDashboard(
@@ -142,10 +142,51 @@ object DoxSiteDashboard {
     termRefs: Vector[TermReference] = Vector.empty,
     rdfRefs: Vector[TermRdfReference] = Vector.empty,
     videoRefs: Vector[TermReference] = Vector.empty,
+    termType: String = "concept",
+    event: Option[TermEvent] = None,
+    actor: Option[TermActor] = None,
+    role: Option[TermRole] = None,
     quality: TermQuality = TermQuality.empty
   )
   object TermEntry {
     implicit val termEntryEncoder: Encoder.AsObject[TermEntry] = deriveConfiguredEncoder
+  }
+
+
+  case class TermEvent(
+    occurredAt: Option[String] = None,
+    startAt: Option[String] = None,
+    endAt: Option[String] = None,
+    location: Option[String] = None,
+    actors: Vector[String] = Vector.empty,
+    roles: Vector[String] = Vector.empty,
+    participants: Vector[String] = Vector.empty,
+    scenarios: Vector[String] = Vector.empty,
+    evidence: Vector[String] = Vector.empty,
+    cmlEvent: Option[String] = None,
+    cmlComponent: Option[String] = None,
+    cmlStatemachine: Option[String] = None
+  )
+  object TermEvent {
+    implicit val termEventEncoder: Encoder.AsObject[TermEvent] = deriveConfiguredEncoder
+  }
+
+  case class TermActor(
+    roles: Vector[String] = Vector.empty,
+    organization: Option[String] = None,
+    description: Option[String] = None
+  )
+  object TermActor {
+    implicit val termActorEncoder: Encoder.AsObject[TermActor] = deriveConfiguredEncoder
+  }
+
+  case class TermRole(
+    actors: Vector[String] = Vector.empty,
+    responsibilities: Vector[String] = Vector.empty,
+    permissions: Vector[String] = Vector.empty
+  )
+  object TermRole {
+    implicit val termRoleEncoder: Encoder.AsObject[TermRole] = deriveConfiguredEncoder
   }
 
   case class TermReference(
@@ -324,6 +365,10 @@ object DoxSiteDashboard {
         termRefs,
         rdfrefs,
         videoRefs,
+        _term_type(term.metadata),
+        _term_event(term.metadata),
+        _term_actor(term.metadata),
+        _term_role(term.metadata),
         TermQuality(
           isolated = !hasrefs,
           unreferenced = !hasrefs,
@@ -390,6 +435,54 @@ object DoxSiteDashboard {
     _metadata_string(term.metadata, "summary", Glossary.PROP_BRIEF, "description", Glossary.PROP_DEFINITION).
       orElse(term.term.effectiveSummary.map(_.en))
 
+
+  private def _term_type(metadata: DocumentMetaData): String =
+    _metadata_string(metadata, "term_type").map(_normalize_term_type).getOrElse("concept")
+
+  private def _normalize_term_type(value: String): String = value.trim.toLowerCase.replace('_', '-') match {
+    case "event" => "event"
+    case "actor" => "actor"
+    case "role" => "role"
+    case "concept" => "concept"
+    case _ => "concept"
+  }
+
+  private def _term_event(metadata: DocumentMetaData): Option[TermEvent] = {
+    val event = TermEvent(
+      _metadata_string(metadata, "event.occurred_at", "event.occurredAt"),
+      _metadata_string(metadata, "event.start_at", "event.startAt"),
+      _metadata_string(metadata, "event.end_at", "event.endAt"),
+      _metadata_string(metadata, "event.location"),
+      _metadata_string_list(metadata, "event.actors"),
+      _metadata_string_list(metadata, "event.roles"),
+      _metadata_string_list(metadata, "event.participants"),
+      _metadata_string_list(metadata, "event.scenarios"),
+      _metadata_string_list(metadata, "event.evidence"),
+      _metadata_string(metadata, "event.cml.event"),
+      _metadata_string(metadata, "event.cml.component"),
+      _metadata_string(metadata, "event.cml.statemachine", "event.cml.stateMachine")
+    )
+    if (_term_type(metadata) == "event" || event != TermEvent()) Some(event) else None
+  }
+
+  private def _term_actor(metadata: DocumentMetaData): Option[TermActor] = {
+    val actor = TermActor(
+      _metadata_string_list(metadata, "actor.roles"),
+      _metadata_string(metadata, "actor.organization"),
+      _metadata_string(metadata, "actor.description")
+    )
+    if (_term_type(metadata) == "actor" || actor != TermActor()) Some(actor) else None
+  }
+
+  private def _term_role(metadata: DocumentMetaData): Option[TermRole] = {
+    val role = TermRole(
+      _metadata_string_list(metadata, "role.actors"),
+      _metadata_string_list(metadata, "role.responsibilities"),
+      _metadata_string_list(metadata, "role.permissions")
+    )
+    if (_term_type(metadata) == "role" || role != TermRole()) Some(role) else None
+  }
+
   private def _metadata_string(metadata: DocumentMetaData, keys: String*): Option[String] =
     metadata.properties.flatMap { hocon =>
       keys.toStream.flatMap { key =>
@@ -403,6 +496,27 @@ object DoxSiteDashboard {
         }
       }.headOption
     }
+
+  private def _metadata_string_list(metadata: DocumentMetaData, keys: String*): Vector[String] =
+    metadata.properties.toVector.flatMap { hocon =>
+      keys.toStream.flatMap { key =>
+        try {
+          if (hocon.hasPath(key)) {
+            val xs = hocon.getStringList(key).asScala.toVector.map(_.trim).filter(_.nonEmpty)
+            if (xs.nonEmpty) Some(xs) else None
+          } else {
+            None
+          }
+        } catch {
+          case scala.util.control.NonFatal(_) =>
+            try {
+              Some(hocon.getString(key).split(',').toVector.map(_.trim).filter(_.nonEmpty)).filter(_.nonEmpty)
+            } catch {
+              case scala.util.control.NonFatal(_) => None
+            }
+        }
+      }.headOption
+    }.flatten
 
   private def _term_slug(path: String): String =
     path.split('/').filter(_.nonEmpty).lastOption.getOrElse(path).stripSuffix(".html")
