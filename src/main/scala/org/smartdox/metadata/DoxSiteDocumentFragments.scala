@@ -7,7 +7,7 @@ import io.circe.generic.extras.semiauto._
 
 /*
  * @since   Jun. 24, 2026
- * @version Jun. 24, 2026
+ * @version Jun. 28, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDocumentFragments(
@@ -28,7 +28,8 @@ object DoxSiteDocumentFragments {
     title: Option[String],
     headline: Option[String],
     brief: Option[String],
-    bodyHtml: String
+    bodyHtml: String,
+    tags: Vector[String] = Vector.empty
   )
   object Fragment {
     implicit val fragmentEncoder: Encoder.AsObject[Fragment] = deriveConfiguredEncoder

@@ -27,7 +27,7 @@ import io.circe.parser
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun. 25, 2026
+ * @version Jun. 28, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -78,6 +78,7 @@ class DoxSiteSpec
             |
             |status=published
             |published_at=2026-06-24
+            |tags=["review", "workflow.review"]
             |
             |## HEADLINE
             |
@@ -117,6 +118,23 @@ class DoxSiteSpec
             |
             |Runtime is a manual operation word.
             |""".stripMargin)
+        _write(dir.resolve("tags/architecture/review.dox"),
+          """Architecture Review
+            |===================
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-24
+            |
+            |## BRIEF
+            |
+            |Review tag definition.
+            |
+            |# Body
+            |
+            |Review tag body.
+            |""".stripMargin)
         _write(dir.resolve("glossary/architecture/runtime.dox"),
           """Runtime
             |=======
@@ -136,6 +154,7 @@ class DoxSiteSpec
         val realm = site.toRealm(context)
         implicit val i18ncontext: I18NContext = context.i18NContext
         val fragments = realm.getString("metadata/documents/fragments.json").get
+        val tags = realm.getString("metadata/tags/tags.json").get
         val homebody = _fragment_body(fragments, "index.dox", "ja")
         val manualbody = _fragment_body(fragments, "manual/index.dox", "ja")
 
@@ -144,6 +163,9 @@ class DoxSiteSpec
         fragments should include_metadata(""""public_path" : "index.html"""")
         fragments should include_metadata(""""headline" : "Fragment headline."""")
         fragments should include_metadata(""""brief" : "Fragment brief."""")
+        fragments should include_metadata(""""tags" : [""")
+        fragments should include_metadata("review")
+        fragments should include_metadata("workflow.review")
         fragments should include_metadata(""""locale" : "ja"""")
         fragments should not (include_metadata(""""locale" : "en""""))
 
@@ -155,6 +177,30 @@ class DoxSiteSpec
         And("manual fragments keep the existing glossary auto-link exclusion")
         manualbody should include_html("Runtime is a manual operation word")
         manualbody should not (include_html("""class="glossary""""))
+
+        And("the tag handoff metadata contains normalized hierarchical tags and tag definitions")
+        tags should include_metadata(""""key" : "architecture.review"""")
+        tags should include_metadata(""""key" : "workflow.review"""")
+        tags should include_metadata(""""public_path" : "tags/architecture/review.html"""")
+        tags should include_metadata("Review tag definition.")
+        tags should include_metadata(""""source_path" : "index.dox"""")
+        realm.getString("ja/tags/architecture/review.html") should be(None)
+        realm.getString("en/tags/architecture/review.html") should be(None)
+
+        And("multi-locale tag handoff keeps one tag entry per locale")
+        val multiconfig = DoxSite.Config.default.copy(
+          strategy = DoxSite.Strategy.Full,
+          siteOutput = DoxSite.Config.SiteOutput(
+            DoxSite.Config.SiteOutput.LocaleMode.MultiLocaleSubdirs,
+            "ja"
+          )
+        )
+        val multisite = DoxSite.create(context, dir.toFile, None, multiconfig)
+        val multirealm = multisite.toRealm(context)
+        val multitags = multirealm.getString("metadata/tags/tags.json").get
+        multitags should include_metadata(""""key" : "architecture.review"""")
+        multitags should include_metadata(""""locale" : "ja"""")
+        multitags should include_metadata(""""locale" : "en"""")
 
         And("document fragments remain available when public HTML output is scoped to Home only")
         val homeonlyconfig = DoxSite.Config.default.copy(
@@ -242,6 +288,23 @@ class DoxSiteSpec
             |# Body
             |
             |Runtime is a manual operation word.
+            |""".stripMargin)
+        _write(dir.resolve("tags/architecture/review.dox"),
+          """Architecture Review
+            |===================
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-06-24
+            |
+            |## BRIEF
+            |
+            |Review tag definition.
+            |
+            |# Body
+            |
+            |Review tag body.
             |""".stripMargin)
         _write(dir.resolve("glossary/architecture/runtime.dox"),
           """Runtime

@@ -45,6 +45,7 @@ import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.PublishMetadata
 import org.smartdox.metadata.DoxSiteDashboard
 import org.smartdox.metadata.DoxSiteDocumentFragments
+import org.smartdox.metadata.DoxSiteTags
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.metadata.Explanation
 import org.smartdox.metadata.Glossary
@@ -82,7 +83,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun. 25, 2026
+ * @version Jun. 28, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -376,7 +377,9 @@ class DoxSite(
     realm.setContent("metadata/rdf/graph.json", DoxSiteDashboard.toRdfGraphJsonString(metadata))
     realm.setContent("metadata/glossary/terms.json", DoxSiteDashboard.toGlossaryTermsJsonString(metadata))
     realm.setContent("metadata/bibliography/bibliography.json", Bibliography.toJsonString(metadata.bibliography))
-    realm.setContent("metadata/documents/fragments.json", DoxSiteDocumentFragments.toJsonString(_document_fragments(context)))
+    val fragments = _document_fragments(context)
+    realm.setContent("metadata/documents/fragments.json", DoxSiteDocumentFragments.toJsonString(fragments))
+    realm.setContent("metadata/tags/tags.json", DoxSiteTags.toJsonString(DoxSiteTags.create(fragments)))
     realm
   }
 
@@ -428,7 +431,8 @@ class DoxSite(
       title = metadata.getTitleString(locale).orElse(metadata.getTitleStringDefault),
       headline = metadata.getEffectiveHeadlineString(locale),
       brief = metadata.getEffectiveBriefString(locale),
-      bodyHtml = _document_body_html(context, page.dox, locale)
+      bodyHtml = _document_body_html(context, page.dox, locale),
+      tags = _document_tags(metadata)
     )
   }
 
@@ -445,7 +449,29 @@ class DoxSite(
     }
 
   private def _is_special_document_root(value: String): Boolean =
-    Set("assets", "glossary", "history", "manual", "metadata", "rdf").contains(value)
+    Set("assets", "glossary", "history", "manual", "metadata", "rdf", "tags").contains(value)
+
+  private def _document_tags(metadata: DocumentMetaData): Vector[String] =
+    metadata.properties.map { hocon =>
+      Vector("tags", "tag").toStream.flatMap(key => _hocon_string_list(hocon, key)).headOption.getOrElse(Vector.empty)
+    }.getOrElse(Vector.empty)
+
+  private def _hocon_string_list(hocon: com.typesafe.config.Config, key: String): Option[Vector[String]] =
+    try {
+      if (!hocon.hasPath(key))
+        None
+      else {
+        val xs = hocon.getStringList(key).asScala.toVector.map(_.trim).filter(_.nonEmpty)
+        if (xs.isEmpty) None else Some(xs)
+      }
+    } catch {
+      case NonFatal(_) =>
+        try {
+          Some(hocon.getString(key).split(',').toVector.map(_.trim).filter(_.nonEmpty)).filter(_.nonEmpty)
+        } catch {
+          case NonFatal(_) => None
+        }
+    }
 
   private def _document_body_html(context: Context, dox: Document, locale: Locale): String = {
     val filtered = _filter_document_locale(context, dox, locale)
@@ -1184,11 +1210,15 @@ object DoxSite {
       content: Node
     ): TreeTransformer.Directive[Realm.Data] = {
       content match {
+        case m: Page if _is_tag_definition_page(node) => directive_empty
         case m: Page => _to_html(m) // TreeTransformer.Directive.Content(m.toRealmData)
         case m: MetaDataNode => directive_empty
         case m: ImageNode => directive_leaf(FileData(m.file))
       }
     }
+
+    private def _is_tag_definition_page(node: TreeNode[Node]): Boolean =
+      node.pathnameRelative.split('/').headOption.contains("tags")
 
     private def _to_html(p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
       val dox = _filter(p.dox)
