@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 
 /*
  * @since   Jun.  4, 2026
- * @version Jun. 25, 2026
+ * @version Jun. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDashboard(
@@ -146,7 +146,8 @@ object DoxSiteDashboard {
     event: Option[TermEvent] = None,
     actor: Option[TermActor] = None,
     role: Option[TermRole] = None,
-    quality: TermQuality = TermQuality.empty
+    quality: TermQuality = TermQuality.empty,
+    tags: Vector[String] = Vector.empty
   )
   object TermEntry {
     implicit val termEntryEncoder: Encoder.AsObject[TermEntry] = deriveConfiguredEncoder
@@ -373,7 +374,8 @@ object DoxSiteDashboard {
           isolated = !hasrefs,
           unreferenced = !hasrefs,
           weaklyConnected = rdfrefs.size <= 1 && articleRefs.isEmpty && termRefs.isEmpty && videoRefs.isEmpty
-        )
+        ),
+        _term_tags(term.metadata)
       )
     }.sortBy(x => (x.category.getOrElse(""), x.slug))
     TermIndex(entries)
@@ -439,6 +441,9 @@ object DoxSiteDashboard {
   private def _term_type(metadata: DocumentMetaData): String =
     _metadata_string(metadata, "term_type").map(_normalize_term_type).getOrElse("concept")
 
+  private def _term_tags(metadata: DocumentMetaData): Vector[String] =
+    _metadata_string_list(metadata, "tags", "tag").distinct
+
   private def _normalize_term_type(value: String): String = value.trim.toLowerCase.replace('_', '-') match {
     case "event" => "event"
     case "actor" => "actor"
@@ -502,7 +507,7 @@ object DoxSiteDashboard {
       keys.toStream.flatMap { key =>
         try {
           if (hocon.hasPath(key)) {
-            val xs = hocon.getStringList(key).asScala.toVector.map(_.trim).filter(_.nonEmpty)
+            val xs = hocon.getStringList(key).asScala.toVector.flatMap(_metadata_list_token)
             if (xs.nonEmpty) Some(xs) else None
           } else {
             None
@@ -510,13 +515,18 @@ object DoxSiteDashboard {
         } catch {
           case scala.util.control.NonFatal(_) =>
             try {
-              Some(hocon.getString(key).split(',').toVector.map(_.trim).filter(_.nonEmpty)).filter(_.nonEmpty)
+              Some(hocon.getString(key).split(',').toVector.flatMap(_metadata_list_token)).filter(_.nonEmpty)
             } catch {
               case scala.util.control.NonFatal(_) => None
             }
         }
       }.headOption
     }.flatten
+
+  private def _metadata_list_token(value: String): Option[String] = {
+    val cleaned = value.trim.stripPrefix("[").stripSuffix("]").trim.stripPrefix("\"").stripSuffix("\"").trim
+    Option(cleaned).filter(_.nonEmpty)
+  }
 
   private def _term_slug(path: String): String =
     path.split('/').filter(_.nonEmpty).lastOption.getOrElse(path).stripSuffix(".html")

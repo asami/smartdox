@@ -13,7 +13,8 @@ import org.smartdox._
 /*
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
- * @version Apr. 20, 2026
+ *  version Apr. 20, 2026
+ * @version Jun. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -88,5 +89,35 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
       r shouldBe Text("""[&quot;SimpleEntity&quot;]""")
     }
+
+    "parse back quoted angle brackets as code inside span" in {
+      val r = DoxInlineParser.parse(
+        DoxInlineParser.Config.smartdox,
+        """<span lang="ja">`minimal.main.hello` は `<component>.<service>.<operation>` の形です。</span>"""
+      )
+      val codes = _collect_code_text(r)
+      codes should contain ("minimal.main.hello")
+      codes should contain ("<component>.<service>.<operation>")
+    }
+
+    "keep inline tag outside back quote inside span" in {
+      val r = DoxInlineParser.parse(
+        DoxInlineParser.Config.smartdox,
+        """<span lang="ja">This is <i>important</i>.</span>"""
+      )
+      _contains_italic(r) shouldBe true
+      _collect_code_text(r) shouldBe Nil
+    }
   }
+
+  private def _collect_code_text(dox: Dox): List[String] = {
+    val own = dox match {
+      case m: Code => List(m.contents.map(_.toText).mkString)
+      case _ => Nil
+    }
+    own ++ dox.elements.toList.flatMap(_collect_code_text)
+  }
+
+  private def _contains_italic(dox: Dox): Boolean =
+    dox.isInstanceOf[Italic] || dox.elements.exists(_contains_italic)
 }

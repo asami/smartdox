@@ -83,7 +83,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun. 28, 2026
+ * @version Jun. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1210,15 +1210,11 @@ object DoxSite {
       content: Node
     ): TreeTransformer.Directive[Realm.Data] = {
       content match {
-        case m: Page if _is_tag_definition_page(node) => directive_empty
         case m: Page => _to_html(m) // TreeTransformer.Directive.Content(m.toRealmData)
         case m: MetaDataNode => directive_empty
         case m: ImageNode => directive_leaf(FileData(m.file))
       }
     }
-
-    private def _is_tag_definition_page(node: TreeNode[Node]): Boolean =
-      node.pathnameRelative.split('/').headOption.contains("tags")
 
     private def _to_html(p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
       val dox = _filter(p.dox)
@@ -1569,7 +1565,7 @@ object DoxSite {
     })
     ctx.doxSiteConfig.origin.foreach { root =>
       entries ++= _bibliography_bibtex_entries(root.toPath)
-      refs ++= _bibliography_source_refs(root.toPath)
+      refs ++= _bibliography_source_refs(ctx, root.toPath)
     }
     val definedentries = entries.toVector.
       sortBy(_bibliography_entry_priority).
@@ -1747,18 +1743,27 @@ object DoxSite {
     }
   }
 
-  private def _bibliography_source_refs(root: Path): Vector[BibliographyRef] = {
+  private def _bibliography_source_refs(
+    ctx: DoxSiteTransformer.Context,
+    root: Path
+  ): Vector[BibliographyRef] = {
     val stream = Files.walk(root)
     try {
       stream.iterator.asScala.toVector.filter(_is_bibliography_ref_source).flatMap { path =>
         val sourcepath = root.relativize(path).toString.replace(File.separatorChar, '/')
-        val dox = _parse_source_document(path)
-        val metadatarefs = Dox.getMetadata(dox).flatMap(_.toOption).toVector.flatMap { metadata =>
-          _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
+        try {
+          val dox = _parse_source_document(path)
+          val metadatarefs = Dox.getMetadata(dox).flatMap(_.toOption).toVector.flatMap { metadata =>
+            _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
+          }
+          val inlinerefs = _bibliography_inline_refs(dox)
+          val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
+          _bibliography_refs(sourcepath, category, metadatarefs ++ inlinerefs)
+        } catch {
+          case NonFatal(e) =>
+            ctx.generatorContext.log.error(s"Skip bibliography reference source parse: ${path}: ${e.getMessage}")
+            Vector.empty
         }
-        val inlinerefs = _bibliography_inline_refs(dox)
-        val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
-        _bibliography_refs(sourcepath, category, metadatarefs ++ inlinerefs)
       }
     } finally {
       stream.close()

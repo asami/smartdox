@@ -22,7 +22,8 @@ import org.smartdox._
  *  version Sep.  9, 2025
  *  version Oct. 26, 2025
  *  version Nov.  5, 2025
- * @version Apr. 20, 2026
+ *  version Apr. 20, 2026
+ * @version Jun. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -730,7 +731,7 @@ object DoxInlineParser {
     protected def make_dox(c: Char): Vector[Dox] = 
       doxes :+ _parse((cs :+ c).mkString)
 
-    private def _parse(p: String): Dox = DoxInlineParser.parse(p)
+    private def _parse(p: String): Dox = DoxInlineParser.parse(config, p)
   }
 
   case class InlineState(
@@ -975,8 +976,7 @@ object DoxInlineParser {
 
     override def returnEndResult: ParseResult[Dox] = {
       // Handle unclosed tag by finalizing current content
-      val c = Dox2Parser.Config.smartdox.withInlineConfig(config).withoutComplementParagraph()
-      val xs = Dox2Parser.parseFragment(c, cs.mkString)
+      val xs = parseInlineContents(cs.mkString)
       val dox = Dox.create(tagName, attrs, xs)
       ParseSuccess(dox)
     }
@@ -988,8 +988,7 @@ object DoxInlineParser {
         val tag = trimmed.drop(2).takeWhile(_ != '>').trim
         if (tag == tagName) {
           // Matched closing tag: finalize current element and return to parent
-          val c = Dox2Parser.Config.smartdox.withInlineConfig(config).withoutComplementParagraph()
-          val xs = Dox2Parser.parseFragment(c, cs.mkString)
+          val xs = parseInlineContents(cs.mkString)
           val dox = Dox.create(tagName, attrs, xs)
           leave_to(dox)
         } else {
@@ -1012,13 +1011,12 @@ object DoxInlineParser {
 
     private def _return_chars_from_inline(p: Seq[Char]): DoxInlineParseState = {
       val s = (cs ++ p).mkString
-      val lc = LogicalLines.Config.easyHtml.copy(useBackQuote = true)
-      val ll = LogicalLines.parse(lc, s)
-      val c = DoxLinesParser.Config(inlineConfig = config)
-      val a = DoxLinesParser.parse(c, ll)
-      val dox = Dox.create(tagName, attrs, _normalize(a))
+      val dox = Dox.create(tagName, attrs, parseInlineContents(s))
       leave_to(dox)
     }
+
+    def parseInlineContents(s: String): List[Dox] =
+      _normalize(DoxInlineParser.parse(config, s))
 
     private def _normalize(p: Dox): List[Dox] = p match {
       case m: Paragraph => m.contents // TODO
@@ -1035,14 +1033,17 @@ object DoxInlineParser {
     override protected def character_State(c: Char) = copy(cs = cs :+ c)
 
     override protected def open_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState = {
-      evt.next match {
-        case Some('/') =>
-          // closing tag of this element
-          SkipOneState(XmlState.XmlCloseState(config, this), '/')
-        case _ =>
-          // open nested tag: create nested XmlState via TagOpenState
-          XmlState.TagOpenState(config, this)
-      }
+      if (XmlState._is_in_escape(cs))
+        character_State(evt)
+      else
+        evt.next match {
+          case Some('/') =>
+            // closing tag of this element
+            SkipOneState(XmlState.XmlCloseState(config, this), '/')
+          case _ =>
+            // open nested tag: create nested XmlState via TagOpenState
+            XmlState.TagOpenState(config, this)
+        }
     }
 
     override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState =
@@ -1066,8 +1067,7 @@ object DoxInlineParser {
         val tag = cs.drop(2).mkString.trim.stripSuffix(">")
         if (tag == parent.tagName) {
           // Proper closing tag: finalize content and return with child elements preserved
-          val c = Dox2Parser.Config.smartdox.withInlineConfig(config).withoutComplementParagraph()
-          val xs = Dox2Parser.parseFragment(c, parent.cs.mkString)
+          val xs = parent.parseInlineContents(parent.cs.mkString)
           val dox = Dox.create(tag, parent.attrs, xs)
           parent.parent match {
             case gp: XmlState =>

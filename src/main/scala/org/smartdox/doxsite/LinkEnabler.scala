@@ -1,6 +1,7 @@
 package org.smartdox.doxsite
 
 import scala.collection.immutable.ListSet
+import scala.collection.mutable.ArrayBuffer
 import java.io._
 import java.net.URI
 import java.nio.file.Paths
@@ -29,7 +30,7 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Jun. 25, 2026
+ * @version Jun. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -248,7 +249,8 @@ object LinkEnabler {
 
     private def _create_reference_from: Vector[Dox] = {
       val xs = Vector(
-        _create_reference_internal_from
+        _create_reference_internal_from,
+        _create_reference_tag_users
       ).flatten
       _create_section(xs, "References From", "参照元")
     }
@@ -258,6 +260,108 @@ object LinkEnabler {
       val xs = Vector.empty
       _create_section(xs, "In Site", "サイト内")
     }
+
+    private def _create_reference_tag_users: Vector[Dox] = {
+      val xs = _tag_page_key(pageNode.pathnameRelative).toVector.flatMap(_tag_user_links)
+      _create_section(xs, "Tagged Pages", "タグ使用ページ")
+    }
+
+    private def _tag_user_links(key: String): Vector[Dox] = {
+      val items = ArrayBuffer.empty[Li]
+      val seen = scala.collection.mutable.Set.empty[String]
+      enabler.full.traverse(new DoxSiteVisitor {
+        override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
+          content match {
+            case page: Page =>
+              val sourcepath = node.pathnameRelative
+              if (!_is_tag_definition_source(sourcepath)) {
+                val metadata = page.dox.head.metadata
+                val category = _document_category(sourcepath, metadata.category)
+                val tags = _document_tags(metadata).map(_tag_key(_, category)).filter(_.nonEmpty)
+                if (tags.contains(key)) {
+                  val publicpath = StringUtils.changeSuffix(sourcepath, "html")
+                  if (!seen(publicpath)) {
+                    seen += publicpath
+                    val title = metadata.getTitleStringDefault.getOrElse(publicpath)
+                    val href = create_href(pageNode, new URI(publicpath))
+                    items += Li(Hyperlink(List(Text(title)), href))
+                  }
+                }
+              }
+            case _ =>
+          }
+      })
+      if (items.isEmpty) Vector.empty else Vector(Ul(items.toVector))
+    }
+
+    private def _tag_page_key(path: String): Option[String] = {
+      val normalized = path.replace('\\', '/').stripPrefix("/")
+      if (!normalized.startsWith("tags/"))
+        None
+      else {
+        val body = normalized.stripPrefix("tags/").replaceAll("\\.[^.]+$", "")
+        val key = body.split('/').toVector.map(_tag_segment).filter(_.nonEmpty).mkString(".")
+        Option(key).filter(_.nonEmpty)
+      }
+    }
+
+    private def _is_tag_definition_source(path: String): Boolean =
+      path.replace('\\', '/').stripPrefix("/").startsWith("tags/")
+
+    private def _document_tags(metadata: DocumentMetaData): Vector[String] =
+      metadata.properties.map { hocon =>
+        Vector("tags", "tag").toStream.flatMap(key => _hocon_string_list(hocon, key)).headOption.getOrElse(Vector.empty)
+      }.getOrElse(Vector.empty)
+
+    private def _hocon_string_list(hocon: com.typesafe.config.Config, key: String): Option[Vector[String]] =
+      try {
+        if (!hocon.hasPath(key))
+          None
+        else {
+          val xs = hocon.getStringList(key).asScala.toVector.map(_metadata_list_token).filter(_.nonEmpty)
+          if (xs.isEmpty) None else Some(xs)
+        }
+      } catch {
+        case scala.util.control.NonFatal(_) =>
+          try {
+            Some(hocon.getString(key).split(',').toVector.map(_metadata_list_token).filter(_.nonEmpty)).filter(_.nonEmpty)
+          } catch {
+            case scala.util.control.NonFatal(_) => None
+          }
+      }
+
+    private def _metadata_list_token(value: String): String =
+      value.trim.stripPrefix("[").stripSuffix("]").trim.stripPrefix("\"").stripSuffix("\"").trim
+
+    private def _document_category(sourcepath: String, category: Option[String]): Option[String] =
+      category.orElse {
+        val parts = sourcepath.split('/').toVector.filter(_.nonEmpty)
+        parts match {
+          case head +: _ if parts.size >= 2 && !_is_special_document_root(head) => Some(head)
+          case _ => None
+        }
+      }
+
+    private def _is_special_document_root(value: String): Boolean =
+      Set("assets", "glossary", "history", "manual", "metadata", "rdf", "tags").contains(value)
+
+    private def _tag_key(value: String, category: Option[String]): String = {
+      val segments = value.trim.split("[./]+").toVector.map(_tag_segment).filter(_.nonEmpty)
+      val normalized = segments.mkString(".")
+      if (normalized.isEmpty)
+        ""
+      else if (segments.size > 1)
+        normalized
+      else
+        category.map(c => Vector(_tag_segment(c), normalized).filter(_.nonEmpty).mkString(".")).filter(_.nonEmpty).getOrElse(normalized)
+    }
+
+    private def _tag_segment(value: String): String =
+      value.trim.toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", "-").
+        replaceAll("[\\\\/]+", "-").
+        replaceAll("[^\\p{L}\\p{N}_-]+", "-").
+        stripPrefix("-").
+        stripSuffix("-")
 
     private def _create_bibliography: Vector[Dox] = {
       val xs = _page_bibliography_entries.zipWithIndex.map {

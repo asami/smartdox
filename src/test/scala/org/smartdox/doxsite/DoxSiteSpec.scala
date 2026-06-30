@@ -27,7 +27,7 @@ import io.circe.parser
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun. 28, 2026
+ * @version Jun. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -78,6 +78,7 @@ class DoxSiteSpec
             |
             |status=published
             |published_at=2026-06-24
+            |category=architecture
             |tags=["review", "workflow.review"]
             |
             |## HEADLINE
@@ -184,8 +185,11 @@ class DoxSiteSpec
         tags should include_metadata(""""public_path" : "tags/architecture/review.html"""")
         tags should include_metadata("Review tag definition.")
         tags should include_metadata(""""source_path" : "index.dox"""")
-        realm.getString("ja/tags/architecture/review.html") should be(None)
-        realm.getString("en/tags/architecture/review.html") should be(None)
+        realm.getString("ja/tags/architecture/review.html") should not be(None)
+        realm.getString("ja/tags/architecture/review.html").get should include_html("Review tag body.")
+        realm.getString("en/tags/architecture/review.html") should not be(None)
+        realm.getString("en/tags/architecture/review.html").get should include_html("Review tag body.")
+        realm.getString("en/tags/architecture/review.html").get should include_html("Tagged Pages")
 
         And("multi-locale tag handoff keeps one tag entry per locale")
         val multiconfig = DoxSite.Config.default.copy(
@@ -485,6 +489,9 @@ class DoxSiteSpec
             |status: published
             |published_at: 2026-06-23
             |term_type: event
+            |tags:
+            |  - review
+            |  - workflow.review
             |event:
             |  occurred_at: 2026-06-25
             |  location: KnowledgeHub
@@ -530,6 +537,21 @@ class DoxSiteSpec
             |
             |Reviewer definition from Markdown.
             |""".stripMargin)
+        _write(dir.resolve("glossary/architecture/vector.dox"),
+          """Vector Knowledge
+            |================
+            |
+            |# HEAD
+            |
+            |status = "published"
+            |published_at = "2026-06-23"
+            |term_type = "concept"
+            |tags = ["knowledge.graph", "technology.embedding"]
+            |
+            |# DEFINITION
+            |
+            |Vector definition from SmartDox.
+            |""".stripMargin)
         When("SmartDox builds glossary metadata from the normalized Dox IR")
         val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
         val realm = site_realm(site, context)
@@ -542,6 +564,14 @@ class DoxSiteSpec
         terms should include_metadata(""""reading" : "らんたいむ"""")
         terms should include_metadata("Runtime summary from Markdown front matter.")
         terms should include_metadata("\"source_path\" : \"glossary/architecture/runtime.md\"")
+        And("glossary term tags are preserved for Term Hub tag chips")
+        terms should include_metadata("\"tags\" : [")
+        terms should include_metadata("review")
+        terms should include_metadata("workflow.review")
+        And("SmartDox HEAD list metadata is normalized for glossary terms")
+        terms should include_metadata("technology.embedding")
+        terms should include_metadata("knowledge.graph")
+        terms should not include ("[\"technology.embedding\"")
         And("glossary term type metadata is preserved for event terms")
         terms should include_metadata("\"term_type\" : \"event\"")
         terms should include_metadata("\"occurred_at\" : \"2026-06-25\"")
@@ -731,6 +761,37 @@ class DoxSiteSpec
         } finally {
           _delete(dir)
         }
+      }
+    }
+
+    "continue when bibliography reference source parsing hits unsupported BOK inline markup" in {
+      val dir = Files.createTempDirectory("smartdox-bibliography-source-parse-error")
+      try {
+        Given("a source page contains BOK-style HTML span text that the source ref scanner cannot parse")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("technology/cozy-bok-inline.dox"),
+          """Cozy BOK Inline
+            |===============
+            |
+            |# HEAD
+            |
+            |title = "Cozy BOK Inline"
+            |status = "published"
+            |
+            |# Body
+            |
+            |<span lang="ja">` の形で、最後の `hello` が実際に呼ばれる operation です。</span>
+            |""".stripMargin)
+
+        When("SmartDox builds site metadata through the bibliography collection path")
+        val site = DoxSite.create(context, dir.toFile, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site.toRealm(context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+
+        Then("site generation still emits bibliography metadata instead of aborting")
+        realm.getString("metadata/bibliography/bibliography.json") should not be None
+      } finally {
+        _delete(dir)
       }
     }
 
