@@ -119,11 +119,33 @@ status=work-in-progress
 published_at=2026-04-06
 ```
 
-Metadata text inside `HEAD` is parsed as HOCON-style properties and merged into
-the document head. This rule applies in both SmartDox authoring and Markdown
-mode; `.md` / `.markdown` sources may use `# HEAD` for SmartDox operational
-metadata when YAML front matter is not enough. The leading properties paragraph
-inside `HEAD` is metadata-only and is not parsed as Markdown body text.
+Metadata text inside `HEAD` is normalized into HOCON metadata and merged into
+the document head. Regular HOCON remains valid, including simple unquoted string
+values such as `xxx = a b c`.
+
+`key=value` lines are a SmartDox HEAD-only shorthand for common metadata
+authoring. SmartDox treats the whole right-hand side as a string value, quotes
+it, and then converts the result to HOCON before storing it in
+`DocumentMetaData.properties`. This intentionally differs from raw HOCON for
+HEAD authoring convenience. The shorthand exists to prevent common SmartDox
+metadata errors, especially unquoted URL values such as
+`title_image=https://example.com/image.jpg?q=80&w=1200`, which raw HOCON rejects
+at `https:` unless the value is quoted. For this HEAD-specific layer, SmartDox
+chooses authoring safety and convenience over strict HOCON textual
+compatibility. The canonical internal representation remains HOCON.
+
+The scanner must therefore distinguish the property separator from `=`
+characters inside a URL value.
+
+This shorthand is not a Java `.properties` compatibility contract;
+Java-specific forms such as `key:value`, space-separated entries, continuation
+lines, and Java escape semantics are not part of the stable HEAD grammar. Use
+regular HOCON when nested objects, lists, or typed values are needed.
+
+This rule applies in both SmartDox authoring and Markdown mode; `.md` /
+`.markdown` sources may use `# HEAD` for SmartDox operational metadata when YAML
+front matter is not enough. The leading properties paragraph inside `HEAD` is
+metadata-only and is not parsed as Markdown body text.
 
 ## Summary And Lead
 

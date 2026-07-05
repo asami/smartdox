@@ -8,10 +8,19 @@ import org.goldenport.context.Consequence
 
 /*
  * @since   Jun.  2, 2026
- * @version Jun.  8, 2026
+ *  version Jun.  8, 2026
+ * @version Jul.  6, 2026
  * @author  ASAMI, Tomoharu
  */
 object DocumentPropertiesParser {
+  // SmartDox HEAD `key=value` is a HEAD-specific string shorthand.
+  // Design decision: this layer intentionally favors SmartDox authoring safety
+  // over raw HOCON textual compatibility. In HEAD, users frequently write simple
+  // metadata values such as unquoted URLs; raw HOCON rejects values like
+  // `https://...` unless quoted. This parser accepts that convenience form,
+  // quotes the complete RHS, and normalizes it into the canonical HOCON-backed
+  // DocumentMetaData representation. Do not treat this as Java .properties
+  // compatibility or as general HOCON syntax outside SmartDox HEAD.
   private val _yaml_parser = new Yaml()
 
   def isPropertiesText(p: String): Boolean =

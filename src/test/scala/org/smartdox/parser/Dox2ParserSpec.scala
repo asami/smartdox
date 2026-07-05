@@ -16,14 +16,14 @@ import org.smartdox.Document
  *  version Sep.  5, 2024
  *  version Aug. 16, 2025
  *  version Apr. 19, 2026
- *  version Jun.  8, 2026
- * @version Jun. 23, 2026
+ *  version Jun. 23, 2026
+ * @version Jul.  6, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser {
   "HEAD section" should {
-    "be merged into document metadata from SmartDox properties" in {
+    "normalize SmartDox HEAD key-value shorthand into HOCON metadata" in {
       val dox = parse_dox("""業務報告
 ===
 
@@ -43,7 +43,7 @@ author=山田 太郎
       meta.getAuthorString(java.util.Locale.JAPANESE) should be (Some("山田 太郎"))
     }
 
-    "keep HOCON metadata support" in {
+    "keep regular HOCON metadata support beside the shorthand" in {
       val dox = parse_dox("""業務報告
 ===
 
