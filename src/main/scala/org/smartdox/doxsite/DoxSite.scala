@@ -374,13 +374,18 @@ class DoxSite(
   }
 
   private def _build_machine_metadata(realm: Realm, context: Context): Realm = {
-    realm.setContent("metadata/dashboard/site.json", DoxSiteDashboard.toJsonString(metadata.dashboard))
-    realm.setContent("metadata/rdf/graph.json", DoxSiteDashboard.toRdfGraphJsonString(metadata))
-    realm.setContent("metadata/glossary/terms.json", DoxSiteDashboard.toGlossaryTermsJsonString(metadata))
-    realm.setContent("metadata/bibliography/bibliography.json", Bibliography.toJsonString(metadata.bibliography))
     val fragments = _document_fragments(context)
+    val tags = DoxSiteTags.create(fragments)
+    val effectivesite = metadata.site.copy(tagEntries = tags.tags)
+    val effectivemetadata = metadata.copy(site = effectivesite)
+    realm.setContent("metadata/dashboard/site.json", DoxSiteDashboard.toJsonString(effectivemetadata.dashboard))
+    realm.setContent("metadata/rdf/graph.json", DoxSiteDashboard.toRdfGraphJsonString(effectivemetadata))
+    realm.setContent("metadata/glossary/terms.json", DoxSiteDashboard.toGlossaryTermsJsonString(effectivemetadata))
+    realm.setContent("metadata/bibliography/bibliography.json", Bibliography.toJsonString(effectivemetadata.bibliography))
+    realm.setContent("site.jsonld", effectivesite.toJsonLD)
+    realm.setContent("site.ttl", effectivesite.toTurtle)
     realm.setContent("metadata/documents/fragments.json", DoxSiteDocumentFragments.toJsonString(fragments))
-    realm.setContent("metadata/tags/tags.json", DoxSiteTags.toJsonString(DoxSiteTags.create(fragments)))
+    realm.setContent("metadata/tags/tags.json", DoxSiteTags.toJsonString(tags))
     realm
   }
 

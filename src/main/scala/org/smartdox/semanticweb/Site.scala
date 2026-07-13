@@ -9,6 +9,7 @@ import org.smartdox.semanticweb.Vocabulary._
 import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.DocumentMetaData
+import org.smartdox.metadata.DoxSiteTags
 import org.smartdox.metadata.Glossary
 import org.smartdox.metadata.PublishMetadata
 import org.smartdox.doxsite.LinkCollection.DoxLinks
@@ -31,7 +32,7 @@ import org.smartdox.doxsite.LinkCollection.DoxLinks
  * @since   Nov. 20, 2025
  *  version Nov. 29, 2025
  *  version May. 14, 2026
- * @version Jun. 25, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 object Site {
@@ -454,7 +455,8 @@ object Site {
     schema: Option[String] = None,
     vocabulary: Option[String] = None,
     videoPublications: Seq[PublishMetadata.VideoPublication] = Seq.empty,
-    publicationTriples: Seq[Triple] = Seq.empty
+    publicationTriples: Seq[Triple] = Seq.empty,
+    tagEntries: Vector[DoxSiteTags.Entry] = Vector.empty
   ) {
     def glossary: Glossary = metadata.glossary
 
@@ -578,6 +580,9 @@ object Site {
       val videoTriples: Seq[Triple] =
         videoPublications.flatMap(_video_publication_triples(root, _))
 
+      val tagtriples: Seq[Triple] =
+        _tag_triples(tagEntries)
+
       // ------------------------------------------------------------
       // BoK integration
       // ------------------------------------------------------------
@@ -601,8 +606,45 @@ object Site {
         resourceTriples ++
         videoTriples ++
         publicationTriples ++
+        tagtriples ++
         bokTriples
       )
+    }
+
+    private def _tag_triples(entries: Vector[DoxSiteTags.Entry]): Vector[Triple] = {
+      val publicpaths = entries.map(x => x.key -> x.publicPath).toMap
+      val tagresources = entries.flatMap(_tag_and_ancestor_keys).distinct.sorted.flatMap { key =>
+        val tag = Node.Uri(_tag_uri(key, publicpaths))
+        val segments = key.split('.').toVector.filter(_.nonEmpty)
+        val parent = if (segments.size > 1) Some(segments.dropRight(1).mkString(".")) else None
+        Vector(
+          Triple(tag, RdfType, Node.Uri(schemaUri("DefinedTerm"))),
+          Triple(tag, Node.Uri(schemaUri("name")), Node.Literal(segments.lastOption.getOrElse(key))),
+          Triple(tag, Dcterms.node.identifier, Node.Literal(key))
+        ) ++ parent.map(x => Triple(tag, Dcterms.node.isPartOf, Node.Uri(_tag_uri(x, publicpaths))))
+      }
+      val usages = entries.flatMap { entry =>
+        val tag = Node.Uri(_tag_uri(entry.key, publicpaths))
+        entry.refs.map { ref =>
+          Triple(Node.Uri(_canonical_public_uri(ref.publicPath)), Dcterms.node.subject, tag)
+        }
+      }
+      (tagresources ++ usages).distinct
+    }
+
+    private def _tag_and_ancestor_keys(entry: DoxSiteTags.Entry): Vector[String] =
+      entry.segments.indices.map(i => entry.segments.take(i + 1).mkString(".")).toVector
+
+    private def _tag_uri(key: String, publicpaths: Map[String, String]): String =
+      publicpaths.get(key).map(_public_uri).getOrElse {
+        val segments = key.split('.').filter(_.nonEmpty)
+        val path = if (segments.length == 1) s"tags/${segments.mkString("/")}/index.html" else s"tags/${segments.mkString("/")}"
+        _public_uri(path)
+      }
+
+    private def _canonical_public_uri(path: String): String = {
+      val publicuri = _public_uri(path)
+      if (publicuri.endsWith(".html")) publicuri.dropRight(".html".length) else publicuri
     }
 
     private def _video_publication_triples(root: Node.Uri, video: PublishMetadata.VideoPublication): Seq[Triple] = {

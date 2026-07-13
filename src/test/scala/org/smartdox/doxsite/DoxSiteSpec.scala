@@ -157,6 +157,9 @@ class DoxSiteSpec
         implicit val i18ncontext: I18NContext = context.i18NContext
         val fragments = realm.getString("metadata/documents/fragments.json").get
         val tags = realm.getString("metadata/tags/tags.json").get
+        val turtle = realm.getString("site.ttl").get
+        val jsonld = realm.getString("site.jsonld").get
+        val rdfgraph = realm.getString("metadata/rdf/graph.json").get
         val homebody = _fragment_body(fragments, "index.dox", "ja")
         val manualbody = _fragment_body(fragments, "manual/index.dox", "ja")
 
@@ -186,6 +189,16 @@ class DoxSiteSpec
         tags should include_metadata(""""public_path" : "tags/architecture/review.html"""")
         tags should include_metadata("Review tag definition.")
         tags should include_metadata(""""source_path" : "index.dox"""")
+
+        And("site RDF models hierarchical tags as resources linked from their knowledge users")
+        turtle should include_metadata("https://www.simplemodeling.org/tags/architecture/review.html")
+        turtle should include_metadata("http://purl.org/dc/terms/subject")
+        turtle should include_metadata("http://purl.org/dc/terms/isPartOf")
+        turtle should include_metadata("https://www.simplemodeling.org/tags/architecture/index.html")
+        turtle should include_metadata("https://www.simplemodeling.org/index")
+        jsonld should include_metadata("https://www.simplemodeling.org/tags/workflow/review.html")
+        jsonld should include_metadata("schema:DefinedTerm")
+        rdfgraph should include_metadata("https://www.simplemodeling.org/tags/architecture/review.html")
         realm.getString("ja/tags/architecture/review.html") should not be(None)
         realm.getString("ja/tags/architecture/review.html").get should include_html("Review tag body.")
         realm.getString("en/tags/architecture/review.html") should not be(None)
