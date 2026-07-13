@@ -16,7 +16,8 @@ import scala.collection.JavaConverters._
 
 /*
  * @since   Jun.  4, 2026
- * @version Jun. 29, 2026
+ *  version Jun. 29, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDashboard(
@@ -101,7 +102,8 @@ object DoxSiteDashboard {
     nodeType: String,
     category: Option[String],
     degree: Int,
-    terms: Vector[String] = Vector.empty
+    terms: Vector[String] = Vector.empty,
+    tags: Vector[String] = Vector.empty
   )
   object RdfGraphNode {
     implicit val rdfGraphNodeEncoder: Encoder.AsObject[RdfGraphNode] = deriveConfiguredEncoder
@@ -113,7 +115,8 @@ object DoxSiteDashboard {
     predicate: String,
     label: String,
     category: Option[String],
-    terms: Vector[String] = Vector.empty
+    terms: Vector[String] = Vector.empty,
+    tags: Vector[String] = Vector.empty
   )
   object RdfGraphEdge {
     implicit val rdfGraphEdgeEncoder: Encoder.AsObject[RdfGraphEdge] = deriveConfiguredEncoder
@@ -252,7 +255,8 @@ object DoxSiteDashboard {
   private case class RdfCategoryIndex(
     categories: Set[String],
     resourceCategories: Map[String, String],
-    resourceTerms: Map[String, Vector[String]] = Map.empty
+    resourceTerms: Map[String, Vector[String]] = Map.empty,
+    resourceTags: Map[String, Vector[String]] = Map.empty
   ) {
     def categoryOf(node: Rdf.Node): Option[String] = node match {
       case Rdf.Node.Uri(value) => resourceCategories.get(value).orElse(_category_from_rdf_uri(value, categories))
@@ -260,6 +264,10 @@ object DoxSiteDashboard {
     }
     def termsOf(node: Rdf.Node): Vector[String] = node match {
       case Rdf.Node.Uri(value) => resourceTerms.getOrElse(value, Vector.empty)
+      case _ => Vector.empty
+    }
+    def tagsOf(node: Rdf.Node): Vector[String] = node match {
+      case Rdf.Node.Uri(value) => resourceTags.getOrElse(value, Vector.empty)
       case _ => Vector.empty
     }
   }
@@ -308,11 +316,19 @@ object DoxSiteDashboard {
       }
       val nodes = selected.flatMap(t => Vector(t.subject, t.obj)).distinct.map { node =>
         val id = _node_id(node)
-        RdfGraphNode(id, _node_label(node), _node_type(node), index.categoryOf(node), degree.getOrElse(id, 0), index.termsOf(node))
+        RdfGraphNode(id, _node_label(node), _node_type(node), index.categoryOf(node), degree.getOrElse(id, 0), index.termsOf(node), index.tagsOf(node))
       }.sortBy(_.id)
       val edges = selected.map { t =>
         val category = index.categoryOf(t.subject).orElse(index.categoryOf(t.obj))
-        RdfGraphEdge(_node_id(t.subject), _node_id(t.obj), t.predicate.value, _short_label(t.predicate.value), category, (index.termsOf(t.subject) ++ index.termsOf(t.obj)).distinct)
+        RdfGraphEdge(
+          _node_id(t.subject),
+          _node_id(t.obj),
+          t.predicate.value,
+          _short_label(t.predicate.value),
+          category,
+          (index.termsOf(t.subject) ++ index.termsOf(t.obj)).distinct,
+          (index.tagsOf(t.subject) ++ index.tagsOf(t.obj)).distinct
+        )
       }
       RdfGraph(nodes, edges, triples.size > limit)
     }
@@ -322,19 +338,31 @@ object DoxSiteDashboard {
 
   private def _rdf_category_index(meta: MetaData): RdfCategoryIndex = {
     val categories = meta.categories.categoryVector.filterNot(_is_special_category).map(_.containerString).toSet
-    val articles = meta.notices.notices.flatMap { notice =>
-      notice.category.map(_.containerString).filter(categories.contains).filter(_ => _is_article(notice.effectiveKind)).map { key =>
+    val articlenotices = meta.notices.notices.filter(x => _is_article(x.effectiveKind) && x.category.exists(c => categories.contains(c.containerString)))
+    val articles = articlenotices.flatMap { notice =>
+      notice.category.map(_.containerString).map { key =>
         notice.toSiteResource.id -> key
       }
     }
-    val glossaries = meta.glossary.definitions.collect {
+    val glossarydefinitions = meta.glossary.definitions.collect {
       case m: Glossary.Definition.InGlossary
         if _category_from_glossary_page(m.page.toString).exists(categories.contains) =>
-        m.toSiteResource.id -> _category_from_glossary_page(m.page.toString).get
+        m -> _category_from_glossary_page(m.page.toString).get
     }
+    val glossaries = glossarydefinitions.map { case (term, category) => term.toSiteResource.id -> category }
     val terms = glossaries.map { case (resource, category) => resource -> Vector(_term_id(category, _slug_from_resource(resource))) }.toMap
-    RdfCategoryIndex(categories, (articles ++ glossaries).toMap, terms)
+    val articletags = articlenotices.map { notice =>
+      val category = notice.category.map(_.containerString)
+      notice.toSiteResource.id -> _rdf_tags(notice.metadata, category)
+    }.filter(_._2.nonEmpty).toMap
+    val glossarytags = glossarydefinitions.map { case (term, category) =>
+      term.toSiteResource.id -> _rdf_tags(term.metadata, Some(category))
+    }.filter(_._2.nonEmpty).toMap
+    RdfCategoryIndex(categories, (articles ++ glossaries).toMap, terms, articletags ++ glossarytags)
   }
+
+  private def _rdf_tags(metadata: DocumentMetaData, category: Option[String]): Vector[String] =
+    _metadata_string_list(metadata, "tags", "tag").map(DoxSiteTags.normalizeKey(_, category)).filter(_.nonEmpty).distinct
 
   private def _term_index(meta: MetaData): TermIndex = {
     val referenceindex = _term_reference_index(meta)

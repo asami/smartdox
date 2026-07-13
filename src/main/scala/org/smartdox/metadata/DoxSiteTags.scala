@@ -7,7 +7,7 @@ import io.circe.generic.extras.semiauto._
 
 /*
  * @since   Jun. 28, 2026
- * @version Jun. 28, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteTags(
@@ -91,7 +91,7 @@ object DoxSiteTags {
     }
 
   private def _usage_refs(fragment: DoxSiteDocumentFragments.Fragment): Vector[((String, Option[String]), Ref)] =
-    fragment.tags.map(_tag_key(_, fragment.category)).filter(_.nonEmpty).distinct.map { key =>
+    fragment.tags.map(normalizeKey(_, fragment.category)).filter(_.nonEmpty).distinct.map { key =>
       val title = fragment.headline.orElse(fragment.title).orElse(fragment.brief).getOrElse(fragment.publicPath)
       (key -> Some(fragment.locale)) -> Ref(fragment.kind.getOrElse("article"), title, fragment.sourcePath, fragment.publicPath, fragment.category)
     }
@@ -134,7 +134,7 @@ object DoxSiteTags {
     }
   }
 
-  private def _tag_key(value: String, category: Option[String]): String = {
+  private[metadata] def normalizeKey(value: String, category: Option[String]): String = {
     val segments = value.trim.split("[./]+").toVector.map(_tag_segment).filter(_.nonEmpty)
     val normalized = segments.mkString(".")
     if (normalized.isEmpty)

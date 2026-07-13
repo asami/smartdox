@@ -3,6 +3,7 @@ package org.smartdox.metadata
 import java.net.URI
 import org.joda.time.LocalDate
 import com.typesafe.config.ConfigFactory
+import io.circe.{Json, parser}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.GivenWhenThen
@@ -16,7 +17,8 @@ import org.smartdox.semanticweb.Rdf
 
 /*
  * @since   Jun.  4, 2026
- * @version Jun. 25, 2026
+ *  version Jun. 25, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteDashboardSpec extends AnyWordSpec with Matchers with GivenWhenThen with SmartDoxSpecVocabulary {
@@ -108,11 +110,13 @@ class DoxSiteDashboardSpec extends AnyWordSpec with Matchers with GivenWhenThen 
     }
 
     "emit deterministic graph metadata for the RDF viewer" in {
-      Given("metadata and site RDF contain one architecture article resource")
+      Given("metadata and site RDF contain one tagged architecture article resource")
       val architecture = _category("architecture", "Architecture")
-      val notices = Notices(Vector(
-        _notice("Architecture One", "architecture/one.html", architecture, DocumentMetaData.Kind.Article, Some("2026-01-01"))
-      ))
+      val article = _notice("Architecture One", "architecture/one.html", architecture, DocumentMetaData.Kind.Article, Some("2026-01-01"))
+      val taggedarticle = article.copy(metadata = article.metadata.copy(properties = Some(ConfigFactory.parseString(
+        """tags = ["review", "workflow.review"]
+          |""".stripMargin))))
+      val notices = Notices(Vector(taggedarticle))
       val meta = MetaData(
         categories = CategoryCollection(VectorMap("architecture" -> architecture)),
         notices = notices
@@ -121,6 +125,7 @@ class DoxSiteDashboardSpec extends AnyWordSpec with Matchers with GivenWhenThen 
 
       When("SmartDox serializes the RDF graph handoff metadata")
       val json = DoxSiteDashboard.toRdfGraphJsonString(meta.copy(site = site))
+      val graph = parser.parse(json).fold(throw _, identity)
 
       Then("the graph metadata contains node and edge collections")
       json should include_metadata(""""nodes"""")
@@ -128,6 +133,19 @@ class DoxSiteDashboardSpec extends AnyWordSpec with Matchers with GivenWhenThen 
       And("category and resource identity are kept for Cozy graph navigation")
       json should include_metadata(""""category" : "architecture"""")
       json should include_metadata("https://www.simplemodeling.org/architecture/one")
+      And("canonical tags are attached to RDF nodes and propagated to their edges")
+      val expectedtags = Vector("architecture.review", "workflow.review")
+      val nodes = graph.hcursor.downField("nodes").as[Vector[Json]].fold(throw _, identity)
+      val articlenode = nodes.find(_.hcursor.get[String]("id").toOption.contains("https://www.simplemodeling.org/architecture/one")).
+        getOrElse(fail("Missing tagged article RDF node"))
+      articlenode.hcursor.get[Vector[String]]("tags").fold(throw _, identity) shouldBe expectedtags
+      val edges = graph.hcursor.downField("edges").as[Vector[Json]].fold(throw _, identity)
+      val articleedge = edges.find { edge =>
+        val cursor = edge.hcursor
+        cursor.get[String]("source").toOption.contains("https://www.simplemodeling.org/architecture/one") ||
+          cursor.get[String]("target").toOption.contains("https://www.simplemodeling.org/architecture/one")
+      }.getOrElse(fail("Missing tagged article RDF edge"))
+      articleedge.hcursor.get[Vector[String]]("tags").fold(throw _, identity) shouldBe expectedtags
     }
 
     "emit glossary term metadata for term hubs" in {
