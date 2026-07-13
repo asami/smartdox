@@ -51,7 +51,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Oct. 15, 2025
  *  version Nov. 17, 2025
  *  version May. 14, 2026
- * @version Jun. 21, 2026
+ *  version Jun. 21, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -540,6 +541,9 @@ object AntoraGenerator {
     ) {
       def homePage: Name = Name("index.adoc")
 
+      def hasHomePage: Boolean =
+        modules.vector.find(_.isRoot).exists(_.containsPage("index.dox"))
+
       def canonize(ctx: Context): Component =
         copy(modules = modules.map(_.canonize(ctx)))
 
@@ -741,6 +745,11 @@ object AntoraGenerator {
 
       def isNoPages: Boolean = ingredients.vector.forall(_.isNoPages)
 
+      def containsPage(path: String): Boolean =
+        navigation.references.collectContent {
+          case x => x
+        }.exists(_.pathname.v.split('/').lastOption.contains(path))
+
       def canonize(ctx: Context) = copy(ingredients = ingredients.map(_.canonize(ctx)))
     }
     object Module {
@@ -903,7 +912,7 @@ object AntoraGenerator {
 
       private def _build_playbook(comps: List[Component]): Playbook = _playbook getOrElse {
         val title = config.title
-        val startpage = comps.headOption.map { x =>
+        val startpage = comps.find(_.hasHomePage).map { x =>
           val file = x.homePage
           s"${x.name.name}::${file.name}"
         }

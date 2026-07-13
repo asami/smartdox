@@ -26,7 +26,8 @@ import org.smartdox.semanticweb.{Rdf, RdfRenderer}
  *  version Jun.  8, 2025
  *  version Aug. 16, 2025
  *  version May. 14, 2026
- * @version Jun. 24, 2026
+ *  version Jun. 24, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -142,6 +143,38 @@ class DoxSiteGeneratorSpec extends AnyWordSpec with Matchers with ScalazMatchers
 
         playbook should include ("title:")
         playbook should not include ("start_page")
+      }
+
+      "selects the first component with a root index as the Antora start page" in {
+        val dir = Files.createTempDirectory("smartdox-antora-start-page")
+        try {
+          Given("a bibliography component without an index before a category component with an index")
+          Files.createDirectories(dir.resolve("bibliography/technology"))
+          Files.write(
+            dir.resolve("bibliography/technology/design-patterns.bib.dox"),
+            "Design Patterns\n===============\n".getBytes(StandardCharsets.UTF_8)
+          )
+          Files.createDirectories(dir.resolve("technology"))
+          Files.write(
+            dir.resolve("technology/index.dox"),
+            "Technology\n==========\n".getBytes(StandardCharsets.UTF_8)
+          )
+          val in = Realm.create(dir.toFile)
+          val g = new AntoraGenerator(ctx, DoxSite.Config.default)
+
+          When("SmartDox generates the Antora playbook")
+          val r = g.generate(in)
+          val playbook = r.get("antora.d/antora-playbook.yml").collect {
+            case m: StringData => m.string
+          }.getOrElse("")
+
+          Then("the existing category root page becomes the site start page")
+          playbook should include ("start_page: technology::index.adoc")
+          And("the bibliography component without an index is not selected")
+          playbook should not include ("start_page: bibliography::index.adoc")
+        } finally {
+          _delete(dir)
+        }
       }
 
       "mini" ignore {

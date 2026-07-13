@@ -27,7 +27,8 @@ import io.circe.parser
  *  version Jun. 17, 2025
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun. 29, 2026
+ *  version Jun. 29, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -618,6 +619,7 @@ class DoxSiteSpec
               |publisher = "Addison-Wesley"
               |identifiers.isbn = "9780201633610"
               |terms = ["pattern", "object-oriented design"]
+              |tags = ["concept.pattern"]
               |citation = "Gamma et al. Design Patterns. Addison-Wesley, 1994."
               |
               |# Overview
@@ -705,6 +707,7 @@ class DoxSiteSpec
           val realm = site.toRealm(context)
           implicit val i18ncontext: I18NContext = context.i18NContext
           val bibliography = realm.getString("metadata/bibliography/bibliography.json").get
+          val tags = realm.getString("metadata/tags/tags.json").get
           val ttl = realm.getString("site.ttl").get
 
           Then("curated bibliography sources become deterministic bibliography entries")
@@ -713,6 +716,13 @@ class DoxSiteSpec
           bibliography should include_metadata("\"category\" : \"concept\"")
           bibliography should include_metadata("\"isbn\" : \"9780201633610\"")
           bibliography should include_metadata("\"key\" : \"gamma1995designpatterns\"")
+          bibliography should include_metadata("\"tags\" : [")
+          bibliography should include_metadata("\"concept.pattern\"")
+          And("bibliography tags use the curated bibliography resource identity in tag handoff metadata")
+          tags should include_metadata("\"kind\" : \"bibliography\"")
+          tags should include_metadata("\"public_path\" : \"bibliography/concept/design-patterns.html\"")
+          tags should include_metadata("\"category\" : \"concept\"")
+          tags should include_metadata("\"title\" : \"Design Patterns\"")
           bibliography should include_metadata("\"id\" : \"bib:crossref-api\"")
           bibliography should include_metadata("\"entry_type\" : \"web-page\"")
           bibliography should include_metadata("\"source_url\" : \"https://api.crossref.org\"")

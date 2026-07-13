@@ -8,7 +8,8 @@ import io.circe.generic.extras.semiauto._
 /*
  * @since   Feb. 23, 2025
  *  version Nov. 21, 2025
- * @version Jun. 25, 2026
+ *  version Jun. 25, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Bibliography(
@@ -92,6 +93,7 @@ object Bibliography {
     sourceUrl: Option[String] = None,
     accessedAt: Option[String] = None,
     terms: Vector[String] = Vector.empty,
+    tags: Vector[String] = Vector.empty,
     citation: Option[String] = None,
     identifiers: Identifiers = Identifiers.empty,
     bibtex: Bibtex = Bibtex.empty,

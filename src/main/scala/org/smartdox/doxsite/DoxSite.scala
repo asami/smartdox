@@ -83,7 +83,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Nov. 29, 2025
  *  version Dec.  8, 2025
  *  version May. 14, 2026
- * @version Jun. 29, 2026
+ *  version Jun. 29, 2026
+ * @version Jul. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -422,14 +423,20 @@ class DoxSite(
     locale: Locale
   ): DoxSiteDocumentFragments.Fragment = {
     val metadata = page.dox.head.metadata
+    val bibliography = _bibliography_source_category(sourcepath).map { category =>
+      category -> _bibliography_slug(sourcepath)
+    }
     DoxSiteDocumentFragments.Fragment(
       sourcePath = sourcepath,
-      publicPath = _document_public_path(sourcepath),
+      publicPath = bibliography.map { case (_, slug) => _bibliography_public_path(sourcepath, slug) }.
+        getOrElse(_document_public_path(sourcepath)),
       locale = locale.getLanguage,
-      kind = metadata.kindOption.map(_.name),
-      category = _document_category(sourcepath, metadata.category),
-      title = metadata.getTitleString(locale).orElse(metadata.getTitleStringDefault),
-      headline = metadata.getEffectiveHeadlineString(locale),
+      kind = bibliography.map(_ => "bibliography").orElse(metadata.kindOption.map(_.name)),
+      category = bibliography.map(_._1).orElse(_document_category(sourcepath, metadata.category)),
+      title = bibliography.flatMap(_ => _metadata_string(metadata, "title")).
+        orElse(metadata.getTitleString(locale)).orElse(metadata.getTitleStringDefault),
+      headline = bibliography.flatMap(_ => _metadata_string(metadata, "title")).
+        orElse(metadata.getEffectiveHeadlineString(locale)),
       brief = metadata.getEffectiveBriefString(locale),
       bodyHtml = _document_body_html(context, page.dox, locale),
       tags = _document_tags(metadata)
@@ -1620,6 +1627,7 @@ object DoxSite {
       val sourceurl = _metadata_string(metadata, "source_url", "url")
       val citation = _metadata_string(metadata, "citation")
       val terms = _metadata_string_list(metadata, "terms")
+      val tags = _metadata_string_list(metadata, "tags", "tag")
       val authors = _metadata_string_list(metadata, "authors", "author")
       val identifiers = Bibliography.Identifiers(
         doi = _metadata_string(metadata, "identifiers.doi", "doi"),
@@ -1652,6 +1660,7 @@ object DoxSite {
         sourceUrl = sourceurl,
         accessedAt = _metadata_string(metadata, "accessed_at", "accessedAt"),
         terms = terms,
+        tags = tags,
         citation = citation,
         identifiers = identifiers,
         bibtex = bibtex,
