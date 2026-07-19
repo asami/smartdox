@@ -23,7 +23,8 @@ import org.smartdox.converter._
  *  version Oct. 26, 2025
  *  version Nov. 30, 2025
  *  version May. 14, 2026
- * @version Jun.  3, 2026
+ *  version Jun.  3, 2026
+ * @version Jul. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2AsciidocConverter(
@@ -305,10 +306,16 @@ class Dox2AsciidocConverter(
 
   private def _normalize_src(p: URI): String = {
     val s = p.toString
-    if (s.startsWith("images/"))
-      s.substring("images/".length)
-    else
+    if (s.startsWith("images/")) {
+      val rest = s.substring("images/".length)
+      val i = rest.indexOf('/')
+      if (i > 0)
+        s"${rest.substring(0, i)}:${rest.substring(i + 1)}"
+      else
+        rest
+    } else {
       s
+    }
   }
 
   private def _build_attrs(ps: Seq[(String, String)]): String = 
@@ -317,6 +324,17 @@ class Dox2AsciidocConverter(
     }.mkString(",")
 
   override protected def leave_Figure(p: Figure): Unit = {
+  }
+
+  override protected def enter_Img(p: Img): Unit = {
+    val attrs = p.alt.map("alt" -> _).toList ++
+      p.attributes.toList.filterNot(_._1.equalsIgnoreCase("src"))
+    sb_print("image:")
+    sb_print(_normalize_src(p.src))
+    sb_print("[")
+    sb_print(_build_attrs(attrs))
+    sb_println("]")
+    sb_println()
   }
 
   override protected def enter_Table(p: Table): Unit = {

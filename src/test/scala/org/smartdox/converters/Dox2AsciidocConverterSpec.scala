@@ -22,7 +22,8 @@ import org.smartdox.generators.AntoraGenerator
  *  version Jul.  1, 2025
  *  version Aug. 16, 2025
  *  version Oct. 12, 2025
- * @version May. 14, 2026
+ *  version May. 14, 2026
+ * @version Jul. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -53,6 +54,26 @@ class Dox2AsciidocConverterSpec extends AnyWordSpec with Matchers with ScalazMat
         s should be_success("""* X
 * Y
 * Z
+""")
+      }
+    }
+    "Img" should {
+      "emit Asciidoc inline image macro for a standalone image" in {
+        val s = make_asciidoc("""[[images/why-reconstruct-software-development-methodology/summary-ja.png]]
+""")
+        s should be_success("""image:why-reconstruct-software-development-methodology:summary-ja.png[]
+
+""")
+      }
+    }
+    "Figure" should {
+      "keep block image macro with caption attributes" in {
+        val s = make_asciidoc("""#+CAPTION: Summary
+[[images/why-reconstruct-software-development-methodology/summary-ja.png]]
+""")
+        s should be_success(""".Summary
+image::why-reconstruct-software-development-methodology:summary-ja.png[role=img-figure,alt=Summary,title=Summary]
+
 """)
       }
     }
