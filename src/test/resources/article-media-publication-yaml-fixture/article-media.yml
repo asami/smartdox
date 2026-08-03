@@ -1,0 +1,10 @@
+type: article-media-publication
+article:
+  identity: development-process/localized-example
+variants:
+  en-US-u-ca-japanese:
+    video:
+      presentation: external-link
+      status: published
+      provider: youtube
+      watch_url: https://example.com/localized-example

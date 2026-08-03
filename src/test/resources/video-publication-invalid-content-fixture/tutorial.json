@@ -1,0 +1,21 @@
+{
+  "type": "publication-bundle",
+  "entries": [
+    {
+      "path": "metadata/videos/tutorial/metadata.json",
+      "key": "videos/tutorial/metadata",
+      "metadata": {
+        "type": "video-publication",
+        "video": {
+          "name": "tutorial",
+          "version": "0.1.0",
+          "articlePath": "index.dox",
+          "sourcePackage": "concepts/tutorial.video",
+          "artifact": {
+            "repositoryPublicPath": "not-a-site-path"
+          }
+        }
+      }
+    }
+  ]
+}

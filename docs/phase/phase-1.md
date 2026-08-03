@@ -1,0 +1,136 @@
+# Phase 1: Article Media Publication and Site Projection
+
+Status: in progress
+
+Start date: 2026-08-03
+
+## Goal
+
+Make an optional article-media publication record the single SmartDox input for
+an article's detailed infographic and video presentation. SmartDox must project
+the resolved, locale-specific media consistently into the article page and the
+Notice data consumed by global and category-top article cards.
+
+## Scope
+
+In scope:
+
+- a provider-neutral article/media publication metadata model with article and
+  locale identity;
+- optional detailed infographic and video presentation references;
+- distinction between a site-hosted content URL and a user-facing watch URL;
+- publication status that prevents unpublished external video links;
+- parser and publication-registry integration for the new metadata;
+- promotion of the publication contract to reviewed design and specification
+  documents before implementation;
+- compatible projection of existing `VideoPublication` input;
+- Notice media projection for both global and category-local Notice YAML; and
+- article-top media callout or embedded-player projection according to the
+  selected presentation type.
+
+Out of scope:
+
+- YouTube upload, verification, or provider API integration;
+- Arcadia widget HTML/CSS/JavaScript implementation in SimpleModeling.org;
+- Cozy media generation, transcoding, or BoK artifact staging;
+- discovery by scanning `target`, generated site output, or an artifact
+  repository; and
+- a requirement that every article has video or an infographic.
+
+## Responsibility Boundary
+
+### SmartDox
+
+- owns metadata parsing, normalization, article/locale association, and
+  deterministic page and Notice projection;
+- treats publication metadata as the source of media association; and
+- preserves existing site behavior when no article-media record exists.
+
+### SimpleModeling.org
+
+- publishes its video on YouTube;
+- supplies the locale-specific published watch URL and site-visible infographic
+  asset path; and
+- renders Notice media through its existing card widgets.
+
+### Cozy BoK
+
+- creates or registers the same metadata for an internally hosted BoK video;
+- keeps video binaries and derived artifacts in a Git-excluded artifact
+  repository; and
+- stages the site and artifact repository under one BoK URL space.
+
+## Stage 1.1: Publication Contract and Compatibility
+
+Stage Status:
+
+- Current status: DONE
+- Owner: SmartDox
+- Update rule: mark work complete only from the Phase 1 checklist.
+- Checklist basis: `AMP1-01`
+
+Focus:
+
+- define the normalized article-media model and publication input shape;
+- promote the article-media contract into `docs/design` and `docs/spec` before
+  parser or site-projection implementation;
+- make `PublishMetadata` the only association input boundary and keep
+  `DocumentPropertiesParser` out of scope;
+- define missing, invalid, draft, and published media outcomes; and
+- preserve compatible `VideoPublication` source-package matching, `.video`
+  source-page rewriting, player/caption/link rendering, and diagnostics while
+  deterministically mapping its optional `articlePath` into the normalized
+  model with locale-neutral compatibility, explicit-record precedence, and
+  conflict diagnostics; suppress an invalid legacy publicPath only from the
+  adapter without invalidating its registry or source-page behavior.
+
+## Stage 1.2: SmartDox Site Projection
+
+Stage Status:
+
+- Current status: OPEN
+- Owner: SmartDox
+- Update rule: mark work complete only from the Phase 1 checklist.
+- Checklist basis: `AMP1-02`
+
+Focus:
+
+- resolve article and locale media before Notice encoding;
+- emit the same optional media data for global and category-local notices; and
+- project an article-top callout or player without duplicating URLs in Dox
+  source.
+
+## Stage 1.3: SimpleModeling.org Acceptance Boundary
+
+Stage Status:
+
+- Current status: OPEN
+- Owner: SmartDox / SimpleModeling.org
+- Update rule: mark work complete only from the Phase 1 checklist.
+- Checklist basis: `AMP1-03`
+
+Focus:
+
+- prove the Notice schema serves the existing widget path;
+- verify a published YouTube link and detailed infographic are locale-specific;
+- retain a usable article card when media is absent; and
+- hand off the widget presentation work without making it a SmartDox core
+  dependency.
+
+## Completion Criteria
+
+Phase 1 closes when the reviewed design and specification fix the
+PublishMetadata-only article-media contract, and SmartDox can consume registered article-media metadata,
+preserve `VideoPublication` compatibility, and deterministically emit the
+same resolved optional media for an article page plus every corresponding
+global/category Notice. Executable specifications must cover locale resolution,
+missing media, unpublished external video, and the existing video-publication
+path.
+
+## References
+
+- `docs/phase/phase-1-checklist.md`
+- `docs/design/article-media-publication.md`
+- `docs/spec/article-media-publication.md`
+- `docs/notes/article-media-publication-and-site-projection.md`
+- `docs/journal/2026/08/article-media-site-integration-2026-08-03.md`

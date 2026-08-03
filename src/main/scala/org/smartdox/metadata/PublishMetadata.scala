@@ -20,6 +20,7 @@ import org.smartdox.semanticweb.Rdf
  * @since   May. 13, 2026
  *  version May. 14, 2026
  * @version Jun. 24, 2026
+ * @version Aug.  4, 2026
  * @author  ASAMI, Tomoharu
  */
 case class PublishMetadata(
@@ -34,6 +35,12 @@ case class PublishMetadata(
       video.copy(rdf = rdf)
     }
   }
+
+  lazy val articleMedia: ArticleMediaRegistry =
+    ArticleMediaRegistry.create(entries, videoPublications)
+
+  def resolveArticleMedia(articleIdentity: String, locale: String): Option[ArticleMediaVariant] =
+    articleMedia.resolve(articleIdentity, locale)
 
   def videoRdfArtifactTriples(config: RdfMergeConfig): Vector[Rdf.Triple] =
     if (config.mergePublicationArtifacts)
@@ -405,6 +412,172 @@ case class PublishMetadata(
 }
 
 object PublishMetadata {
+  case class ArticleMediaPublication(
+    articleIdentity: String,
+    variants: Vector[ArticleMediaVariant]
+  )
+
+  case class ArticleMediaVariant(
+    locale: String,
+    infographic: Option[ImageReference] = None,
+    video: Option[VideoReference] = None
+  ) {
+    def projectableVideo: Option[VideoReference] =
+      video.filter(_.isProjectable)
+  }
+
+  case class ImageReference(
+    publicPath: URI,
+    mediaType: Option[String] = None,
+    alt: Option[String] = None
+  )
+
+  sealed trait VideoPresentation {
+    def name: String
+  }
+
+  object VideoPresentation {
+    case object ExternalLink extends VideoPresentation {
+      val name = "external-link"
+    }
+
+    case object SiteHosted extends VideoPresentation {
+      val name = "site-hosted"
+    }
+
+    def parse(value: String): VideoPresentation =
+      value match {
+        case ExternalLink.name => ExternalLink
+        case SiteHosted.name => SiteHosted
+        case _ => throw new IllegalArgumentException(s"Unsupported article-media video presentation: $value")
+      }
+  }
+
+  sealed trait VideoStatus {
+    def name: String
+  }
+
+  object VideoStatus {
+    case object Draft extends VideoStatus {
+      val name = "draft"
+    }
+
+    case object Published extends VideoStatus {
+      val name = "published"
+    }
+
+    case object Withdrawn extends VideoStatus {
+      val name = "withdrawn"
+    }
+
+    def parse(value: String): VideoStatus =
+      value match {
+        case Draft.name => Draft
+        case Published.name => Published
+        case Withdrawn.name => Withdrawn
+        case _ => throw new IllegalArgumentException(s"Unsupported article-media video status: $value")
+      }
+  }
+
+  case class VideoReference(
+    presentation: VideoPresentation,
+    status: VideoStatus,
+    provider: Option[String] = None,
+    watchUrl: Option[URI] = None,
+    contentUrl: Option[URI] = None
+  ) {
+    def isProjectable: Boolean =
+      status == VideoStatus.Published && (presentation match {
+        case VideoPresentation.ExternalLink => watchUrl.nonEmpty
+        case VideoPresentation.SiteHosted => contentUrl.nonEmpty
+      })
+  }
+
+  case class ArticleMediaDiagnostic(
+    code: String,
+    message: String
+  )
+
+  case class ArticleMediaRegistry(
+    publications: Vector[ArticleMediaPublication],
+    compatibilityVariants: Map[String, ArticleMediaVariant],
+    diagnostics: Vector[ArticleMediaDiagnostic]
+  ) {
+    private lazy val _variants: Map[(String, String), ArticleMediaVariant] =
+      publications.flatMap { publication =>
+        publication.variants.map(variant => (publication.articleIdentity -> variant.locale) -> variant)
+      }.toMap
+
+    def resolve(articleIdentity: String, locale: String): Option[ArticleMediaVariant] =
+      for {
+        identity <- _normalize_article_identity_option(articleIdentity)
+        localetag <- _normalize_locale_option(locale)
+        variant <- _variants.get(identity -> localetag).orElse(compatibilityVariants.get(identity))
+      } yield variant
+  }
+
+  object ArticleMediaRegistry {
+    def create(entries: Vector[Entry], videos: Vector[VideoPublication]): ArticleMediaRegistry = {
+      val publications = entries.flatMap(_.articleMediaPublication)
+      _validate_article_media_duplicates(publications)
+      val compatibility = _compatibility_variants(videos)
+      ArticleMediaRegistry(publications, compatibility._1, compatibility._2)
+    }
+
+    private def _validate_article_media_duplicates(publications: Vector[ArticleMediaPublication]): Unit = {
+      val duplicates = publications.flatMap { publication =>
+        publication.variants.map(variant => publication.articleIdentity -> variant.locale)
+      }.groupBy(identity).collect {
+        case (identity, xs) if xs.size > 1 => identity
+      }.toVector.sortBy { case (identity, locale) => s"$identity/$locale" }
+      duplicates.headOption.foreach {
+        case (identity, locale) =>
+          throw new IllegalArgumentException(s"Duplicate article-media publication variant: $identity [$locale]")
+      }
+    }
+
+    private def _compatibility_variants(videos: Vector[VideoPublication]): (Map[String, ArticleMediaVariant], Vector[ArticleMediaDiagnostic]) = {
+      val candidates = videos.flatMap(_compatibility_candidate)
+      val grouped = candidates.groupBy(_._1).toVector.sortBy(_._1)
+      val diagnostics = Vector.newBuilder[ArticleMediaDiagnostic]
+      val variants = grouped.flatMap {
+        case (identity, xs) if xs.size == 1 => Some(identity -> xs.head._2)
+        case (identity, _) =>
+          diagnostics += ArticleMediaDiagnostic(
+            "article-media.video-publication-conflict",
+            s"Multiple video-publication records derive article media for: $identity"
+          )
+          None
+      }.toMap
+      val invalid = videos.flatMap(_invalid_compatibility_diagnostic)
+      variants -> (invalid ++ diagnostics.result()).sortBy(x => x.code + ":" + x.message)
+    }
+
+    private def _compatibility_candidate(video: VideoPublication): Option[(String, ArticleMediaVariant)] =
+      for {
+        identity <- _legacy_article_identity(video)
+        contenturl <- _site_visible_uri_option(video.publicPath)
+      } yield identity -> ArticleMediaVariant(
+        locale = "",
+        video = Some(VideoReference(
+          presentation = VideoPresentation.SiteHosted,
+          status = VideoStatus.Published,
+          contentUrl = Some(contenturl)
+        ))
+      )
+
+    private def _invalid_compatibility_diagnostic(video: VideoPublication): Option[ArticleMediaDiagnostic] =
+      _legacy_article_identity(video).flatMap { identity =>
+        if (_site_visible_uri_option(video.publicPath).nonEmpty)
+          None
+        else
+          Some(ArticleMediaDiagnostic(
+            "article-media.video-publication-invalid-content-url",
+            s"Video publication for $identity has an invalid article-media content URL: ${video.publicPath}"
+          ))
+      }
+  }
+
   case class RdfMergeConfig(
     repository: Option[File],
     missingArtifactPolicy: String = "warn",
@@ -709,6 +882,13 @@ object PublishMetadata {
         }
       else
         None
+
+    def articleMediaPublication: Option[ArticleMediaPublication] =
+      if (typeOption.contains("article-media-publication"))
+        Some(_article_media_publication(json, path))
+      else
+        None
+
     def displayTitle: String =
       List(typeOption, Some(path)).flatten.mkString(" - ")
     def isSourceManifest: Boolean =
@@ -811,8 +991,164 @@ object PublishMetadata {
           directory = _json_string(json, "directory"),
           version = _json_string(json, "version")
         )
-      }
+    }
   }
+
+  private def _article_media_publication(json: Json, source: String): ArticleMediaPublication = {
+    val identity = _required_json_string(json, source, "article", "identity")
+    val variants = _required_json_object(json, source, "variants").toVector.sortBy(_._1).map {
+      case (locale, variant) => _article_media_variant(identity, locale, variant, source)
+    }
+    if (variants.isEmpty)
+      throw new IllegalArgumentException(s"Article-media publication must define variants: $source")
+    ArticleMediaPublication(_normalize_article_identity(identity), variants)
+  }
+
+  private def _article_media_variant(identity: String, locale: String, json: Json, source: String): ArticleMediaVariant = {
+    val localetag = _normalize_locale(locale, requirecanonical = true)
+    val infographic = _json_field(json, "infographic").map(_image_reference(_, identity, localetag, source))
+    val video = _json_field(json, "video").map(_video_reference(_, identity, localetag, source))
+    ArticleMediaVariant(localetag, infographic, video)
+  }
+
+  private def _image_reference(json: Json, identity: String, locale: String, source: String): ImageReference = {
+    val publicpath = _required_json_string(json, source, "public_path")
+    ImageReference(
+      publicPath = _site_visible_uri(publicpath, s"Article-media infographic public_path for $identity [$locale]"),
+      mediaType = _optional_json_string(json, "media_type"),
+      alt = _optional_json_string(json, "alt")
+    )
+  }
+
+  private def _video_reference(json: Json, identity: String, locale: String, source: String): VideoReference = {
+    val presentation = VideoPresentation.parse(_required_json_string(json, source, "presentation"))
+    val status = VideoStatus.parse(_required_json_string(json, source, "status"))
+    val provider = _optional_json_string(json, "provider")
+    val watchurl = _optional_json_string(json, "watch_url").map(_absolute_uri(_, s"Article-media video watch_url for $identity [$locale]"))
+    val contenturl = _optional_json_string(json, "content_url").map(_site_visible_uri(_, s"Article-media video content_url for $identity [$locale]"))
+    if (status == VideoStatus.Published) {
+      presentation match {
+        case VideoPresentation.ExternalLink if watchurl.isEmpty =>
+          throw new IllegalArgumentException(s"Published external article-media video requires watch_url: $identity [$locale]")
+        case VideoPresentation.SiteHosted if contenturl.isEmpty =>
+          throw new IllegalArgumentException(s"Published site-hosted article-media video requires content_url: $identity [$locale]")
+        case _ =>
+      }
+    }
+    VideoReference(presentation, status, provider, watchurl, contenturl)
+  }
+
+  private def _legacy_article_identity(video: VideoPublication): Option[String] =
+    video.articlePath.flatMap { rawpath =>
+      val path = rawpath.trim.replace('\\', '/')
+      if (path == "index.dox")
+        video.sourcePackage.flatMap { sourcepackage =>
+          val normalized = _normalize_article_identity_option(sourcepackage)
+          normalized.filter(_.endsWith(".video")).flatMap { x =>
+            _normalize_article_identity_option(x.stripSuffix(".video"))
+          }
+        }
+      else if (path.endsWith(".dox"))
+        _normalize_article_identity_option(path.stripSuffix(".dox"))
+      else
+        None
+    }
+
+  private def _normalize_article_identity_option(value: String): Option[String] =
+    try {
+      Some(_normalize_article_identity(value))
+    } catch {
+      case _: IllegalArgumentException => None
+    }
+
+  private def _normalize_article_identity(value: String): String = {
+    val normalized = value.trim.replace('\\', '/')
+    if (normalized.isEmpty || normalized.startsWith("/"))
+      throw new IllegalArgumentException(s"Invalid article-media article identity: $value")
+    val segments = normalized.split("/").toVector.filter(_.nonEmpty)
+    if (segments.isEmpty || segments.contains(".") || segments.contains("..") || segments.exists(segment => !_is_valid_path_segment(segment)))
+      throw new IllegalArgumentException(s"Invalid article-media article identity: $value")
+    if (segments.headOption.exists(_is_locale_prefix))
+      throw new IllegalArgumentException(s"Article-media article identity must not have a locale prefix: $value")
+    val identity = segments.mkString("/")
+    if (identity.endsWith(".dox") || identity.endsWith(".html"))
+      throw new IllegalArgumentException(s"Article-media article identity must not have a generated suffix: $value")
+    identity
+  }
+
+  private def _is_locale_prefix(value: String): Boolean =
+    value.matches("[A-Za-z]{2,3}(?:-.*)?") && _normalize_locale_option(value).nonEmpty
+
+  private def _normalize_locale_option(value: String): Option[String] =
+    try {
+      Some(_normalize_locale(value, requirecanonical = false))
+    } catch {
+      case _: IllegalArgumentException => None
+    }
+
+  private def _normalize_locale(value: String, requirecanonical: Boolean): String = {
+    val raw = value
+    if (raw.isEmpty || raw != raw.trim)
+      throw new IllegalArgumentException(s"Invalid article-media locale: $value")
+    val canonical =
+      try {
+        new java.util.Locale.Builder().setLanguageTag(raw).build().toLanguageTag
+      } catch {
+        case e: java.util.IllformedLocaleException =>
+          throw new IllegalArgumentException(s"Invalid article-media locale: $value", e)
+      }
+    if (canonical == "und" || canonical.isEmpty || (requirecanonical && raw != canonical) || (!requirecanonical && !raw.equalsIgnoreCase(canonical)))
+      throw new IllegalArgumentException(s"Article-media locale must be canonical: $value")
+    canonical
+  }
+
+  private def _site_visible_uri_option(value: String): Option[URI] =
+    try {
+      Some(_site_visible_uri(value, "Article-media compatibility content URL"))
+    } catch {
+      case _: IllegalArgumentException => None
+    }
+
+  private def _site_visible_uri(value: String, label: String): URI = {
+    val uri = _uri(value, label)
+    val path = Option(uri.getPath).getOrElse("")
+    if (uri.isAbsolute || uri.getAuthority != null || !path.startsWith("/") || path == "/" || path.split("/").contains("..") || path.split("/").contains("."))
+      throw new IllegalArgumentException(s"$label must be a site-visible path: $value")
+    uri
+  }
+
+  private def _absolute_uri(value: String, label: String): URI = {
+    val uri = _uri(value, label)
+    if (!uri.isAbsolute)
+      throw new IllegalArgumentException(s"$label must be an absolute URI: $value")
+    uri
+  }
+
+  private def _uri(value: String, label: String): URI =
+    try {
+      new URI(value.trim)
+    } catch {
+      case e: Exception => throw new IllegalArgumentException(s"Invalid $label: $value", e)
+    }
+
+  private def _required_json_string(json: Json, source: String, path: String*): String =
+    _json_string(json, path: _*).map(_.trim).filter(_.nonEmpty).getOrElse(
+      throw new IllegalArgumentException(s"Missing article-media ${path.mkString(".")}: $source")
+    )
+
+  private def _optional_json_string(json: Json, path: String*): Option[String] =
+    _json_string(json, path: _*).map(_.trim).filter(_.nonEmpty)
+
+  private def _required_json_object(json: Json, source: String, path: String*): io.circe.JsonObject =
+    _json_field(json, path: _*).flatMap(_.asObject).getOrElse(
+      throw new IllegalArgumentException(s"Missing article-media object ${path.mkString(".")}: $source")
+    )
+
+  private def _json_field(json: Json, path: String*): Option[Json] =
+    path.foldLeft(Option(json)) {
+      case (Some(z), segment) => z.hcursor.downField(segment).focus
+      case (None, _) => None
+    }
 
   def load(publish: Option[File]): Option[PublishMetadata] =
     _directory(publish).flatMap(load)
@@ -821,8 +1157,11 @@ object PublishMetadata {
     val entries = _bundle_entries(publish).getOrElse(_metadata_files(publish).map(_entry(publish, _)))
     if (entries.isEmpty)
       None
-    else
-      Some(PublishMetadata(entries))
+    else {
+      val metadata = PublishMetadata(entries)
+      metadata.articleMedia
+      Some(metadata)
+    }
   }
 
   def publicRealm(publish: Option[File]): Option[Realm] =
@@ -843,12 +1182,15 @@ object PublishMetadata {
     val files = _files(base).filter { x =>
       val n = x.getName.toLowerCase
       (n.endsWith(".json") || n.endsWith(".yaml") || n.endsWith(".yml")) &&
-        _is_page_source_key(_logical_path(_strip_suffix(_relative_path(base, x))))
+        (_is_page_source_key(_logical_path(_strip_suffix(_relative_path(base, x)))) || _is_article_media_metadata(x))
     }
     files.groupBy(x => _strip_suffix(_relative_path(base, x))).toVector.sortBy(_._1).flatMap {
       case (_, xs) => xs.sortBy(_priority).headOption
     }
   }
+
+  private def _is_article_media_metadata(file: File): Boolean =
+    _parse_metadata(file).hcursor.downField("type").as[String].toOption.contains("article-media-publication")
 
   private def _bundle_entries(base: File): Option[Vector[Entry]] = {
     val bundles = _files(base).filter { x =>
