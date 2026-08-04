@@ -132,10 +132,13 @@ Slice ledger:
 
 Stage Status:
 
-- Current status: OPEN
+- Current status: DONE
 - Owner: SmartDox / SimpleModeling.org
 - Update rule: mark work complete only from the Phase 1 checklist.
 - Checklist basis: `AMP1-03`
+- Closure evidence: Stage integration review findings 2, bounded repairs 2,
+  focused re-review CLEAN; `Test/compile` succeeded and the three focused
+  integration specifications passed 31/31 on 2026-08-04.
 
 Focus:
 
@@ -144,6 +147,29 @@ Focus:
 - retain a usable article card when media is absent; and
 - hand off the widget presentation work without making it a SmartDox core
   dependency.
+
+Slice ledger:
+
+- `AMP1-03A` — SimpleModeling.org Notice/Widget Acceptance — ACCEPTED
+  - Authority: `docs/design/article-media-publication.md`,
+    `docs/spec/article-media-publication.md`, and the `AMP1-03` checklist.
+  - Acceptance: a bilingual SimpleModeling.org fixture supplies detailed
+    infographic and published YouTube references; generated global/category
+    Notices resolve the exact locale media; adding media preserves numbered
+    Notice ordering and the existing card identity fields; and a card without
+    media remains usable.
+  - Repository boundary: SmartDox mutation and validation only;
+    SimpleModeling.org is read-only evidence, and its existing dirty work is
+    protected.
+  - Focused validation: `ArticleMediaProjectionSpec` and `git diff --check`.
+  - Non-goal: Arcadia widget HTML/CSS/JavaScript implementation, which remains
+    a downstream handoff.
+  - Acceptance evidence: bilingual SimpleModeling.org metadata and article
+    fixtures; exact English/Japanese infographic and YouTube projection;
+    unchanged global/category numbered Notice ordering and explicit widget
+    card fields; preserved media-free card behavior; focused specification
+    9/9; Stage review findings `AMP1-03-R1` and `AMP1-03-R2` resolved; clean
+    focused re-review; and final Stage integration specifications 31/31.
 
 ## Completion Criteria
 

@@ -175,6 +175,106 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       }
     }
 
+      "preserve SimpleModeling.org Notice slots and card identity when media is projected" in {
+      Given("the same SimpleModeling.org publication source with and without its downstream media registry")
+      val source = new File("src/test/resources/article-media-projection-site")
+      val publication = new File("src/test/resources/article-media-projection-publication")
+
+      When("the numbered Notice projections are generated for both locales")
+      val baseline = new DoxSiteGenerator(_context, DoxSite.Config.default, None).
+        generate(Realm.create(DoxSite.realmConfig, source))
+      val projected = new DoxSiteGenerator(_context, DoxSite.Config.default, Some(publication)).
+        generate(Realm.create(DoxSite.realmConfig, source))
+
+      Then("media changes no Notice order or non-media card identity in global or category directories")
+      Vector("en", "ja").foreach { locale =>
+        val globaldirectory = s"doxsite.d/WEB-INF/data/$locale"
+        val categorydirectory = s"$globaldirectory/development-process"
+        val baselinenotices = Vector(
+          _notice_entries(baseline, globaldirectory),
+          _notice_entries(baseline, categorydirectory)
+        )
+        val projectednotices = Vector(
+          _notice_entries(projected, globaldirectory),
+          _notice_entries(projected, categorydirectory)
+        )
+
+        projectednotices.map(_.map { case (slot, notice) => slot -> _without_media(notice) }) shouldBe
+          baselinenotices.map(_.map { case (slot, notice) => slot -> _without_media(notice) })
+
+        val targeturi = "development-process/why-reconstruct-software-development-methodology.html"
+        val targetindices = projectednotices.map(_notice_index(_, targeturi))
+        targetindices.foreach { index => index should be >= 0 }
+        targetindices shouldBe baselinenotices.map(_notice_index(_, targeturi))
+        val targetslots = projectednotices.map(_notice_slot(_, targeturi))
+        targetslots.foreach { slot => slot should be >= 0 }
+        targetslots shouldBe baselinenotices.map(_notice_slot(_, targeturi))
+        val targetnotices = projectednotices.zip(targetindices).map { case (notices, index) => notices(index)._2 }
+        val baselinetargetnotices = baselinenotices.zip(targetindices).map { case (notices, index) => notices(index)._2 }
+        baselinetargetnotices.foreach { notice => _media(notice) shouldBe empty }
+        val expectedtitle = if (locale == "en")
+          "Why Reconstruct Software Development Methodology?"
+        else
+          "なぜソフトウェア開発方法論を再構築するのか"
+        val expectedsummary = if (locale == "en")
+          "Why software development methodology must be reconstructed around modeling in the AI era."
+        else
+          "AI時代に、なぜソフトウェア開発方法論をモデリング中心に再構築する必要があるのかを考えます。"
+        val expecteddescription = if (locale == "en")
+          "Development process articles."
+        else
+          "開発プロセスの記事です。"
+        targetnotices.foreach { notice =>
+          notice.get("notice.uri") shouldBe Some(targeturi)
+          notice.get("notice.title") shouldBe Some(expectedtitle)
+          notice.get("notice.summary") shouldBe Some(expectedsummary)
+          notice.get("notice.status") shouldBe Some("published")
+          notice.get("notice.published") shouldBe Some("2026-07-20")
+          notice.get("notice.title_image") shouldBe Some("https://plus.unsplash.com/premium_photo-1664297541167-9fd8e28c888d?q=80&w=2172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")
+          val category = notice.get("notice.category") match {
+            case Some(value: Map[_, _]) => value.asInstanceOf[Map[String, Any]]
+            case other => fail(s"Missing Notice category: $other")
+          }
+          _map_value(category, "name") shouldBe Some("development-process")
+          _map_value(category, "title") shouldBe Some("Development Process")
+          _map_value(category, "uri") shouldBe Some("development-process/index.html")
+          _map_value(category, "description") shouldBe Some(expecteddescription)
+        }
+
+        And("the target receives exact locale media in both global and category Notices")
+        val expectedmedia = Map(
+          "infographic" -> Map(
+            "public_path" -> s"/$locale/development-process/why-reconstruct-software-development-methodology/_images/video-$locale.png",
+            "media_type" -> "image/png",
+            "alt" -> (if (locale == "en") "English detailed infographic" else "日本語詳細インフォグラフィック")
+          ),
+          "video" -> Map(
+            "presentation" -> "external-link",
+            "status" -> "published",
+            "provider" -> "youtube",
+            "watch_url" -> (if (locale == "en") "https://youtu.be/R8EhV6qLeUU" else "https://youtu.be/OSNCFSS-sh8")
+          )
+        )
+        targetnotices.foreach { notice => _media(notice) shouldBe Some(expectedmedia) }
+        _media(targetnotices.head) shouldBe _media(targetnotices.last)
+
+        And("the existing media-free Plain article remains in its numbered slot and has no media")
+        val plainuri = "development-process/plain.html"
+        baselinenotices.zip(projectednotices).foreach { case (baselinenotice, projectednotice) =>
+          val baselineplainindex = _notice_index(baselinenotice, plainuri)
+          val projectedplainindex = _notice_index(projectednotice, plainuri)
+          baselineplainindex should be >= 0
+          projectedplainindex shouldBe baselineplainindex
+          _notice_slot(projectednotice, plainuri) shouldBe _notice_slot(baselinenotice, plainuri)
+          val baselineplain = baselinenotice(baselineplainindex)._2
+          val projectedplain = projectednotice(projectedplainindex)._2
+          _without_media(projectedplain) shouldBe _without_media(baselineplain)
+          _media(baselineplain) shouldBe empty
+          _media(projectedplain) shouldBe empty
+        }
+      }
+      }
+
     "placement, identity, and compatibility" which {
       "place the callout after the lead and before the first section, share Notice media with the category projection, and avoid a legacy duplicate" in {
       Given("the localized site, registry, and a legacy video-package source")
@@ -294,6 +394,22 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
         case data: StringData => data.string
       }
     }.find(value => _yaml_map(value).get("notice.uri").contains(uri)).getOrElse(fail(s"Missing Notice for URI: $uri"))
+
+  private def _notice_entries(realm: Realm, directory: String): Vector[(Int, Map[String, Any])] =
+    (1 to 99).flatMap { index =>
+      realm.get(f"$directory/notice$index%02d.yaml").collect {
+        case data: StringData => index -> _yaml_map(data.string)
+      }
+    }.toVector
+
+  private def _notice_index(notices: Vector[(Int, Map[String, Any])], uri: String): Int =
+    notices.indexWhere(_._2.get("notice.uri").contains(uri))
+
+  private def _notice_slot(notices: Vector[(Int, Map[String, Any])], uri: String): Int =
+    notices.find(_._2.get("notice.uri").contains(uri)).map(_._1).getOrElse(-1)
+
+  private def _without_media(notice: Map[String, Any]): Map[String, Any] =
+    notice - "notice.media"
 
   private def _media(notice: Map[String, Any]): Option[Map[String, Any]] =
     notice.get("notice.media").collect { case map: Map[_, _] => map.asInstanceOf[Map[String, Any]] }

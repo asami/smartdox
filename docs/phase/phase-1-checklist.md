@@ -49,18 +49,18 @@ Status: DONE
 
 ## AMP1-03: Specifications and Downstream Acceptance
 
-Status: OPEN
+Status: DONE
 
-- [ ] Add executable specifications for parser/registry normalization and
+- [x] Add executable specifications for parser/registry normalization and
       locale association.
-- [ ] Add executable specifications for global/category Notice equality and
+- [x] Add executable specifications for global/category Notice equality and
       absent-media behavior.
-- [ ] Add executable specifications for published versus unpublished external
+- [x] Add executable specifications for published versus unpublished external
       video and site-hosted presentation behavior.
-- [ ] Add executable specifications proving `VideoPublication` compatibility.
-- [ ] Provide a SimpleModeling.org fixture or documented metadata example for
+- [x] Add executable specifications proving `VideoPublication` compatibility.
+- [x] Provide a SimpleModeling.org fixture or documented metadata example for
       Japanese and English infographic and YouTube references.
-- [ ] Verify the fixture can be consumed by the existing Notice/widget path
+- [x] Verify the fixture can be consumed by the existing Notice/widget path
       without changing article ordering or card identity.
 
 ## AMP1-04: Closure

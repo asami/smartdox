@@ -1,0 +1,32 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "development-process/why-reconstruct-software-development-methodology" },
+  "variants": {
+    "en": {
+      "infographic": {
+        "public_path": "/en/development-process/why-reconstruct-software-development-methodology/_images/video-en.png",
+        "media_type": "image/png",
+        "alt": "English detailed infographic"
+      },
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "provider": "youtube",
+        "watch_url": "https://youtu.be/R8EhV6qLeUU"
+      }
+    },
+    "ja": {
+      "infographic": {
+        "public_path": "/ja/development-process/why-reconstruct-software-development-methodology/_images/video-ja.png",
+        "media_type": "image/png",
+        "alt": "日本語詳細インフォグラフィック"
+      },
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "provider": "youtube",
+        "watch_url": "https://youtu.be/OSNCFSS-sh8"
+      }
+    }
+  }
+}
