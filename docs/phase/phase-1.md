@@ -1,6 +1,6 @@
 # Phase 1: Article Media Publication and Site Projection
 
-Status: in progress
+Status: closed
 
 Start date: 2026-08-03
 
@@ -170,6 +170,34 @@ Slice ledger:
     card fields; preserved media-free card behavior; focused specification
     9/9; Stage review findings `AMP1-03-R1` and `AMP1-03-R2` resolved; clean
     focused re-review; and final Stage integration specifications 31/31.
+
+## Phase Closure
+
+Stage Status:
+
+- Current status: CLOSED
+- Owner: SmartDox
+- Update rule: reopen only through a new authoritative phase decision; ordinary
+  follow-up work belongs to a successor phase or maintenance task.
+- Checklist basis: `AMP1-04`
+
+Closure evidence:
+
+- Each implementation Stage completed focused executable specifications,
+  `Test/compile`, read-only review, bounded finding repair, and a clean focused
+  re-review where repairs were made.
+- The final release gate runs the three Phase 1 integration specifications and
+  the full SmartDox test suite from the committed Step tree before accepting
+  this closure record.
+- The SimpleModeling.org handoff is the bilingual fixture and Notice/widget
+  acceptance in `AMP1-03A`, including locale-specific infographic and YouTube
+  references, stable Notice ordering and card identity, and media-free cards.
+- The Cozy handoff is the provider-neutral publication contract and the tested
+  `site-hosted` projection: a published `content_url` produces the article
+  player and matching Notice media while media generation, artifact staging,
+  and BoK integration remain outside SmartDox Phase 1.
+- Phase 1 introduced no accepted hygiene follow-up and selects no successor
+  phase.
 
 ## Completion Criteria
 

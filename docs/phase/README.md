@@ -2,10 +2,12 @@
 
 Purpose: engineering work management.
 
-Current phase:
+Current phase state:
 
-- Active phase: `phase-1.md`: Article Media Publication and Site Projection
-- Active checklist: `phase-1-checklist.md`
+- No active phase is selected.
+- Most recently closed phase: `phase-1.md`: Article Media Publication and Site
+  Projection
+- Closure checklist: `phase-1-checklist.md`
 
 Belongs:
 

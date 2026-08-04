@@ -65,13 +65,13 @@ Status: DONE
 
 ## AMP1-04: Closure
 
-Status: OPEN
+Status: DONE
 
-- [ ] Run focused and full SmartDox tests.
-- [ ] Run `git diff --check`.
-- [ ] Complete a read-only post-implementation review.
-- [ ] Fix all actionable findings, including executable-specification debt.
-- [ ] Complete a clean read-only re-review when fixes are made.
-- [ ] Record downstream handoff evidence for SimpleModeling.org and Cozy.
-- [ ] Commit validated changes with required version updates.
-- [ ] Close Phase 1 from checklist results.
+- [x] Run focused and full SmartDox tests.
+- [x] Run `git diff --check`.
+- [x] Complete a read-only post-implementation review.
+- [x] Fix all actionable findings, including executable-specification debt.
+- [x] Complete a clean read-only re-review when fixes are made.
+- [x] Record downstream handoff evidence for SimpleModeling.org and Cozy.
+- [x] Commit validated changes with required version updates.
+- [x] Close Phase 1 from checklist results.

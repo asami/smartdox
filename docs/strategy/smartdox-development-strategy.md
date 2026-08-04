@@ -16,7 +16,7 @@ artifact storage.
 
 ### Phase 1: Article Media Publication and Site Projection
 
-Status: in progress.
+Status: closed.
 
 Purpose:
 
@@ -36,8 +36,9 @@ Primary reference:
 
 ## Current Priority
 
-Phase 1 establishes the common article-media publication and site-projection
+Phase 1 established the common article-media publication and site-projection
 contract. SimpleModeling.org remains a direct SmartDox site user with YouTube
-as its presentation provider. Cozy consumes the resulting SmartDox contract in
-its separate BoK integration phase, where generated media stays in the BoK
-artifact repository outside Git.
+as its presentation provider. Cozy can consume the resulting SmartDox contract
+in its separate BoK integration phase, where generated media stays in the BoK
+artifact repository outside Git. No successor SmartDox phase is selected by
+this closure.
