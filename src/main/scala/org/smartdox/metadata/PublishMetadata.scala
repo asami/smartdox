@@ -19,7 +19,7 @@ import org.smartdox.semanticweb.Rdf
 /*
  * @since   May. 13, 2026
  *  version May. 14, 2026
- * @version Jun. 24, 2026
+ *  version Jun. 24, 2026
  * @version Aug.  4, 2026
  * @author  ASAMI, Tomoharu
  */
@@ -38,6 +38,9 @@ case class PublishMetadata(
 
   lazy val articleMedia: ArticleMediaRegistry =
     ArticleMediaRegistry.create(entries, videoPublications)
+
+  lazy val articleMediaProjection: ArticleMediaProjection =
+    ArticleMediaProjection(articleMedia)
 
   def resolveArticleMedia(articleIdentity: String, locale: String): Option[ArticleMediaVariant] =
     articleMedia.resolve(articleIdentity, locale)
@@ -412,6 +415,37 @@ case class PublishMetadata(
 }
 
 object PublishMetadata {
+  /**
+   * Resolves publication-owned article media from a source-tree pathname.
+   *
+   * Callers provide the pre-locale source path. Locale output directories are
+   * deliberately not reverse-engineered here: article identities are source
+   * identities, not generated paths.
+   */
+  case class ArticleMediaProjection(
+    registry: ArticleMediaRegistry
+  ) {
+    def resolve(sourcePath: String, locale: java.util.Locale): Option[ArticleMediaVariant] =
+      resolve(sourcePath, locale.toLanguageTag)
+
+    def resolve(sourcePath: String, locale: String): Option[ArticleMediaVariant] =
+      sourcePathToArticleIdentity(sourcePath).flatMap(registry.resolve(_, locale))
+  }
+
+  /**
+   * Converts a site-relative source or generated article pathname to the
+   * registry identity. It never removes a leading path segment as a guessed
+   * locale; source callers must pass a pre-locale path.
+   */
+  def sourcePathToArticleIdentity(sourcePath: String): Option[String] = {
+    val normalized = sourcePath.trim.replace('\\', '/').stripPrefix("/")
+    val suffixfree =
+      if (normalized.endsWith(".dox")) normalized.stripSuffix(".dox")
+      else if (normalized.endsWith(".html")) normalized.stripSuffix(".html")
+      else normalized
+    _normalize_article_identity_option(suffixfree)
+  }
+
   case class ArticleMediaPublication(
     articleIdentity: String,
     variants: Vector[ArticleMediaVariant]
@@ -1077,7 +1111,10 @@ object PublishMetadata {
   }
 
   private def _is_locale_prefix(value: String): Boolean =
-    value.matches("[A-Za-z]{2,3}(?:-.*)?") && _normalize_locale_option(value).nonEmpty
+    _normalize_locale_option(value).exists { localetag =>
+      val language = java.util.Locale.forLanguageTag(localetag).getLanguage
+      language == "en" || language == "ja"
+    }
 
   private def _normalize_locale_option(value: String): Option[String] =
     try {

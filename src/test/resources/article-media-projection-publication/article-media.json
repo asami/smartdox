@@ -1,0 +1,30 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "development-process/example" },
+  "variants": {
+    "en": {
+      "infographic": {
+        "public_path": "/en/development-process/images/example.png",
+        "media_type": "image/png",
+        "alt": "English infographic"
+      },
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "provider": "youtube",
+        "watch_url": "https://example.com/watch-en"
+      }
+    },
+    "ja": {
+      "infographic": {
+        "public_path": "/ja/development-process/images/example.png",
+        "alt": "日本語インフォグラフィック"
+      },
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "watch_url": "https://example.com/watch-ja"
+      }
+    }
+  }
+}

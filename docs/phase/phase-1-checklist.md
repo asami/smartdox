@@ -32,19 +32,19 @@ Status: DONE
 
 ## AMP1-02: Article and Notice Projection
 
-Status: OPEN
+Status: DONE
 
-- [ ] Project an optional infographic reference into the Notice data model and
+- [x] Project an optional infographic reference into the Notice data model and
       locale YAML encoder.
-- [ ] Project a published video watch reference into the Notice data model and
+- [x] Project a published video watch reference into the Notice data model and
       locale YAML encoder.
-- [ ] Emit equal resolved media for an article's global and category-local
+- [x] Emit equal resolved media for an article's global and category-local
       Notice projections.
-- [ ] Project an article-top external-video callout without duplicating the
+- [x] Project an article-top external-video callout without duplicating the
       URL in article source.
-- [ ] Project an embedded player only when the normalized presentation is
+- [x] Project an embedded player only when the normalized presentation is
       site-hosted and its content reference is available.
-- [ ] Preserve article, Notice, dashboard, feed, and site behavior when media
+- [x] Preserve article, Notice, dashboard, feed, and site behavior when media
       metadata is absent.
 
 ## AMP1-03: Specifications and Downstream Acceptance

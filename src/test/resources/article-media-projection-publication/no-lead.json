@@ -1,0 +1,13 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "development-process/no-lead" },
+  "variants": {
+    "en": {
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "watch_url": "https://example.com/no-lead"
+      }
+    }
+  }
+}

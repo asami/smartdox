@@ -52,7 +52,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Nov. 17, 2025
  *  version May. 14, 2026
  *  version Jun. 21, 2026
- * @version Jul. 13, 2026
+ *  version Jul. 13, 2026
+ * @version Aug.  4, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -66,7 +67,8 @@ class AntoraGenerator(
     val publishmetadata = PublishMetadata.load(publication)
     val extrapages = publishmetadata.map(_.generatedPages).getOrElse(Vector.empty)
     val videopublications = publishmetadata.map(_.videoPublications).getOrElse(Vector.empty)
-    val site = DoxSite.create(context, realm, Some("antora"), config, extrapages, videopublications)
+    val articlemediaprojection = publishmetadata.map(_.articleMediaProjection)
+    val site = DoxSite.create(context, realm, Some("antora"), config, extrapages, videopublications, Nil, articlemediaprojection)
     // record_message("XXX")
     val builder = new Builder(Builder.Config(site.config, site.metadata))
     // record_info("INFO")
@@ -74,7 +76,7 @@ class AntoraGenerator(
     val antora = builder.build()
     // record_message("YYY")
     val actx = Context(context, site.config)
-    val out = antora.toRealm(actx)
+    val out = antora.toRealm(articlemediaprojection)(actx)
     val r = Realm.create() // .withGitInitAndCommit("antora.d/docs")
     r.merge("antora.d", out)
   }
@@ -121,38 +123,48 @@ object AntoraGenerator {
     playbook: Antora.Playbook,
     components: List[Antora.Component]
   ) {
-    def toRealm(implicit context: Context): Realm = {
+    def toRealm(implicit context: Context): Realm = toRealm(None)
+
+    def toRealm(
+      articleMediaProjection: Option[PublishMetadata.ArticleMediaProjection]
+    )(implicit context: Context): Realm = {
       context.config.siteOutput.localeMode match {
-        case DoxSite.Config.SiteOutput.LocaleMode.SingleLocaleRoot => _build_single_locale_root(context.withTargetI18NContext(context.defaultLocale))
+        case DoxSite.Config.SiteOutput.LocaleMode.SingleLocaleRoot =>
+          _build_single_locale_root(articleMediaProjection)(context.withTargetI18NContext(context.defaultLocale))
         case DoxSite.Config.SiteOutput.LocaleMode.MultiLocaleSubdirs => context.configuredLocales match {
-          case Nil => _build_plain(context)
-          case xs => _build_multi(context, xs)
+          case Nil => _build_plain(articleMediaProjection)
+          case xs => _build_multi(context, xs, articleMediaProjection)
         }
       }
     }
 
-    private def _build_plain(implicit context: Context): Realm = {
+    private def _build_plain(
+      articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
+    )(implicit context: Context): Realm = {
       val realm = Realm.create()
       realm.setContent("antora-playbook.yml", playbook.serialize())
       realm.setNode("docs")
       val cursor = realm.takeCursor("docs")
       for (c <- components) {
-        c.export(cursor)
+        c.export(cursor, articlemediaprojection)
       }
       realm.withGitInitAndCommit("docs")
     }
 
     private def _build_multi(
       context: Context,
-      locales: List[Locale]
+      locales: List[Locale],
+      articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
     ) = {
       val realm = Realm.create()
       locales.foldLeft(realm) { (z, locale) =>
-        z.merge(locale.toString, _build_locale(context.withTargetI18NContext(locale)))
+        z.merge(locale.toString, _build_locale(articlemediaprojection)(context.withTargetI18NContext(locale)))
       }
     }
 
     private def _build_locale(
+      articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
+    )(
       implicit context: Context
     ) = {
       val locale = context.targetI18NContext.locale
@@ -167,12 +179,14 @@ object AntoraGenerator {
       val xs = components.map(_.canonize(context))
       val cursor = realm.takeCursor("docs")
       for (c <- xs) {
-        c.export(cursor)
+        c.export(cursor, articlemediaprojection)
       }
       realm.withGitInitAndCommit("docs")
     }
 
     private def _build_single_locale_root(
+      articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
+    )(
       implicit context: Context
     ) = {
       val locale = context.targetI18NContext.locale
@@ -186,7 +200,7 @@ object AntoraGenerator {
       val xs = components.map(_.canonize(context))
       val cursor = realm.takeCursor("docs")
       for (c <- xs) {
-        c.export(cursor)
+        c.export(cursor, articlemediaprojection)
       }
       realm.withGitInitAndCommit("docs")
     }
@@ -203,9 +217,9 @@ object AntoraGenerator {
           playbook
       }
 
-    private def _category_header_content(languageToggle: Boolean): String = {
+    private def _category_header_content(languagetoggle: Boolean): String = {
       val toggle =
-        if (languageToggle)
+        if (languagetoggle)
           """        <div class="navbar-item">
             |          <div class="lang-toggle-wrapper">
             |            <div class="lang-toggle">
@@ -551,7 +565,13 @@ object AntoraGenerator {
 
       def export(
         c: Realm.Cursor
-      )(implicit context: Context): Unit = ExportFunction(context).apply(c)
+      )(implicit context: Context): Unit = export(c, None)
+
+      def export(
+        c: Realm.Cursor,
+        articleMediaProjection: Option[PublishMetadata.ArticleMediaProjection]
+      )(implicit context: Context): Unit =
+        ExportFunction(context).apply(c, articleMediaProjection)
 
       case class ExportFunction(
         context: Context
@@ -560,32 +580,50 @@ object AntoraGenerator {
         private def _newline = "\n"
         private def _locale = context.targetI18NContextOption.map(_.locale) getOrElse LocaleUtils.C
 
-        def apply(c: Realm.Cursor): Unit = {
+        def apply(c: Realm.Cursor): Unit = apply(c, None)
+
+        def apply(
+          c: Realm.Cursor,
+          articleMediaProjection: Option[PublishMetadata.ArticleMediaProjection]
+        ): Unit = {
           val cc = c.enter(name.name)
           cc.set("antora.yml", _make_meta_yaml)
           val ccc = cc.enter("modules")
-          modules.vector.foreach(_export(ccc, _))
+          modules.vector.foreach(_export(ccc, _, articleMediaProjection))
         }
 
-        private def _export(c: Realm.Cursor, p: Module) = {
+        private def _export(
+          c: Realm.Cursor,
+          p: Module,
+          articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
+        ) = {
           val cc = c.enter(p.name.name)
           cc.set("nav.adoc", _make_nav_adoc(p))
           if (p.isRoot) {
-            _export_files(cc, p)
+            _export_files(cc, p, articlemediaprojection)
           } else {
-            _export_files(cc, p)
+            _export_files(cc, p, articlemediaprojection)
           }
         }
 
-        private def _export_files(c: Realm.Cursor, p: Module) = {
+        private def _export_files(
+          c: Realm.Cursor,
+          p: Module,
+          articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
+        ) = {
           p.ingredients.vector foreach {
-            case m: Module.Ingredient.Pages => _export_pages(c, m)
+            case m: Module.Ingredient.Pages => _export_pages(c, p, m, articlemediaprojection)
             case m: Module.Ingredient.Images => _export_images(c, m)
             case m: Module.Ingredient.Container => _export_container(c, m)
           }
         }
 
-        private def _export_pages(c: Realm.Cursor, p: Module.Ingredient.Pages) = {
+        private def _export_pages(
+          c: Realm.Cursor,
+          module: Module,
+          p: Module.Ingredient.Pages,
+          articlemediaprojection: Option[PublishMetadata.ArticleMediaProjection]
+        ) = {
           val tf = new RealmMaker.Transformer[Page] {
             def treeTransformerContext = context.realmContext
 
@@ -596,7 +634,8 @@ object AntoraGenerator {
               val isdiagram = context.isDiagramGeneration(content)
               val ctx = Dox2AsciidocConverter.Context(context, isdiagram)
               val da = new Dox2AsciidocConverter(ctx)
-              val r = da.convert(content.dox)
+              val dox = DoxSite.projectArticleMedia(content.dox, _article_media_path(module, node.pathname), context.locale, articlemediaprojection)
+              val r = da.convert(dox)
               val s = r.fold(_.message, identity)
               val name = StringUtils.changeSuffix(node.name, "adoc")
               directive_leaf(name, StringData(s))
@@ -604,6 +643,13 @@ object AntoraGenerator {
           }
           val realm = RealmMaker.make(p.pages, tf)
           c.merge(p.name.name, realm)
+        }
+
+        private def _article_media_path(module: Module, pathname: String): String = {
+          val segments = Vector(name.name) ++
+            (if (module.isRoot) Vector.empty else Vector(module.name.name)) ++
+            pathname.split('/').toVector.filter(_.nonEmpty)
+          segments.mkString("/")
         }
 
         private def _export_images(c: Realm.Cursor, p: Module.Ingredient.Images) = {

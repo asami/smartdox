@@ -88,10 +88,13 @@ Focus:
 
 Stage Status:
 
-- Current status: OPEN
+- Current status: DONE
 - Owner: SmartDox
 - Update rule: mark work complete only from the Phase 1 checklist.
 - Checklist basis: `AMP1-02`
+- Closure evidence: Stage review findings 2, bounded fixes 2, focused
+  re-review CLEAN; `Test/compile` succeeded and the three focused integration
+  specifications passed 30/30 on 2026-08-04.
 
 Focus:
 
@@ -99,6 +102,31 @@ Focus:
 - emit the same optional media data for global and category-local notices; and
 - project an article-top callout or player without duplicating URLs in Dox
   source.
+
+Projection schema decision:
+
+- Notice media inherits the normalized article-media schema names:
+  `public_path`, `media_type`, `alt`, `presentation`, `status`, `provider`,
+  `watch_url`, and `content_url`;
+- only `projectableVideo` is projected, so an emitted video has
+  `status: published`; and
+- absent infographic and video data omit the optional media block.
+
+Slice ledger:
+
+- `AMP1-02A` — Article and Notice Projection — ACCEPTED
+  - Authority: `docs/design/article-media-publication.md` and
+    `docs/spec/article-media-publication.md`.
+  - Acceptance: all `AMP1-02` checklist outcomes, including exact-locale
+    global/category Notice equality, article-top external/site-hosted
+    selection, and unchanged absent-media behavior.
+  - Repository boundary: SmartDox only.
+  - Focused validation: `ArticleMediaProjectionSpec`, preserved
+    `VideoPublicationCompatibilitySpec`, and `git diff --check`.
+  - Acceptance evidence: media projection specification 7/7, compatibility
+    specification 3/3, final Stage integration specifications 30/30,
+    preserved public JVM descriptors, and clean focused re-reviews after the
+    bounded Slice and Stage review fixes.
 
 ## Stage 1.3: SimpleModeling.org Acceptance Boundary
 

@@ -84,15 +84,23 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Dec.  8, 2025
  *  version May. 14, 2026
  *  version Jun. 29, 2026
- * @version Jul. 13, 2026
+ *  version Jul. 13, 2026
+ * @version Aug.  4, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
   val config: DoxSite.Config,
   space: Tree[Node],
-  val metadata: MetaData
+  val metadata: MetaData,
+  private val _article_media_projection: Option[PublishMetadata.ArticleMediaProjection]
 ) {
   import DoxSite._
+
+  def this(
+    config: DoxSite.Config,
+    space: Tree[Node],
+    metadata: MetaData
+  ) = this(config, space, metadata, None)
 
   def toRealm(context: Context): Realm = {
     val targets = List(LocaleUtils.en, LocaleUtils.ja) // TODO
@@ -107,7 +115,7 @@ class DoxSite(
     context: Context
   ): Realm = {
     val rule = RealmBuilder.Rule(config.outputTreeTransformerConfig)
-    val a = space.transform(new RealmBuilder(context, rule))
+    val a = space.transform(new RealmBuilder(context, rule, None, _article_media_projection))
     Realm(a)
   }
 
@@ -130,7 +138,7 @@ class DoxSite(
     context: Context,
     rule: RealmBuilder.Rule
   ) = {
-    val a = space.transform(new RealmBuilder(context, rule))
+    val a = space.transform(new RealmBuilder(context, rule, None, _article_media_projection))
     Realm(a)
   }
 
@@ -189,13 +197,22 @@ class DoxSite(
     val xs1 = xs0.sortWith(_compare)
 //    val xs = xs1 ++ _make_stub(xs1.length)
     val xs = xs1
+    val localizednotices = xs.flatMap { notice =>
+      Vector(LocaleUtils.ja, LocaleUtils.en).map { locale =>
+        val ctx = config.localeSetting.context(locale)
+        val media = _article_media_projection.flatMap(_.resolve(notice.uri.toString, locale))
+        (notice.uri.toString -> locale.toLanguageTag) -> notice.yamlString(ctx, media)
+      }
+    }.toMap
+    def _notice_yaml_(notice: Notice, locale: Locale): String =
+      localizednotices(notice.uri.toString -> locale.toLanguageTag)
     for ((x, i) <- xs.zipWithIndex) {
-      val ja = x.yamlString(config.localeSetting.context(LocaleUtils.ja))
+      val ja = _notice_yaml_(x, LocaleUtils.ja)
       val path = f"WEB-INF/data/notice${i + 1}%02d.yaml"
       p.setContent(path, ja)
       val pathja = f"WEB-INF/data/ja/notice${i + 1}%02d.yaml"
       p.setContent(pathja, ja)
-      val en = x.yamlString(config.localeSetting.context(LocaleUtils.en))
+      val en = _notice_yaml_(x, LocaleUtils.en)
       val pathen = f"WEB-INF/data/en/notice${i + 1}%02d.yaml"
       p.setContent(pathen, en)
     }
@@ -206,10 +223,10 @@ class DoxSite(
     for ((c, ns) <- byc) {
       for ((x , i) <- ns.zipWithIndex) {
         val path = c.containerString
-        val ja = x.yamlString(config.localeSetting.context(LocaleUtils.ja))
+        val ja = _notice_yaml_(x, LocaleUtils.ja)
         val pathja = f"WEB-INF/data/ja/${path}/notice${i + 1}%02d.yaml"
         p.setContent(pathja, ja)
-        val en = x.yamlString(config.localeSetting.context(LocaleUtils.en))
+        val en = _notice_yaml_(x, LocaleUtils.en)
         val pathen = f"WEB-INF/data/en/${path}/notice${i + 1}%02d.yaml"
         p.setContent(pathen, en)
       }
@@ -1208,8 +1225,20 @@ object DoxSite {
   class RealmBuilder(
     gcontext: Context,
     rule: RealmBuilder.Rule,
-    context: Option[TreeTransformer.Context[Realm.Data]] = None
+    context: Option[TreeTransformer.Context[Realm.Data]] = None,
+    articleMediaProjection: Option[PublishMetadata.ArticleMediaProjection] = None
   ) extends TreeTransformer[Node, Realm.Data] {
+    def this(
+      legacyGeneratorContext: Context,
+      legacyRule: RealmBuilder.Rule
+    ) = this(legacyGeneratorContext, legacyRule, None, None)
+
+    def this(
+      legacyGeneratorContext: Context,
+      legacyRule: RealmBuilder.Rule,
+      legacyTransformerContext: Option[TreeTransformer.Context[Realm.Data]]
+    ) = this(legacyGeneratorContext, legacyRule, legacyTransformerContext, None)
+
     def treeTransformerContext = {
       val c = context getOrElse gcontext.realmContext
       rule.config.fold(c)(c.withConfig)
@@ -1222,16 +1251,19 @@ object DoxSite {
       content: Node
     ): TreeTransformer.Directive[Realm.Data] = {
       content match {
-        case m: Page => _to_html(m) // TreeTransformer.Directive.Content(m.toRealmData)
+        case m: Page => _to_html(node, m) // TreeTransformer.Directive.Content(m.toRealmData)
         case m: MetaDataNode => directive_empty
         case m: ImageNode => directive_leaf(FileData(m.file))
       }
     }
 
-    private def _to_html(p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
-      val dox = _filter(p.dox)
-      val rule = Dox2HtmlTransformer.Rule.noCss
-      val s = Consequence.from(Dox2HtmlTransformer(gcontext, rule).transform(dox)).
+    private def _to_html(node: TreeNode[Node], p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
+      val filtered = _filter(p.dox)
+      val dox = rule.targetLocale.fold(filtered) { locale =>
+        projectArticleMedia(Dox.toDocument(filtered), node.pathnameRelative, locale, articleMediaProjection)
+      }
+      val htmlrule = Dox2HtmlTransformer.Rule.noCss
+      val s = Consequence.from(Dox2HtmlTransformer(gcontext, htmlrule).transform(dox)).
         foldConclusion(_.message)
       val data = Realm.StringData(s)
       val name = StringUtils.changeSuffix(p.name.name, "html")
@@ -1256,6 +1288,90 @@ object DoxSite {
       val default = Rule()
       val en = Rule(targetLocale = Some(LocaleUtils.en))
       val ja = Rule(targetLocale = Some(LocaleUtils.ja))
+    }
+  }
+
+  def projectArticleMedia(
+    document: Document,
+    sourcePath: String,
+    locale: Locale,
+    projection: Option[PublishMetadata.ArticleMediaProjection]
+  ): Document =
+    projectArticleMedia(document, projection.flatMap(_.resolve(sourcePath, locale)), locale)
+
+  def projectArticleMedia(
+    document: Document,
+    media: Option[PublishMetadata.ArticleMediaVariant],
+    locale: Locale
+  ): Document =
+    media.flatMap(_article_media_block(_, locale)) match {
+      case Some(block) if !_has_legacy_video_publication(document) => _insert_article_media(document, block)
+      case _ => document
+    }
+
+  private def _article_media_block(
+    media: PublishMetadata.ArticleMediaVariant,
+    locale: Locale
+  ): Option[Html5] =
+    media.projectableVideo.flatMap { video =>
+      val contents = video.presentation match {
+        case PublishMetadata.VideoPresentation.ExternalLink =>
+          video.watchUrl.map { watchurl =>
+            val label = if (locale.getLanguage == "ja") "動画を見る" else "Watch video"
+            Html5("a", VectorMap("href" -> watchurl.toString), List(Text(label)))
+          }.toList
+        case PublishMetadata.VideoPresentation.SiteHosted =>
+          video.contentUrl.map { contenturl =>
+            Html5("video", VectorMap("controls" -> "controls", "src" -> contenturl.toString), Nil)
+          }.toList
+      }
+      if (contents.isEmpty)
+        None
+      else
+        Some(Html5("div", VectorMap("class" -> "smartdox-article-media-video"), contents))
+    }
+
+  private def _has_legacy_video_publication(document: Document): Boolean =
+    _contains_legacy_video_publication(document.body)
+
+  private def _contains_legacy_video_publication(dox: Dox): Boolean =
+    dox match {
+      case Html5("div", attributes, _, _) if attributes.get("class").contains("smartdox-video-publication") => true
+      case _ => dox.elements.exists(_contains_legacy_video_publication)
+    }
+
+  private def _insert_article_media(document: Document, block: Html5): Document = {
+    val contents = document.body.contents
+    val projected = _insert_after_effective_lead(contents, block).getOrElse {
+      val sectionindex = contents.indexWhere(_.isInstanceOf[Section])
+      if (sectionindex >= 0) {
+        val (introduction, sections) = contents.splitAt(sectionindex)
+        introduction ++ List(block) ++ sections
+      } else {
+        contents :+ block
+      }
+    }
+    document.copy(body = document.body.copy(contents = projected))
+  }
+
+  private def _insert_after_effective_lead(contents: List[Dox], block: Html5): Option[List[Dox]] = {
+    _insert_after_lead(contents, block).orElse {
+      contents.zipWithIndex.collectFirst(Function.unlift {
+        case (section: Section, index) if section.titleName == "Body" =>
+          _insert_after_lead(section.contents, block).map { projected =>
+            contents.updated(index, section.copy(contents = projected))
+          }
+        case _ => None
+      })
+    }
+  }
+
+  private def _insert_after_lead(contents: List[Dox], block: Html5): Option[List[Dox]] = {
+    val sectionindex = contents.indexWhere(_.isInstanceOf[Section])
+    val introduction = if (sectionindex >= 0) contents.take(sectionindex) else contents
+    introduction.indexWhere(_.isInstanceOf[Paragraph]) match {
+      case index if index >= 0 => Some(contents.patch(index + 1, List(block), 0))
+      case _ => None
     }
   }
 
@@ -1309,6 +1425,18 @@ object DoxSite {
     extraPages: Seq[(String, Page)],
     videopublications: Seq[PublishMetadata.VideoPublication] = Nil,
     publicationtriples: Seq[Rdf.Triple] = Nil
+  ): DoxSite =
+    create(context, realm, configname, inconfig, extraPages, videopublications, publicationtriples, None)
+
+  def create(
+    context: Context,
+    realm: Realm,
+    configname: Option[String],
+    inconfig: DoxSite.Config,
+    extraPages: Seq[(String, Page)],
+    videopublications: Seq[PublishMetadata.VideoPublication],
+    publicationtriples: Seq[Rdf.Triple],
+    articleMediaProjection: Option[PublishMetadata.ArticleMediaProjection]
   ): DoxSite = {
     val config0 = _config(inconfig, realm, configname)(context.i18NContext)
     val config = if (config0.origin.isDefined) config0 else config0.copy(origin = realm.origin)
@@ -1352,7 +1480,7 @@ object DoxSite {
     val d: Tree[Node] = _deploy_metadata(c, metadata)
     val z = d.transform(new DoxSitePostTransformer(ctx1))
     _flush_cache(ctx1, z)
-    new DoxSite(config, z, metadata)
+    new DoxSite(config, z, metadata, articleMediaProjection)
   }
 
   private def _deploy_video_source_pages(base: Tree[Node], videopublications: Seq[PublishMetadata.VideoPublication]): Tree[Node] = {
@@ -1456,9 +1584,9 @@ object DoxSite {
 
   private def _deploy_extra_pages(
     base: Tree[Node],
-    extraPages: Seq[(String, Page)]
+    extrapages: Seq[(String, Page)]
   ): Tree[Node] = {
-    extraPages.foreach {
+    extrapages.foreach {
       case (path, page) => base.setContent(path, page)
     }
     base
@@ -1545,13 +1673,13 @@ object DoxSite {
 
   private final case class BibliographyRef(
     bibid: String,
-    sourcePath: String,
+    sourcepath: String,
     category: String,
     ordinal: Int
   ) {
     def sourceRef: Bibliography.SourceRef = Bibliography.SourceRef(
-      sourcePath,
-      StringUtils.changeSuffix(sourcePath, "html"),
+      sourcepath,
+      StringUtils.changeSuffix(sourcepath, "html"),
       Some(category),
       bibid,
       ordinal
@@ -1601,9 +1729,9 @@ object DoxSite {
       groupBy(_.bibid).
       toVector.
       map { case (bibid, xs) =>
-        val ordered = xs.sortBy(x => (x.sourcePath, x.ordinal, x.bibid))
+        val ordered = xs.sortBy(x => (x.sourcepath, x.ordinal, x.bibid))
         val first = ordered.head
-        _bibliography_external_ref_entry(bibid, first.sourcePath, first.category, _distinct_source_refs(ordered.map(_.sourceRef)))
+        _bibliography_external_ref_entry(bibid, first.sourcepath, first.category, _distinct_source_refs(ordered.map(_.sourceRef)))
       }
     Bibliography((enrichedentries ++ externalrefs).sortBy(x => (x.category.getOrElse(""), x.slug, x.id)))
   }
@@ -2083,7 +2211,7 @@ object DoxSite {
 
   private def _build_site_model(
     p: MetaData,
-    siteMetadata: SiteMetadata,
+    sitemetadata: SiteMetadata,
     videopublications: Seq[PublishMetadata.VideoPublication],
     publicationtriples: Seq[Rdf.Triple]
   ): MetaData = {
@@ -2091,7 +2219,7 @@ object DoxSite {
     val glossaries = _glossary_site_resources(p)
     val bibliographies = _bibliography_site_resources(p)
     val resourcs = articles ++ glossaries ++ bibliographies
-    val site = SiteModel.create(p, resourcs, siteMetadata, videopublications, publicationtriples)
+    val site = SiteModel.create(p, resourcs, sitemetadata, videopublications, publicationtriples)
     val metadata = p.copy(site = site)
     metadata.copy(dashboard = DoxSiteDashboard.create(metadata))
   }

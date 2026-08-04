@@ -1,0 +1,20 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "api/identity" },
+  "variants": {
+    "en": {
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "watch_url": "https://example.com/api-identity"
+      }
+    },
+    "ja": {
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "watch_url": "https://example.com/api-identity"
+      }
+    }
+  }
+}

@@ -28,6 +28,7 @@ import org.smartdox.semanticweb.Vocabulary
 import org.smartdox.semanticweb.SimpleModelingOrgPublicOntology
 import org.smartdox.semanticweb.SimpleModelingOrgPublicSchema
 import org.smartdox.semanticweb.Site._
+import org.smartdox.metadata.PublishMetadata.{ArticleMediaVariant, ImageReference, VideoReference}
 
 /*
  * @since   Apr. 28, 2025
@@ -37,7 +38,8 @@ import org.smartdox.semanticweb.Site._
  *  version Aug. 16, 2025
  *  version Sep. 22, 2025
  *  version Oct. 12, 2025
- * @version Nov. 22, 2025
+ *  version Nov. 22, 2025
+ * @version Aug.  4, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -166,8 +168,11 @@ object Notices {
 
     def withBrief(s: Option[I18NString]) = copy(brief = s)
 
-    def yamlString(ctx: I18NContext): String = {
-      val json = this.asJson(noticeEncoder(ctx))
+    def yamlString(ctx: I18NContext): String =
+      yamlString(ctx, None)
+
+    def yamlString(ctx: I18NContext, media: Option[ArticleMediaVariant]): String = {
+      val json = this.asJson(noticeEncoder(ctx, media))
       CirceUtils.toYamlString(json)
     }
 
@@ -250,10 +255,12 @@ object Notices {
     implicit val circeconf = Configuration.default.
       withDefaults.withSnakeCaseMemberNames
 
-    def noticeEncoderRaw(implicit ctx: I18NContext): Encoder.AsObject[Notice] = Encoder.AsObject.instance { n =>
+    def noticeEncoderRaw(implicit ctx: I18NContext): Encoder.AsObject[Notice] =
+      noticeEncoderRaw(None)
+
+    def noticeEncoderRaw(media: Option[ArticleMediaVariant])(implicit ctx: I18NContext): Encoder.AsObject[Notice] = Encoder.AsObject.instance { n =>
       val effectivebrief = n.brief getOrElse n.summary
-      io.circe.JsonObject.fromMap(
-        Map(
+      val fields = Vector(
           "title" -> n.title.distill(ctx).asJson,
           "title_image" -> n.titleImage.asJson,
           "category" -> n.category.asJson(Encoder.encodeOption(Category.categoryEncoderWithLocale(ctx.locale))),
@@ -266,11 +273,40 @@ object Notices {
           "updateds" -> n.updateds.asJson,
           "kind" -> n.kind.asJson,
           "status" -> n.status.asJson
-        )
-      )
+        ) ++ media.flatMap(_media_json).map("media" -> _).toVector
+      io.circe.JsonObject.fromIterable(fields)
 }
 
-    def noticeEncoder(ctx: I18NContext): Encoder[Notice] = CirceUtils.prefixedEncoder[Notice]("notice.")(noticeEncoderRaw(ctx))
+    private def _media_json(media: ArticleMediaVariant): Option[Json] = {
+      val fields = Vector(
+        media.infographic.map(x => "infographic" -> _image_json(x)),
+        media.projectableVideo.map(x => "video" -> _video_json(x))
+      ).flatten
+      if (fields.nonEmpty)
+        Some(Json.obj(fields: _*))
+      else
+        None
+    }
+
+    private def _image_json(image: ImageReference): Json =
+      Json.obj((Vector(
+        "public_path" -> image.publicPath.toString.asJson
+      ) ++ image.mediaType.map("media_type" -> _.asJson).toVector ++
+        image.alt.map("alt" -> _.asJson).toVector): _*)
+
+    private def _video_json(video: VideoReference): Json =
+      Json.obj((Vector(
+        "presentation" -> video.presentation.name.asJson,
+        "status" -> "published".asJson
+      ) ++ video.provider.map("provider" -> _.asJson).toVector ++
+        video.watchUrl.map("watch_url" -> _.toString.asJson).toVector ++
+        video.contentUrl.map("content_url" -> _.toString.asJson).toVector): _*)
+
+    def noticeEncoder(ctx: I18NContext): Encoder[Notice] =
+      noticeEncoder(ctx, None)
+
+    def noticeEncoder(ctx: I18NContext, media: Option[ArticleMediaVariant]): Encoder[Notice] =
+      CirceUtils.prefixedEncoder[Notice]("notice.")(noticeEncoderRaw(media)(ctx))
   }
   // case class Builder() {
   //   def build(): Notices = ???

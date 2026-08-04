@@ -1,0 +1,14 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "development-process/draft" },
+  "variants": {
+    "en": {
+      "infographic": { "public_path": "/en/development-process/images/draft.png" },
+      "video": { "presentation": "external-link", "status": "draft", "watch_url": "https://example.com/draft" }
+    },
+    "ja": {
+      "infographic": { "public_path": "/ja/development-process/images/draft.png" },
+      "video": { "presentation": "external-link", "status": "withdrawn", "watch_url": "https://example.com/withdrawn" }
+    }
+  }
+}

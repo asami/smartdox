@@ -1,0 +1,13 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "development-process/hosted" },
+  "variants": {
+    "en": {
+      "video": {
+        "presentation": "site-hosted",
+        "status": "published",
+        "content_url": "/en/development-process/videos/hosted.mp4"
+      }
+    }
+  }
+}
