@@ -70,6 +70,65 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       ))
     }
 
+      "project the synthetic Phase 27 Part 5 article through localized article-top and Notice projections" in {
+      Given("a neutral Part 5 article and exact English and Japanese media variants")
+      val site = _site()
+
+      When("the localized article and global/category Notices are generated")
+      val englisharticle = _string(site, "doxsite.d/en/development-process/part-5.html")
+      val japanesearticle = _string(site, "doxsite.d/ja/development-process/part-5.html")
+      val englishglobal = _notice(site, "doxsite.d/WEB-INF/data/en", "development-process/part-5.html")
+      val englishcategory = _notice(site, "doxsite.d/WEB-INF/data/en/development-process", "development-process/part-5.html")
+      val japaneseglobal = _notice(site, "doxsite.d/WEB-INF/data/ja", "development-process/part-5.html")
+      val japanesecategory = _notice(site, "doxsite.d/WEB-INF/data/ja/development-process", "development-process/part-5.html")
+
+      Then("each article-top projection exposes only its exact locale projectable video and labels")
+      englisharticle should not include ("/en/development-process/part-5/_images/summary.png")
+      englisharticle should include ("https://youtu.be/Part5MediaEn1")
+      englisharticle should not include ("View infographic")
+      englisharticle should include ("Watch video")
+      englisharticle should not include ("https://youtu.be/Part5MediaJa1")
+      japanesearticle should not include ("/ja/development-process/part-5/_images/summary.png")
+      japanesearticle should include ("https://youtu.be/Part5MediaJa1")
+      japanesearticle should not include ("インフォグラフィックを見る")
+      japanesearticle should include ("動画を見る")
+      japanesearticle should not include ("https://youtu.be/Part5MediaEn1")
+
+      And("global and category Notices expose matching normalized locale media maps")
+      val expectedenglish = Some(Map(
+        "infographic" -> Map(
+          "public_path" -> "/en/development-process/part-5/_images/summary.png",
+          "media_type" -> "image/png",
+          "alt" -> "Part 5 infographic"
+        ),
+        "video" -> Map(
+          "presentation" -> "external-link",
+          "status" -> "published",
+          "provider" -> "youtube",
+          "watch_url" -> "https://youtu.be/Part5MediaEn1"
+        )
+      ))
+      val expectedjapanese = Some(Map(
+        "infographic" -> Map(
+          "public_path" -> "/ja/development-process/part-5/_images/summary.png",
+          "media_type" -> "image/png",
+          "alt" -> "第5回インフォグラフィック"
+        ),
+        "video" -> Map(
+          "presentation" -> "external-link",
+          "status" -> "published",
+          "provider" -> "youtube",
+          "watch_url" -> "https://youtu.be/Part5MediaJa1"
+        )
+      ))
+      _media(englishglobal) shouldBe expectedenglish
+      _media(englishcategory) shouldBe expectedenglish
+      _media(japaneseglobal) shouldBe expectedjapanese
+      _media(japanesecategory) shouldBe expectedjapanese
+      _media(englishglobal) shouldBe _media(englishcategory)
+      _media(japaneseglobal) shouldBe _media(japanesecategory)
+    }
+
       "keep draft and withdrawn video out of the article while retaining its infographic in Notice" in {
       Given("published articles whose registered videos are draft or withdrawn")
       val site = _site()

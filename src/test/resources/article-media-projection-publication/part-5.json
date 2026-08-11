@@ -1,0 +1,32 @@
+{
+  "type": "article-media-publication",
+  "article": { "identity": "development-process/part-5" },
+  "variants": {
+    "en": {
+      "infographic": {
+        "public_path": "/en/development-process/part-5/_images/summary.png",
+        "media_type": "image/png",
+        "alt": "Part 5 infographic"
+      },
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "provider": "youtube",
+        "watch_url": "https://youtu.be/Part5MediaEn1"
+      }
+    },
+    "ja": {
+      "infographic": {
+        "public_path": "/ja/development-process/part-5/_images/summary.png",
+        "media_type": "image/png",
+        "alt": "第5回インフォグラフィック"
+      },
+      "video": {
+        "presentation": "external-link",
+        "status": "published",
+        "provider": "youtube",
+        "watch_url": "https://youtu.be/Part5MediaJa1"
+      }
+    }
+  }
+}
