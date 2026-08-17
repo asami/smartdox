@@ -2,24 +2,30 @@ SmartDox Specification｜SmartDox仕様書
 =================================
 
 # HEAD
+
 status=draft
 published_at=YYYY-MM-DD
 
 ## HEADLINE
+
 SmartDoxの抽出モデル
 
 ## BRIEF
+
 SmartDox文書をModelDox・Cozy・BoKに変換する際の抽出階層・マッピング規則を定義します。
 
 ## TOOLTIP
+
 SmartDoxから構造・コード・知識を抽出する統合モデル
 
 ## SUMMARY
+
 SmartDoxの抽出モデルは、文書中の構造化要素を解析し、三つの出力層に変換します。  
 ModelDoxは構造モデル、Cozyはコード生成、BoKは知識体系登録を目的とします。  
 本章ではその抽出手順・マッピング表・処理方針を明確化します。
 
 ## DESCRIPTION
+
 SmartDox文書は単なるテキストではなく、構文的・意味的に構造化された情報源です。  
 抽出モデル（Extraction Model）は、文書内の各要素を**抽出対象オブジェクト（Extractable Element）**として扱い、  
 文書全体をデータ変換パイプラインに通して、  
@@ -28,6 +34,7 @@ ModelDox（構造モデル）・Cozy（コード）・BoK（知識ベース）�
 ---
 
 # Extraction Layers｜抽出階層
+
 
 | 層 | 出力対象 | 説明 |
 |----|-----------|------|
@@ -41,13 +48,16 @@ ModelDox（構造モデル）・Cozy（コード）・BoK（知識ベース）�
 
 # 1. Structural Layer｜構造層（ModelDox）
 
+
 ModelDoxはSmartDox文書中の**モデル関連タグ**（`<entity>`, `<value>`, `<rule>` など）を抽出し、  
 CML互換の構造データに変換します。
 
 ## 抽出対象タグ
+
 `<model>`, `<entity>`, `<value>`, `<attribute>`, `<relation>`, `<state>`, `<transition>`, `<event>`, `<rule>`, `<service>`, `<component>`, `<subsystem>`
 
 ## 抽出モデル例
+
 ```
 <entity name="User">
   <attribute name="id" type="String"/>
@@ -69,6 +79,7 @@ ModelDox出力は後段のCozy変換でコード生成に利用されます。
 
 # 2. Behavioral Layer｜振る舞い層（Cozy）
 
+
 CozyはSmartDox文書中の構造情報をプログラミング言語コードへ変換します。  
 抽出対象はModelDoxの構造定義および以下のタグです。
 
@@ -81,6 +92,7 @@ CozyはSmartDox文書中の構造情報をプログラミング言語コード�
 | `<error>` | 例外クラス生成 |
 
 ### Cozy抽出フロー
+
 ```
 SmartDox
  └─► ModelDox
@@ -88,6 +100,7 @@ SmartDox
 ```
 
 ### 生成例
+
 ```
 <service name="UserService">
   <rule>User must have unique id.</rule>
@@ -106,35 +119,50 @@ trait UserService {
 
 # 3. Knowledge Layer｜知識層（BoK）
 
+
 BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目として登録します。  
-主な対象は `<dfn>`, `<term>`, `<abbr>`, `<note>`, `<ref>` などのタグです。
+主な対象は `<dfn>`, `<term>`, `<abbr>`, `<note>`, `<ref>` などのタグです。RDF基盤
+用語の属性・解決・出力は Phase 2 Stage 2.1 の暫定仕様であり、実装は保留です。
 
 | タグ | 抽出クラス | 生成対象 |
 |------|-------------|-----------|
-| `<dfn>` | GlossaryEntry | 用語集定義 |
-| `<term>` | TermReference | 用語リンク |
+| `<dfn>` | GlossaryEntry | 用語集定義（既存互換。`about`/`id` は提案） |
+| `<term>` | TermReference | 用語リンク（`ref`/`form` は提案） |
+| `<noterm>` | — | 用語解決抑止（提案） |
 | `<abbr>` | Abbreviation | 略語辞書 |
 | `<note>` | Note | 注記ノード |
 | `<ref>` | Reference | 関連項目リンク |
 | `<time>` | TemporalValue | 年表・履歴ノード |
 
-抽出結果はBoKレジストリ（JSON-LD形式）へ格納されます。  
+将来の抽出結果はBoKレジストリ（JSON-LD形式）へ格納されます。以下は**提案出力**で
+あり、現行実装の出力を表すものではありません。
 例：
 ```
-<dfn>Entity</dfn> represents an object with identity.
+<dfn about="https://www.simplemodeling.org/glossary/object-foundation/entity" id="entity">Entity</dfn> represents an object with identity.
 ```
-→ BoK登録：
+→ 提案BoK登録：
 ```
 {
-  "id": "Entity",
+  "@id": "https://www.simplemodeling.org/glossary/object-foundation/entity",
   "type": "GlossaryEntry",
-  "definition": "represents an object with identity"
+  "definition": "represents an object with identity",
+  "surfaceForm": "Entity",
+  "locale": "en",
+  "occurrenceKind": "definition",
+  "resolutionKind": "explicit",
+  "source": { "path": "object-foundation/entity.dox", "location": "example" }
 }
 ```
+
+提案契約では、HTMLメタデータ、term occurrence、RDF/JSON-LD、BoK record が解決済み
+概念IRI、surface form、locale、occurrence kind、resolution kind、source path/location
+を保持します。表示・音声・診断とともに
+`docs/spec/rdf-grounded-terminology.md` で規定され、Stage 2.2–2.4 で実装予定です。
 
 ---
 
 # Extraction Mapping Matrix｜抽出マッピング表
+
 
 | SmartDoxタグ | ModelDox種別 | Cozy出力 | BoK項目 |
 |---------------|---------------|-----------|----------|
@@ -145,7 +173,8 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 | `<service>` | Service | Trait / Method | ServiceDefinition |
 | `<rule>` | Rule | Validation Code | Policy |
 | `<event>` | Event | Case Class | DomainEvent |
-| `<dfn>` | TermDefinition | — | Glossary |
+| `<dfn>` | TermDefinition | — | Glossary（IRI付き出力は提案） |
+| `<term>` | TermReference | — | Concept reference（提案） |
 | `<note>` | — | — | Annotation |
 | `<code>` | CodeLiteral | CodeFragment | Example |
 | `<kbd>` | — | — | UserAction |
@@ -154,6 +183,7 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 ---
 
 # Extraction Phases｜抽出処理段階
+
 
 1. **Parse Phase（構文解析）**  
    SmartDox文書をAST（抽象構文木）に変換。  
@@ -170,9 +200,14 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 4. **Integration Phase（統合）**  
    各成果物をAntora siteやリポジトリに統合。
 
+RDF基盤用語のパース、AST、CURIE解決、表示、音声、HTML/RDF/JSON-LD/BoK射影は、この
+段階表に対する将来の拡張です。未解決、重複、曖昧、未知prefix、relative ref、label-form
+非互換はすべて source location 付き診断となる予定で、現行動作ではありません。
+
 ---
 
 # Metadata Extraction｜メタデータ抽出
+
 
 `# HEAD` セクションの属性はすべて抽出対象です。  
 
@@ -186,6 +221,7 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 ---
 
 # Example Pipeline｜処理例
+
 
 ```
 SmartDox Document
@@ -202,6 +238,7 @@ SmartDoxを唯一の情報源として自動再生成可能です。
 
 # Error Handling Policy｜抽出時のエラー処理
 
+
 | 分類 | 対応方針 |
 |------|-----------|
 | 構文エラー | パーサで例外。文書冒頭に `<error>` ノードを挿入。 |
@@ -213,6 +250,7 @@ SmartDoxを唯一の情報源として自動再生成可能です。
 
 # Output Formats｜出力フォーマット
 
+
 | 出力層 | 形式 | 既定拡張子 |
 |--------|------|-------------|
 | ModelDox | YAML / JSON | `.model.yaml` |
@@ -222,6 +260,7 @@ SmartDoxを唯一の情報源として自動再生成可能です。
 ---
 
 # Integration with Antora｜Antora連携
+
 
 Antora生成フェーズではSmartDox文書をAsciidocに変換し、  
 各出力ファイルへのメタリンクを自動付与します。
@@ -236,6 +275,7 @@ link:../bok/user.bok.json[BoK]
 ---
 
 # REMARKS
+
 SmartDoxの抽出モデルは、**単一ソースから多層成果物を再現可能にする**設計思想を具現化しています。  
 文書記述・モデル定義・知識体系登録のすべてが同じ文脈で行えることで、  
 ソフトウェア開発とナレッジエンジニアリングの統合を実現します。

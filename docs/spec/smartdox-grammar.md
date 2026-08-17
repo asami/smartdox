@@ -4,8 +4,8 @@ Status: draft specification
 Date: 2026-04-30
 
 This document describes the SmartDox grammar implemented by the current parser
-and covered by the parser tests. It is normative for stable syntax. Syntax that
-is still under design is tracked in `docs/journal`.
+and covered by the parser tests. It is normative only for stable, parser-backed
+syntax. Syntax that is still under design is tracked in `docs/journal`.
 
 ## Scope
 
@@ -20,6 +20,11 @@ sections, paragraphs, lists, tables, figures, programs, links, and inline
 markup.
 
 Descriptive metadata effective semantics are defined in `docs/design/descriptive-effective-semantics.md`.
+
+RDF-grounded terminology syntax and output semantics are a provisional Phase 2
+contract, not stable grammar: see `docs/spec/rdf-grounded-terminology.md` and
+`docs/design/rdf-grounded-terminology.md`. Parser, AST, resolution, rendering,
+and extraction implementation remain pending for Stages 2.2–2.4.
 
 ## Document
 
@@ -146,6 +151,12 @@ This rule applies in both SmartDox authoring and Markdown mode; `.md` /
 `.markdown` sources may use `# HEAD` for SmartDox operational metadata when YAML
 front matter is not enough. The leading properties paragraph inside `HEAD` is
 metadata-only and is not parsed as Markdown body text.
+
+The provisional terminology contract additionally reserves a HOCON object named
+`term_namespaces` for an explicit CURIE context, for example
+`term_namespaces = { smterm = "https://www.simplemodeling.org/glossary/" }`.
+This is not yet parser-backed stable HEAD grammar; its future behavior is
+specified in `docs/spec/rdf-grounded-terminology.md`.
 
 ## Summary And Lead
 
@@ -377,6 +388,11 @@ XML-style inline tags are supported for known inline elements such as `b`, `i`,
 <span>*span*</span>
 ```
 
+The proposed `<term ref="…" form="…">`, `<dfn about="…" id="…">`, and
+`<noterm>…</noterm>` terminology forms are specified separately in
+`docs/spec/rdf-grounded-terminology.md`. They are provisional specification /
+implementation pending and are not assertions about current parser behavior.
+
 Literal inline text can be written with:
 
 ```dox
@@ -470,6 +486,6 @@ feature.
 
 ## Stability
 
-Stable syntax in this file is backed by parser implementation and tests.
-Unstable or partially implemented grammar is tracked in the journal so it can
-be promoted here after behavior and tests are settled.
+Only stable syntax in this file is backed by parser implementation and tests.
+The RDF-grounded terminology contract remains non-stable future grammar until
+its behavior and executable specifications are implemented and settled.

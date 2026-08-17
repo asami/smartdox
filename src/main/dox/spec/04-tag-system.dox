@@ -2,24 +2,30 @@ SmartDox Specification｜SmartDox仕様書
 =================================
 
 # HEAD
+
 status=draft
 published_at=YYYY-MM-DD
 
 ## HEADLINE
+
 SmartDoxのタグ体系
 
 ## BRIEF
+
 SmartDoxで使用できるHTML準拠タグおよび拡張タグの分類と意味定義を示します。
 
 ## TOOLTIP
+
 HTML互換タグ＋SmartDox拡張タグの正式な体系と設計指針
 
 ## SUMMARY
+
 SmartDoxはHTML Living Standardを尊重し、既存タグを構造化文書記述に再利用します。  
 その上で、ソフトウェア開発・モデリング・BoK抽出に必要な意味表現を追加タグとして定義します。  
 本章ではSmartDox文書内で利用できる全タグを分類し、設計方針・使用目的・抽出対象を明確にします。
 
 ## DESCRIPTION
+
 SmartDoxのタグ体系は、HTMLの意味論的枠組みを基盤に、  
 ソフトウェアモデリング・ドキュメント生成・BoK知識抽出を意識した構造を採用しています。  
 タグの入れ子による意味の変化はサポートせず、各タグは**単独で一義的な意味**を持ちます。
@@ -27,6 +33,7 @@ SmartDoxのタグ体系は、HTMLの意味論的枠組みを基盤に、
 ---
 
 # Design Principles｜設計方針
+
 
 1. **HTML互換性の維持**  
    - HTML Living Standard準拠タグを優先採用。  
@@ -46,6 +53,7 @@ SmartDoxのタグ体系は、HTMLの意味論的枠組みを基盤に、
 
 # Tag Categories｜タグ分類体系
 
+
 SmartDoxで利用できるタグは、以下の6カテゴリに分類されます。
 
 | 分類 | 説明 |
@@ -60,6 +68,7 @@ SmartDoxで利用できるタグは、以下の6カテゴリに分類されま�
 ---
 
 # 1. Descriptive Elements｜記述要素
+
 
 HTML標準の文書構造を表すタグ群です。
 
@@ -81,6 +90,7 @@ SmartDoxでは、これらは文芸モデル中の説明部を形成します。
 
 # 2. Code and I/O Elements｜コード・入出力要素
 
+
 ソースコードやCLI入出力を示すHTML準拠タグ群です。
 
 | タグ | 意味 | 用途 | 抽出カテゴリ |
@@ -98,6 +108,7 @@ SmartDoxでは、これらは文芸モデル中の説明部を形成します。
 ---
 
 # 3. Model Elements｜モデル構成要素
+
 
 SmartDox独自の拡張タグであり、ソフトウェアやドメインモデルを記述します。
 
@@ -122,6 +133,7 @@ SmartDox独自の拡張タグであり、ソフトウェアやドメインモデ
 
 # 4. Structural Elements｜構造・表現要素
 
+
 SmartDox文書の構造を形成するブロック要素です。
 
 | タグ | 意味 | 用途 | 抽出カテゴリ |
@@ -137,6 +149,7 @@ SmartDoxではOrg-modeスタイル表（`|===`）をHTML構造に変換します
 ---
 
 # 5. Interface Elements｜インタフェース要素
+
 
 外部システム・API・操作フローなどを定義する拡張タグ群です。
 
@@ -158,12 +171,14 @@ SmartDoxではOrg-modeスタイル表（`|===`）をHTML構造に変換します
 
 # 6. Knowledge Elements｜ナレッジ要素
 
+
 BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタグ群です。
 
 | タグ | 意味 | 用途 | 抽出カテゴリ |
 |------|------|------|---------------|
-| `<dfn>` | 定義語 | 用語定義 | GlossaryEntry |
-| `<term>` | 用語参照 | Glossaryリンク | TermReference |
+| `<dfn>` | 定義語（既存互換） | `<dfn about="IRI-or-CURIE" id="html-anchor">…</dfn>`（提案属性） | GlossaryEntry |
+| `<term>` | 用語参照（提案） | `<term ref="IRI-or-CURIE" form="canonical|short|bilingual|verbatim">…</term>` | TermReference |
+| `<noterm>` | 用語解決抑止（提案） | `<noterm>…</noterm>` | None |
 | `<abbr>` | 略語 | 用語展開 | Abbreviation |
 | `<note>` | 注記 | 解説・補足 | Note |
 | `<todo>` | 保留項目 | Draft管理 | Todo |
@@ -172,7 +187,25 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 
 ---
 
+# Provisional RDF-grounded terminology｜暫定RDF基盤用語
+
+`<dfn>` の既存形は後方互換のため維持します。提案された `about` はRDF概念を
+指し、`id` はローカルHTMLアンカーであって概念IDではありません。`<term>` は
+明示的な概念参照で、`ref` を先に解決し、`form` の既定値は `canonical` です。
+本文は必須で、`verbatim` は互換な著者指定の表示を保持します。
+
+`<noterm>` は用語解決だけを抑止します。コードまたはraw-inlineの代替ではなく、
+`<term>`、`<dfn>`、または別の `<noterm>` をネストできません。自動解決は
+`linkable` のbare-label policyだけに限定され、`context-only` は将来の決定的な
+明示スコープを要し、それまでは `<term>` を使用します。`explicit-only` は常に
+`<term>` を必要とします。
+
+これらは Phase 2 Stage 2.1 の暫定仕様／実装保留です。概念IRI、名前空間、
+診断、表示、音声、出力契約は `docs/spec/rdf-grounded-terminology.md` を参照し、
+パーサ、AST、解決、描画、抽出の実装は Stage 2.2–2.4 に保留します。
+
 # SmartDox Extraction Mapping｜抽出マッピング一覧
+
 
 | タグカテゴリ | ModelDox変換種別 | Cozy変換対象 | BoK抽出クラス |
 |---------------|------------------|----------------|----------------|
@@ -186,6 +219,7 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 ---
 
 # Tag Usage Policy｜タグ使用方針
+
 
 1. **SmartDox拡張タグはネームスペース不要。**  
    HTML互換パーサで処理できるタグ名を使用。
@@ -202,6 +236,7 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 ---
 
 # Example｜使用例
+
 
 ```
 <entity name="User">
@@ -225,6 +260,7 @@ ModelDox変換時にはCML/JSON形式で抽出されます。
 ---
 
 # REMARKS
+
 SmartDoxのタグ体系は、HTMLを基盤としながらも、  
 ドメインモデリング・API仕様・ユースケース記述・BoK抽出といったソフトウェア開発の実務に最適化されています。  
 タグは文芸モデルの「形式的構造要素」として位置づけられ、  
