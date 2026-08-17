@@ -1,6 +1,6 @@
 # SmartDox Development Strategy
 
-Date: 2026-08-03
+Date: 2026-08-16
 
 Status: active
 
@@ -34,11 +34,36 @@ Primary reference:
 - `docs/phase/phase-1-checklist.md`
 - `docs/notes/article-media-publication-and-site-projection.md`
 
+### Phase 2: RDF-Grounded Terminology Semantics
+
+Status: active.
+
+Purpose:
+
+- use one RDF URI node as the stable identity of a glossary concept across
+  SmartDox, generated RDF/JSON-LD, and the BoK handoff;
+- implement explicit term reference, definition, and non-term semantics rather
+  than deriving ambiguous concept identity from a surface string;
+- preserve deterministic, locale-aware automatic linking for safe labels while
+  requiring explicit RDF-node references for ambiguous labels; and
+- separate bilingual visual annotation from locale-appropriate speech so
+  first-use English labels are not redundantly narrated; and
+- retain the resolved concept node in generated site and knowledge metadata so
+  textus-bok and MCP consumers do not reconstruct identity from labels.
+
+Primary reference:
+
+- `docs/phase/phase-2.md`
+- `docs/phase/phase-2-checklist.md`
+- SimpleModeling.org `docs/spec/glossary-entry-format.md`
+- SimpleModeling.org `docs/notes/glossary-term-definition-policy.md`
+
 ## Current Priority
 
-Phase 1 established the common article-media publication and site-projection
-contract. SimpleModeling.org remains a direct SmartDox site user with YouTube
-as its presentation provider. Cozy can consume the resulting SmartDox contract
-in its separate BoK integration phase, where generated media stays in the BoK
-artifact repository outside Git. No successor SmartDox phase is selected by
-this closure.
+Phase 2 is the active priority. It completes the currently documented but not
+fully implemented `<term>` semantics by grounding term definitions and
+references in the same RDF resource identity used by generated knowledge data.
+The first delivery boundary is the reviewed identity and grammar contract;
+parser, resolution, projection, and bounded SimpleModeling.org acceptance
+follow from that contract. textus-bok service and MCP implementation remain
+downstream responsibilities.

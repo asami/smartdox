@@ -4,7 +4,8 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- No active phase is selected.
+- Active phase: `phase-2.md`: RDF-Grounded Terminology Semantics
+- Active checklist: `phase-2-checklist.md`
 - Most recently closed phase: `phase-1.md`: Article Media Publication and Site
   Projection
 - Closure checklist: `phase-1-checklist.md`
