@@ -1136,18 +1136,18 @@ object Dox extends UseDox {
 
   def toValue(p: Block): Value.Single = Value.Single(p.toText)
 
-  private def toValuesAsInlineContents(p: Block): List[InlineContents] = {
+  private def _to_values_as_inline_contents(p: Block): List[InlineContents] = {
     val ulopt = p.elements.collectFirst { case m: Ul => m }
     ulopt match {
       case Some(ul) => Ul.toValuesAsInlineContents(ul)
-      case None => List(toValueAsInlineContents(p))
+      case None => List(_to_value_as_inline_contents(p))
     }
   }
 
-  private def toValueAsInlineContents(p: Block): InlineContents = {
+  private def _to_value_as_inline_contents(p: Block): InlineContents = {
     val xs = p.elements
     val a = xs.toStream.map {
-      case m: Block => toValueAsInlineContents(m)
+      case m: Block => _to_value_as_inline_contents(m)
       case m: Inline => List(m)
     }.headOption
     a getOrElse List(Text(""))
@@ -1421,7 +1421,7 @@ case class Head(
 
   def withSummaryIfRequired(ps: InlineContents) = copy(metadata = metadata.withSummaryIfRequired(ps))
 
-  private def withSummary(p: String) = copy(metadata = metadata.withSummary(p))
+  private def _with_summary(p: String) = copy(metadata = metadata.withSummary(p))
 
   def merge(p: Head): Head = Head(
     css |+| p.css,
@@ -1815,7 +1815,7 @@ object Section {
     Section(List(I18NFragment.create(title)), List(p))
 
   // def toKeyValues(p: Section): (String, List[InlineContents]) =
-  //   (p.keyForModel, Dox.toValuesAsInlineContents(p))
+  //   (p.keyForModel, Dox._to_values_as_inline_contents(p))
 
   def toKeyValueOrValues(p: Section): KeyContent[Value] =
     KeyContent(p.keyForModel, Value.buildValueOrValuesI18N(p))
