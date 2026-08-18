@@ -145,6 +145,8 @@ class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with 
 
   "HEAD section" should {
     "normalize SmartDox HEAD key-value shorthand into HOCON metadata" in {
+      Given("a SmartDox document whose HEAD contains unquoted key-value metadata")
+      When("Dox2Parser parses the SmartDox document")
       val dox = parse_dox("""業務報告
 ===
 
@@ -159,12 +161,15 @@ author=山田 太郎
 本文です。
 """).asInstanceOf[Document]
       val meta = dox.head.metadata
+      Then("the metadata values are available in the requested locale")
       meta.getPublishedString(java.util.Locale.JAPANESE) should be (Some("2026-06-02"))
       meta.getOrganizationString(java.util.Locale.JAPANESE) should be (Some("知識基盤開発室"))
       meta.getAuthorString(java.util.Locale.JAPANESE) should be (Some("山田 太郎"))
     }
 
     "keep regular HOCON metadata support beside the shorthand" in {
+      Given("a SmartDox document whose HEAD contains quoted HOCON metadata")
+      When("Dox2Parser parses the SmartDox document")
       val dox = parse_dox("""業務報告
 ===
 
@@ -179,13 +184,16 @@ author="山田 太郎"
 本文です。
 """).asInstanceOf[Document]
       val meta = dox.head.metadata
+      Then("the metadata values are preserved beside the shorthand form")
       meta.getPublishedString(java.util.Locale.JAPANESE) should be (Some("2026-06-02"))
       meta.getOrganizationString(java.util.Locale.JAPANESE) should be (Some("知識基盤開発室"))
       meta.getAuthorString(java.util.Locale.JAPANESE) should be (Some("山田 太郎"))
     }
 
     "parse only the leading metadata paragraph and keep descriptive child sections" in {
+      Given("a HEAD section with a leading metadata paragraph and descriptive children")
       val stderr = new ByteArrayOutputStream()
+      When("Dox2Parser parses the SmartDox document")
       val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
         parse_dox("""業務報告
 ===
@@ -209,6 +217,7 @@ published_at=2026-06-08
 """).asInstanceOf[Document]
       }
       val meta = dox.head.metadata
+      Then("only the leading paragraph becomes metadata and child sections remain content")
       stderr.toString("UTF-8") should not include ("SmartDox HEAD metadata parse error:")
       meta.getPublishedString(java.util.Locale.JAPANESE) should be (Some("2026-06-08"))
       meta.getEffectiveSummaryString(java.util.Locale.JAPANESE) should be (Some("日本語の概要です。"))
@@ -216,7 +225,9 @@ published_at=2026-06-08
     }
 
     "parse SmartDox HEAD metadata inside Markdown documents" in {
+      Given("a Markdown document with a SmartDox HEAD metadata section")
       val stderr = new ByteArrayOutputStream()
+      When("Dox2Parser parses the document using its Markdown filename")
       val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
         Dox2Parser.parseWithFilename("published.md", """# HEAD
 
@@ -234,6 +245,7 @@ Markdown body.
 """).asInstanceOf[Document]
       }
       val meta = dox.head.metadata
+      Then("metadata is interpreted while the body remains Markdown content")
       stderr.toString("UTF-8") should not include ("SmartDox HEAD metadata parse error:")
       meta.status should be (org.smartdox.metadata.DocumentMetaData.Status.Published)
       meta.getPublishedString(java.util.Locale.ENGLISH) should be (Some("2026-06-23"))
@@ -244,7 +256,9 @@ Markdown body.
     }
 
     "parse leading metadata paragraph through filename based SmartDox parsing" in {
+      Given("a filename-addressed SmartDox document with leading HEAD metadata")
       val stderr = new ByteArrayOutputStream()
+      When("Dox2Parser parses the document using its SmartDox filename")
       val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
         Dox2Parser.parseWithFilename("published.dox", """Published Article
 =================
@@ -265,6 +279,7 @@ Published body.
 """).asInstanceOf[Document]
       }
       val meta = dox.head.metadata
+      Then("publication metadata and body content are both retained")
       stderr.toString("UTF-8") should not include ("SmartDox HEAD metadata parse error:")
       meta.status should be (org.smartdox.metadata.DocumentMetaData.Status.Published)
       meta.getPublishedString(java.util.Locale.ENGLISH) should be (Some("2026-06-08"))
@@ -274,7 +289,9 @@ Published body.
     }
 
     "report explicit HEAD metadata parse errors" in {
+      Given("a SmartDox HEAD section containing malformed metadata")
       val stderr = new ByteArrayOutputStream()
+      When("Dox2Parser parses the malformed document")
       val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
         parse_dox("""業務報告
 ===
@@ -289,12 +306,15 @@ Published body.
 """).asInstanceOf[Document]
       }
       val message = "SmartDox HEAD metadata parse error:"
+      Then("the parser exposes the diagnostic while retaining body content")
       stderr.toString("UTF-8") should include (message)
       dox.toString should include (message)
       dox.toString should include ("本文です。")
     }
 
     "leave malformed metadata-looking text as body when HEAD is absent" in {
+      Given("a SmartDox document without a HEAD section that contains malformed metadata-looking text")
+      When("Dox2Parser parses the document")
       val dox = parse_dox("""業務報告
 ===
 
@@ -302,6 +322,7 @@ Published body.
 
 本文です。
 """).asInstanceOf[Document]
+      Then("the text remains body content and does not become metadata")
       dox.head.metadata.getPublishedString(java.util.Locale.JAPANESE) should be (None)
       dox.toString should include ("{")
       dox.toString should include ("本文です。")
@@ -342,22 +363,37 @@ Published body.
         //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ul><li>first<ul><li>first.first</li><li>first.second</li></ul></li><li>second</li></ul></section></body></html>")
       }
       "typical 2" in {
+        Given("a flat unordered SmartDox list")
+        When("the parser renders the list")
+        Then("the resulting list structure matches the established behavior")
         parse_orgmode_simple_debug("- One\n- Two\n",
           """<ul><li>One</li><li>Two</li></ul>""")
       }
       "continue" in {
+        Given("an unordered list item continued on an indented line")
+        When("the parser renders the continued item")
+        Then("the continuation remains part of that list item")
         parse_orgmode_simple_debug("- This is \n a pen.\n",
                              """<ul><li>This is a pen.</li></ul>""")
       }
       "continue 2" in {
+        Given("a nested unordered list with continued content")
+        When("the parser renders the nested list")
+        Then("the nested item keeps its continued text")
         parse_orgmode_simple("- One\n - Two\n Two-One\n",
                              """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
       }
       "continue 2 xx" in {
+        Given("paragraphs surrounding a nested unordered list")
+        When("the parser renders the document")
+        Then("paragraph and list boundaries remain unchanged")
         parse_orgmode_simple_debug("abc\n\n- One\n - Two\n - Three\n\nxyz",
           """<p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p>""")
       }
       "continue 2 x" in {
+        Given("a nested unordered list with two child items")
+        When("the parser renders the list")
+        Then("the child items remain grouped beneath their parent")
         parse_orgmode_simple_debug("- One\n - Two\n - Three\n",
           """<ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul>""")
       }
@@ -648,18 +684,27 @@ Published body.
   "include" should {
     "Include" which {
       "asciidoc style" in {
+        Given("an AsciiDoc include directive")
+        When("the parser resolves the included SmartDox source")
+        Then("the included document content is rendered")
         parse_orgmode_simple(
           """include::src/test/resources/abc.dox[]""",
           """<p>X</p>"""
         )
       }
       "orgmode style" in {
+        Given("an Org-mode include directive")
+        When("the parser resolves the included SmartDox source")
+        Then("the included document content is rendered")
         parse_orgmode_simple(
           """#+INCLUDE: src/test/resources/abc.dox""",
           """<p>X</p>"""
         )
       }
       "scala" in {
+        Given("an AsciiDoc include directive for Scala source")
+        When("the parser resolves the source include")
+        Then("the rendered program block retains its established attributes")
         parse_orgmode_simple(
           """include::src/test/resources/sample.scala[]""",
           """<pre kind="scala" caption="sample.scala" kind="scala" caption="sample.scala" class="program">object x {}

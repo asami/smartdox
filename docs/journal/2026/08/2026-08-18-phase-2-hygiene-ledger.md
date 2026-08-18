@@ -1,6 +1,6 @@
 # Phase 2 Hygiene Ledger
 
-Status: open
+Status: closed
 Date: 2026-08-18
 
 This ledger records pre-existing maintenance debt identified while delivering
@@ -16,28 +16,60 @@ Phase 2.  None of these items is enlarged or repaired by `P2-TERM2-001`.
 
 Hygiene Triage: HANDED_OFF
 Hygiene ID: HYG-001
-Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-task-handoff-01.md
+Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
 Handed Off On: 2026-08-19
 
 Hygiene Triage: HANDED_OFF
 Hygiene ID: HYG-002
-Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-task-handoff-02.md
+Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
 Handed Off On: 2026-08-19
 
 Hygiene Triage: HANDED_OFF
 Hygiene ID: HYG-003
-Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-task-handoff-03.md
+Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
 Handed Off On: 2026-08-19
 
 Hygiene Triage: HANDED_OFF
 Hygiene ID: HYG-004
-Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-task-handoff-04.md
+Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
 Handed Off On: 2026-08-19
 
 Hygiene Triage: HANDED_OFF
 Hygiene ID: HYG-005
 Handoff Journal: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-task-handoff-05.md
 Handed Off On: 2026-08-19
+
+## HYG-001 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
+Validated On: 2026-08-19
+Validation Evidence: focused `95142-20260818T213358Z`; final full `18734-20260818T222028Z` (`test`, 235 passed)
+Acceptance Commit: reported externally after commit
+
+## HYG-002 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
+Validated On: 2026-08-19
+Validation Evidence: focused `86634-20260818T212402Z`, repair `13705-20260818T220748Z`; final full `18734-20260818T222028Z` (`test`, 235 passed)
+Acceptance Commit: reported externally after commit
+
+## HYG-003 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
+Validated On: 2026-08-19
+Validation Evidence: focused `97196-20260818T213548Z`, repair `13705-20260818T220748Z`; final full `18734-20260818T222028Z` (`test`, 235 passed)
+Acceptance Commit: reported externally after commit
+
+## HYG-004 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md
+Validated On: 2026-08-19
+Validation Evidence: focused `92055-20260818T213037Z`, repair `13705-20260818T220748Z`; final full `18734-20260818T222028Z` (`test`, 235 passed)
+Acceptance Commit: reported externally after commit
 
 ## HYG-005 Resolution
 

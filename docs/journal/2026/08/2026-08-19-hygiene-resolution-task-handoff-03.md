@@ -1,10 +1,10 @@
 # Hygiene Resolution Task Handoff
 
-Status: READY
+Status: SUPERSEDED
 Created: 2026-08-19
 Source Repository: /Users/asami/src/dev2025/smartdox
 Target Repository: /Users/asami/src/dev2025/smartdox
-Suggested Invocation: $cncf-goal-task /Users/asami/src/dev2025/smartdox/docs/journal/2026/08/2026-08-19-hygiene-resolution-task-handoff-03.md
+Superseded By: `docs/journal/2026/08/2026-08-19-hygiene-resolution-batch-handoff.md`
 
 ## Purpose
 
