@@ -106,6 +106,21 @@ Primary reference:
 - `docs/phase/phase-6.md`
 - `docs/phase/phase-6-checklist.md`
 
+### Phase 7: Generic Inline Open-Tag Grammar
+
+Status: planned.
+
+Purpose:
+
+- complete generic boolean-attribute and self-closing inline open-tag parsing
+  deferred from Phase 2; and
+- preserve established quoted-attribute and RDF terminology behavior.
+
+Primary reference:
+
+- `docs/phase/phase-7.md`
+- `docs/phase/phase-7-checklist.md`
+
 ## Current Priority
 
 No implementation phase is active. Phase 3 is the next planned RDF
@@ -116,3 +131,9 @@ because the terminology contract is documented. Each is intended to fit one
 roughly two-hour provisional execution; if an implementation assessment says
 that it cannot, the current Phase must be split before source mutation.
 textus-bok service and MCP implementation remain downstream responsibilities.
+
+## 9. Development Item Status
+
+| ID | Source | Development item | Disposition | Target | Status |
+| --- | --- | --- | --- | --- | --- |
+| DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | ADOPTED |
