@@ -23,7 +23,8 @@ import org.smartdox._
  *  version Oct. 26, 2025
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
- * @version Jun. 29, 2026
+ *  version Jun. 29, 2026
+ * @version Aug. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -33,7 +34,7 @@ object DoxInlineParser {
 
   // def parse(p: LogicalLines): Dox = toDox(p.lines.map(parse))
 
-  def parse(p: LogicalLine): Dox = parse(p.text)
+  def parse(p: LogicalLine): Dox = parse(Config.default.withLocation(p.location), p.text)
 
   def parse(in: String): Dox = parse(Config.default, in)
 
@@ -53,8 +54,10 @@ object DoxInlineParser {
   private def _parse_inline_macro(config: Config, in: String): Option[Dox] =
     if (config.asciidoc.isInlineMacro)
       in match {
-        case _inline_macro_regex("site", contents) => Some(Hyperlink(Vector(Text(contents)), contents))
-        case _inline_macro_regex(name, contents) => Some(InlineMacro(name, contents))
+        case _inline_macro_regex("site", contents) =>
+          Some(Dox.attachLocation(Hyperlink(Vector(Text(contents)), contents), config.location))
+        case _inline_macro_regex(name, contents) =>
+          Some(Dox.attachLocation(InlineMacro(name, contents), config.location))
         case _ => None
       }
     else
@@ -87,8 +90,12 @@ object DoxInlineParser {
     isLocation: Boolean = true,
     markdown: Config.MarkDown = Config.MarkDown.none,
     orgmode: Config.OrgMode = Config.OrgMode.none,
-    asciidoc: Config.Asciidoc = Config.Asciidoc.none
+    asciidoc: Config.Asciidoc = Config.Asciidoc.none,
+    location: Option[ParseLocation] = None
   ) extends ParseConfig {
+    def withLocation(p: Option[ParseLocation]): Config = copy(location = p)
+    def withLocation(p: ParseLocation): Config = copy(location = p.toOption)
+
     def isSpace(c: Char): Boolean = Character.isWhitespace(c)
 
     def useAngleBracket: Boolean = true
@@ -541,9 +548,9 @@ object DoxInlineParser {
       Consequence(new URI(uri)) match {
         case Consequence.Success(x, _) =>
           if (config.isImageFile(uri))
-            leave_to(ReferenceImg(uri))
+            leave_to(Dox.attachLocation(ReferenceImg(uri), config.location))
           else
-            leave_to(Hyperlink(urn, x))
+            leave_to(Dox.attachLocation(Hyperlink(urn, x), config.location))
         case m: Consequence.Error[_] => leave_to(Text(m.message))
       }
     }
@@ -552,9 +559,9 @@ object DoxInlineParser {
       // XXX annotation, block, figure
       val uri = make_text(urn)
       if (config.isImageFile(uri))
-        leave_to(ReferenceImg(uri))
+        leave_to(Dox.attachLocation(ReferenceImg(uri), config.location))
       else
-        leave_to(Hyperlink(label, uri))
+        leave_to(Dox.attachLocation(Hyperlink(label, uri), config.location))
     }
   }
 
@@ -952,8 +959,8 @@ object DoxInlineParser {
     private def _make_inline_macro: Inline = {
       val contents = cs.mkString
       name match {
-        case "site" => Hyperlink(Vector(Text(contents)), contents)
-        case _ => InlineMacro(name, contents)
+        case "site" => Dox.attachLocation(Hyperlink(Vector(Text(contents)), contents), config.location).asInstanceOf[Inline]
+        case _ => Dox.attachLocation(InlineMacro(name, contents), config.location).asInstanceOf[Inline]
       }
     }
   }
@@ -970,14 +977,14 @@ object DoxInlineParser {
 
     override def returnFrom(doxes: Seq[Dox]): DoxInlineParseState = {
       // Integrate parsed child Dox elements into this tag and return to the parent
-      val element = Dox.create(tagName, attrs, doxes)
+      val element = _create_dox(doxes)
       leave_to(element)
     }
 
     override def returnEndResult: ParseResult[Dox] = {
       // Handle unclosed tag by finalizing current content
       val xs = parseInlineContents(cs.mkString)
-      val dox = Dox.create(tagName, attrs, xs)
+      val dox = _create_dox(xs)
       ParseSuccess(dox)
     }
 
@@ -989,7 +996,7 @@ object DoxInlineParser {
         if (tag == tagName) {
           // Matched closing tag: finalize current element and return to parent
           val xs = parseInlineContents(cs.mkString)
-          val dox = Dox.create(tagName, attrs, xs)
+          val dox = _create_dox(xs)
           leave_to(dox)
         } else {
           // Not this tag: propagate to higher parent
@@ -1005,15 +1012,18 @@ object DoxInlineParser {
       val s = (cs ++ p).mkString
       val c = Dox2Parser.Config.smartdox.withInlineConfig(config).withoutComplementParagraph()
       val xs = Dox2Parser.parseFragment(c, s)
-      val dox = Dox.create(tagName, attrs, xs)
+      val dox = _create_dox(xs.contents)
       leave_to(dox)
     }
 
     private def _return_chars_from_inline(p: Seq[Char]): DoxInlineParseState = {
       val s = (cs ++ p).mkString
-      val dox = Dox.create(tagName, attrs, parseInlineContents(s))
+      val dox = _create_dox(parseInlineContents(s))
       leave_to(dox)
     }
+
+    private[parser] def _create_dox(doxes: Seq[Dox]): Dox =
+      Dox.attachLocation(Dox.create(tagName, attrs, doxes), config.location)
 
     def parseInlineContents(s: String): List[Dox] =
       _normalize(DoxInlineParser.parse(config, s))
@@ -1068,7 +1078,7 @@ object DoxInlineParser {
         if (tag == parent.tagName) {
           // Proper closing tag: finalize content and return with child elements preserved
           val xs = parent.parseInlineContents(parent.cs.mkString)
-          val dox = Dox.create(tag, parent.attrs, xs)
+          val dox = parent._create_dox(xs)
           parent.parent match {
             case gp: XmlState =>
               // Append the rendered markup (with attributes preserved) to the outer XmlState buffer
@@ -1603,6 +1613,8 @@ object DoxInlineParser {
   ) extends ChildDoxInlineParseState with RawFeature {
     def resultFrom(p: String): DoxInlineParseState = parent.resultFrom(key.mkString, p)
 
+    override def returnFrom(c: Char): DoxInlineParseState = copy(key = key :+ c)
+
     override protected def character_State(evt: CharEvent): DoxInlineParseState =
       evt.c match {
         case '>' => ???
@@ -1653,7 +1665,7 @@ object DoxInlineParser {
         case '>' =>
           if (closeName.mkString != name)
             RAISE.syntaxErrorFault(s"Tag name unmatch: $name != ${closeName.mkString}")
-          leave_to(Dox.create(name, attrs, dox))
+          leave_to(Dox.attachLocation(Dox.create(name, attrs, dox), config.location))
         case ' ' => this
         case m => copy(closeName = closeName :+ m)
       }

@@ -2,12 +2,14 @@ package org.smartdox.parser
 
 import scalaz._, Scalaz._
 import java.io.{ByteArrayOutputStream, PrintStream}
+import org.scalatest.GivenWhenThen
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
-import org.smartdox.Document
+import org.goldenport.parser.{LogicalLine, LogicalParagraph, ParseLocation}
+import org.smartdox.{Dfn, Document, Dox, Hyperlink, InlineMacro, NoTerm, ReferenceImg, Span, Term}
 
 /*
  * @since   Oct. 14, 2018
@@ -17,11 +19,130 @@ import org.smartdox.Document
  *  version Aug. 16, 2025
  *  version Apr. 19, 2026
  *  version Jun. 23, 2026
- * @version Jul.  6, 2026
+ *  version Jul.  6, 2026
+ * @version Aug. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDox2Parser {
+class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with GivenWhenThen with UseDox2Parser {
+  "inline tag pipeline" should {
+    "defer attributed generic and RDF tags to DoxInlineParser" in {
+      Given("a SmartDox document containing generic and RDF inline tags")
+      val source =
+        """Pipeline
+          |========
+          |
+          |# Terms
+          |
+          |<span lang="ja">日本語</span>
+          |<dfn about="https://example.com/term/entity" id="entity-anchor">Entity</dfn>
+          |<term ref="https://example.com/term/entity" form="canonical">Entity</term>
+          |""".stripMargin
+
+      When("Dox2Parser parses the document through its SmartDox configuration")
+      val document = Dox2Parser.parse(Dox2Parser.Config.smartdox, source).asInstanceOf[Document]
+      val nodes = _nodes(document)
+
+      Then("the inline parser retains each tag and its attributes")
+      val span = nodes.collectFirst { case m: Span => m }.get
+      val definition = nodes.collectFirst { case m: Dfn => m }.get
+      val term = nodes.collectFirst { case m: Term => m }.get
+      span.attribute("lang") shouldBe Some("ja")
+      definition.attribute("about") shouldBe Some("https://example.com/term/entity")
+      definition.attribute("id") shouldBe Some("entity-anchor")
+      term.attribute("ref") shouldBe Some("https://example.com/term/entity")
+      term.attribute("form") shouldBe Some("canonical")
+    }
+
+    "attach a supplied logical-line location to common and RDF tags" in {
+      Given("a logical paragraph with an explicit source location and common plus RDF tags")
+      val location = ParseLocation.create(42)
+      val paragraph = LogicalParagraph(
+        "<span lang=\"ja\">日本語</span><dfn about=\"https://example.com/term/entity\">Entity</dfn><term ref=\"https://example.com/term/entity\">Entity</term><noterm>literal</noterm>",
+        location
+      )
+
+      When("Dox2Parser parses the logical paragraph through its SmartDox configuration")
+      val document = Dox2Parser.parse(Dox2Parser.Config.smartdox, paragraph).asInstanceOf[Document]
+      val nodes = _nodes(document)
+      val span = nodes.collectFirst { case m: Span => m }.get
+      val definition = nodes.collectFirst { case m: Dfn => m }.get
+      val term = nodes.collectFirst { case m: Term => m }.get
+      val noterm = nodes.collectFirst { case m: NoTerm => m }.get
+
+      Then("every parsed tag retains the supplied logical-line location without changing its kind")
+      span.location shouldBe Some(location)
+      definition.location shouldBe Some(location)
+      term.location shouldBe Some(location)
+      noterm.location shouldBe Some(location)
+    }
+
+    "attach a supplied logical-line location to site and generic inline macros" in {
+      Given("source-located site and generic inline macro inputs")
+      val location = ParseLocation.create(47)
+      val siteinput = LogicalLine("site:[overview.dox]", location)
+      val genericinput = LogicalLine("prefix generic:[opaque]", location)
+
+      When("DoxInlineParser parses both inputs through its SmartDox configuration")
+      val site = DoxInlineParser.parse(
+        DoxInlineParser.Config.smartdox.withLocation(siteinput.location),
+        siteinput.text
+      ).asInstanceOf[Hyperlink]
+      val generic = _nodes(DoxInlineParser.parse(
+        DoxInlineParser.Config.smartdox.withLocation(genericinput.location),
+        genericinput.text
+      )).collectFirst { case m: InlineMacro => m }.get
+
+      Then("both concrete macro results retain the supplied location and original payload")
+      site.location shouldBe Some(location)
+      site.href.toString shouldBe "overview.dox"
+      site.contents.map(_.toText).mkString shouldBe "overview.dox"
+      generic.location shouldBe Some(location)
+      generic.name shouldBe "generic"
+      generic.contents shouldBe "opaque"
+    }
+
+    "retain logical-line locations across table list quote annotation and image paths" in {
+      Given("source-located inputs for every DoxLines inline entry path")
+      val tablelocation = ParseLocation.create(51)
+      val listlocation = ParseLocation.create(52)
+      val quotelocation = ParseLocation.create(53)
+      val annotationlocation = ParseLocation.create(54)
+      val imagelocation = ParseLocation.create(55)
+
+      When("DoxLinesParser parses each paragraph through its SmartDox configuration")
+      val table = DoxLinesParser.parse(
+        DoxLinesParser.Config.smartdox,
+        LogicalParagraph("| <span lang=\"ja\">表</span> |", tablelocation)
+      )
+      val list = DoxLinesParser.parse(
+        DoxLinesParser.Config.smartdox,
+        LogicalParagraph("- <term ref=\"https://example.com/term/list\">List</term>", listlocation)
+      )
+      val quote = DoxLinesParser.parse(
+        DoxLinesParser.Config.smartdox,
+        LogicalParagraph("> <dfn about=\"https://example.com/term/quote\">Quote</dfn>", quotelocation)
+      )
+      val annotation = DoxLinesParser.AnnotationMark.get(
+        DoxLinesParser.Config.smartdox,
+        LogicalLine("#+TITLE: <span lang=\"ja\">題名</span>", annotationlocation)
+      ).collect {
+        case DoxLinesParser.TitleAnnotation(title, _) => title
+      }.get
+      val image = DoxLinesParser.parse(
+        DoxLinesParser.Config.smartdox,
+        LogicalParagraph("[[image/location.png]]", imagelocation)
+      )
+
+      Then("the parsed tags retain their originating logical-line locations")
+      _nodes(table).collectFirst { case m: Span => m }.get.location shouldBe Some(tablelocation)
+      _nodes(list).collectFirst { case m: Term => m }.get.location shouldBe Some(listlocation)
+      _nodes(quote).collectFirst { case m: Dfn => m }.get.location shouldBe Some(quotelocation)
+      _nodes(annotation).collectFirst { case m: Span => m }.get.location shouldBe Some(annotationlocation)
+      _nodes(image).collectFirst { case m: ReferenceImg => m }.get.location shouldBe Some(imagelocation)
+    }
+  }
+
   "HEAD section" should {
     "normalize SmartDox HEAD key-value shorthand into HOCON metadata" in {
       val dox = parse_dox("""業務報告
@@ -547,4 +668,7 @@ Published body.
       }
     }
   }
+
+  private def _nodes(p: Dox): Vector[Dox] =
+    p +: p.elements.toVector.flatMap(_nodes)
 }

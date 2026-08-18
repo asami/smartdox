@@ -103,7 +103,8 @@ import org.smartdox.util.DoxUtils
  *  version Nov. 22, 2025
  *  version Dec. 11, 2025
  *  version Apr. 16, 2026
- * @version Jun.  3, 2026
+ *  version Jun.  3, 2026
+ * @version Aug. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 trait Dox extends IDocument {
@@ -666,6 +667,8 @@ object Dox extends UseDox {
     Tt,
     Span,
     Dfn,
+    Term,
+    NoTerm,
     Abbr
   )
 
@@ -981,6 +984,47 @@ object Dox extends UseDox {
         else
           RAISE.notImplementedYetDefect(s"$name")
       }
+
+  // Parser-only source provenance for values created through Dox.create.
+  // Keep this here, rather than in individual parser states, so every supported
+  // tag gets identical treatment without changing the public factory API.
+  private[smartdox] def attachLocation(dox: Dox, location: Option[ParseLocation]): Dox =
+    location.map { p =>
+      dox match {
+        case m: Document => m.copy(location = Some(p))
+        case m: Head => m.copy(location = Some(p))
+        case m: Body => m.copy(location = Some(p))
+        case m: Div => m.copy(location = Some(p))
+        case m: Paragraph => m.copy(location = Some(p))
+        case m: Bold => m.copy(location = Some(p))
+        case m: Strong => m.copy(location = Some(p))
+        case m: Em => m.copy(location = Some(p))
+        case m: Italic => m.copy(location = Some(p))
+        case m: Underline => m.copy(location = Some(p))
+        case m: Code => m.copy(location = Some(p))
+        case m: InlineMacro => m.copy(location = Some(p))
+        case m: Pre => m.copy(location = Some(p))
+        case m: Ul => m.copy(location = Some(p))
+        case m: Ol => m.copy(location = Some(p))
+        case m: Li => m.copy(location = Some(p))
+        case m: Del => m.copy(location = Some(p))
+        case m: Hyperlink => m.copy(location = Some(p))
+        case m: ReferenceImg => m.copy(location = Some(p))
+        case m: Dl => m.copy(location = Some(p))
+        case m: Dt => m.copy(location = Some(p))
+        case m: Dd => m.copy(location = Some(p))
+        case m: Fragment => m.copy(location = Some(p))
+        case m: Tt => m.copy(location = Some(p))
+        case m: Span => m.copy(location = Some(p))
+        case m: Dfn => m.copy(location = Some(p))
+        case m: Term => m.copy(location = Some(p))
+        case m: NoTerm => m.copy(location = Some(p))
+        case m: Abbr => m.copy(location = Some(p))
+        case m: Html5 => m.copy(location = Some(p))
+        case m: Html5Inline => m.copy(location = Some(p))
+        case m => m
+      }
+    }.getOrElse(dox)
 
   private def _is_html5_inline(name: String): Boolean = html5InlineNames(name)
 
@@ -4155,9 +4199,65 @@ object Dfn extends Dfn(Nil, VectorMap.empty, None) with DoxFactory {
   val label = "dfn"
 
   def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Dfn =
-    Dfn(ensure_inline(body))
+    Dfn(ensure_inline(body), attrs)
 
   def apply(element: Inline) = new Dfn(List(element))
+}
+
+// 2026-08-18
+case class Term(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "term"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: Term => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy(_, location = get_location(location, cs)))
+  }
+}
+
+object Term extends Term(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "term"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): Term =
+    Term(ensure_inline(body), attrs)
+
+  def apply(element: Inline) = new Term(List(element))
+}
+
+// 2026-08-18
+case class NoTerm(
+  contents: List[Inline],
+  attributes: VectorMap[String, String] = VectorMap.empty,
+  location: Option[ParseLocation] = None
+) extends Inline {
+  override val elements = contents
+  override def showTerm = "noterm"
+
+  override def equals_Value(o: Dox) = o match {
+    case m: NoTerm => contents == m.contents && attributes == m.attributes
+    case _ => false
+  }
+
+  override def copyV(cs: List[Dox]) = {
+    to_inline(cs).map(copy(_, location = get_location(location, cs)))
+  }
+}
+
+object NoTerm extends NoTerm(Nil, VectorMap.empty, None) with DoxFactory {
+  val label = "noterm"
+
+  def apply(attrs: VectorMap[String, String], body: Seq[Dox])(implicit ctx: DateTimeContext): NoTerm =
+    NoTerm(ensure_inline(body), attrs)
+
+  def apply(element: Inline) = new NoTerm(List(element))
 }
 
 // 2025-03-03

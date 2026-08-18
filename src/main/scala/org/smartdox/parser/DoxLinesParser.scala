@@ -38,7 +38,8 @@ import org.smartdox.util.DoxUtils
  *  version Aug.  9, 2025
  *  version Sep.  9, 2025
  *  version Oct. 13, 2025
- * @version Nov.  5, 2025
+ *  version Nov.  5, 2025
+ * @version Aug. 19, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -104,7 +105,8 @@ object DoxLinesParser {
       rowOffset: Int,
       text: String,
       lines: LogicalLines = LogicalLines.empty,
-      term: Option[String] = None
+      term: Option[String] = None,
+      location: Option[ParseLocation] = None
     ) {
       def toDox: Dox = Li(text) // ListStateOld
 
@@ -114,52 +116,58 @@ object DoxLinesParser {
       def space = Ctx(rowOffset + 1)
     }
 
+    def getCandidate(p: LogicalLine): Option[Candidate] =
+      if (p.text.isEmpty)
+        None
+      else
+        _get(p.text, Ctx(), p.location)
+
     def getCandidate(p: String): Option[Candidate] =
       if (p.isEmpty)
         None
       else
-        _get(p, Ctx())
+        _get(p, Ctx(), None)
 
     @annotation.tailrec
-    private def _get(p: String, ctx: Ctx): Option[Candidate] = {
+    private def _get(p: String, ctx: Ctx, location: Option[ParseLocation]): Option[Candidate] = {
       val t = p.tail
       p.head match {
         case ' ' =>
           if (t.isEmpty)
             None
           else
-            _get(t, ctx.space)
+            _get(t, ctx.space, location)
         case '-' =>
           t.headOption.flatMap { x =>
             if (x == ' ') {
               val c = t.tail.dropWhile(_ == ' ')
-              _get_definition_list(c, ctx) orElse {
-                Some(Candidate("-", Ul, ctx.rowOffset, c))
+              _get_definition_list(c, ctx, location) orElse {
+                Some(Candidate("-", Ul, ctx.rowOffset, c, location = location))
               }
             } else {
               None
             }
           }
-        case c if (c.isDigit) => _get_order_list(p, ctx)
+        case c if (c.isDigit) => _get_order_list(p, ctx, location)
         case _ => None
       }
     }
 
-    private def _get_definition_list(p: String, ctx: Ctx) =
+    private def _get_definition_list(p: String, ctx: Ctx, location: Option[ParseLocation]) =
       p.indexOf(" :: ") match {
         case -1 => None
         case i =>
           val t = p.substring(0, i).trim
           val d = p.substring(i + " :: ".length).trim
-          Some(Candidate("-", Dl, ctx.rowOffset, d, term = Some(t)))
+          Some(Candidate("-", Dl, ctx.rowOffset, d, term = Some(t), location = location))
       }
 
-    private def _get_order_list(p: String, ctx: Ctx) = {
+    private def _get_order_list(p: String, ctx: Ctx, location: Option[ParseLocation]) = {
       val regex = """\h*(\d+)[.]\h+(.*)""".r
       regex.findFirstMatchIn(p).
         map { x =>
           val n = x.group(1)
-          Candidate(n, Ol, ctx.rowOffset, x.group(2))
+          Candidate(n, Ol, ctx.rowOffset, x.group(2), location = location)
         }
     }
   }
@@ -192,7 +200,7 @@ object DoxLinesParser {
 
       private def _inline_list(config: Config, p: String): List[Inline] = {
         // println(s"TableRow#_inline_list($p)")
-        val (m, od) = parse_inline(config, p)
+        val (m, od) = parse_inline(config, p, line.location)
         // println(s"TableRow#_inline_list($od)")
         od.toList.asInstanceOf[List[Inline]] // TODO
       }
@@ -422,10 +430,10 @@ object DoxLinesParser {
       // println(s"key: $key")
       Option(key) collect {
         case "title" =>
-          val (m, d) = parse_inline(config, value)
+          val (m, d) = parse_inline(config, value, location)
           TitleAnnotation(d.getOrElse(EmptyDox), location)
         case "caption" =>
-          val (m, d) = parse_inline(config, value)
+          val (m, d) = parse_inline(config, value, location)
           // TODO warn
           CaptionAnnotation(d.toList, location)
         case "include" => IncludeAnnotation(value, location)
@@ -801,7 +809,7 @@ object DoxLinesParser {
 
     override protected def get_List_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       // ListMark.getCandidate(evt.text).map(x => transit_next(ListState(this, NonEmptyVector(x))))
-      ListMark.getCandidate(evt.text).map(x => transit_next(ListState(config, this, x)))
+      ListMark.getCandidate(evt).map(x => transit_next(ListState(config, this, x)))
 
     override protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       TableMark.get(evt).map(x => transit_next(TableState(this, x)))
@@ -856,12 +864,12 @@ object DoxLinesParser {
 
     override protected def get_Quotation_Transition(config: Config, evt: LogicalLine): Option[Transition] =
       if (evt.text.startsWith("> "))
-        Some(transit_next(copy(lines = lines :+ _create_simple_quote(config, evt.text)))) // TODO
+        Some(transit_next(copy(lines = lines :+ _create_simple_quote(config, evt)))) // TODO
       else
         None
 
-    private def _create_simple_quote(config: Config, p: String): Quotation.SimpleQuote = {
-      val (_, x) = parse_inline(config, p)
+    private def _create_simple_quote(config: Config, p: LogicalLine): Quotation.SimpleQuote = {
+      val (_, x) = parse_inline(config, p.text, p.location)
       val q = x getOrElse Text("")
       Quotation.SimpleQuote(List(q))
     }
@@ -871,7 +879,7 @@ object DoxLinesParser {
 
     private def _text_transition_inline(config: Config, evt: LogicalLineEvent): Transition = {
       val (msgs, result, _) =
-        DoxInlineParser.apply(config.inlineConfig, evt.line.text)
+        DoxInlineParser.apply(config.inlineConfig.withLocation(evt.line.location), evt.line.text)
       result match {
         case EmptyParseResult() => (msgs, ParseResult.empty, this)
         case ParseSuccess(ast, ws) =>
@@ -946,7 +954,7 @@ object DoxLinesParser {
     }
 
     private def _result: Dox = {
-      val f = parse_inlines(config, _)
+      val f = (text: String, location: Option[ParseLocation]) => parse_inlines(config, text, location)
       Dox.toDox(slots.map(_.toDox(f)))
       // slots.head.listElement
       // val xs = slots.map(_.doxItem)
@@ -957,7 +965,7 @@ object DoxLinesParser {
       parent.returnFrom(_result).apply(config, EndEvent)
 
     override protected def handle_line(config: Config, evt: LogicalLineEvent): Transition = {
-      ListMark.getCandidate(evt.line.text) map { x =>
+      ListMark.getCandidate(evt.line) map { x =>
         if (slots.last.rowOffset == x.rowOffset)
           transit_next(copy(slots = _add_slot(x)))
         else if (slots.last.rowOffset < x.rowOffset)
@@ -992,15 +1000,15 @@ object DoxLinesParser {
         else
           NonEmptyVector.create(this, SlotGroup(p))
 
-      def toDox(f: String => List[Inline]): Dox = listElement match {
+      def toDox(f: (String, Option[ParseLocation]) => List[Inline]): Dox = listElement match {
         case m: Ul => Ul(_build_lis(f))
         case m: Ol => Ol(_build_lis(f))
         case m: Dl => Dl(_build_dtdds(f))
       }
 
-      private def _build_lis(f: String => List[Inline]): Seq[Li] = slots.map(_.toLi(f)).list
+      private def _build_lis(f: (String, Option[ParseLocation]) => List[Inline]): Seq[Li] = slots.map(_.toLi(f)).list
 
-      private def _build_dtdds(f: String => List[Inline]): List[(Dt, Dd)] = slots.map(_.toDtDd(f)).list
+      private def _build_dtdds(f: (String, Option[ParseLocation]) => List[Inline]): List[(Dt, Dd)] = slots.map(_.toDtDd(f)).list
     }
     object SlotGroup {
       def apply(p: ListMark.Candidate): SlotGroup = SlotGroup(NonEmptyVector(Slot(p)))
@@ -1013,15 +1021,15 @@ object DoxLinesParser {
     ) {
       def listElement = candidate.listElement
       def rowOffset = candidate.rowOffset
-      def toLi(f: String => List[Inline]) = {
+      def toLi(f: (String, Option[ParseLocation]) => List[Inline]) = {
         val s = DoxUtils.concatLines(candidate.text, lines)
-        val ts = f(s)
+        val ts = f(s, candidate.location)
         Li(ts ++ children)
       }
-      def toDtDd(f: String => List[Inline]): (Dt, Dd) = {
+      def toDtDd(f: (String, Option[ParseLocation]) => List[Inline]): (Dt, Dd) = {
         val dt = Dt(candidate.term getOrElse candidate.text)
         val s = DoxUtils.concatLines(candidate.text, lines)
-        val a = f(s)
+        val a = f(s, candidate.location)
         val dd = Dd(a)
         (dt, dd)
       }
@@ -1061,7 +1069,7 @@ object DoxLinesParser {
 
         private def _to_uol = {
           val uol = base.listElement
-          val (bmsgs, node) = parse_inline(config, base.text)
+          val (bmsgs, node) = parse_inline(config, base.text, base.location)
           val ms = messages + bmsgs
           node.map { n =>
             // val licontent = n match {
@@ -1090,7 +1098,7 @@ object DoxLinesParser {
 
         private def _to_dl(term: String) = {
           val uol = base.listElement
-          val (bmsgs, node) = parse_inline(config, base.text)
+          val (bmsgs, node) = parse_inline(config, base.text, base.location)
           val ms = messages + bmsgs
           node.map { n =>
             val (cmsgs, x) = _parse_dtdd(term, n)
@@ -1105,7 +1113,7 @@ object DoxLinesParser {
         def +(rhs: ListMark.Candidate) = {
           // println(s"+: $rhs <= $this")
           val r = if (rhs.rowOffset <= base.rowOffset) {
-            val (bmsgs, node) = parse_inline(config, base.text)
+            val (bmsgs, node) = parse_inline(config, base.text, base.location)
             val ms = messages + bmsgs
             node.map { n =>
               val (cmsgs, x) = _parse_item(base.term, n)
@@ -1143,7 +1151,7 @@ object DoxLinesParser {
         private def _parse_item_text(p: Text): ListContent = ??? // ListContentBuilder(p)
 
         private def _parse_dtdd(term: String, n: Dox): (ParseMessageSequence, Vector[Tree[Dox]]) = {
-          val (tmsgs, t) = parse_inline(config, term)
+          val (tmsgs, t) = parse_inline(config, term, base.location)
           t match {
             case Some(s) => 
               val (msgs, r) = _parse_dtdd(s, n)
@@ -1179,7 +1187,7 @@ object DoxLinesParser {
     }
 
     override protected def get_List_Transition(config: Config, evt: LogicalLine): Option[Transition] =
-      ListMark.getCandidate(evt.text).map(x =>
+      ListMark.getCandidate(evt).map(x =>
         transit_next(copy(listMarkCandidates = listMarkCandidates :+ x)))
 
     override protected def get_Table_Transition(config: Config, evt: LogicalLine): Option[Transition] =
@@ -1633,6 +1641,22 @@ object DoxLinesParser {
     }
   }
 
+  protected final def parse_inline(
+    c: Config,
+    p: String,
+    location: Option[ParseLocation]
+  ): (ParseMessageSequence, Option[Inline]) = {
+    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig.withLocation(location), p)
+    result match {
+      case EmptyParseResult() => (msgs, None)
+      case ParseSuccess(ast, ws) =>
+        val d = Dox.toDox(ast)
+        val i = d.asInstanceOf[Inline]
+        (msgs :++ ws, Some(i))
+      case ParseFailure(es, ws) => (msgs :++ es :++ ws, None)
+    }
+  }
+
   protected final def parse_inlines(c: Config, p: String): List[Inline] = {
     val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig, p)
     result match {
@@ -1642,8 +1666,24 @@ object DoxLinesParser {
     }
   }
 
+  protected final def parse_inlines(
+    c: Config,
+    p: String,
+    location: Option[ParseLocation]
+  ): List[Inline] = {
+    val (msgs, result, _) = DoxInlineParser.apply(c.inlineConfig.withLocation(location), p)
+    result match {
+      case EmptyParseResult() => Nil
+      case ParseSuccess(ast, ws) => Dox.toInlineContents(ast)
+      case ParseFailure(es, ws) => Nil // TODO
+    }
+  }
+
+  protected final def parse_inlines(c: Config, p: LogicalLine): List[Inline] =
+    parse_inlines(c, p.text, p.location)
+
   protected final def get_img_block(config: Config, line: LogicalLine): Option[Img] =
-    parse_inlines(config, line.text) match {
+    parse_inlines(config, line) match {
       case Nil => None
       case x :: Nil => x match {
         case m: ReferenceImg => Some(m)
