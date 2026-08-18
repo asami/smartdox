@@ -71,6 +71,28 @@ Validated On: 2026-08-19
 Validation Evidence: focused `92055-20260818T213037Z`, repair `13705-20260818T220748Z`; final full `18734-20260818T222028Z` (`test`, 235 passed)
 Acceptance Commit: reported externally after commit
 
+## HYG-002 Closure
+
+Hygiene Status: CLOSED
+Closed On: 2026-08-19
+Closure Basis: explicit user decision that the `DoxInlineParser` size is
+acceptable when its `DoxInlineParseState` default event handling remains
+cohesive with its protected transition hooks.
+Supersedes: the support-trait extraction accepted in `d6f135a`
+Final Structure: `DoxInlineParseState` directly owns its default handling;
+there is no parser-state support trait or remaining size-remediation work.
+
+## HYG-004 Closure
+
+Hygiene Status: CLOSED
+Closed On: 2026-08-19
+Closure Basis: explicit user decision that the `DoxLinesParser` size is
+acceptable when `DoxLinesParseState`, `ChildDoxLinesParseState`, and
+`NormalState` retain their default transition behavior.
+Supersedes: the support-trait extraction accepted in `d6f135a`
+Final Structure: each state directly owns its default transition behavior;
+there is no line-parser support trait or remaining size-remediation work.
+
 ## HYG-005 Resolution
 
 Status: RESOLVED
