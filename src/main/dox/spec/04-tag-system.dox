@@ -176,9 +176,9 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 
 | タグ | 意味 | 用途 | 抽出カテゴリ |
 |------|------|------|---------------|
-| `<dfn>` | 定義語（既存互換） | `<dfn about="IRI-or-CURIE" id="html-anchor">…</dfn>`（提案属性） | GlossaryEntry |
-| `<term>` | 用語参照（提案） | `<term ref="IRI-or-CURIE" form="canonical|short|bilingual|verbatim">…</term>` | TermReference |
-| `<noterm>` | 用語解決抑止（提案） | `<noterm>…</noterm>` | None |
+| `<dfn>` | 定義語 | `<dfn about="HTTP(S)-IRI-or-declared-CURIE" id="html-anchor">…</dfn>` | GlossaryEntry（将来の出力候補） |
+| `<term>` | 用語参照 | `<term ref="HTTP(S)-IRI-or-declared-CURIE" form="canonical|short|bilingual|verbatim">…</term>` | TermReference（将来の出力候補） |
+| `<noterm>` | 用語解決抑止 | `<noterm>…</noterm>` | None（出力は行わない） |
 | `<abbr>` | 略語 | 用語展開 | Abbreviation |
 | `<note>` | 注記 | 解説・補足 | Note |
 | `<todo>` | 保留項目 | Draft管理 | Todo |
@@ -187,22 +187,23 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 
 ---
 
-# Provisional RDF-grounded terminology｜暫定RDF基盤用語
+# RDF-grounded terminology grammar｜RDF基盤用語文法
 
-`<dfn>` の既存形は後方互換のため維持します。提案された `about` はRDF概念を
-指し、`id` はローカルHTMLアンカーであって概念IDではありません。`<term>` は
-明示的な概念参照で、`ref` を先に解決し、`form` の既定値は `canonical` です。
-本文は必須で、`verbatim` は互換な著者指定の表示を保持します。
+`<dfn>` の既存形は後方互換のため維持します。`about` はRDF概念を
+指し、`id` は `about` と別に保存されるローカルHTMLアンカーであって概念IDでは
+ありません。Phase 2は `about` を解決し、`id` のリゾルバ検証を主張しません。
+`<term>` は明示的な概念参照で、`ref` を先に解決し、`form` の既定値は `canonical`
+です。本文は必須で、`verbatim` は互換な著者指定の表示を保持します。
 
 `<noterm>` は用語解決だけを抑止します。コードまたはraw-inlineの代替ではなく、
-`<term>`、`<dfn>`、または別の `<noterm>` をネストできません。自動解決は
-`linkable` のbare-label policyだけに限定され、`context-only` は将来の決定的な
-明示スコープを要し、それまでは `<term>` を使用します。`explicit-only` は常に
-`<term>` を必要とします。
+`<term>`、`<dfn>`、または別の `<noterm>` をネストできません。
 
-これらは Phase 2 Stage 2.1 の暫定仕様／実装保留です。概念IRI、名前空間、
-診断、表示、音声、出力契約は `docs/spec/rdf-grounded-terminology.md` を参照し、
-パーサ、AST、解決、描画、抽出の実装は Stage 2.2–2.4 に保留します。
+これらはパーサとリゾルバで支援される安定 Phase 2 文法です。`RdfTermResolver` は
+`HEAD` の `term_namespaces` から宣言済み CURIE と HTTP(S) IRI を展開し、bare-label
+またはレジストリ順のフォールバックを行いません。用語参照は絶対 HTTP(S) IRI または
+宣言済み CURIE に限られ、非 HTTP(S) スキームは診断対象です。概念IRI、名前空間、診断の
+詳細は `docs/spec/rdf-grounded-terminology.md` を参照してください。描画・音声は Phase 3、
+RDF/JSON-LD と BoK occurrence 出力は Phase 4、互換性証明は Phase 5 の作業です。
 
 # SmartDox Extraction Mapping｜抽出マッピング一覧
 

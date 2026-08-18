@@ -1,11 +1,12 @@
 # RDF-Grounded Terminology Specification
 
-Status: provisional specification / implementation pending
-Date: 2026-08-18
+Status: stable Phase 2 grammar specification
+Date: 2026-08-19
 
-This Phase 2 Stage 2.1 contract is normative for the future terminology
-implementation, but is not parser-backed stable grammar. Parser, AST,
-resolution, rendering, and extraction work is deferred to Stages 2.2–2.4.
+This normative Phase 2 contract is parser-backed stable grammar. It covers
+parser AST values, explicit namespace and term resolution, and deterministic
+diagnostics. Display and speech projection are Phase 3 work; RDF/JSON-LD and
+BoK occurrence output are Phase 4 work; compatibility proof is Phase 5 work.
 
 ## Namespace context and identity
 
@@ -15,7 +16,9 @@ in `HEAD` as a HOCON object:
 ```dox
 # HEAD
 
-term_namespaces = { smterm = "https://www.simplemodeling.org/glossary/" }
+term_namespaces {
+  smterm = "https://www.simplemodeling.org/glossary/"
+}
 ```
 
 `smterm` has base `https://www.simplemodeling.org/glossary/`; `smglo` denotes
@@ -25,46 +28,55 @@ For SimpleModeling.org glossary term instances, the canonical concept IRI is
 Thus `smterm:object-foundation/association` identifies
 `https://www.simplemodeling.org/glossary/object-foundation/association`.
 
-An absolute IRI is retained unchanged. CURIE expansion uses only the explicit
-namespace context. Unknown prefixes and relative references are diagnostics;
-there is no label, NLP, source-path, slug, or registry-order fallback. Concept,
-authored source-document, and public glossary-page resources are distinct;
-source/page relations never replace the concept IRI.
+An absolute HTTP(S) IRI is retained unchanged. CURIE expansion uses only the
+explicit namespace context. Unknown prefixes, relative references, and
+non-HTTP(S) schemes are diagnostics; there is no label, NLP, source-path, slug,
+or registry-order fallback. Concept, authored source-document, and public
+glossary-page resources are distinct; source/page relations never replace the
+concept IRI.
 
-## Provisional inline grammar
+## Stable inline grammar
 
 ```ebnf
-term       ::= "<term" " ref=\"" iri-or-curie "\"" (" form=\"" term-form "\"")? ">" visible-text "</term>"
+reference  ::= http-iri | declared-curie
+term       ::= "<term" " ref=\"" reference "\"" (" form=\"" term-form "\"")? ">" visible-text "</term>"
 term-form  ::= "canonical" | "short" | "bilingual" | "verbatim"
-dfn        ::= "<dfn" (" about=\"" iri-or-curie "\"")? (" id=\"" html-anchor "\"")? ">" visible-text "</dfn>"
+dfn        ::= "<dfn" (" about=\"" reference "\"")? (" id=\"" html-anchor "\"")? ">" visible-text "</dfn>"
 noterm     ::= "<noterm>" visible-text "</noterm>"
 ```
 
-`<term ref="IRI-or-CURIE" form="canonical|short|bilingual|verbatim">…</term>`
-is an explicit reference. `form` defaults to `canonical`. The body is required;
-an omitted body is a diagnostic. `verbatim` preserves compatible authored
-visible text. Explicit `ref` resolution runs before automatic matching.
+`Dox.Term`, `Dox.NoTerm`, and attribute-preserving `Dox.Dfn` are parser-backed
+AST values with full source locations. `<term ref="HTTP(S)-IRI-or-declared-CURIE"
+form="canonical|short|bilingual|verbatim">…</term>` is an explicit reference.
+`form` defaults to `canonical`; `canonical`, `short`, `bilingual`, and
+`verbatim` have their parse-and-resolve semantics in this grammar. The body is
+required, and `verbatim` preserves compatible authored visible text. Explicit
+`ref` resolution is against definitions or supplied concepts.
 
-`<dfn about="IRI-or-CURIE" id="html-anchor">…</dfn>` defines the RDF concept.
-`about` remains optional for backwards compatibility. `id` is a local HTML
-anchor only and never becomes concept identity.
+`<dfn about="HTTP(S)-IRI-or-declared-CURIE" id="html-anchor">…</dfn>` defines
+the RDF concept.
+`about` remains optional for backwards compatibility. `id` is preserved
+separately as a local HTML anchor and never becomes concept identity. Phase 2
+resolves `about`; it does not claim resolver validation of `id`.
 
 `<noterm>…</noterm>` suppresses terminology resolution only. It is neither
 code/raw-inline nor a replacement for either semantics, and it must not nest
 `<term>`, `<dfn>`, or another `<noterm>`.
 
-## Resolution and metadata
+## Resolution and diagnostics
 
-Automatic resolution is permitted only for concepts with `linkable` bare-label
-policy. `context-only` resolution needs a deterministic explicit scope in a
-later implementation; without that scope it requires `<term>`. `explicit-only`
-always requires `<term>`.
+`RdfTermResolver` reads explicit `HEAD` `term_namespaces`, expands declared
+CURIEs and HTTP(S) IRIs, and has no bare-label or registry-order fallback.
+An absolute reference IRI must use the `http` or `https` scheme; a non-HTTP(S)
+scheme is unsupported and diagnostic. Automatic bare-label resolution is not
+stable Phase 2 grammar.
 
-Concept metadata includes localized canonical labels, localized short labels,
-aliases, abbreviations, scope qualifier, bare-label linking policy, and
-definition/source/page relationships. The following are diagnostics with source
-locations: unresolved reference, duplicate identity, ambiguous resolution,
-unknown prefix, relative reference, and incompatible requested label form.
+Deterministic diagnostics induced by SmartDox source forms have source
+locations: missing or unknown prefix; malformed, relative, or non-HTTP(S) IRI;
+missing `ref`; empty visible text; unsupported form; unresolved reference;
+incompatible visible form; and `noterm` nesting. Validation of supplied read-only catalog data,
+including duplicate identity or conflicting canonical labels, may have no
+document location.
 
 ## Display, speech, and outputs
 
@@ -72,13 +84,15 @@ The visible Japanese first use may be `オブジェクトモデリング（Objec
 while default Japanese narration is `オブジェクトモデリング`. Speech must not repeat
 an abbreviation expansion already visible.
 
-Future rendered HTML metadata, term-occurrence data, RDF/JSON-LD, and BoK
-records preserve the resolved concept IRI, surface form, locale, occurrence
-kind, resolution kind, and source path/location. These are required future
-projections; no current implementation is implied.
+Phase 3 display and speech projection must preserve the resolved concept IRI
+when introduced. Phase 4 rendered HTML metadata, term-occurrence data,
+RDF/JSON-LD, and BoK records must preserve the resolved concept IRI, surface
+form, locale, occurrence kind, resolution kind, and source path/location.
+These are future projections; no current output implementation is implied.
 
-## Deferred executable specification
+## Implementation status
 
-No executable specification is added in this documentation-only stage. Parser,
-resolution, and output executable specifications are deferred to TERM2-02,
-TERM2-03, and TERM2-04.
+The parser, AST, namespace resolution, and explicit term resolution are stable
+Phase 2 grammar. Display and speech projection, RDF/JSON-LD and BoK occurrence
+output, and compatibility proof remain separate Phase 3, Phase 4, and Phase 5
+work respectively.

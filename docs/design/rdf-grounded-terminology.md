@@ -1,18 +1,19 @@
 # RDF-Grounded Terminology Design
 
-Status: provisional design — implementation pending
-Date: 2026-08-18
+Status: stable Phase 2 grammar design
+Date: 2026-08-19
 
 ## Purpose and boundary
 
-This Phase 2 Stage 2.1 design fixes the terminology identity and authoring
-contract for future SmartDox parser, AST, resolution, rendering, and extraction
-work. It is not implemented grammar or behavior. Those concerns remain for
-Stages 2.2–2.4.
+This Phase 2 design fixes the terminology identity and authoring contract for
+the implemented SmartDox parser, AST, namespace resolution, and explicit term
+resolution. Display and speech projection remain Phase 3 work; RDF/JSON-LD and
+BoK occurrence output remain Phase 4 work; compatibility proof remains Phase 5
+work.
 
 ## Canonical identity
 
-The single canonical identity of a glossary concept is an absolute RDF IRI. For
+The single canonical identity of a glossary concept is an absolute HTTPS IRI. For
 a SimpleModeling.org glossary term instance, the IRI is:
 
 ```
@@ -43,27 +44,35 @@ The document `HEAD` declares CURIE namespaces with a HOCON object, for example:
 ```dox
 # HEAD
 
-term_namespaces = { smterm = "https://www.simplemodeling.org/glossary/" }
+term_namespaces {
+  smterm = "https://www.simplemodeling.org/glossary/"
+}
 ```
 
 A CURIE is expanded only through this explicit context. An unknown prefix and a
-relative reference are diagnostics. An absolute IRI remains unchanged. Resolver
-selection must not depend on label-only matching, NLP, or registry order.
+relative reference are diagnostics. An absolute HTTP(S) IRI remains unchanged;
+a non-HTTP(S) scheme is unsupported and diagnostic.
+`RdfTermResolver` reads this explicit `HEAD` metadata, expands declared CURIEs
+and HTTP(S) IRIs, and has no bare-label or registry-order fallback.
 
 ## Ownership and resolution invariant
 
-`<term>` is an explicit reference and resolves before automatic matching.
-Ordinary automatic resolution is limited to terms whose bare-label linking
-policy is `linkable`. A `context-only` policy requires a deterministic explicit
-scope supplied by a later implementation; without it, authors must use
-`<term>`. An `explicit-only` policy always requires `<term>`.
+`<term>` is an explicit reference that accepts an absolute HTTP(S) IRI or a
+CURIE declared in `HEAD` and resolves against definitions or supplied concepts.
+The stable grammar does not provide bare-label, NLP, or registry-order fallback.
+Authors therefore use an explicit `<term>` reference whenever a concept reference
+is required.
 
-Each concept carries localized canonical labels, localized short labels,
-aliases, abbreviations, a scope qualifier, its bare-label linking policy, and
-relationships to definition, source, and public page. Compatibility between an
-authored label and requested label form is validated. Unresolved, duplicate,
-ambiguous, unknown-prefix, relative-reference, and label-form compatibility
-conditions are diagnostics with source locations.
+`Dox.Term`, `Dox.NoTerm`, and attribute-preserving `Dox.Dfn` are parser-backed
+AST values with full source locations. `form` (`canonical`, `short`,
+`bilingual`, or `verbatim`) and `dfn` `about` semantics are checked at the
+parse-and-resolve layer. `id` is preserved separately as a local anchor; Phase 2
+resolves `about` and does not claim resolver validation of `id`. Diagnostics
+induced by SmartDox source forms have source locations. They cover missing or
+unknown prefixes, malformed, relative, or non-HTTP(S) IRIs, missing `ref`, empty
+visible text, unsupported form, unresolved references, incompatible visible form,
+and `noterm` nesting. Validation of supplied read-only catalog data, including duplicate
+identity or conflicting canonical labels, may have no document location.
 
 ## Display and projection invariant
 
@@ -79,7 +88,7 @@ contract, not a claim about current output.
 
 ## Non-goals and follow-up
 
-This design does not select parser, AST, resolver, renderer, or extractor
-implementation details; it does not create source/page routes; and it does not
-introduce registry-order fallback. Executable parser, resolution, and output
-specifications are deferred to TERM2-02 through TERM2-04.
+This design does not create source/page routes or introduce registry-order
+fallback. The parser, AST, namespace resolution, and explicit term resolution
+are stable Phase 2 grammar. Display and speech projection, RDF/JSON-LD and BoK
+occurrence output, and compatibility proof remain separate later-phase work.

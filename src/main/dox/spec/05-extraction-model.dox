@@ -120,15 +120,16 @@ trait UserService {
 # 3. Knowledge Layer｜知識層（BoK）
 
 
-BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目として登録します。  
+BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目として登録する将来の出力層です。
 主な対象は `<dfn>`, `<term>`, `<abbr>`, `<note>`, `<ref>` などのタグです。RDF基盤
-用語の属性・解決・出力は Phase 2 Stage 2.1 の暫定仕様であり、実装は保留です。
+用語のソース構文、AST、名前空間解決、明示参照解決は安定 Phase 2 文法ですが、BoK
+抽出と JSON-LD 出力は実装されていません。
 
 | タグ | 抽出クラス | 生成対象 |
 |------|-------------|-----------|
-| `<dfn>` | GlossaryEntry | 用語集定義（既存互換。`about`/`id` は提案） |
-| `<term>` | TermReference | 用語リンク（`ref`/`form` は提案） |
-| `<noterm>` | — | 用語解決抑止（提案） |
+| `<dfn>` | GlossaryEntry | 用語集定義（将来の出力候補。`about` は解決対象、`id` は別個のローカルアンカーとして保存され、リゾルバ検証の対象ではない） |
+| `<term>` | TermReference | 用語リンク（将来の出力候補。`ref`/`form` は現行文法） |
+| `<noterm>` | — | 用語解決抑止（現行文法。出力は行わない） |
 | `<abbr>` | Abbreviation | 略語辞書 |
 | `<note>` | Note | 注記ノード |
 | `<ref>` | Reference | 関連項目リンク |
@@ -154,10 +155,11 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 }
 ```
 
-提案契約では、HTMLメタデータ、term occurrence、RDF/JSON-LD、BoK record が解決済み
-概念IRI、surface form、locale、occurrence kind、resolution kind、source path/location
-を保持します。表示・音声・診断とともに
-`docs/spec/rdf-grounded-terminology.md` で規定され、Stage 2.2–2.4 で実装予定です。
+Phase 4 の提案契約では、HTMLメタデータ、term occurrence、RDF/JSON-LD、BoK record が
+解決済み概念IRI、surface form、locale、occurrence kind、resolution kind、source
+path/location を保持します。これは現行出力ではありません。表示・音声は Phase 3、
+互換性証明は Phase 5 の作業です。用語の現行文法と診断は
+`docs/spec/rdf-grounded-terminology.md` を参照してください。
 
 ---
 
@@ -173,8 +175,8 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 | `<service>` | Service | Trait / Method | ServiceDefinition |
 | `<rule>` | Rule | Validation Code | Policy |
 | `<event>` | Event | Case Class | DomainEvent |
-| `<dfn>` | TermDefinition | — | Glossary（IRI付き出力は提案） |
-| `<term>` | TermReference | — | Concept reference（提案） |
+| `<dfn>` | TermDefinition | — | Glossary（IRI付き出力は将来の提案） |
+| `<term>` | TermReference | — | Concept reference（将来の提案） |
 | `<note>` | — | — | Annotation |
 | `<code>` | CodeLiteral | CodeFragment | Example |
 | `<kbd>` | — | — | UserAction |
@@ -200,9 +202,11 @@ BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目�
 4. **Integration Phase（統合）**  
    各成果物をAntora siteやリポジトリに統合。
 
-RDF基盤用語のパース、AST、CURIE解決、表示、音声、HTML/RDF/JSON-LD/BoK射影は、この
-段階表に対する将来の拡張です。未解決、重複、曖昧、未知prefix、relative ref、label-form
-非互換はすべて source location 付き診断となる予定で、現行動作ではありません。
+RDF基盤用語のパース、AST、`HEAD` `term_namespaces` による CURIE 解決、明示参照解決、
+および SmartDox source form に起因する source location 付き診断は現行の安定 Phase 2
+文法です。供給された読み取り専用カタログデータの検証には文書 location がない場合が
+あります。表示・音声は Phase 3、HTML/RDF/JSON-LD/BoK 射影は Phase 4、互換性証明は
+Phase 5 の将来作業です。
 
 ---
 

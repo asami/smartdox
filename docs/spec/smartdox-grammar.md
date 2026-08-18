@@ -1,7 +1,7 @@
 # SmartDox Grammar
 
 Status: draft specification
-Date: 2026-04-30
+Date: 2026-08-19
 
 This document describes the SmartDox grammar implemented by the current parser
 and covered by the parser tests. It is normative only for stable, parser-backed
@@ -21,10 +21,12 @@ markup.
 
 Descriptive metadata effective semantics are defined in `docs/design/descriptive-effective-semantics.md`.
 
-RDF-grounded terminology syntax and output semantics are a provisional Phase 2
-contract, not stable grammar: see `docs/spec/rdf-grounded-terminology.md` and
-`docs/design/rdf-grounded-terminology.md`. Parser, AST, resolution, rendering,
-and extraction implementation remain pending for Stages 2.2–2.4.
+RDF-grounded terminology syntax and resolver semantics are parser-backed stable
+Phase 2 grammar. The normative contract is
+`docs/spec/rdf-grounded-terminology.md`; rationale and boundaries are in
+`docs/design/rdf-grounded-terminology.md`. Display and speech projection,
+RDF/JSON-LD and BoK occurrence output, and compatibility proof remain later
+Phase 3–5 work.
 
 ## Document
 
@@ -152,11 +154,18 @@ This rule applies in both SmartDox authoring and Markdown mode; `.md` /
 front matter is not enough. The leading properties paragraph inside `HEAD` is
 metadata-only and is not parsed as Markdown body text.
 
-The provisional terminology contract additionally reserves a HOCON object named
-`term_namespaces` for an explicit CURIE context, for example
-`term_namespaces = { smterm = "https://www.simplemodeling.org/glossary/" }`.
-This is not yet parser-backed stable HEAD grammar; its future behavior is
-specified in `docs/spec/rdf-grounded-terminology.md`.
+Terminology grammar additionally defines a stable HOCON object named
+`term_namespaces` for an explicit CURIE context, for example:
+
+```dox
+term_namespaces {
+  smterm = "https://www.simplemodeling.org/glossary/"
+}
+```
+`RdfTermResolver` reads this `HEAD` metadata to expand declared CURIEs and
+HTTP(S) IRIs. A terminology reference accepts only an absolute HTTP(S) IRI or a
+declared CURIE; a non-HTTP(S) scheme is diagnostic. Its complete resolution and
+diagnostic semantics are specified in `docs/spec/rdf-grounded-terminology.md`.
 
 ## Summary And Lead
 
@@ -388,10 +397,12 @@ XML-style inline tags are supported for known inline elements such as `b`, `i`,
 <span>*span*</span>
 ```
 
-The proposed `<term ref="…" form="…">`, `<dfn about="…" id="…">`, and
-`<noterm>…</noterm>` terminology forms are specified separately in
-`docs/spec/rdf-grounded-terminology.md`. They are provisional specification /
-implementation pending and are not assertions about current parser behavior.
+`<term ref="…" form="…">`, `<dfn about="…" id="…">`, and
+`<noterm>…</noterm>` are supported parser-backed terminology forms. They produce
+the stable Phase 2 terminology AST and use the resolver semantics specified in
+`docs/spec/rdf-grounded-terminology.md`: `ref` and `about` accept only an
+absolute HTTP(S) IRI or a declared CURIE, and a non-HTTP(S) scheme is diagnostic.
+They do not imply display, extraction, RDF/JSON-LD, or BoK output behavior.
 
 Literal inline text can be written with:
 
@@ -487,5 +498,6 @@ feature.
 ## Stability
 
 Only stable syntax in this file is backed by parser implementation and tests.
-The RDF-grounded terminology contract remains non-stable future grammar until
-its behavior and executable specifications are implemented and settled.
+RDF-grounded terminology syntax, AST, and resolver semantics are stable Phase 2
+grammar. Display and speech projection remain Phase 3 work; RDF/JSON-LD and BoK
+occurrence output remain Phase 4 work; compatibility proof remains Phase 5 work.

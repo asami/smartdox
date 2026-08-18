@@ -43,9 +43,9 @@ SmartDoxでは、**ネストによる意味変化を禁止**し、各要素を�
 | `<var>` | 変数・属性名 | `<var>user_id</var>` | Symbol |
 | `<samp>` | システム出力 | `<samp>OK</samp>` | Output |
 | `<mark>` | 強調・注目語 | `<mark>重要</mark>` | Highlight |
-| `<dfn>` | 用語定義（既存互換） | `<dfn>Entity</dfn>` | GlossaryEntry |
-| `<term>` | 用語参照（提案） | `<term ref="smterm:object-foundation/association">Association</term>` | TermReference |
-| `<noterm>` | 用語解決抑止（提案） | `<noterm>Entity</noterm>` | None |
+| `<dfn>` | 用語定義 | `<dfn about="https://www.simplemodeling.org/glossary/object-foundation/entity" id="entity">Entity</dfn>` | GlossaryEntry（将来の出力候補） |
+| `<term>` | 用語参照 | `<term ref="https://www.simplemodeling.org/glossary/object-foundation/association">Association</term>` | TermReference（将来の出力候補） |
+| `<noterm>` | 用語解決抑止 | `<noterm>Entity</noterm>` | None（出力は行わない） |
 | `<abbr>` | 略語 | `<abbr title="Domain-Driven Design">DDD</abbr>` | Abbreviation |
 | `<time>` | 時刻・日付 | `<time datetime="2025-10-16">Oct 16, 2025</time>` | TemporalValue |
 | `<data>` | 構造化データ | `<data value="User">entity</data>` | StructuredDatum |
@@ -134,18 +134,20 @@ SmartDoxでは `<samp>` 内に `<kbd>` をネストしません。
 
 
 `<dfn>` は **用語定義** を表します。既存の `<dfn>…</dfn>` は互換のため
-維持されます。Phase 2の提案契約では、RDF概念を明示する場合に `about` を、
-ローカルHTMLアンカーには `id` を使用します。`id` は概念IDではありません。
+維持されます。Phase 2の安定文法では、RDF概念を明示する場合に `about` を、
+ローカルHTMLアンカーには `id` を使用します。`id` は `about` と別に保存される
+ローカルHTMLアンカーであり、概念IDではありません。Phase 2は `about` を解決し、
+`id` のリゾルバ検証を主張しません。
 
 例：
 ```
-<dfn about="smterm:object-foundation/entity" id="entity">Entity</dfn> represents a domain object with identity.
+<dfn about="https://www.simplemodeling.org/glossary/object-foundation/entity" id="entity">Entity</dfn> represents a domain object with identity.
 ```
 
 `about`、`<term ref="…" form="canonical|short|bilingual|verbatim">`、および
-`<noterm>` の意味は、実装保留の暫定仕様
-`docs/spec/rdf-grounded-terminology.md` に従います。現行の抽出・自動リンクを
-主張するものではありません。
+`<noterm>` は、パーサとリゾルバで支援される安定 Phase 2 文法です。正規の意味は
+`docs/spec/rdf-grounded-terminology.md` に従います。これは描画、自動リンク、抽出、
+BoK、または JSON-LD 出力を主張するものではありません。
 
 ---
 
@@ -229,7 +231,7 @@ BoK抽出では `Emphasis` カテゴリとして登録されます。
 
 ---
 
-# Extraction Semantics｜抽出セマンティクス
+# Future Extraction Semantics｜将来の抽出セマンティクス
 
 
 | タグ | ModelDox種別 | Cozy変換カテゴリ | BoK語彙クラス |
@@ -263,22 +265,25 @@ BoK抽出では `Emphasis` カテゴリとして登録されます。
 
 4. 英日併記には `<span lang="en">` `<span lang="ja">` を用い、改行しない。
 
-5. 用語のRDF IRI、`ref`、`form`、`about`、`id`、および `<noterm>` の将来意味論は
-   暫定仕様 `docs/spec/rdf-grounded-terminology.md` を参照する。`<noterm>` は用語
-   解決だけを抑止し、`<term>`、`<dfn>`、または別の `<noterm>` をネストしない。
+5. 用語参照の絶対 HTTP(S) IRI または宣言済み CURIE、`ref`、`form`、`about`、`id`、および
+   `<noterm>` は安定 Phase 2 文法であり、`docs/spec/rdf-grounded-terminology.md` を参照する。
+   非 HTTP(S) スキームは診断対象である。`about` が解決対象で、`id` は別個の
+   ローカルHTMLアンカーとして保存され、リゾルバ検証の対象ではない。
+   `<noterm>` は用語解決だけを抑止し、`<term>`、`<dfn>`、または別の `<noterm>` を
+   ネストしない。
 
-# Provisional terminology contract｜暫定用語契約
+# RDF-grounded terminology grammar｜RDF基盤用語文法
 
-この節は Phase 2 Stage 2.1 の暫定仕様／実装保留です。`<term ref="…"
+この節はパーサとリゾルバで支援される安定 Phase 2 文法です。`<term ref="…"
 form="canonical|short|bilingual|verbatim">…</term>` は明示参照で、本文は必須、
 `form` の既定値は `canonical` です。`verbatim` は互換な著者指定の可視テキストを
-保持します。明示参照は自動照合より先に解決されます。
+保持します。明示参照は定義または供給済み概念に対して解決されます。
 
-通常の自動解決は bare-label policy が `linkable` の場合だけです。`context-only`
-は後続実装で決定的な明示スコープを要し、それまでは `<term>` を使います。
-`explicit-only` は常に `<term>` を要します。ラベルのみ、NLP、レジストリ順の
-フォールバックはありません。詳細は `docs/spec/rdf-grounded-terminology.md` を参照
-し、パーサ、AST、解決、描画、抽出は Stage 2.2–2.4 に保留します。
+`RdfTermResolver` は `HEAD` の `term_namespaces` から宣言済み CURIE と HTTP(S) IRI
+を展開します。用語参照は絶対 HTTP(S) IRI または宣言済み CURIE に限られ、非 HTTP(S)
+スキームは診断対象です。bare-label、NLP、レジストリ順のフォールバックを行いません。
+描画・音声は Phase 3、RDF/JSON-LD と BoK occurrence 出力は Phase 4、互換性証明は
+Phase 5 の作業です。
 
 ---
 
