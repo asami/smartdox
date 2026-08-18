@@ -2,7 +2,7 @@
 manifest_kind: cncf.provisional.phase.v2
 manifest_version: 2
 provisional_id: SMARTDOX-P2-TERM2-01-03-PROVISIONAL-002
-status: PARKED
+status: RECOVERED
 authority_source: docs/phase/phase-2.md
 phase: "2: RDF Term Syntax and Resolution"
 primary_repository: /Users/asami/src/dev2025/smartdox
@@ -115,13 +115,13 @@ checkpoint:
   pushed: false
 recovery:
   skill: cncf-goal-phase
-  next_state: PROVISIONAL_ADOPTION
+  next_state: PHASE_RELEASE_COMMIT
   accepted_checkpoint_steps: [P2-TERM2-001]
   adoption_decision: "A — user selected 002 as the active interrupted checkpoint"
-  resume_condition: adopt this PARKED manifest, first implement the two recorded Dox parser state-machine gaps, then rerun the exact focused RdfTermResolverSpec command before any TERM2-03 acceptance claim
+  resume_condition: recovered through the accepted Phase 2 Steps; the frozen-tree full suite and Phase release commit make this recovery status authoritative
 ---
 
-# PARKED — Phase 2 RDF term syntax and resolution vertical slice
+# RECOVERED — Phase 2 RDF term syntax and resolution vertical slice
 
 ## Recovery adoption decision
 
