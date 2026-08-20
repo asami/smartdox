@@ -66,7 +66,7 @@ Primary reference:
 
 ### Phase 4: RDF Term Knowledge-Graph Projection
 
-Status: planned.
+Status: closed.
 
 Purpose:
 
@@ -123,9 +123,10 @@ Primary reference:
 
 ## Current Priority
 
-Phase 3 is closed with locale-aware visible and spoken projection plus stable
-HTML occurrence metadata for resolved concepts. Phase 4 remains planned and
-requires a fresh Phase goal invocation; it is not started by this closure.
+Phase 4 is closed with RDF/JSON-LD and BoK-ready occurrence projection that
+preserves the resolved concept IRI while keeping concept, occurrence, source,
+and public-glossary identities distinct. Phase 5 remains planned and requires
+a fresh Phase goal invocation; it is not started by this closure.
 
 ## 9. Development Item Status
 

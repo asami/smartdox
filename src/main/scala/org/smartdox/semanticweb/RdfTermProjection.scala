@@ -113,17 +113,17 @@ object RdfTermProjection {
     val source = Node.Uri(sourcedocumentiri)
     val page = Node.Uri(publicglossarypageiri)
     val sourcetriples = Vector(
-      Triple(source, RdfType, Node.Uri(SmartDoxOntology.SourceDocument)),
+      Triple(source, RdfType, Node.Uri(SmartDoxOntology.sourceDocument)),
       Triple(source, Node.Uri(Vocabulary.Dcterms.identifier), Node.Literal(sourcepath))
     )
     val pagetriples = Vector(
-      Triple(page, RdfType, Node.Uri(SmartDoxOntology.PublicGlossaryPage)),
+      Triple(page, RdfType, Node.Uri(SmartDoxOntology.publicGlossaryPage)),
       Triple(page, RdfType, Node.Uri(Vocabulary.Schema.uri("WebPage")))
     )
     val concepttriples = concepts.flatMap { concept =>
       val node = Node.Uri(concept.iri)
       Vector(
-        Triple(node, RdfType, Node.Uri(SmartDoxOntology.TermConcept)),
+        Triple(node, RdfType, Node.Uri(SmartDoxOntology.termConcept)),
         Triple(node, RdfType, Node.Uri(GlossaryOntology.Term)),
         Triple(node, Node.Uri(Vocabulary.Rdfs.label), Node.Literal(concept.canonical)),
         Triple(node, Node.Uri(SmartDoxOntology.hasPublicGlossaryPage), page)
@@ -139,11 +139,11 @@ object RdfTermProjection {
     val node = Node.Uri(occurrence.id)
     val concept = Node.Uri(occurrence.conceptIri)
     val kindclass = occurrence.kind match {
-      case OccurrenceKind.Definition => SmartDoxOntology.DefinitionOccurrence
-      case OccurrenceKind.Reference => SmartDoxOntology.ReferenceOccurrence
+      case OccurrenceKind.Definition => SmartDoxOntology.definitionOccurrence
+      case OccurrenceKind.Reference => SmartDoxOntology.referenceOccurrence
     }
     val base = Vector(
-      Triple(node, RdfType, Node.Uri(SmartDoxOntology.TermOccurrence)),
+      Triple(node, RdfType, Node.Uri(SmartDoxOntology.termOccurrence)),
       Triple(node, RdfType, Node.Uri(kindclass)),
       Triple(node, Node.Uri(SmartDoxOntology.denotesConcept), concept),
       Triple(node, Node.Uri(SmartDoxOntology.inSourceDocument), Node.Uri(sourcedocumentiri)),
@@ -151,7 +151,7 @@ object RdfTermProjection {
       Triple(node, Node.Uri(SmartDoxOntology.occurrenceKind), Node.Literal(occurrence.kind.value)),
       Triple(node, Node.Uri(SmartDoxOntology.resolutionKind), Node.Literal(occurrence.resolutionKind.value)),
       Triple(node, Node.Uri(SmartDoxOntology.sourcePath), Node.Literal(occurrence.sourcePath)),
-      Triple(node, Node.Uri(SmartDoxOntology.sourceLocation), Node.Literal(occurrence.sourceLocation.toString)),
+      Triple(node, Node.Uri(SmartDoxOntology.sourceLocation), Node.Literal(occurrence.sourceLocation.show)),
       Triple(node, Node.Uri(SmartDoxOntology.occurrenceId), Node.Literal(occurrence.id))
     )
     occurrence.kind match {

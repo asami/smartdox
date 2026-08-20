@@ -15,6 +15,7 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  *    representing SmartDox documents and their internal structures.
  *
  * @since   Nov. 13, 2025
+ *  version Nov. 27, 2025
  * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
@@ -36,12 +37,12 @@ object SmartDoxOntology extends OntologyModel {
   val CodeBlock   = uri("CodeBlock")
   val Note        = uri("Note")
   val Link        = uri("Link")
-  val TermConcept = uri("TermConcept")
-  val TermOccurrence = uri("TermOccurrence")
-  val DefinitionOccurrence = uri("DefinitionOccurrence")
-  val ReferenceOccurrence = uri("ReferenceOccurrence")
-  val SourceDocument = uri("SourceDocument")
-  val PublicGlossaryPage = uri("PublicGlossaryPage")
+  val termConcept = uri("TermConcept")
+  val termOccurrence = uri("TermOccurrence")
+  val definitionOccurrence = uri("DefinitionOccurrence")
+  val referenceOccurrence = uri("ReferenceOccurrence")
+  val sourceDocument = uri("SourceDocument")
+  val publicGlossaryPage = uri("PublicGlossaryPage")
 
   // ------------------------------------------------------------------
   // Datatype and Annotation Properties
@@ -94,12 +95,12 @@ object SmartDoxOntology extends OntologyModel {
     "Table" -> Table,
     "CodeBlock" -> CodeBlock,
     "Note" -> Note,
-    "TermConcept" -> TermConcept,
-    "TermOccurrence" -> TermOccurrence,
-    "DefinitionOccurrence" -> DefinitionOccurrence,
-    "ReferenceOccurrence" -> ReferenceOccurrence,
-    "SourceDocument" -> SourceDocument,
-    "PublicGlossaryPage" -> PublicGlossaryPage,
+    "TermConcept" -> termConcept,
+    "TermOccurrence" -> termOccurrence,
+    "DefinitionOccurrence" -> definitionOccurrence,
+    "ReferenceOccurrence" -> referenceOccurrence,
+    "SourceDocument" -> sourceDocument,
+    "PublicGlossaryPage" -> publicGlossaryPage,
     "title" -> title,
     "description" -> description,
     "language" -> language,

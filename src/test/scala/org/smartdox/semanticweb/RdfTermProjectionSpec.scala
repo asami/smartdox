@@ -44,6 +44,7 @@ class RdfTermProjectionSpec extends AnyWordSpec with Matchers with GivenWhenThen
       projection.graph.triples should contain (Triple(concept, Node.Uri(SmartDoxOntology.hasPublicGlossaryPage), page))
       projection.graph.triples should contain (Triple(definition, Node.Uri(SmartDoxOntology.inSourceDocument), source))
       projection.graph.triples should contain (Triple(definition, Node.Uri(SmartDoxOntology.denotesConcept), concept))
+      projection.graph.triples should contain (Triple(definition, Node.Uri(SmartDoxOntology.sourceLocation), Node.Literal("[41, 1]")))
       And("every emitted occurrence contains the eight BoK-ready fields")
       projection.occurrences should have size 2
       projection.occurrences.foreach { occurrence =>

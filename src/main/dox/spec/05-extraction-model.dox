@@ -152,7 +152,7 @@ RDF/JSON-LD と BoK-ready occurrence record を生成します。
   "occurrenceKind": "definition",
   "resolutionKind": "explicit",
   "sourcePath": "object-foundation/entity.dox",
-  "sourceLocation": "line 1, offset 1"
+  "sourceLocation": "[1, 1]"
 }
 ```
 
