@@ -7,7 +7,7 @@ import org.smartdox._
 
 /*
  * @since   Aug. 20, 2026
- * @version Aug. 20, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 object RdfTermDisplay {
@@ -19,8 +19,8 @@ object RdfTermDisplay {
       val href = None
     }
 
-    private final case class External(hrefValue: String) extends LinkPolicy {
-      val href = Some(hrefValue)
+    private final case class External(hrefvalue: String) extends LinkPolicy {
+      val href = Some(hrefvalue)
     }
 
     def external(href: String): Option[LinkPolicy] =

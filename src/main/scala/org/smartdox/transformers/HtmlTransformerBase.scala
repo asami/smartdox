@@ -10,7 +10,7 @@ import org.goldenport.xml.dom.DomUtils
 
 /*
  * @since   Feb.  2, 2021
- * @version Aug. 20, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 trait HtmlTransformerBase {
@@ -19,20 +19,20 @@ trait HtmlTransformerBase {
 
   protected final def to_html(dom: Node): String =
     (isPretty, isDocument) match {
-      case (true, true) => _html_text(dom, isPretty = true)
+      case (true, true) => _html_text(dom, ispretty = true)
       case (true, false) => DomUtils.toHtmlFragmentText(dom) // XXX
-      case (false, true) => _html_text(dom, isPretty = false)
+      case (false, true) => _html_text(dom, ispretty = false)
       case (false, false) => DomUtils.toText(dom) // XXX
     }
 
-  private def _html_text(dom: Node, isPretty: Boolean): String = {
+  private def _html_text(dom: Node, ispretty: Boolean): String = {
     val output = new ByteArrayOutputStream()
     val transformer = TransformerFactory.newInstance().newTransformer()
     transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
     transformer.setOutputProperty(OutputKeys.METHOD, "xml")
-    transformer.setOutputProperty(OutputKeys.INDENT, if (isPretty) "yes" else "no")
+    transformer.setOutputProperty(OutputKeys.INDENT, if (ispretty) "yes" else "no")
     transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
-    if (isPretty)
+    if (ispretty)
       transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4")
     transformer.transform(new DOMSource(dom), new StreamResult(output))
     new String(output.toByteArray, StandardCharsets.UTF_8)

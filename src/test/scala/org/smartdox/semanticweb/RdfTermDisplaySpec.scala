@@ -2,10 +2,12 @@ package org.smartdox.semanticweb
 
 import java.util.Locale
 import org.junit.runner.RunWith
+import org.scalacheck.Gen
 import org.scalatest.GivenWhenThen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.smartdox.Document
 import org.smartdox.generator.Context
 import org.smartdox.parser.Dox2Parser
@@ -14,11 +16,11 @@ import org.smartdox.transformers.Dox2HtmlTransformer
 
 /*
  * @since   Aug. 20, 2026
- * @version Aug. 20, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class RdfTermDisplaySpec extends AnyWordSpec with Matchers with GivenWhenThen {
+class RdfTermDisplaySpec extends AnyWordSpec with Matchers with GivenWhenThen with ScalaCheckPropertyChecks {
   "RdfTermDisplay" should {
     "project localized visible and spoken forms" which {
       "render an IRI-keyed Japanese first use with independent speech and stable metadata" in {
@@ -140,6 +142,28 @@ class RdfTermDisplaySpec extends AnyWordSpec with Matchers with GivenWhenThen {
         javascript shouldBe None
         relativeHttp shouldBe None
         safe should not be empty
+      }
+
+      "project generated safe absolute HTTP(S) destinations as occurrence links" in {
+        val destinationgenerator = for {
+          scheme <- Gen.oneOf("http", "https", "javascript", "ftp")
+          segment <- Gen.nonEmptyListOf(Gen.alphaNumChar).map(_.mkString)
+        } yield (scheme, s"$scheme://example.com/term/$segment", Set("http", "https").contains(scheme))
+
+        forAll(destinationgenerator) { case (scheme, destination, issafe) =>
+          Given("a generated candidate destination and a concept registry")
+          val policy = RdfTermDisplay.LinkPolicy.external(destination)
+          val linkpolicy = policy.getOrElse(RdfTermDisplay.LinkPolicy.NoLink)
+          val registry = RdfTermDisplay.Registry(_object_modeling.copy(linkPolicy = linkpolicy))
+          val document = _document("""Terminology: <term ref="ex:object-modeling">Object Modeling</term>""")
+
+          When("the resolved concept is projected with its candidate link policy")
+          val occurrence = RdfTermDisplay.project(document, Locale.ENGLISH, registry).references.head
+
+          Then("only absolute HTTP(S) candidates become occurrence links")
+          policy.isDefined shouldBe issafe
+          occurrence.href shouldBe (if (issafe) Some(destination) else None)
+        }
       }
     }
   }

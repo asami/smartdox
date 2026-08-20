@@ -52,7 +52,7 @@ Primary reference:
 
 ### Phase 3: RDF Term Display and Occurrence Metadata
 
-Status: in-progress.
+Status: closed.
 
 Purpose:
 
@@ -123,10 +123,9 @@ Primary reference:
 
 ## Current Priority
 
-Phase 3 is the active RDF terminology delivery boundary. Its current scope is
-locale-aware visible and spoken projection plus stable HTML occurrence metadata
-for resolved concepts; it must not be represented as completed merely because
-the terminology contract is documented.
+Phase 3 is closed with locale-aware visible and spoken projection plus stable
+HTML occurrence metadata for resolved concepts. Phase 4 remains planned and
+requires a fresh Phase goal invocation; it is not started by this closure.
 
 ## 9. Development Item Status
 
