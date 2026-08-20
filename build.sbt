@@ -2,7 +2,7 @@ name := "smartdox"
 
 organization := "org.smartdox"
 
-version := "2.4.17-SNAPSHOT"
+version := "2.4.17"
 
 scalaVersion := "2.12.18"
 
@@ -18,7 +18,7 @@ scalacOptions += "-unchecked"
 
 scalacOptions += "-feature"
 
-javacOptions ++= Seq("--release", "21")
+javacOptions ++= Seq("--release", "17")
 
 // incOptions := incOptions.value.withNameHashing(true)
 
