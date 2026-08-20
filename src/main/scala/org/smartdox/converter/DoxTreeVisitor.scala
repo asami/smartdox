@@ -120,6 +120,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Code => enter_Code(m)
       case m: Dfn => enter_Dfn(m)
       case m: NoTerm => enter_NoTerm(m)
+      case m: Term => enter_Term(m)
 //      case m: Verbatim => enter_Verbatim(m)
       case m: Ul => enter_ul(m)
       case m: Ol => enter_ol(m)
@@ -235,6 +236,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Code(p: Code): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Code: $p")
   protected def enter_Dfn(p: Dfn): Unit = enter_Html_Element(p)
   protected def enter_NoTerm(p: NoTerm): Unit = enter_Html_Element(p)
+  protected def enter_Term(p: Term): Unit = enter_Html_Element(p)
 //  protected def enter_Verbatim(p: Verbatim): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Verbatim: $p")
   protected def enter_Ul(p: Ul): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ul: $p")
   protected def enter_Ol(p: Ol): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ol: $p")
@@ -298,6 +300,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Code => leave_Code(m)
       case m: Dfn => leave_Dfn(m)
       case m: NoTerm => leave_NoTerm(m)
+      case m: Term => leave_Term(m)
 //      case m: Verbatim => leave_Verbatim(m)
       case m: Ul => leave_ul(m)
       case m: Ol => leave_ol(m)
@@ -418,6 +421,7 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Code(p: Code): Unit = {}
   protected def leave_Dfn(p: Dfn): Unit = leave_Html_Element(p)
   protected def leave_NoTerm(p: NoTerm): Unit = leave_Html_Element(p)
+  protected def leave_Term(p: Term): Unit = leave_Html_Element(p)
 //  protected def leave_Verbatim(p: Verbatim): Unit = {}
   protected def leave_Ul(p: Ul): Unit = {}
   protected def leave_Ol(p: Ol): Unit = {}

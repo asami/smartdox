@@ -1,0 +1,19 @@
+RDF Term Acceptance｜RDF用語受入れ
+================================
+
+# HEAD
+
+status=test
+term_namespaces {
+  smterm = "https://www.simplemodeling.org/glossary/"
+}
+
+# Body
+
+<span lang="ja"><term ref="smterm:object-foundation/structural-ownership">Structural Ownership</term>では、<term ref="smterm:object-foundation/structural-ownership" form="short">Ownership</term>と<span strategy="stable">所有</span>という普通の語を区別します。</span><span lang="en">Structural Ownership distinguishes its established short form from ordinary ownership wording.</span>
+
+<span lang="ja"><term ref="smterm:object-foundation/composition">Composition</term>は、<span strategy="stable">合成</span>という普通の語ではなく、構造上の所有とライフサイクル境界を表します。</span><span lang="en">Composition expresses structural ownership and a lifecycle boundary, not the ordinary word composition.</span>
+
+<span lang="ja"><term ref="smterm:object-foundation/realization">Realization</term>は、<span strategy="stable">実現</span>という動詞の用法とは区別されます。</span><span lang="en">Realization remains distinct from the ordinary verb realization.</span>
+
+<span lang="ja"><term ref="smterm:literate-modeling/cml">Cozy Modeling Language</term>は、初出で略語を展開して表示します。</span><span lang="en">Cozy Modeling Language is introduced with its abbreviation in the public display.</span>

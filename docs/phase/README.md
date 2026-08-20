@@ -4,12 +4,15 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- No phase is active after Phase 5 closure.
+- Phase 6 is active and in progress: SimpleModeling.org RDF-term acceptance.
+- Phase 6 checklist: `phase-6-checklist.md`.
 - Most recently closed phase: `phase-5.md`: RDF Term Compatibility.
 - Closure checklist: `phase-5-checklist.md`.
-- Planned successor phases remain separate: `phase-6.md` is the excluded
-  RDF-terminology external-acceptance slice, and `phase-7.md` is the separately
-  admitted generic inline-parser grammar slice.
+- Phase 6 handoff evidence is recorded in
+  `../journal/2026/08/2026-08-21-phase-6-rdf-term-handoff.md`; its Step commit
+  and later Phase closure remain pending.
+- Phase 7 remains separately planned and excluded: `phase-7.md` is the
+  separately admitted generic inline-parser grammar slice.
 
 Belongs:
 
