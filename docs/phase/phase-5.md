@@ -1,6 +1,6 @@
 # Phase 5: RDF Term Compatibility
 
-Status: IN PROGRESS
+Status: CLOSED
 
 ## Goal
 
@@ -9,15 +9,15 @@ term controls. Existing documents must remain usable where their behavior is
 unambiguous, and ambiguous ordinary-language uses must remain unlinked unless
 explicitly identified as terms.
 
-Representative acceptance `TERM5-COMPAT-VAL-001` initially failed because generic
-visitor dispatch rejected supported compatibility markup before site construction.
-Focused validation subsequently passed: representative invocation
-`38805-20260820T201026Z` passed `DoxSiteSpec` (15/0), and accumulator invocation
-`39673-20260820T201108Z` passed `RdfTermResolverSpec` plus `DoxSiteSpec` (22/0);
-both completed with `sbt_exit=0`, `wrapper_exit=0`, and `lock=released`.
-Implementation and focused validation are complete. Step review, Step commit,
-full Phase review, final full suite, and Phase closure remain pending. Phase 6
-remains a separate and excluded external acceptance phase.
+Phase 5 is closed. Step commit
+`312a301b2d06a4f1b97098cf28d18775ab944184` (`Phase 5: preserve RDF term
+compatibility`) preserves the completed scope. The independent full Phase review
+of `c966d1444ee5ed69deb5d4584b5777ca6861733e..312a301b2d06a4f1b97098cf28d18775ab944184`
+returned `SEALED_PHASE_LEDGER PASS` with no Current Boundary Blockers. Final
+mandatory full-suite invocation `53586-20260820T203315Z` with logical argv
+`["--batch", "test"]` passed 249 succeeded / 0 failed / 4 ignored across 31
+suites (`sbt_exit=0`, `wrapper_exit=0`, `lock=released`). Phase 6 remains a
+planned, separate, and excluded external-acceptance phase.
 
 ## Scope
 
