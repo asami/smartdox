@@ -120,45 +120,46 @@ trait UserService {
 # 3. Knowledge Layer｜知識層（BoK）
 
 
-BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目として登録する将来の出力層です。
+BoK抽出は、SmartDox内の**語句・定義・概念説明**を知識項目として登録する出力層です。
 主な対象は `<dfn>`, `<term>`, `<abbr>`, `<note>`, `<ref>` などのタグです。RDF基盤
-用語のソース構文、AST、名前空間解決、明示参照解決は安定 Phase 2 文法ですが、BoK
-抽出と JSON-LD 出力は実装されていません。
+用語のソース構文、AST、名前空間解決、明示参照解決は安定 Phase 2 文法です。解決済み
+`<dfn>` と `<term>` は Phase 4 で RDF/JSON-LD と BoK-ready occurrence record に射影
+されます。`<abbr>`, `<note>`, `<ref>`, `<time>` などの抽出カテゴリは将来作業です。
 
 | タグ | 抽出クラス | 生成対象 |
 |------|-------------|-----------|
-| `<dfn>` | GlossaryEntry | 用語集定義（将来の出力候補。`about` は解決対象、`id` は別個のローカルアンカーとして保存され、リゾルバ検証の対象ではない） |
-| `<term>` | TermReference | 用語リンク（将来の出力候補。`ref`/`form` は現行文法） |
+| `<dfn>` | GlossaryEntry | 用語集定義（`about` は解決対象、`id` は別個のローカルアンカーとして保存され、リゾルバ検証の対象ではない） |
+| `<term>` | TermReference | 用語リンク（`ref`/`form` は現行文法） |
 | `<noterm>` | — | 用語解決抑止（現行文法。出力は行わない） |
 | `<abbr>` | Abbreviation | 略語辞書 |
 | `<note>` | Note | 注記ノード |
 | `<ref>` | Reference | 関連項目リンク |
 | `<time>` | TemporalValue | 年表・履歴ノード |
 
-将来の抽出結果はBoKレジストリ（JSON-LD形式）へ格納されます。以下は**提案出力**で
-あり、現行実装の出力を表すものではありません。
+BoK/MCPレジストリへの格納は将来作業です。現行 Phase 4 実装は、下記の形の
+RDF/JSON-LD と BoK-ready occurrence record を生成します。
 例：
 ```
 <dfn about="https://www.simplemodeling.org/glossary/object-foundation/entity" id="entity">Entity</dfn> represents an object with identity.
 ```
-→ 提案BoK登録：
+→ BoK-ready occurrence record：
 ```
 {
-  "@id": "https://www.simplemodeling.org/glossary/object-foundation/entity",
-  "type": "GlossaryEntry",
-  "definition": "represents an object with identity",
+  "@id": "https://www.simplemodeling.org/source/object-foundation/entity.dox#term-occurrence-definition-1",
+  "conceptIri": "https://www.simplemodeling.org/glossary/object-foundation/entity",
   "surfaceForm": "Entity",
   "locale": "en",
   "occurrenceKind": "definition",
   "resolutionKind": "explicit",
-  "source": { "path": "object-foundation/entity.dox", "location": "example" }
+  "sourcePath": "object-foundation/entity.dox",
+  "sourceLocation": "line 1, offset 1"
 }
 ```
 
-Phase 4 の提案契約では、HTMLメタデータ、term occurrence、RDF/JSON-LD、BoK record が
-解決済み概念IRI、surface form、locale、occurrence kind、resolution kind、source
-path/location を保持します。これは現行出力ではありません。表示・音声は Phase 3、
-互換性証明は Phase 5 の作業です。用語の現行文法と診断は
+Phase 4 では term occurrence、RDF/JSON-LD、BoK-ready record が解決済み概念IRI、
+surface form、locale、occurrence kind、resolution kind、source path/location と
+決定的 occurrence id を保持します。表示・音声は Phase 3、互換性証明は Phase 5 の
+作業です。用語の現行文法と診断は
 `docs/spec/rdf-grounded-terminology.md` を参照してください。
 
 ---
@@ -175,8 +176,8 @@ path/location を保持します。これは現行出力ではありません。
 | `<service>` | Service | Trait / Method | ServiceDefinition |
 | `<rule>` | Rule | Validation Code | Policy |
 | `<event>` | Event | Case Class | DomainEvent |
-| `<dfn>` | TermDefinition | — | Glossary（IRI付き出力は将来の提案） |
-| `<term>` | TermReference | — | Concept reference（将来の提案） |
+| `<dfn>` | TermDefinition | — | Glossary（IRI付き RDF/JSON-LD と BoK-ready occurrence） |
+| `<term>` | TermReference | — | Concept reference（IRI付き RDF/JSON-LD と BoK-ready occurrence） |
 | `<note>` | — | — | Annotation |
 | `<code>` | CodeLiteral | CodeFragment | Example |
 | `<kbd>` | — | — | UserAction |
@@ -205,8 +206,8 @@ path/location を保持します。これは現行出力ではありません。
 RDF基盤用語のパース、AST、`HEAD` `term_namespaces` による CURIE 解決、明示参照解決、
 および SmartDox source form に起因する source location 付き診断は現行の安定 Phase 2
 文法です。供給された読み取り専用カタログデータの検証には文書 location がない場合が
-あります。表示・音声は Phase 3、HTML/RDF/JSON-LD/BoK 射影は Phase 4、互換性証明は
-Phase 5 の将来作業です。
+あります。表示・音声は Phase 3、RDF/JSON-LD/BoK-ready occurrence 射影は Phase 4、
+互換性証明は Phase 5 の作業です。
 
 ---
 

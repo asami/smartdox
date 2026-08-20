@@ -15,7 +15,7 @@ import org.smartdox.semanticweb.Vocabulary.Rdf.node.{`type` => RdfType}
  *    representing SmartDox documents and their internal structures.
  *
  * @since   Nov. 13, 2025
- * @version Nov. 27, 2025
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 object SmartDoxOntology extends OntologyModel {
@@ -36,6 +36,12 @@ object SmartDoxOntology extends OntologyModel {
   val CodeBlock   = uri("CodeBlock")
   val Note        = uri("Note")
   val Link        = uri("Link")
+  val TermConcept = uri("TermConcept")
+  val TermOccurrence = uri("TermOccurrence")
+  val DefinitionOccurrence = uri("DefinitionOccurrence")
+  val ReferenceOccurrence = uri("ReferenceOccurrence")
+  val SourceDocument = uri("SourceDocument")
+  val PublicGlossaryPage = uri("PublicGlossaryPage")
 
   // ------------------------------------------------------------------
   // Datatype and Annotation Properties
@@ -52,6 +58,12 @@ object SmartDoxOntology extends OntologyModel {
   val caption      = uri("caption")
   val codeText     = uri("codeText")
   val codeLanguage = uri("codeLanguage")
+  val surfaceForm = uri("surfaceForm")
+  val occurrenceKind = uri("occurrenceKind")
+  val resolutionKind = uri("resolutionKind")
+  val sourcePath = uri("sourcePath")
+  val sourceLocation = uri("sourceLocation")
+  val occurrenceId = uri("occurrenceId")
 
   // ------------------------------------------------------------------
   // Object Properties
@@ -65,6 +77,10 @@ object SmartDoxOntology extends OntologyModel {
   val hasFigure     = uri("hasFigure")
   val hasCodeBlock  = uri("hasCodeBlock")
   val hasLink       = uri("hasLink")
+  val hasDefinitionOccurrence = uri("hasDefinitionOccurrence")
+  val hasPublicGlossaryPage = uri("hasPublicGlossaryPage")
+  val denotesConcept = uri("denotesConcept")
+  val inSourceDocument = uri("inSourceDocument")
 
   // ------------------------------------------------------------------
   // JSON-LD Context
@@ -78,11 +94,27 @@ object SmartDoxOntology extends OntologyModel {
     "Table" -> Table,
     "CodeBlock" -> CodeBlock,
     "Note" -> Note,
+    "TermConcept" -> TermConcept,
+    "TermOccurrence" -> TermOccurrence,
+    "DefinitionOccurrence" -> DefinitionOccurrence,
+    "ReferenceOccurrence" -> ReferenceOccurrence,
+    "SourceDocument" -> SourceDocument,
+    "PublicGlossaryPage" -> PublicGlossaryPage,
     "title" -> title,
     "description" -> description,
     "language" -> language,
     "keyword" -> keyword,
-    "tag" -> tag
+    "tag" -> tag,
+    "surfaceForm" -> surfaceForm,
+    "occurrenceKind" -> occurrenceKind,
+    "resolutionKind" -> resolutionKind,
+    "sourcePath" -> sourcePath,
+    "sourceLocation" -> sourceLocation,
+    "occurrenceId" -> occurrenceId,
+    "hasDefinitionOccurrence" -> hasDefinitionOccurrence,
+    "hasPublicGlossaryPage" -> hasPublicGlossaryPage,
+    "denotesConcept" -> denotesConcept,
+    "inSourceDocument" -> inSourceDocument
   )
 
   // ------------------------------------------------------------------

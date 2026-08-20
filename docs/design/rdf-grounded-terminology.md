@@ -1,15 +1,14 @@
 # RDF-Grounded Terminology Design
 
-Status: stable Phase 2 grammar and Phase 3 display design
-Date: 2026-08-20
+Status: stable Phase 2 grammar, Phase 3 display design, and Phase 4 projection design
+Date: 2026-08-21
 
 ## Purpose and boundary
 
-This Phase 2 design fixes the terminology identity and authoring contract for
-the implemented SmartDox parser, AST, namespace resolution, and explicit term
-resolution. Display and speech projection remain Phase 3 work; RDF/JSON-LD and
-BoK occurrence output remain Phase 4 work; compatibility proof remains Phase 5
-work.
+This design fixes the terminology identity and authoring contract for the
+implemented SmartDox parser, AST, namespace resolution, explicit term
+resolution, display, and RDF/JSON-LD occurrence projection. Compatibility
+proof remains Phase 5 work.
 
 ## Canonical identity
 
@@ -81,10 +80,26 @@ Japanese use may be `オブジェクトモデリング（Object Modeling）`; de
 speech is only `オブジェクトモデリング`. A visible abbreviation expansion is not
 duplicated in speech.
 
-Future rendered HTML metadata, term-occurrence data, RDF/JSON-LD, and BoK
+Rendered HTML metadata, term-occurrence data, RDF/JSON-LD, and BoK-ready
 records carry the resolved concept IRI, surface form, locale, occurrence kind,
-resolution kind, and source path/location. This is a normative future output
-contract, not a claim about current output.
+resolution kind, and source path/location. The projection uses the resolved IRI
+as the only concept identity; it never derives an identity from a label, visible
+surface, source path, or public-page route.
+
+## Phase 4 RDF and BoK projection
+
+`RdfTermProjection` consumes only `RdfTermResolver.Result` and explicit caller
+supplied source-document and public-glossary-page IRIs. It models the concept,
+definition occurrence, source document, and public glossary page as distinct
+RDF resources. A concept points to its definition occurrence and public page;
+each occurrence points to its canonical concept and source document.
+
+Every emitted BoK-ready occurrence has a deterministic identifier derived only
+from the explicit source-document IRI plus occurrence kind and order, the
+canonical concept IRI, authored surface form, BCP-47 locale, occurrence kind,
+explicit resolution kind, source path, and actual parser source location.
+Locationless resolved entries are not emitted. JSON-LD is rendered through
+`RdfRenderer` with SmartDox, glossary, Dublin Core, and Schema.org context.
 
 ## Phase 3 display projection
 
@@ -109,7 +124,7 @@ IRI alone. Definitions retain their local `id` independently of RDF identity.
 
 ## Non-goals and follow-up
 
-This design does not create source/page routes or introduce registry-order
-fallback. The parser, AST, namespace resolution, and explicit term resolution
-are stable Phase 2 grammar. Display and speech projection, RDF/JSON-LD and BoK
-occurrence output, and compatibility proof remain separate later-phase work.
+This design does not create source/page routes, storage or service work, or a
+registry-order fallback. The parser, AST, namespace resolution, explicit term
+resolution, display, and projection remain separate from Phase 5 compatibility
+proof.

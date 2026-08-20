@@ -4,8 +4,8 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Active phase: none
-- Active checklist: none
+- Active phase: `phase-4.md`: RDF Term Knowledge-Graph Projection
+- Active checklist: `phase-4-checklist.md`
 - Planned successor phases: `phase-3.md` through `phase-6.md` are separate
   RDF-terminology delivery slices; `phase-7.md` is a separately admitted
   generic inline-parser grammar slice

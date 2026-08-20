@@ -1,6 +1,6 @@
 # Phase 4: RDF Term Knowledge-Graph Projection
 
-Status: planned
+Status: in-progress
 
 ## Goal
 
@@ -15,6 +15,10 @@ In scope:
 - RDF and JSON-LD term projections;
 - occurrence records for downstream BoK consumption; and
 - source/document/public-page relations for a concept node.
+
+Current implementation work covers the frozen projection boundary. Focused
+validation and independent review remain pending; this status does not claim
+completion.
 
 Out of scope:
 

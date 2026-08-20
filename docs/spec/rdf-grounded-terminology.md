@@ -1,12 +1,11 @@
 # RDF-Grounded Terminology Specification
 
-Status: stable Phase 2 grammar and Phase 3 display specification
-Date: 2026-08-20
+Status: stable Phase 2 grammar, Phase 3 display, and Phase 4 projection specification
+Date: 2026-08-21
 
-This normative Phase 2 contract is parser-backed stable grammar. It covers
-parser AST values, explicit namespace and term resolution, and deterministic
-diagnostics. Display and speech projection are Phase 3 work; RDF/JSON-LD and
-BoK occurrence output are Phase 4 work; compatibility proof is Phase 5 work.
+This normative contract covers parser-backed stable grammar, display, and the
+Phase 4 RDF/JSON-LD and BoK-ready occurrence projection. Compatibility proof
+is Phase 5 work.
 
 ## Namespace context and identity
 
@@ -112,12 +111,29 @@ policy explicitly supplies an absolute HTTP(S) destination. Without that
 policy it renders as a semantic span. A resolved definition retains its local
 HTML `id` independently of `data-rdf-term-iri`.
 
-Phase 4 will emit RDF/JSON-LD and BoK occurrence records from the same resolved
-identity; it does not need to reconstruct identity from Phase 3 HTML.
+## RDF/JSON-LD and BoK occurrence projection
+
+`RdfTermProjection` accepts `RdfTermResolver.Result` plus explicit
+source-document IRI, public-glossary-page IRI, source path, and locale. It may
+also receive known concepts. It never manufactures concept, source-document, or
+public-page identities from labels or filesystem paths.
+
+The graph has distinct concept, definition occurrence, source document, and
+public glossary page resources. Each concept uses its resolved IRI, relates to
+its definition occurrence and public page, and each occurrence relates to its
+canonical concept and source document. JSON-LD is produced only through
+`RdfRenderer` with SmartDox, glossary, Dublin Core, and Schema.org context.
+
+Every emitted BoK-ready occurrence record contains exactly: deterministic
+occurrence identifier, canonical concept IRI, authored surface form, BCP-47
+locale, occurrence kind (`definition` or `reference`), resolution kind
+(`explicit`), source path, and actual source location. The identifier is derived
+only from the explicit source-document IRI, kind, and encounter order.
+Locationless resolved entries emit no occurrence record.
 
 ## Implementation status
 
 The parser, AST, namespace resolution, and explicit term resolution are stable
-Phase 2 grammar. Display and speech projection, RDF/JSON-LD and BoK occurrence
-output, and compatibility proof remain separate Phase 3, Phase 4, and Phase 5
-work respectively.
+Phase 2 grammar. Display and speech projection are stable Phase 3 behavior;
+RDF/JSON-LD and BoK occurrence projection are stable Phase 4 behavior;
+compatibility proof remains Phase 5 work.

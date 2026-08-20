@@ -4,7 +4,7 @@ This checklist is the authoritative progress ledger for Phase 4.
 
 ## TERM4-01: RDF and JSON-LD Projection
 
-Status: OPEN
+Status: IN PROGRESS
 
 - [ ] Emit the canonical concept IRI in RDF and JSON-LD output.
 - [ ] Relate concept, definition, source document, and public glossary page
@@ -12,7 +12,7 @@ Status: OPEN
 
 ## TERM4-02: BoK-Ready Occurrence Records
 
-Status: OPEN
+Status: IN PROGRESS
 
 - [ ] Emit occurrence records with concept IRI, surface form, locale,
       occurrence kind, resolution kind, source path, and location.
@@ -21,7 +21,7 @@ Status: OPEN
 
 ## TERM4-03: Executable Acceptance
 
-Status: OPEN
+Status: IN PROGRESS
 
 - [ ] Add executable RDF, JSON-LD, and occurrence-projection specifications.
 - [ ] Run the focused projection validation successfully.
