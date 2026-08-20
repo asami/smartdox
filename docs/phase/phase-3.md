@@ -1,6 +1,8 @@
 # Phase 3: RDF Term Display and Occurrence Metadata
 
-Status: planned
+Status: in-progress
+
+Start date: 2026-08-20
 
 ## Goal
 

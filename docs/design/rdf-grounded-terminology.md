@@ -1,7 +1,7 @@
 # RDF-Grounded Terminology Design
 
-Status: stable Phase 2 grammar design
-Date: 2026-08-19
+Status: stable Phase 2 grammar and Phase 3 display design
+Date: 2026-08-20
 
 ## Purpose and boundary
 
@@ -85,6 +85,27 @@ Future rendered HTML metadata, term-occurrence data, RDF/JSON-LD, and BoK
 records carry the resolved concept IRI, surface form, locale, occurrence kind,
 resolution kind, and source path/location. This is a normative future output
 contract, not a claim about current output.
+
+## Phase 3 display projection
+
+Phase 3 supplies a read-only display registry keyed by the canonical concept
+IRI. A registry entry may retain localized preferred and short labels, aliases,
+abbreviations, an optional scope, a locale-specific speech label, and an
+explicit link policy. Aliases remain registry metadata; they do not create
+label-based resolution or a registry-order fallback.
+
+The HTML projection receives only a concept already resolved by
+`RdfTermResolver`. It chooses visible text from the requested form and target
+locale. The first canonical occurrence may append a different second-language
+preferred label and an abbreviation. Its speech label is chosen independently
+from the registry and is exposed through `aria-label`; it is never reconstructed
+from the visible bilingual or abbreviation annotation.
+
+Each resolved occurrence receives `data-rdf-term-iri`, locale, occurrence-kind,
+resolution-kind, and form metadata. A reference becomes an `<a>` only when its
+registry entry opts into an absolute HTTP(S) link. Otherwise it remains a
+semantic `<span>`; rendering never infers a destination from a label, path, or
+IRI alone. Definitions retain their local `id` independently of RDF identity.
 
 ## Non-goals and follow-up
 

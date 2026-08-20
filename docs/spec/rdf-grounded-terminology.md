@@ -1,7 +1,7 @@
 # RDF-Grounded Terminology Specification
 
-Status: stable Phase 2 grammar specification
-Date: 2026-08-19
+Status: stable Phase 2 grammar and Phase 3 display specification
+Date: 2026-08-20
 
 This normative Phase 2 contract is parser-backed stable grammar. It covers
 parser AST values, explicit namespace and term resolution, and deterministic
@@ -84,11 +84,36 @@ The visible Japanese first use may be `オブジェクトモデリング（Objec
 while default Japanese narration is `オブジェクトモデリング`. Speech must not repeat
 an abbreviation expansion already visible.
 
-Phase 3 display and speech projection must preserve the resolved concept IRI
-when introduced. Phase 4 rendered HTML metadata, term-occurrence data,
-RDF/JSON-LD, and BoK records must preserve the resolved concept IRI, surface
-form, locale, occurrence kind, resolution kind, and source path/location.
-These are future projections; no current output implementation is implied.
+Phase 3 uses a read-only concept-display registry keyed only by canonical
+concept IRI. An entry may carry localized preferred labels, short labels,
+aliases, abbreviations, scope, a locale-specific speech label, and an explicit
+link policy. Aliases are display metadata only; they do not change the explicit
+RDF-resolution contract.
+
+For a resolved reference, canonical, short, bilingual, and verbatim forms
+select display text without reconstructing identity from that text. The first
+canonical occurrence may append a distinct counterpart-language preferred label
+and an abbreviation. Speech text is selected separately and is published as an
+`aria-label`; it must not duplicate visible bilingual or abbreviation markup.
+
+Every rendered resolved term occurrence has at least these stable HTML
+attributes:
+
+```text
+data-rdf-term-iri
+data-rdf-term-locale
+data-rdf-term-kind
+data-rdf-term-resolution
+data-rdf-term-form
+```
+
+An explicit reference is an HTML link only when its display-registry link
+policy explicitly supplies an absolute HTTP(S) destination. Without that
+policy it renders as a semantic span. A resolved definition retains its local
+HTML `id` independently of `data-rdf-term-iri`.
+
+Phase 4 will emit RDF/JSON-LD and BoK occurrence records from the same resolved
+identity; it does not need to reconstruct identity from Phase 3 HTML.
 
 ## Implementation status
 

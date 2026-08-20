@@ -9,7 +9,7 @@ import org.smartdox._
 
 /*
  * @since   Aug. 18, 2026
- * @version Aug. 19, 2026
+ * @version Aug. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 object RdfTermResolver {
@@ -49,14 +49,16 @@ object RdfTermResolver {
 
   case class ResolvedDefinition(
     concept: KnownConcept,
-    location: Option[ParseLocation]
+    location: Option[ParseLocation],
+    source: Dfn
   )
 
   case class ResolvedReference(
     concept: KnownConcept,
     form: TermForm,
     visibleText: String,
-    location: Option[ParseLocation]
+    location: Option[ParseLocation],
+    source: Term
   )
 
   sealed trait DiagnosticCode {
@@ -158,7 +160,8 @@ object RdfTermResolver {
 
   private case class DefinitionCandidate(
     concept: KnownConcept,
-    location: Option[ParseLocation]
+    location: Option[ParseLocation],
+    source: Dfn
   )
 
   private case class DefinitionCandidates(
@@ -253,7 +256,8 @@ object RdfTermResolver {
             case Right(iri) => z.copy(
               candidates = z.candidates :+ DefinitionCandidate(
                 KnownConcept(iri, canonical),
-                definition.location
+                definition.location,
+                definition
               ),
               diagnostics = z.diagnostics ++ visiblediagnostics
             )
@@ -300,7 +304,7 @@ object RdfTermResolver {
             conflict)
         case None => z.catalog.concepts.get(concept.iri) match {
           case Some(known) if known.canonical == concept.canonical => z.copy(
-            definitions = z.definitions :+ ResolvedDefinition(known, candidate.location),
+            definitions = z.definitions :+ ResolvedDefinition(known, candidate.location, candidate.source),
             identities = z.identities.updated(concept.iri, concept.canonical)
           )
           case Some(known) => z.copy(
@@ -321,7 +325,7 @@ object RdfTermResolver {
               )
               z.copy(
                 catalog = catalog,
-                definitions = z.definitions :+ ResolvedDefinition(concept, candidate.location),
+                definitions = z.definitions :+ ResolvedDefinition(concept, candidate.location, candidate.source),
                 identities = z.identities.updated(concept.iri, concept.canonical)
               )
           }
@@ -366,7 +370,7 @@ object RdfTermResolver {
               )
               case Right(value) if _is_compatible(value, text, concept) => z.copy(
                 references = z.references :+
-                  ResolvedReference(concept, value, text, term.location)
+                  ResolvedReference(concept, value, text, term.location, term)
               )
               case Right(value) => z.copy(diagnostics = z.diagnostics :+
                 _diagnostic(DiagnosticCode.IncompatibleVisibleForm, term.location, value.value)

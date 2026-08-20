@@ -21,6 +21,7 @@ import java.util.Locale
 import org.smartdox._
 import Dox._
 import org.smartdox.generator.Context
+import org.smartdox.semanticweb.RdfTermDisplay
 import org.smartdox.transformer._
 import org.smartdox.metadata.web.JsonLd
 
@@ -35,7 +36,8 @@ import org.smartdox.metadata.web.JsonLd
  *  version Aug.  5, 2025
  *  version Oct. 26, 2025
  *  version Apr. 16, 2026
- * @version Jun.  3, 2026
+ *  version Jun.  3, 2026
+ * @version Aug. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2DomHtmlTransformer(
@@ -49,6 +51,7 @@ class Dox2DomHtmlTransformer(
   private val _newline = "\n" // TODO
   private val _base_section_header = rule.sectionBaseNumber getOrElse 1 // H1
   private var _section_depth = 0
+  private var _rdf_term_projection = RdfTermDisplay.Projection.empty
 
   def doxOut(p: Dox) = p match {
     case m: Document => documentOut(m)
@@ -58,6 +61,7 @@ class Dox2DomHtmlTransformer(
 
   def documentOut(d: Document) = {
     // println(s"Dox2DomHtmlTransform#documentOut: $d")
+    _rdf_term_projection = RdfTermDisplay.project(d, context.targetI18NContext.locale, rule.termRegistry)
     val doc = _factory.document
     val title = _title_inline(d.head)
     val h = headOut(d.head)
@@ -251,6 +255,8 @@ class Dox2DomHtmlTransformer(
     case m: Figure => _figure(m)
     case m: DiagnosticBlock => _diagnostic_block(m)
     case m: org.smartdox.Error => _error(m)
+    case m: Term => _term(m)
+    case m: Dfn => _dfn(m)
     case m: Inline => _inline(m)
     case m: Block => _block(m)
   }
@@ -314,6 +320,17 @@ class Dox2DomHtmlTransformer(
     val attrs = List("href" -> href.toString)
     _factory.element("A", attrs, contents)
   }
+
+  private def _term(p: Term): Node =
+    _rdf_term_projection.reference(p).map { occurrence =>
+      val attrs = occurrence.attributes ++ occurrence.href.map("href" -> _)
+      _factory.element(occurrence.href.fold("span")(_ => "a"), attrs, _factory.text(occurrence.visibleText))
+    }.getOrElse(_factory.element("span", p.attributeMap, p.contents.map(_dox)))
+
+  private def _dfn(p: Dfn): Node =
+    _rdf_term_projection.definition(p).map { occurrence =>
+      _factory.element("dfn", p.attributeMap.toMap ++ occurrence.attributes, _factory.text(occurrence.visibleText))
+    }.getOrElse(_factory.element("dfn", p.attributeMap, p.contents.map(_dox)))
 
   private def _site_link(target: String): Node = {
     val href = StringUtils.changeSuffix(target, "html")
@@ -440,7 +457,8 @@ pre { background: lightgray; border: 1px }
   case class Rule(
     sectionBaseNumber: Option[Int] = None,
     tacticses: Vector[Rule.Tactics] = Vector.empty,
-    isDefaultCssIfRequired: Boolean = true
+    isDefaultCssIfRequired: Boolean = true,
+    termRegistry: RdfTermDisplay.Registry = RdfTermDisplay.Registry.empty
   ) {
     def convert(ctx: Rule.Context, p: Dox): Option[Rule.ConversionResult] = tacticses.toStream.flatMap(_.convert(ctx, p)).headOption
   }

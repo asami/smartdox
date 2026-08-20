@@ -1,11 +1,16 @@
 package org.smartdox.transformers
 
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
+import javax.xml.transform.{OutputKeys, TransformerFactory}
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 import org.w3c.dom.{Node}
 import org.goldenport.xml.dom.DomUtils
 
 /*
  * @since   Feb.  2, 2021
- * @version Feb.  2, 2021
+ * @version Aug. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 trait HtmlTransformerBase {
@@ -14,10 +19,23 @@ trait HtmlTransformerBase {
 
   protected final def to_html(dom: Node): String =
     (isPretty, isDocument) match {
-      case (true, true) => DomUtils.toHtmlPrettyText(dom)
+      case (true, true) => _html_text(dom, isPretty = true)
       case (true, false) => DomUtils.toHtmlFragmentText(dom) // XXX
-      case (false, true) => DomUtils.toHtmlText(dom)
+      case (false, true) => _html_text(dom, isPretty = false)
       case (false, false) => DomUtils.toText(dom) // XXX
     }
+
+  private def _html_text(dom: Node, isPretty: Boolean): String = {
+    val output = new ByteArrayOutputStream()
+    val transformer = TransformerFactory.newInstance().newTransformer()
+    transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
+    transformer.setOutputProperty(OutputKeys.METHOD, "xml")
+    transformer.setOutputProperty(OutputKeys.INDENT, if (isPretty) "yes" else "no")
+    transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
+    if (isPretty)
+      transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4")
+    transformer.transform(new DOMSource(dom), new StreamResult(output))
+    new String(output.toByteArray, StandardCharsets.UTF_8)
+  }
 
 }

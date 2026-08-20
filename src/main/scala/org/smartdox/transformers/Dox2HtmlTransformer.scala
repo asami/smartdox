@@ -11,6 +11,7 @@ import org.goldenport.xml.dom.DomUtils
 import org.smartdox._
 import Dox._
 import org.smartdox.generator.Context
+import org.smartdox.semanticweb.RdfTermDisplay
 import org.smartdox.transformer._
 
 /*
@@ -18,7 +19,8 @@ import org.smartdox.transformer._
  *  version Nov.  8, 2020
  *  version Jan.  1, 2021
  *  version Feb.  3, 2021
- * @version Apr.  3, 2025
+ *  version Apr.  3, 2025
+ * @version Aug. 20, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Dox2HtmlTransformer(
@@ -43,12 +45,14 @@ object Dox2HtmlTransformer {
     isDocument: Boolean = true,
     sectionBaseNumber: Option[Int] = None,
     tacticses: Vector[Dox2DomHtmlTransformer.Rule.Tactics] = Vector.empty,
-    isDefaultCss: Boolean = true
+    isDefaultCss: Boolean = true,
+    termRegistry: RdfTermDisplay.Registry = RdfTermDisplay.Registry.empty
   ) {
     def toDox2DomHtmlTransformerRule = Dox2DomHtmlTransformer.Rule(
       sectionBaseNumber,
       tacticses,
-      isDefaultCss
+      isDefaultCss,
+      termRegistry
     )
   }
   object Rule {

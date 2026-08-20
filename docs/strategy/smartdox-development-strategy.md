@@ -52,7 +52,7 @@ Primary reference:
 
 ### Phase 3: RDF Term Display and Occurrence Metadata
 
-Status: planned.
+Status: in-progress.
 
 Purpose:
 
@@ -123,14 +123,10 @@ Primary reference:
 
 ## Current Priority
 
-No implementation phase is active. Phase 3 is the next planned RDF
-terminology delivery boundary, but it must be selected through a new
-authoritative phase decision before source mutation. Phases 3 through 6 are
-separate delivery boundaries; they must not be represented as completed merely
-because the terminology contract is documented. Each is intended to fit one
-roughly two-hour provisional execution; if an implementation assessment says
-that it cannot, the current Phase must be split before source mutation.
-textus-bok service and MCP implementation remain downstream responsibilities.
+Phase 3 is the active RDF terminology delivery boundary. Its current scope is
+locale-aware visible and spoken projection plus stable HTML occurrence metadata
+for resolved concepts; it must not be represented as completed merely because
+the terminology contract is documented.
 
 ## 9. Development Item Status
 
