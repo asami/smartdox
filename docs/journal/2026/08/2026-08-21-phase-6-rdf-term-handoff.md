@@ -1,7 +1,10 @@
 # Phase 6 RDF-Term Acceptance Handoff
 
-Status: accepted pending the `TERM6-ACCEPTANCE` Step commit; Phase 6 remains
-in-progress and this record is not Phase closure.
+Status: accepted by the `TERM6-ACCEPTANCE` Step commit
+`98dc7059fc6230be64fc0794b167136957ebe5bb` (`Phase 6: accept RDF term
+integration`). Phase 6 closure is recorded in
+`docs/phase/phase-6-checklist.md`; this handoff remains supporting acceptance
+evidence rather than the closure record itself.
 
 ## Source and mirrored fixture
 

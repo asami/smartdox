@@ -1,6 +1,6 @@
 # Phase 6: SimpleModeling.org RDF Term Acceptance
 
-Status: in-progress
+Status: closed
 
 ## Goal
 
@@ -30,8 +30,10 @@ SmartDox implementation end to end, the corresponding executable acceptance
 specifications pass, and the downstream handoff contains RDF-node-bearing
 evidence.
 
-The current acceptance work is recorded as accepted pending the
-`TERM6-ACCEPTANCE` Step commit; Phase 6 is not closed. See
+The `TERM6-ACCEPTANCE` Step was accepted in commit
+`98dc7059fc6230be64fc0794b167136957ebe5bb` (`Phase 6: accept RDF term
+integration`). The closure re-review and final full-suite validation passed;
+this release commit closes Phase 6 without starting Phase 7. See
 `docs/phase/phase-6-checklist.md` and
 `docs/journal/2026/08/2026-08-21-phase-6-rdf-term-handoff.md`.
 
