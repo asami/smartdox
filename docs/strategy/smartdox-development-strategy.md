@@ -80,7 +80,7 @@ Primary reference:
 
 ### Phase 5: RDF Term Compatibility
 
-Status: planned.
+Status: in progress.
 
 Purpose:
 
@@ -125,8 +125,16 @@ Primary reference:
 
 Phase 4 is closed with RDF/JSON-LD and BoK-ready occurrence projection that
 preserves the resolved concept IRI while keeping concept, occurrence, source,
-and public-glossary identities distinct. Phase 5 remains planned and requires
-a fresh Phase goal invocation; it is not started by this closure.
+and public-glossary identities distinct. Representative acceptance
+`TERM5-COMPAT-VAL-001` initially failed because generic visitor dispatch rejected
+supported compatibility markup before site construction. Focused validation
+subsequently passed: representative invocation `38805-20260820T201026Z` passed
+`DoxSiteSpec` (15/0), and accumulator invocation `39673-20260820T201108Z` passed
+`RdfTermResolverSpec` plus `DoxSiteSpec` (22/0); both completed with
+`sbt_exit=0`, `wrapper_exit=0`, and `lock=released`. Implementation and focused
+validation are complete. Step review, Step commit, full Phase review, final full
+suite, and Phase closure remain pending. Phase 6 remains a separate and
+excluded external-acceptance phase.
 
 ## 9. Development Item Status
 

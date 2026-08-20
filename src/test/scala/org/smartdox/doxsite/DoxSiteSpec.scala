@@ -28,7 +28,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Jul. 13, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -347,6 +347,65 @@ class DoxSiteSpec
         And("Manual pages keep the glossary auto-link exclusion")
         html should not (include_html("class=\"glossary\""))
         html should not (include_html("glossary/architecture/runtime"))
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "preserve legacy glossary controls while suppressing automatic terminology links" in {
+      val dir = Files.createTempDirectory("smartdox-terminology-compatibility")
+      try {
+        Given("a document with legacy, ordinary, stable, and noterm Runtime uses plus one external glossary term")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("index.dox"),
+          """Terminology Compatibility
+            |=======================
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-08-21
+            |
+            |# Body
+            |
+            |<dfn id="legacy-runtime">Runtime</dfn> is a legacy glossary definition.
+            |
+            |Ordinary Runtime is linked by glossary resolution.
+            |
+            |<span strategy="stable">Stable Runtime remains authored.</span>
+            |
+            |<noterm>Suppressed Runtime remains authored.</noterm>
+            |""".stripMargin)
+        _write(dir.resolve("glossary/architecture/runtime.dox"),
+          """Runtime
+            |=======
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-08-21
+            |
+            |# Definition
+            |
+            |Runtime glossary term.
+            |""".stripMargin)
+
+        When("SmartDox builds the site through the normal DoxSite pipeline")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site_realm(site, context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val fragments = metadata_at(realm, "metadata/documents/fragments.json")
+        val homebody = _fragment_body(fragments, "index.dox", "ja")
+
+        Then("legacy dfn markup retains its authored local id without a glossary link")
+        homebody should include_html("""<dfn id="legacy-runtime">Runtime</dfn>""")
+        And("ordinary Runtime prose resolves to the existing glossary link")
+        homebody should include_html("""class="glossary"""")
+        homebody should include_html("""href="glossary/architecture/runtime.html""")
+        And("stable-span Runtime content remains authored and unlinked")
+        homebody should include_html("""<span strategy="stable">Stable Runtime remains authored.</span>""")
+        And("noterm Runtime content remains authored and unlinked")
+        homebody should include_html("""<noterm>Suppressed Runtime remains authored.</noterm>""")
       } finally {
         _delete(dir)
       }

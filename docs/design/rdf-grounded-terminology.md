@@ -1,14 +1,15 @@
 # RDF-Grounded Terminology Design
 
-Status: stable Phase 2 grammar, Phase 3 display design, and Phase 4 projection design
+Status: stable Phase 2 grammar, Phase 3 display design, Phase 4 projection design, and Phase 5 compatibility design
 Date: 2026-08-21
 
 ## Purpose and boundary
 
 This design fixes the terminology identity and authoring contract for the
 implemented SmartDox parser, AST, namespace resolution, explicit term
-resolution, display, and RDF/JSON-LD occurrence projection. Compatibility
-proof remains Phase 5 work.
+resolution, display, and RDF/JSON-LD occurrence projection. It also fixes the
+Phase 5 compatibility boundary for legacy glossary syntax and explicit RDF
+term controls.
 
 ## Canonical identity
 
@@ -52,7 +53,7 @@ A CURIE is expanded only through this explicit context. An unknown prefix and a
 relative reference are diagnostics. An absolute HTTP(S) IRI remains unchanged;
 a non-HTTP(S) scheme is unsupported and diagnostic.
 `RdfTermResolver` reads this explicit `HEAD` metadata, expands declared CURIEs
-and HTTP(S) IRIs, and has no bare-label or registry-order fallback.
+and HTTP(S) IRIs, and has no bare-label, label, NLP, or registry-order fallback.
 
 ## Ownership and resolution invariant
 
@@ -65,13 +66,18 @@ is required.
 `Dox.Term`, `Dox.NoTerm`, and attribute-preserving `Dox.Dfn` are parser-backed
 AST values with full source locations. `form` (`canonical`, `short`,
 `bilingual`, or `verbatim`) and `dfn` `about` semantics are checked at the
-parse-and-resolve layer. `id` is preserved separately as a local anchor; Phase 2
-resolves `about` and does not claim resolver validation of `id`. Diagnostics
-induced by SmartDox source forms have source locations. They cover missing or
-unknown prefixes, malformed, relative, or non-HTTP(S) IRIs, missing `ref`, empty
-visible text, unsupported form, unresolved references, incompatible visible form,
-and `noterm` nesting. Validation of supplied read-only catalog data, including duplicate
-identity or conflicting canonical labels, may have no document location.
+parse-and-resolve layer. A `Dox.Dfn` without `about` remains compatible legacy
+glossary/HTML syntax in the AST, but creates no RDF concept identity, resolved
+definition, or RDF definition occurrence; its missing `about` is not a
+diagnostic. `id` is preserved only as a local anchor and never becomes RDF
+concept identity. Phase 2 resolves `about` and does not claim resolver
+validation of `id`. `Dox.NoTerm` deliberately prevents terminology resolution
+while preserving its inline content. Diagnostics induced by SmartDox source
+forms have source locations. They cover missing or unknown prefixes, malformed,
+relative, or non-HTTP(S) IRIs, missing `ref`, empty visible text, unsupported
+form, unresolved references, incompatible visible form, and `noterm` nesting.
+Validation of supplied read-only catalog data, including duplicate identity or
+conflicting canonical labels, may have no document location.
 
 ## Display and projection invariant
 
@@ -84,7 +90,8 @@ Rendered HTML metadata, term-occurrence data, RDF/JSON-LD, and BoK-ready
 records carry the resolved concept IRI, surface form, locale, occurrence kind,
 resolution kind, and source path/location. The projection uses the resolved IRI
 as the only concept identity; it never derives an identity from a label, visible
-surface, source path, or public-page route.
+surface, source path, or public-page route. A legacy `Dox.Dfn` without `about`
+does not enter the resolved result and therefore emits no RDF occurrence.
 
 ## Phase 4 RDF and BoK projection
 
@@ -125,6 +132,6 @@ IRI alone. Definitions retain their local `id` independently of RDF identity.
 ## Non-goals and follow-up
 
 This design does not create source/page routes, storage or service work, or a
-registry-order fallback. The parser, AST, namespace resolution, explicit term
-resolution, display, and projection remain separate from Phase 5 compatibility
-proof.
+label, NLP, or registry-order fallback. The parser, AST, namespace resolution,
+explicit term resolution, display, and projection remain separate from later
+Phase 5 compatibility slices.

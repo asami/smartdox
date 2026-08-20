@@ -1,11 +1,11 @@
 # RDF-Grounded Terminology Specification
 
-Status: stable Phase 2 grammar, Phase 3 display, and Phase 4 projection specification
+Status: stable Phase 2 grammar, Phase 3 display, Phase 4 projection, and Phase 5 compatibility specification
 Date: 2026-08-21
 
-This normative contract covers parser-backed stable grammar, display, and the
-Phase 4 RDF/JSON-LD and BoK-ready occurrence projection. Compatibility proof
-is Phase 5 work.
+This normative contract covers parser-backed stable grammar, display, the
+Phase 4 RDF/JSON-LD and BoK-ready occurrence projection, and the Phase 5
+legacy-terminology compatibility boundary.
 
 ## Namespace context and identity
 
@@ -53,19 +53,23 @@ required, and `verbatim` preserves compatible authored visible text. Explicit
 `ref` resolution is against definitions or supplied concepts.
 
 `<dfn about="HTTP(S)-IRI-or-declared-CURIE" id="html-anchor">…</dfn>` defines
-the RDF concept.
-`about` remains optional for backwards compatibility. `id` is preserved
-separately as a local HTML anchor and never becomes concept identity. Phase 2
-resolves `about`; it does not claim resolver validation of `id`.
+the RDF concept. A legacy `<dfn>` without `about` remains compatible
+glossary/HTML syntax and is retained in the AST, but creates no RDF concept
+identity, resolved definition, or RDF definition occurrence. The absence of
+`about` is not a diagnostic. `id` is preserved only as a local HTML anchor and
+never becomes RDF concept identity. Phase 2 resolves `about`; it does not claim
+resolver validation of `id`.
 
-`<noterm>…</noterm>` suppresses terminology resolution only. It is neither
-code/raw-inline nor a replacement for either semantics, and it must not nest
-`<term>`, `<dfn>`, or another `<noterm>`.
+`<noterm>…</noterm>` deliberately prevents terminology resolution while
+preserving its authored inline content. It is neither code/raw-inline nor a
+replacement for either semantics, and it must not nest `<term>`, `<dfn>`, or
+another `<noterm>`.
 
 ## Resolution and diagnostics
 
 `RdfTermResolver` reads explicit `HEAD` `term_namespaces`, expands declared
-CURIEs and HTTP(S) IRIs, and has no bare-label or registry-order fallback.
+CURIEs and HTTP(S) IRIs, and has no bare-label, label, NLP, or registry-order
+fallback.
 An absolute reference IRI must use the `http` or `https` scheme; a non-HTTP(S)
 scheme is unsupported and diagnostic. Automatic bare-label resolution is not
 stable Phase 2 grammar.
@@ -116,7 +120,9 @@ HTML `id` independently of `data-rdf-term-iri`.
 `RdfTermProjection` accepts `RdfTermResolver.Result` plus explicit
 source-document IRI, public-glossary-page IRI, source path, and locale. It may
 also receive known concepts. It never manufactures concept, source-document, or
-public-page identities from labels or filesystem paths.
+public-page identities from labels or filesystem paths. A legacy `<dfn>` without
+`about` supplies no resolved definition, so it emits no RDF/JSON-LD or BoK
+definition occurrence.
 
 The graph has distinct concept, definition occurrence, source document, and
 public glossary page resources. Each concept uses its resolved IRI, relates to
@@ -135,5 +141,6 @@ Locationless resolved entries emit no occurrence record.
 
 The parser, AST, namespace resolution, and explicit term resolution are stable
 Phase 2 grammar. Display and speech projection are stable Phase 3 behavior;
-RDF/JSON-LD and BoK occurrence projection are stable Phase 4 behavior;
-compatibility proof remains Phase 5 work.
+RDF/JSON-LD and BoK occurrence projection are stable Phase 4 behavior. The
+Phase 5 compatibility semantics fix legacy `<dfn>` without `about` as non-RDF
+and keep RDF references explicit only.

@@ -10,7 +10,7 @@ import org.smartdox.parser.Dox2Parser
 
 /*
  * @since   Aug. 18, 2026
- * @version Aug. 19, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -33,6 +33,27 @@ class RdfTermResolverSpec extends AnyWordSpec with Matchers with GivenWhenThen {
       nodes.count(_.isInstanceOf[NoTerm]) shouldBe 1
       definition.attribute("about") shouldBe Some("ex:entity")
       definition.attribute("id") shouldBe Some("entity-anchor")
+    }
+
+    "retain a legacy dfn without RDF identity or inferred references" in {
+      Given("a parsed legacy glossary definition with a local anchor and nearby matching text")
+      val document = _document(
+        """Terminology: <dfn id="legacy-entity">Entity</dfn> remains a glossary definition.
+          |
+          |A bare Entity remains ordinary inline text.""".stripMargin
+      )
+
+      When("the AST is traversed and RDF terminology is resolved")
+      val definition = _nodes(document).collectFirst { case m: Dfn => m }.get
+      val result = RdfTermResolver.resolve(document)
+
+      Then("the legacy syntax is retained without RDF identity, occurrence, reference, or diagnostic")
+      definition.attribute("about") shouldBe None
+      definition.attribute("id") shouldBe Some("legacy-entity")
+      result.concepts shouldBe Vector.empty
+      result.definitions shouldBe Vector.empty
+      result.references shouldBe Vector.empty
+      result.diagnostics shouldBe Vector.empty
     }
 
     "resolve CURIE and absolute-IRI definitions and references" in {

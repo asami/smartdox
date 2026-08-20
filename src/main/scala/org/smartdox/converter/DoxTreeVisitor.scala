@@ -16,7 +16,7 @@ import org.smartdox.metadata.DocumentMetaData
  *  version Oct. 26, 2025
  *  version Nov. 30, 2025
  *  version Apr. 16, 2026
- * @version Jun.  3, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
@@ -118,6 +118,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Strong => enter_Strong(m)
       case m: Italic => enter_Italic(m)
       case m: Code => enter_Code(m)
+      case m: Dfn => enter_Dfn(m)
+      case m: NoTerm => enter_NoTerm(m)
 //      case m: Verbatim => enter_Verbatim(m)
       case m: Ul => enter_ul(m)
       case m: Ol => enter_ol(m)
@@ -231,6 +233,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def enter_Strong(p: Strong): Unit = enter_Html_Element(p)
   protected def enter_Italic(p: Italic): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Italic: $p")
   protected def enter_Code(p: Code): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Code: $p")
+  protected def enter_Dfn(p: Dfn): Unit = enter_Html_Element(p)
+  protected def enter_NoTerm(p: NoTerm): Unit = enter_Html_Element(p)
 //  protected def enter_Verbatim(p: Verbatim): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Verbatim: $p")
   protected def enter_Ul(p: Ul): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ul: $p")
   protected def enter_Ol(p: Ol): Unit = RAISE.notImplementedYetDefect(s"Dox2StringConverter[${getClass.getSimpleName}] Ol: $p")
@@ -292,6 +296,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
       case m: Strong => leave_Strong(m)
       case m: Italic => leave_Italic(m)
       case m: Code => leave_Code(m)
+      case m: Dfn => leave_Dfn(m)
+      case m: NoTerm => leave_NoTerm(m)
 //      case m: Verbatim => leave_Verbatim(m)
       case m: Ul => leave_ul(m)
       case m: Ol => leave_ol(m)
@@ -410,6 +416,8 @@ trait DoxTreeVisitor extends ContentTreeVisitor[Dox] {
   protected def leave_Strong(p: Strong): Unit = leave_Html_Element(p)
   protected def leave_Italic(p: Italic): Unit = {}
   protected def leave_Code(p: Code): Unit = {}
+  protected def leave_Dfn(p: Dfn): Unit = leave_Html_Element(p)
+  protected def leave_NoTerm(p: NoTerm): Unit = leave_Html_Element(p)
 //  protected def leave_Verbatim(p: Verbatim): Unit = {}
   protected def leave_Ul(p: Ul): Unit = {}
   protected def leave_Ol(p: Ol): Unit = {}

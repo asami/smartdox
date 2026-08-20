@@ -30,7 +30,7 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Jun. 29, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -146,6 +146,7 @@ object LinkEnabler {
           else
             directive_node(m)
         case m: Dfn => directive_node(m)
+        case m: NoTerm => directive_node(m)
         case m: Dt => directive_node(m)
         case m: Hyperlink => _transform_hyperlink(_locale_, m)
         case m: InlineMacro if m.name == "bib" => _transform_bibliography_macro(m)

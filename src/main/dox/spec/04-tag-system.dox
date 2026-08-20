@@ -176,7 +176,7 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 
 | タグ | 意味 | 用途 | 抽出カテゴリ |
 |------|------|------|---------------|
-| `<dfn>` | 定義語 | `<dfn about="HTTP(S)-IRI-or-declared-CURIE" id="html-anchor">…</dfn>` | GlossaryEntry（将来の出力候補） |
+| `<dfn>` | 定義語 | RDF定義は`<dfn about="HTTP(S)-IRI-or-declared-CURIE" id="html-anchor">…</dfn>`、互換形は`<dfn id="html-anchor">…</dfn>` | GlossaryEntry（将来の出力候補） |
 | `<term>` | 用語参照 | `<term ref="HTTP(S)-IRI-or-declared-CURIE" form="canonical|short|bilingual|verbatim">…</term>` | TermReference（将来の出力候補） |
 | `<noterm>` | 用語解決抑止 | `<noterm>…</noterm>` | None（出力は行わない） |
 | `<abbr>` | 略語 | 用語展開 | Abbreviation |
@@ -189,21 +189,23 @@ BoK（Body of Knowledge）や文芸モデルの用語リンクを形成するタ
 
 # RDF-grounded terminology grammar｜RDF基盤用語文法
 
-`<dfn>` の既存形は後方互換のため維持します。`about` はRDF概念を
-指し、`id` は `about` と別に保存されるローカルHTMLアンカーであって概念IDでは
-ありません。Phase 2は `about` を解決し、`id` のリゾルバ検証を主張しません。
+`<dfn>` の `about` なし既存形は、後方互換の glossary/HTML 構文として維持します。
+これはASTとinline内容を保持しますが、RDF概念ID、RDF定義occurrence、または診断を
+生成しません。`about` はRDF概念を指し、`id` は `about` と別に保存されるローカルHTML
+アンカーだけであって、RDF概念IDには決してなりません。Phase 2は `about` を解決し、`id`
+のリゾルバ検証を主張しません。
 `<term>` は明示的な概念参照で、`ref` を先に解決し、`form` の既定値は `canonical`
 です。本文は必須で、`verbatim` は互換な著者指定の表示を保持します。
 
-`<noterm>` は用語解決だけを抑止します。コードまたはraw-inlineの代替ではなく、
-`<term>`、`<dfn>`、または別の `<noterm>` をネストできません。
+`<noterm>` はinline内容を保持したまま用語解決を意図的に抑止します。コードまたは
+raw-inlineの代替ではなく、`<term>`、`<dfn>`、または別の `<noterm>` をネストできません。
 
 これらはパーサとリゾルバで支援される安定 Phase 2 文法です。`RdfTermResolver` は
 `HEAD` の `term_namespaces` から宣言済み CURIE と HTTP(S) IRI を展開し、bare-label
-またはレジストリ順のフォールバックを行いません。用語参照は絶対 HTTP(S) IRI または
+、label、NLP、またはレジストリ順のフォールバックを行いません。用語参照は絶対 HTTP(S) IRI または
 宣言済み CURIE に限られ、非 HTTP(S) スキームは診断対象です。概念IRI、名前空間、診断の
 詳細は `docs/spec/rdf-grounded-terminology.md` を参照してください。描画・音声は Phase 3、
-RDF/JSON-LD と BoK occurrence 出力は Phase 4、互換性証明は Phase 5 の作業です。
+RDF/JSON-LD と BoK occurrence 出力は Phase 4、ここで定める互換性境界は Phase 5 で固定されます。
 
 # SmartDox Extraction Mapping｜抽出マッピング一覧
 

@@ -2,28 +2,40 @@
 
 This checklist is the authoritative progress ledger for Phase 5.
 
+Phase Status: IN PROGRESS
+
+Representative acceptance `TERM5-COMPAT-VAL-001` initially failed because generic
+visitor dispatch rejected supported compatibility markup before site construction.
+Focused validation subsequently passed: representative invocation
+`38805-20260820T201026Z` passed `DoxSiteSpec` (15/0), and accumulator invocation
+`39673-20260820T201108Z` passed `RdfTermResolverSpec` plus `DoxSiteSpec` (22/0);
+both completed with `sbt_exit=0`, `wrapper_exit=0`, and `lock=released`. The
+bounded repair remains in progress. Step review, Step commit, full Phase review,
+final full suite, and Phase closure remain pending. Phase 6 remains separate and
+excluded from this Phase.
+
 ## TERM5-01: Preserved Inputs
 
-Status: OPEN
+Status: DONE
 
-- [ ] Preserve existing `<dfn>` behavior when `about` is absent.
-- [ ] Preserve unambiguous automatic glossary links.
-- [ ] Preserve `span strategy="stable"` migration behavior.
+- [x] Preserve existing `<dfn>` behavior when `about` is absent.
+- [x] Preserve unambiguous automatic glossary links.
+- [x] Preserve `span strategy="stable"` migration behavior.
 
 ## TERM5-02: Precise Suppression
 
-Status: OPEN
+Status: DONE
 
-- [ ] Make `<noterm>` suppress terminology resolution without changing the
+- [x] Make `<noterm>` suppress terminology resolution without changing the
       surrounding inline content meaning.
-- [ ] Keep ambiguous or ordinary-language terms unlinked unless resolution is
+- [x] Keep ambiguous or ordinary-language terms unlinked unless resolution is
       explicitly permitted.
 
 ## TERM5-03: Executable Acceptance
 
-Status: OPEN
+Status: DONE
 
-- [ ] Add executable regression specifications for all preserved and
+- [x] Add executable regression specifications for all preserved and
       suppressed paths.
-- [ ] Run the focused compatibility validation successfully.
-- [ ] Run `git diff --check` successfully.
+- [x] Run the focused compatibility validation successfully.
+- [x] Run `git diff --check` successfully.
