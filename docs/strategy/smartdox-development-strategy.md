@@ -94,7 +94,7 @@ Primary reference:
 
 ### Phase 6: SimpleModeling.org RDF Term Acceptance
 
-Status: planned.
+Status: closed.
 
 Purpose:
 
@@ -123,18 +123,16 @@ Primary reference:
 
 ## Current Priority
 
-Phase 5 is closed by Step commit
-`312a301b2d06a4f1b97098cf28d18775ab944184` (`Phase 5: preserve RDF term
-compatibility`), independent full Phase review
-`c966d1444ee5ed69deb5d4584b5777ca6861733e..312a301b2d06a4f1b97098cf28d18775ab944184`
-(`SEALED_PHASE_LEDGER PASS`, no Current Boundary Blockers), and final mandatory
-full-suite invocation `53586-20260820T203315Z` with logical argv
-`["--batch", "test"]` (249 succeeded / 0 failed / 4 ignored across 31 suites;
-`sbt_exit=0`, `wrapper_exit=0`, `lock=released`). Phase 6 remains planned,
-separate, and excluded from this closed Phase.
+Phase 7 is closed by Step commit
+`496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic
+inline open-tag grammar`), its mandatory Phase-full review, the accepted
+focused closure review for `CB-P7-FULL-001`, and final mandatory full-suite
+invocation `49720-20260821T020637Z` with logical argv `["--batch", "test"]`
+(261 succeeded / 0 failed across 32 suites; `sbt_exit=0`, `wrapper_exit=0`,
+`lock=released`). This closure does not activate a successor Phase.
 
 ## 9. Development Item Status
 
 | ID | Source | Development item | Disposition | Target | Status |
 | --- | --- | --- | --- | --- | --- |
-| DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | ADOPTED |
+| DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | CLOSED |

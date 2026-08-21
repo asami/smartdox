@@ -43,11 +43,20 @@ object DoxInlineParser {
       // println(s"Inline($config): $in")
       val (messages, result, state) = apply(config, in)
       result match {
-        case ParseSuccess(dox, _) => Dox.toDox(dox)
+        case ParseSuccess(dox, _) => _to_dox(dox)
         case ParseFailure(_, _) => RAISE.notImplementedYetDefect
         case EmptyParseResult() => RAISE.notImplementedYetDefect
       }
     }
+
+  // Keep parser-emitted empty generic nodes local to this parser.  Global
+  // Dox normalization intentionally removes empty spans and must remain
+  // unchanged for callers outside this parser.
+  private def _to_dox(ps: Seq[Dox]): Dox = ps.toList match {
+    case Nil => Dox.empty
+    case x :: Nil => x
+    case xs => Fragment(xs)
+  }
 
   private val _inline_macro_regex = """^([A-Za-z][A-Za-z0-9_-]*):\[(.*)\]$""".r
 
@@ -1123,10 +1132,28 @@ object DoxInlineParser {
       override protected def character_State(c: Char) = copy(cs = cs :+ c)
 
       override protected def close_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState = {
-        // When finishing opening tag, construct a new nested XmlState
         val raw = cs.dropWhile(_ == '<').mkString
-        val (tag, attrs) = XmlState._parse_tag_definition(raw)
-        XmlState(config, parent = parent, tagName = tag, attrs = attrs)
+        if (raw.trim.endsWith("/") && !raw.endsWith("/"))
+          RAISE.noReachDefect(this, "malformed self-closing generic tag")
+        else if (raw.endsWith("/")) {
+          val (tag, attrs) = XmlState._parse_tag_definition(raw)
+          val dtctx = Dox2Parser.ParseContext.now().dateTimeContext
+          val dox = Dox.attachLocation(
+            Dox.create(tag, attrs, Vector.empty[Dox])(dtctx),
+            config.location
+          )
+          parent match {
+            case gp: XmlState =>
+              val buf = new StringBuilder
+              dox.printDox(buf)
+              gp.copy(cs = gp.cs ++ buf.toString.toVector)
+            case _ =>
+              parent.returnFrom(Vector(dox))
+          }
+        } else {
+          val (tag, attrs) = XmlState._parse_tag_definition(raw)
+          XmlState(config, parent = parent, tagName = tag, attrs = attrs)
+        }
       }
     }
 
@@ -1260,7 +1287,7 @@ object DoxInlineParser {
               }
             } else {
               // boolean attribute
-              attrs += attrName -> attrName
+              attrs += attrName -> ""
               parseAttr(afterName)
             }
           } else {

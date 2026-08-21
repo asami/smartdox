@@ -4,20 +4,15 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Phase 7 is in progress: `TAG7-01` generic inline open-tag grammar
-  implementation and focused executable-specification evidence are complete;
-  phase-wide review, full validation, and release closure remain.
-- Most recently closed phase: `phase-6.md`: SimpleModeling.org RDF-term
-  acceptance.
-- Closure checklist: `phase-6-checklist.md`.
-- Phase 6 handoff evidence is recorded in
-  `../journal/2026/08/2026-08-21-phase-6-rdf-term-handoff.md`; the handoff was
-  accepted by the `TERM6-ACCEPTANCE` Step commit
-  `98dc7059fc6230be64fc0794b167136957ebe5bb` (`Phase 6: accept RDF term
-  integration`) and confirmed by the final full-suite validation.
-- Phase 7 is the separately admitted generic inline-parser grammar slice; its
-  Step checklist is complete, while its phase-level review, full validation,
-  and release closure remain in progress.
+- No Phase is active after Phase 7 closure.
+- Most recently closed phase: `phase-7.md`: Generic Inline Open-Tag Grammar.
+- Closure checklist: `phase-7-checklist.md`.
+- Phase 7 was accepted in the `TAG7-01` Step commit
+  `496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic
+  inline open-tag grammar`). Its mandatory full Phase review found one bounded
+  parser blocker, which the accepted focused closure review closed. The final
+  full-suite validation passed before this release commit.
+- This closure records only Phase 7; it does not activate a successor Phase.
 
 Belongs:
 

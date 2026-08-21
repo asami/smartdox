@@ -1,6 +1,6 @@
 # Phase 7: Generic Inline Open-Tag Grammar
 
-Status: in-progress
+Status: closed
 
 ## Goal
 
@@ -36,6 +36,14 @@ Out of scope:
 This Phase completes only when the deferred grammar paths are specified and
 implemented, focused parser and RDF-term regression specifications pass, the
 full Phase validation passes, and the reviewed release tree is committed.
+
+The `TAG7-01` Step was accepted in commit
+`496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic inline
+open-tag grammar`). The mandatory Phase-full review found `CB-P7-FULL-001`,
+which the authorized parser-local closure repair and focused closure review
+resolved. Final full-suite invocation `49720-20260821T020637Z` passed 261
+succeeded / 0 failed across 32 suites; this release commit closes Phase 7
+without starting a successor Phase.
 
 ## References
 

@@ -166,6 +166,48 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       recovered(1).head.attributes.list shouldBe List("enabled" -> "")
     }
 
+    "preserve standalone self-closing nodes through the public parse method" in {
+      Given("standalone generic spans in empty and boolean self-closing forms")
+      val sources = Vector("<span/>", "<span enabled/>")
+
+      When("the public inline parser parses each source")
+      val parsed = sources.map(source => DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source))
+
+      Then("both supported spans remain present with empty contents and authored attributes")
+      parsed should have size 2
+      parsed.foreach { dox =>
+        dox shouldBe a [Span]
+        dox.asInstanceOf[Span].contents shouldBe Nil
+      }
+      parsed.head.asInstanceOf[Span].attributes.list shouldBe Nil
+      parsed(1).asInstanceOf[Span].attributes.list shouldBe List("enabled" -> "")
+    }
+
+    "retain nested boolean and self-closing generic nodes in authored order" in {
+      Given("a generic parent containing a terminal boolean child and self-closing children")
+      val source = "<span>before<span enabled>flag</span><span/><span enabled/>after</span>"
+
+      When("the public inline parser parses the nested generic source")
+      val parsed = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+
+      Then("the parent retains each nested node, empty contents, and source order")
+      parsed shouldBe a [Span]
+      val parent = parsed.asInstanceOf[Span]
+      parent.contents should have size 5
+      parent.contents(0) shouldBe Text("before")
+      parent.contents(1) shouldBe a [Span]
+      val booleanchild = parent.contents(1).asInstanceOf[Span]
+      booleanchild.attributes.list shouldBe List("enabled" -> "")
+      booleanchild.contents shouldBe List(Text("flag"))
+      parent.contents(2) shouldBe a [Span]
+      parent.contents(2).asInstanceOf[Span].contents shouldBe Nil
+      parent.contents(3) shouldBe a [Span]
+      val selfclosingbooleanchild = parent.contents(3).asInstanceOf[Span]
+      selfclosingbooleanchild.attributes.list shouldBe List("enabled" -> "")
+      selfclosingbooleanchild.contents shouldBe Nil
+      parent.contents(4) shouldBe Text("after")
+    }
+
     "retain self-closing nodes and surrounding text in authored order" in {
       Given("ordinary text surrounding empty and boolean self-closing spans")
       val source = "before<span/>middle<span enabled/>after"

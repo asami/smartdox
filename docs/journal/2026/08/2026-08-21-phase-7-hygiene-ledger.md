@@ -1,6 +1,6 @@
 # Phase 7 Hygiene Ledger
 
-Status: open
+Status: closed
 Date: 2026-08-21
 
 This non-normative, open ledger records observations kept separate from the
@@ -12,6 +12,12 @@ Phase 7 generic inline open-tag implementation boundary.
   retains explicitly accumulated empty generic self-closing nodes without
   changing global `Dox.toDox` normalization. Focused SBT invocation
   `8635-20260821T004057Z` completed with 54 succeeded and 0 failed.
+- `CB-P7-FULL-001` — RESOLVED on 2026-08-21. `P7-STEP-REPAIR-003` makes the
+  public parser use local result aggregation and completes the nested generic
+  attribute/self-closing path while leaving global `Dox.toDox` normalization
+  unchanged. Focused SBT invocation `46692-20260821T015827Z` completed with
+  56 succeeded and 0 failed; the independent focused closure review converged
+  with zero actionable findings.
 
 ## Step Repair Exception Decision
 
@@ -75,6 +81,30 @@ Phase 7 generic inline open-tag implementation boundary.
   may begin without a new explicit developer decision.
 - Resume state: `REVIEW_FIX`, repair cycle 3.
 
+## Phase Closure Repair Decision
+
+- Decision ID: `P7-STEP-REPAIR-003`
+- Date: 2026-08-21
+- Decision resolution: `AUTHORIZE_P7_REPAIR_003`.
+- Decision: the developer authorized one bounded Phase closure repair after
+  the mandatory Phase-full review reported `CB-P7-FULL-001`.
+- Boundary: make the public `DoxInlineParser.parse` result preserve empty
+  supported generic self-closing nodes without changing global `Dox.toDox`,
+  and complete the nested generic-tag path for terminal boolean attributes and
+  immediate self-closing forms. Direct parser executable specifications may
+  prove the public and nested paths.
+- Explicit exclusion: do not edit `Dox.scala`, alter global normalization,
+  expand RDF terminology, tag schemas, rendering, diagnostics, public API,
+  parser decomposition, whitespace grammar, repository scope, or Phase 7
+  acceptance criteria.
+- Required validation: rerun the frozen focused selector
+  `testOnly org.smartdox.parser.DoxInlineParserSpec org.smartdox.parser.Dox2ParserSpec org.smartdox.semanticweb.RdfTermResolverSpec org.smartdox.semanticweb.SimpleModelingRdfTermAcceptanceSpec`,
+  then complete one focused Phase closure re-review before final full
+  validation.
+- Stop condition: no further code change may begin without a new explicit
+  developer decision.
+- Resume state: `REVIEW_FIX`, Phase closure repair cycle 1.
+
 ## Hygiene
 
 - `HYG-P7-001` — Status: RESOLVED. The focused Step review found that the
@@ -82,6 +112,16 @@ Phase 7 generic inline open-tag implementation boundary.
   the final focused validation had passed. This M0 ledger-only update records
   the final evidence; it changes no parser behavior, executable specification,
   acceptance criterion, or Phase 7 boundary.
+
+- `HYG-P7-002` — Status: OPEN, separate-boundary follow-up. The pre-existing
+  `plain` scenarios in `DoxInlineParserSpec` lack Given/When/Then structure,
+  and `simple` prints without an observable expectation. This was present at
+  the Phase base and is not changed by `P7-STEP-REPAIR-003`.
+
+- `HYG-P7-003` — Status: OPEN, separate-boundary follow-up. Pre-existing
+  dormant/no-op scenarios and front-loaded Given/When/Then clauses remain in
+  `Dox2ParserSpec`. This was present at the Phase base and is outside this
+  parser-boundary repair.
 
 Existing Phase 2 hygiene records remain resolved and are not duplicated here.
 
