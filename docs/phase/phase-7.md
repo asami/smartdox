@@ -1,6 +1,6 @@
 # Phase 7: Generic Inline Open-Tag Grammar
 
-Status: planned
+Status: in-progress
 
 ## Goal
 

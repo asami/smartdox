@@ -3,6 +3,7 @@ package org.smartdox.parser
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import scalaz._, Scalaz._
+import org.scalatest.GivenWhenThen
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
@@ -14,11 +15,11 @@ import org.smartdox._
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Jun. 29, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
-class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with UseDoxParser {
+class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with GivenWhenThen with UseDoxParser {
   "plain" should {
     "simple" in {
       val r = DoxInlineParser.parse("特性一覧")
@@ -110,6 +111,99 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
     }
   }
 
+  "generic inline tags" should {
+    "preserve a terminal boolean attribute as an empty-string value" in {
+      Given("a generic span with a terminal boolean attribute and text content")
+      val source = "<span enabled>text</span>"
+
+      When("the inline parser reads the source")
+      val (_, result, _) = DoxInlineParser.apply(DoxInlineParser.Config.smartdox, source)
+
+      Then("the supported span retains the boolean attribute and its contents")
+      val nodes = result.toOption.get
+      nodes should have size 1
+      val span = nodes.head.asInstanceOf[Span]
+      span.attributes.list shouldBe List("enabled" -> "")
+      span.contents shouldBe List(Text("text"))
+    }
+
+    "preserve quoted and terminal boolean attributes in source order" in {
+      Given("a generic span with a quoted attribute followed by a boolean attribute")
+      val source = "<span lang=\"ja\" enabled>text</span>"
+
+      When("the inline parser reads the source")
+      val (_, result, _) = DoxInlineParser.apply(DoxInlineParser.Config.smartdox, source)
+
+      Then("both attributes are retained in their authored order")
+      val nodes = result.toOption.get
+      nodes should have size 1
+      val span = nodes.head.asInstanceOf[Span]
+      span.attributes.list shouldBe List("lang" -> "ja", "enabled" -> "")
+      span.contents shouldBe List(Text("text"))
+    }
+
+    "create empty supported nodes for generic self-closing forms" in {
+      Given("generic spans in empty and boolean self-closing forms")
+      val sources = Vector("<span/>", "<span enabled/>")
+
+      When("the inline parser reads both sources")
+      val results = sources.map { source =>
+        val (_, result, _) = DoxInlineParser.apply(DoxInlineParser.Config.smartdox, source)
+        result.toOption.get
+      }
+      val recovered = results.map { nodes =>
+        nodes.flatMap(_nodes).collect { case m: Span => m }
+      }
+
+      Then("each form produces one empty span without requiring a close tag")
+      recovered should have size 2
+      recovered.foreach { spans =>
+        spans should have size 1
+        spans.head shouldBe a [Span]
+        spans.head.contents shouldBe Nil
+      }
+      recovered.head.head.attributes.list shouldBe Nil
+      recovered(1).head.attributes.list shouldBe List("enabled" -> "")
+    }
+
+    "retain self-closing nodes and surrounding text in authored order" in {
+      Given("ordinary text surrounding empty and boolean self-closing spans")
+      val source = "before<span/>middle<span enabled/>after"
+
+      When("the inline parser reads the mixed result-flow source")
+      val (_, result, _) = DoxInlineParser.apply(DoxInlineParser.Config.smartdox, source)
+      val nodes = result.toOption.get.flatMap {
+        case m: Fragment => m.contents
+        case m => Vector(m)
+      }
+
+      Then("the parser retains both spans and all surrounding text in source order")
+      nodes should have size 5
+      nodes(0) shouldBe Text("before")
+      nodes(1) shouldBe a [Span]
+      nodes(1).asInstanceOf[Span].attributes.list shouldBe Nil
+      nodes(1).asInstanceOf[Span].contents shouldBe Nil
+      nodes(2) shouldBe Text("middle")
+      nodes(3) shouldBe a [Span]
+      nodes(3).asInstanceOf[Span].attributes.list shouldBe List("enabled" -> "")
+      nodes(3).asInstanceOf[Span].contents shouldBe Nil
+      nodes(4) shouldBe Text("after")
+    }
+
+    "reject a slash that is not immediately followed by a closing angle bracket" in {
+      Given("a self-closing span whose slash is followed by whitespace")
+      val source = "<span enabled/ >"
+
+      When("the inline parser reads the malformed source")
+      val error = intercept[org.goldenport.exception.NoReachDefectException] {
+        DoxInlineParser.apply(DoxInlineParser.Config.smartdox, source)
+      }
+
+      Then("the existing deterministic parser failure boundary is retained")
+      error shouldBe a [org.goldenport.exception.NoReachDefectException]
+    }
+  }
+
   private def _collect_code_text(dox: Dox): List[String] = {
     val own = dox match {
       case m: Code => List(m.contents.map(_.toText).mkString)
@@ -120,4 +214,7 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
 
   private def _contains_italic(dox: Dox): Boolean =
     dox.isInstanceOf[Italic] || dox.elements.exists(_contains_italic)
+
+  private def _nodes(dox: Dox): Vector[Dox] =
+    dox +: dox.elements.toVector.flatMap(_nodes)
 }

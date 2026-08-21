@@ -4,26 +4,26 @@ This checklist is the authoritative progress ledger for Phase 7.
 
 ## TAG7-01: Deferred Open-Tag Paths
 
-Status: OPEN
+Status: COMPLETED
 
-- [ ] Specify accepted boolean-attribute and self-closing inline-tag forms.
-- [ ] Complete `OpenTagState.resultOpenEnd`.
-- [ ] Complete the terminal `>` and `/` transitions in `TagAttributeState`.
+- [x] Specify accepted boolean-attribute and self-closing inline-tag forms.
+- [x] Complete `OpenTagState.resultOpenEnd`.
+- [x] Complete the terminal `>` and `/` transitions in `TagAttributeState`.
 
 ## TAG7-02: Preserved Grammar
 
-Status: OPEN
+Status: COMPLETED
 
-- [ ] Preserve quoted-attribute open/close-tag behavior.
-- [ ] Preserve parser source locations and deterministic diagnostics for
+- [x] Preserve quoted-attribute open/close-tag behavior.
+- [x] Preserve parser source locations and deterministic diagnostics for
       unsupported or malformed forms.
-- [ ] Do not change RDF term resolution behavior.
+- [x] Do not change RDF term resolution behavior.
 
 ## TAG7-03: Executable Acceptance
 
-Status: OPEN
+Status: COMPLETED
 
-- [ ] Add executable parser specifications for the admitted forms and their
+- [x] Add executable parser specifications for the admitted forms and their
       malformed counterparts.
-- [ ] Run focused parser and RDF-term regression validation successfully.
-- [ ] Run `git diff --check` successfully.
+- [x] Run focused parser and RDF-term regression validation successfully.
+- [x] Run `git diff --check` successfully.

@@ -24,7 +24,7 @@ import org.smartdox._
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 19, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -577,7 +577,7 @@ object DoxInlineParser {
     override def is_Debug = true
 
     override def returnEndResult: ParseResult[Dox] =
-      ParseSuccess(Text(cs.mkString))
+      ParseSuccess(_result_dox(doxes, cs))
 
     override def returnFrom(c: Char): DoxInlineParseState = character_State(c)
 
@@ -626,10 +626,16 @@ object DoxInlineParser {
     }
 
     override protected def end_Result(): ParseResult[Dox] =
-      if (cs.isEmpty)
-        ParseSuccess(Dox.toDox(doxes))
-      else
-        ParseSuccess(Dox.toDox(doxes :+ Text(cs.mkString)))
+      ParseSuccess(_result_dox(doxes, cs))
+
+    private def _result_dox(values: Seq[Dox], chars: Seq[Char]): Dox = {
+      val result = if (chars.isEmpty) values else values :+ Text(chars.mkString)
+      result.toList match {
+        case Nil => Dox.empty
+        case x :: Nil => x
+        case xs => Fragment(xs)
+      }
+    }
 
     override protected def close_Angle_Bracket_State(c: Char): DoxInlineParseState =
       copy(cs = cs :+ c)
@@ -1574,7 +1580,14 @@ object DoxInlineParser {
       else
         InlineState(CloseTagState(config, parent, name.mkString, ps), '<', '/')
 
-    def resultOpenEnd(ps: Vector[(String, String)]) = ???
+    def resultOpenEnd(ps: Vector[(String, String)]): DoxInlineParseState = {
+      val dtctx = Dox2Parser.ParseContext.now().dateTimeContext
+      val dox = Dox.attachLocation(
+        Dox.create(name.mkString, ps, Vector.empty[Dox])(dtctx),
+        config.location
+      )
+      parent.returnFrom(Vector(dox))
+    }
 
     override protected def character_State(evt: CharEvent): DoxInlineParseState =
       evt.c match {
@@ -1583,6 +1596,7 @@ object DoxInlineParser {
             XmlState(config, parent, name.mkString, Vector.empty)
           else
             InlineState(CloseTagState(config, parent, name.mkString, Vector.empty), '<', '/')
+        case '/' => SkipOneState(config, resultOpenEnd(Vector.empty), '>')
         case ' ' => SkipSpaceState(config, TagAttributeListState(config, this))
         case m => copy(name = name :+ m)
       }
@@ -1617,8 +1631,11 @@ object DoxInlineParser {
 
     override protected def character_State(evt: CharEvent): DoxInlineParseState =
       evt.c match {
-        case '>' => ???
-        case '/' => ???
+        case '>' => parent.parent.resultOpenClose(parent.attrs :+ (key.mkString, ""))
+        case '/' =>
+          val keytext = key.mkString
+          val newattrs = parent.attrs :+ (keytext, "")
+          SkipOneState(config, parent.parent.resultOpenEnd(newattrs), '>')
         case ' ' => this
         case '=' => SkipSpaceStartState(config, TagAttributeValueState(config, this), '"')
         case m => copy(key = key :+ m)

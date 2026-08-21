@@ -20,7 +20,7 @@ import org.smartdox.{Dfn, Document, Dox, Hyperlink, InlineMacro, NoTerm, Referen
  *  version Apr. 19, 2026
  *  version Jun. 23, 2026
  *  version Jul.  6, 2026
- * @version Aug. 19, 2026
+ * @version Aug. 21, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -75,6 +75,34 @@ class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with 
       definition.location shouldBe Some(location)
       term.location shouldBe Some(location)
       noterm.location shouldBe Some(location)
+    }
+
+    "preserve generic boolean and self-closing tags with logical-line locations" in {
+      Given("a source-located paragraph containing generic boolean and self-closing spans")
+      val location = ParseLocation.create(48)
+      val paragraphs = Vector(
+        LogicalParagraph("<span enabled>text</span>", location),
+        LogicalParagraph("<span/>", location),
+        LogicalParagraph("<span enabled/>", location)
+      )
+
+      When("Dox2Parser parses each paragraph through its SmartDox configuration")
+      val parsed = paragraphs.map { paragraph =>
+        val document = Dox2Parser.parse(Dox2Parser.Config.smartdox, paragraph).asInstanceOf[Document]
+        _nodes(document).collect { case m: Span => m }
+      }
+
+      Then("each supported span retains its attributes, empty contents, and source location")
+      parsed should have size 3
+      parsed.foreach { spans => spans should have size 1 }
+      val spans = parsed.map(_.head)
+      spans(0).attributes.list shouldBe List("enabled" -> "")
+      spans(0).contents shouldBe List(org.smartdox.Text("text"))
+      spans(1).attributes.list shouldBe Nil
+      spans(1).contents shouldBe Nil
+      spans(2).attributes.list shouldBe List("enabled" -> "")
+      spans(2).contents shouldBe Nil
+      spans.foreach(_.location shouldBe Some(location))
     }
 
     "attach a supplied logical-line location to site and generic inline macros" in {

@@ -397,6 +397,22 @@ XML-style inline tags are supported for known inline elements such as `b`, `i`,
 <span>*span*</span>
 ```
 
+Generic inline open tags also support a terminal boolean attribute and an
+immediate self-closing form:
+
+```dox
+<span enabled>text</span>
+<span lang="ja" enabled>text</span>
+<span/>
+<span enabled/>
+```
+
+The parser stores a boolean attribute as `(name, "")` and preserves quoted
+and boolean attributes in source order. A self-closing tag creates the
+supported tagged Dox node with empty contents and does not require a child or
+close-tag state. Its slash must be immediately followed by `>`; for example,
+`<span enabled/ >` remains on the deterministic malformed-input failure path.
+
 `<term ref="…" form="…">`, `<dfn about="…" id="…">`, and
 `<noterm>…</noterm>` are supported parser-backed terminology forms. They produce
 the stable Phase 2 terminology AST and use the resolver semantics specified in
