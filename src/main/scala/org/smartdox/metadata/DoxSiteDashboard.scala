@@ -17,7 +17,8 @@ import scala.collection.JavaConverters._
 /*
  * @since   Jun.  4, 2026
  *  version Jun. 29, 2026
- * @version Jul. 13, 2026
+ *  version Jul. 13, 2026
+ * @version Aug. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 case class DoxSiteDashboard(
@@ -586,7 +587,14 @@ object DoxSiteDashboard {
   private def _node_label(node: Rdf.Node): String = node match {
     case Rdf.Node.Uri(value) => _short_label(value)
     case Rdf.Node.Blank(value) => value
-    case Rdf.Node.Literal(value, _, _) => if (value.length > 80) value.take(77) + "..." else value
+    case Rdf.Node.Literal(value, datatype, lang) =>
+      if (value.nonEmpty)
+        if (value.length > 80) value.take(77) + "..." else value
+      else {
+        val datatypesuffix = datatype.map(x => s"^^<$x>").getOrElse("")
+        val languagesuffix = lang.map(x => s"@$x").getOrElse("")
+        "\"\"" + datatypesuffix + languagesuffix
+      }
   }
 
   private def _node_type(node: Rdf.Node): String = node match {

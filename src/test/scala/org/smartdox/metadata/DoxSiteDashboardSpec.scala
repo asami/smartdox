@@ -18,7 +18,8 @@ import org.smartdox.semanticweb.Rdf
 /*
  * @since   Jun.  4, 2026
  *  version Jun. 25, 2026
- * @version Jul. 13, 2026
+ *  version Jul. 13, 2026
+ * @version Aug. 23, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteDashboardSpec extends AnyWordSpec with Matchers with GivenWhenThen with SmartDoxSpecVocabulary {
@@ -146,6 +147,72 @@ class DoxSiteDashboardSpec extends AnyWordSpec with Matchers with GivenWhenThen 
           cursor.get[String]("target").toOption.contains("https://www.simplemodeling.org/architecture/one")
       }.getOrElse(fail("Missing tagged article RDF edge"))
       articleedge.hcursor.get[Vector[String]]("tags").fold(throw _, identity) shouldBe expectedtags
+    }
+
+    "project deterministic nonempty display labels for empty RDF literals" in {
+      Given("site RDF contains empty plain, language-tagged, typed, and combined literal values")
+      val subject = Rdf.Node.Uri("https://example.com/literal-labels")
+      val predicate = Rdf.Node.Uri("https://schema.org/description")
+      val objecturi = Rdf.Node.Uri("https://example.com/object")
+      val blank = Rdf.Node.Blank("blank-label")
+      val datatype = "https://example.com/datatype"
+      val longvalue = "x" * 81
+      val triples = Vector(
+        Rdf.Triple(subject, Rdf.Node.Uri("https://schema.org/about"), objecturi),
+        Rdf.Triple(subject, Rdf.Node.Uri("https://schema.org/example"), blank),
+        Rdf.Triple(subject, predicate, Rdf.Node.Literal("")),
+        Rdf.Triple(subject, predicate, Rdf.Node.Literal("", lang = Some("en"))),
+        Rdf.Triple(subject, predicate, Rdf.Node.Literal("", datatype = Some(datatype))),
+        Rdf.Triple(subject, predicate, Rdf.Node.Literal("", datatype = Some(datatype), lang = Some("ja"))),
+        Rdf.Triple(subject, predicate, Rdf.Node.Literal("ordinary literal")),
+        Rdf.Triple(subject, predicate, Rdf.Node.Literal(longvalue))
+      )
+      val meta = MetaData()
+      val site = SiteModel.create(meta, Vector.empty, publicationTriples = triples)
+      val sourcejsonldbefore = site.toJsonLD
+      val sourceturtlebefore = site.toTurtle
+
+      When("SmartDox serializes the RDF graph handoff metadata")
+      val graphjson = DoxSiteDashboard.toRdfGraphJsonString(meta.copy(site = site))
+      val graphjsonrepeat = DoxSiteDashboard.toRdfGraphJsonString(meta.copy(site = site))
+      val graph = parser.parse(graphjson).fold(throw _, identity)
+      val nodes = graph.hcursor.downField("nodes").as[Vector[Json]].fold(throw _, identity)
+      val edges = graph.hcursor.downField("edges").as[Vector[Json]].fold(throw _, identity)
+      def _node_id_(node: Rdf.Node): String = node match {
+        case Rdf.Node.Uri(value) => value
+        case Rdf.Node.Blank(value) => s"_:${value}"
+        case Rdf.Node.Literal(value, datatype, lang) =>
+          s"literal:${value}:${Vector(datatype, lang).flatten.mkString("|")}"
+      }
+      def _label_(id: String): String =
+        nodes.find(_.hcursor.get[String]("id").toOption.contains(id)).
+          flatMap(_.hcursor.get[String]("label").toOption).
+          getOrElse(fail(s"Missing graph label for $id"))
+      def _edge_(source: String, target: String, predicatevalue: String): Boolean =
+        edges.exists { edge =>
+          val cursor = edge.hcursor
+          cursor.get[String]("source").toOption.contains(source) &&
+            cursor.get[String]("target").toOption.contains(target) &&
+            cursor.get[String]("predicate").toOption.contains(predicatevalue)
+        }
+
+      Then("empty literals use deterministic RDF display forms while ordinary literal labels remain unchanged")
+      _label_(subject.value) shouldBe "literal-labels"
+      _label_(objecturi.value) shouldBe "object"
+      _label_(s"_:${blank.value}") shouldBe blank.value
+      _label_("literal::") shouldBe "\"\""
+      _label_("literal::en") shouldBe "\"\"@en"
+      _label_(s"literal::$datatype") shouldBe ("\"\"^^<" + datatype + ">")
+      _label_(s"literal::$datatype|ja") shouldBe ("\"\"^^<" + datatype + ">@ja")
+      _label_("literal:ordinary literal:") shouldBe "ordinary literal"
+      _label_(s"literal:$longvalue:") shouldBe ("x" * 77 + "...")
+      nodes.forall(_.hcursor.get[String]("label").toOption.exists(_.nonEmpty)) shouldBe true
+      triples.foreach { triple =>
+        _edge_(_node_id_(triple.subject), _node_id_(triple.obj), triple.predicate.value) shouldBe true
+      }
+      graphjson shouldBe graphjsonrepeat
+      site.toJsonLD shouldBe sourcejsonldbefore
+      site.toTurtle shouldBe sourceturtlebefore
     }
 
     "emit glossary term metadata for term hubs" in {
