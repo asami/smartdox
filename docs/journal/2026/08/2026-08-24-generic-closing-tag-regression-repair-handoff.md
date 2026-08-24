@@ -1,7 +1,8 @@
 # SmartDox Generic Closing-Tag Regression Repair Handoff
 
-Status: OPEN
+Status: COMPLETED
 Created: 2026-08-24
+Completed: 2026-08-24
 Source Repository: `/Users/asami/src/dev2025/smartdox` at
 `1ba56ece7d699ec78adf635a2490c2d2825c821d`
 Upstream Grammar Producer: `/Users/asami/src/dev2025/goldenport-scala-library` at
@@ -47,9 +48,9 @@ back-quote protection enabled; otherwise a slash in a quoted `https://` value
 can be mistaken for self-closing syntax while a multiline element is grouped.
 The upstream goldenport XML states already group multiline, nested, paired,
 and self-closing elements, but the existing executable cases did not combine
-those forms with a quoted URL. The current SmartDox parser correction is
-already present in the dirty worktree; this handoff closes its cross-repository
-specification evidence without changing that production source.
+those forms with a quoted URL. The repair therefore changes the SmartDox parser
+configuration and parser-state handling, then records the cross-repository
+executable specification evidence for both grammar boundaries.
 
 SmartDox commit `496fa8c1af8ef2e75d473f4b05c25061397fb5d8` on 2026-08-21
 (`Phase 7: complete generic inline open-tag grammar`) added this
@@ -76,19 +77,26 @@ both Japanese and English (ten pages):
 
 - Allowed repositories:
   - `/Users/asami/src/dev2025/goldenport-scala-library` as the upstream
-    LogicalLines grammar producer; its mutation is executable-spec-only.
+    LogicalLines grammar producer. Its repair commit adds the executable
+    specification and advances the development version from `2.3.31` to
+    `2.3.32-SNAPSHOT`, preserving the published-release safety rule.
   - `/Users/asami/src/dev2025/smartdox` as the SmartDox consumer/parser/spec
-    repository; its parser correction is part of the existing dirty baseline,
-    while this closure edits only the paths listed below.
+    repository; its parser correction, grammar specification, executable
+    specifications, and repair handoff are all part of the committed repair.
 - Exact owned edit paths:
+  - `/Users/asami/src/dev2025/goldenport-scala-library/build.sbt`
   - `/Users/asami/src/dev2025/goldenport-scala-library/src/test/scala/org/goldenport/parser/LogicalLinesSpec.scala`
   - `/Users/asami/src/dev2025/smartdox/docs/journal/2026/08/2026-08-24-generic-closing-tag-regression-repair-handoff.md`
   - `/Users/asami/src/dev2025/smartdox/docs/spec/smartdox-grammar.md`
+  - `/Users/asami/src/dev2025/smartdox/src/main/scala/org/smartdox/parser/Dox2Parser.scala`
+  - `/Users/asami/src/dev2025/smartdox/src/main/scala/org/smartdox/parser/DoxInlineParser.scala`
   - `/Users/asami/src/dev2025/smartdox/src/test/scala/org/smartdox/parser/DoxInlineParserSpec.scala`
   - `/Users/asami/src/dev2025/smartdox/src/test/scala/org/smartdox/parser/Dox2ParserSpec.scala`
 - The SmartDox `Dox2Parser` lines configuration is expected to be
   `LogicalLines.Config.easyHtml.copy(useDoubleQuote = true, useBackQuote = true)`.
-  No SmartDox production-source edit is admitted in this closure.
+  The SmartDox production-source edits are limited to this configuration and
+  the generic closing-tag/self-closing-tag state distinction in
+  `DoxInlineParser`.
 - SimpleModeling.org is read-only and out of scope; downstream regeneration
   remains a separate consumer step.
 - No `DoxSite` source or generated-output edit is part of this closure.
@@ -99,9 +107,8 @@ both Japanese and English (ten pages):
   a `div`-only special case, new public parser APIs, generic HTML feature
   expansion, rendering changes, unrelated parser refactoring, publication,
   commit, or deployment.
-- Preserve the current unrelated worktree changes in SmartDox and
-  SimpleModeling.org. Do not reset, stash, rewrite, or regenerate over them
-  as part of this repair.
+- Preserve the user-owned dirty worktree in SimpleModeling.org. Do not reset,
+  stash, rewrite, or regenerate over it as part of this repair.
 
 ## Required Grammar Contract
 
@@ -170,6 +177,50 @@ checks merely for the absence of `Error:` output.
 - The downstream site regeneration remains a separate consumer step until its
   runtime version and the SimpleModeling.org dirty-worktree boundary are
   explicitly authorized.
+
+## Completion Evidence
+
+Committed repair boundary:
+
+- Goldenport `ec530d4b0f58cd203010fff06dfc269d3379a2dd`
+  (`build.sbt` development-version advance and `LogicalLinesSpec` coverage).
+- SmartDox `1b4ca78` (generic closing-tag parser repair, grammar contract, and
+  executable specifications).
+
+Validation completed through the serialized CNCF SBT path:
+
+- Goldenport `LogicalLinesSpec`: 22 succeeded, 0 failed; invocation
+  `93796-20260824T055948Z`; lock released.
+- SmartDox `DoxInlineParserSpec` and `Dox2ParserSpec`: 47 succeeded, 0 failed;
+  invocation `95126-20260824T060230Z`; lock released.
+- SmartDox full test: 265 succeeded, 0 failed; 32 suites completed, 4 ignored;
+  invocation `96618-20260824T060429Z`; lock released.
+- `git diff --check 266e58a..ec530d4` and
+  `git diff --check 1ba56ec..1b4ca78` passed.
+
+Independent review completed after reconciling the initial handoff scope with
+the committed `build.sbt`, `Dox2Parser`, and `DoxInlineParser` changes. The
+complete review found no Current Boundary Blocker: `</tag>` is structural,
+`<tag .../>` remains self-closing, and the grammar, implementation, and
+executable specifications agree.
+
+The SimpleModeling.org worktree remained excluded and user-owned throughout
+this closure. Its separately authorized runtime selection and site regeneration
+remain the next consumer step.
+
+## Review Follow-up Disposition
+
+- The review-local `DoxInlineParser` size observation is deduplicated against
+  `P2-HYG-002` / canonical `HYG-002`. That item was explicitly closed on
+  2026-08-19 by the user decision recorded in the Phase 2 Hygiene Ledger, so
+  this repair does not reopen or reschedule parser-state decomposition.
+- The pre-existing `LogicalLinesSpec` helper naming and header-history
+  observations belong to the Goldenport repository. They are nonblocking and
+  are not admitted as SmartDox Hygiene Ledger records by this SmartDox-only
+  commit.
+
+No new SmartDox Hygiene or Development Candidate record is accepted by this
+repair closure.
 
 ## Non-goals
 
