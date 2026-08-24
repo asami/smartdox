@@ -123,7 +123,7 @@ Primary reference:
 
 ### Phase 8: RDF Graph Literal Label Projection
 
-Status: in progress.
+Status: closed.
 
 Purpose:
 
@@ -154,12 +154,14 @@ inline open-tag grammar`), its mandatory Phase-full review, the accepted
 focused closure review for `CB-P7-FULL-001`, and final mandatory full-suite
 invocation `49720-20260821T020637Z` with logical argv `["--batch", "test"]`
 (261 succeeded / 0 failed across 32 suites; `sbt_exit=0`, `wrapper_exit=0`,
-`lock=released`). Phase 8 is the active SmartDox phase for the bounded RDF
-graph literal-label projection correction.
+`lock=released`). Phase 8 closes through this release boundary and does not
+activate a successor. The Phase 8 closure becomes authoritative only if the
+frozen final release suite with logical argv `["--batch", "test"]` passes and
+the release commit succeeds.
 
 ## 9. Development Item Status
 
 | ID | Source | Development item | Disposition | Target | Status |
 | --- | --- | --- | --- | --- | --- |
 | DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | CLOSED |
-| DEV-002 | SimpleModeling.org generated RDF graph evidence and Cozy public finalization feedback | Ensure generated RDF graph literal nodes have deterministic non-empty labels through SmartDox projection fallback semantics, then separately verify regenerated-site finalization and consumer acceptance. | NEW_PHASE | [Phase 8](../phase/phase-8.md) | IN PROGRESS |
+| DEV-002 | SimpleModeling.org generated RDF graph evidence and Cozy public finalization feedback | Ensure generated RDF graph literal nodes have deterministic non-empty labels through SmartDox projection fallback semantics, then separately verify regenerated-site finalization and consumer acceptance. | NEW_PHASE | [Phase 8](../phase/phase-8.md) | CLOSED |

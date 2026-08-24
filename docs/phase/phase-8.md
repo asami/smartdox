@@ -1,13 +1,23 @@
 # Phase 8: RDF Graph Literal Label Projection
 
-Status: in progress
+Status: closed
 
 Start date: 2026-08-23
 
-Phase 8 is active. `LITERAL8-01` is complete: its normative specification
-and design establish the deterministic RDF literal-label projection boundary.
-Implementation and executable specifications are complete in `LITERAL8-02`.
-Downstream acceptance is active in `LITERAL8-03`.
+Phase 8 is closed through this release boundary. `LITERAL8-01` is complete:
+its normative specification and design establish the deterministic RDF
+literal-label projection boundary. Implementation and executable
+specifications are complete in `LITERAL8-02`. Downstream acceptance work in
+`LITERAL8-03` is complete, including the current isolated finalizer pre/post
+full inventory, aggregate hash, nonallowlist hash, and explicit
+metadata-allowlist delta evidence. Strategy and hygiene-ledger
+synchronization is complete in `LITERAL8-04`. LITERAL8-01 through LITERAL8-04
+are complete, and the accepted Phase implementation Step, mandatory Terra/high
+Phase full review, and focused closure re-review have converged. Textus BoK
+reader acceptance and CNCF Phase 70 activation remain nonblocking downstream
+handoffs. This closure becomes authoritative only if the frozen final release
+suite with logical argv `["--batch", "test"]` passes and the release commit
+succeeds.
 
 ## Goal
 
@@ -46,10 +56,13 @@ Out of scope:
 
 After SmartDox implementation and focused regression acceptance, separately
 authorize a SimpleModeling.org site regeneration and revalidate its generated
-RDF graph output. This stage owns the downstream finalizer run, metadata-only
-inventory/hash evidence, Textus BoK reader acceptance, and wrapper failure-path
-acceptance transferred from Cozy Phase 29 `BM29-03`; no Cozy restart is
-required because Phase 29 is closed on its bounded implementation contract.
+RDF graph output with a direct all-node nonempty-label scan. This stage owns
+the downstream finalizer run, metadata-only inventory/hash evidence, and
+wrapper failure-path acceptance transferred from Cozy Phase 29 `BM29-03`; no
+Cozy restart is required because Phase 29 is closed on its bounded
+implementation contract. Managed Textus BoK reader acceptance
+and the CNCF Phase 70 activation dependency are downstream consumer-integration
+handoffs owned by Textus BoK, and are nonblocking for this Phase.
 
 ## Completion Criteria
 
@@ -57,16 +70,52 @@ This Phase completes only when the fallback display semantics are specified and
 implemented in SmartDox, the empty language-tagged, typed, and plain literal
 variants have Given/When/Then executable coverage, focused regression passes,
 and the generated SimpleModeling.org output is revalidated with every graph
-node label non-empty while the listed RDF and ordering invariants remain true.
+node label non-empty while the Cozy finalization inventory/hash/allowlist and
+wrapper failure-path evidence are recorded and the listed RDF and ordering
+invariants remain true. Managed Textus BoK reader acceptance and CNCF Phase 70
+activation remain nonblocking downstream consumer handoffs.
 
 ## Current Progress
 
-LITERAL8-01 and LITERAL8-02 are complete: the SmartDox graph display projection
-now emits deterministic RDF lexical display forms for empty literal values, and
-focused executable validation passed. LITERAL8-03 is active: the existing
-SimpleModeling.org generated graph predates this change and its regeneration is
-a separately authorized site build. It carries the downstream acceptance
-evidence formally transferred from Cozy Phase 29 on 2026-08-23.
+The accepted implementation, acceptance evidence, independent review, and
+focused closure re-review have converged for LITERAL8-01 through LITERAL8-04.
+
+`LITERAL8-01` and `LITERAL8-02` are complete. `LITERAL8-03` is complete: the
+separately authorized SimpleModeling.org WIP and production regenerations
+found zero empty labels in their direct all-node scans, both wrapper paths ran
+Cozy public metadata finalization successfully, and the focused diff check
+passed. The isolated finalizer then completed with the exact command
+`/Users/asami/Library/Application Support/Coursier/bin/cozy bok finalize-metadata /Users/asami/src/dev2025/simplemodeling-org --strategy wip`,
+executable SHA-256
+`6757999c70cec4583539e27ef115eea53586eb03c6ca73e4dba3cf104aa2628a`, granted
+escalation, exit status 0, and empty stdout. Its sorted per-file SHA-256
+manifests were unchanged before and after: 1,251 whole-tree files at
+`9e036ce9e53b34bf6129544ab4c978b51efff49a349d169de6dd7ef50f1ed02f`, 28
+allowlist files at
+`a20205ec09646b1c58e2fbc503fbfccdd1adc0b3066c12ff0f0bc4700531ed84`, and 1,223
+nonallowlist files at
+`f4c89c48288a7b83eef55a618c088c1d0060375ea1b322bb7241c4895df720b8`. The
+allowlist and nonallowlist deltas were empty, no `.cozy-bok-finalize-*`
+directory remained. SimpleModeling.org git status had pre-existing user
+changes and gained no change from the run; those changes are not enumerated.
+`LITERAL8-04` is complete. The
+managed Textus BoK reader attempt and CNCF Phase 70 activation remain
+nonblocking consumer handoffs to Textus BoK, as recorded in the Phase 8
+consumer-acceptance boundary decision; managed reader acceptance remains a
+downstream consumer-boundary decision and is not a Phase 8 closure item.
+
+## Closure Evidence
+
+- Accepted Phase implementation Step commit:
+  `b84e7959011d1989a0d5ad660cf808eebb85268b` (`Phase 8: project deterministic
+  RDF literal labels`).
+- Mandatory Terra/high Phase full review returned only
+  `CB-P8-FULL-001`.
+- One authorized documentation-only closure correction and focused re-review
+  resolved that finding with `SEALED_LEDGER PASS`.
+- The frozen final release suite uses logical argv `["--batch", "test"]` and
+  must pass before this release commit; no run result or release commit hash
+  is asserted here.
 
 ## References
 
