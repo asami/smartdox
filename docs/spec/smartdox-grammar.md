@@ -1,7 +1,7 @@
 # SmartDox Grammar
 
 Status: draft specification
-Date: 2026-08-24
+Date: 2026-08-25
 
 This document describes the SmartDox grammar implemented by the current parser
 and covered by the parser tests. It is normative only for stable, parser-backed
@@ -498,6 +498,12 @@ The legacy shorthand remains accepted for migration:
 
 Legacy shorthand emits a deprecation warning and is normalized to the same
 internal hyperlink form.
+
+Legacy automatic glossary links classify each candidate by the candidate text
+itself before applying lexical boundary checks. A Katakana candidate MUST NOT
+match inside a longer Katakana word, and a Kanji candidate MUST NOT match inside
+a longer Kanji word; standalone uses remain eligible for automatic glossary
+links. This legacy rule does not alter the explicit RDF `<term>` contract.
 
 ## Inline Macros
 

@@ -30,7 +30,7 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Aug. 21, 2026
+ * @version Aug. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -883,7 +883,7 @@ object LinkEnabler {
       val s = t.contents
       if (token.isEmpty || s.isEmpty)
         return None
-      val kind = GlossaryKind.detectGlossaryKind(s)
+      val kind = GlossaryKind.detectGlossaryKind(token)
       val buf = Vector.newBuilder[Dox]
       var idx = 0
       var count = if (used) 1 else 0

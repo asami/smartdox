@@ -29,7 +29,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 24, 2026
+ * @version Aug. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -449,6 +449,69 @@ class DoxSiteSpec
         homebody should include_html("""<span strategy="stable">Stable Runtime remains authored.</span>""")
         And("noterm Runtime content remains authored and unlinked")
         homebody should include_html("""<noterm>Suppressed Runtime remains authored.</noterm>""")
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "keep Japanese glossary links at lexical boundaries" in {
+      val dir = Files.createTempDirectory("smartdox-japanese-glossary-boundaries")
+      try {
+        Given("an ordinary site document with Japanese compound and standalone glossary terms")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("index.dox"),
+          """Japanese Glossary Boundaries
+            |===========================
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-08-25
+            |
+            |# Body
+            |
+            |レビュー。ビュー。後方互換性。互換性。
+            |""".stripMargin)
+        _write(dir.resolve("glossary/japanese/view.dox"),
+          """ビュー
+            |====
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-08-25
+            |
+            |# Definition
+            |
+            |ビュー glossary term.
+            |""".stripMargin)
+        _write(dir.resolve("glossary/japanese/compatibility.dox"),
+          """互換性
+            |====
+            |
+            |# HEAD
+            |
+            |status=published
+            |published_at=2026-08-25
+            |
+            |# Definition
+            |
+            |互換性 glossary term.
+            |""".stripMargin)
+
+        When("SmartDox builds the ordinary site through the DoxSite pipeline")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site_realm(site, context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val fragments = metadata_at(realm, "metadata/documents/fragments.json")
+        val homebody = _fragment_body(fragments, "index.dox", "ja")
+
+        Then("compound Japanese terms remain contiguous plain text")
+        homebody should include_html("レビュー。")
+        homebody should include_html("後方互換性。")
+        And("standalone Japanese terms resolve to their glossary pages")
+        homebody should include_html("href=\"glossary/japanese/view.html\"")
+        homebody should include_html("href=\"glossary/japanese/compatibility.html\"")
       } finally {
         _delete(dir)
       }
