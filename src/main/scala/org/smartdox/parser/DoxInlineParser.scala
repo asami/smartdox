@@ -24,7 +24,7 @@ import org.smartdox._
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 21, 2026
+ * @version Aug. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -1618,12 +1618,18 @@ object DoxInlineParser {
 
     override protected def character_State(evt: CharEvent): DoxInlineParseState =
       evt.c match {
+        case '>' if name.isEmpty =>
+          RAISE.syntaxErrorFault("Generic open tag requires a non-empty tag name")
         case '>' =>
           if (true)
             XmlState(config, parent, name.mkString, Vector.empty)
           else
             InlineState(CloseTagState(config, parent, name.mkString, Vector.empty), '<', '/')
+        case '/' if name.isEmpty =>
+          RAISE.syntaxErrorFault("Generic closing tag has no matching open tag")
         case '/' => SkipOneState(config, resultOpenEnd(Vector.empty), '>')
+        case ' ' if name.isEmpty =>
+          RAISE.syntaxErrorFault("Generic open tag requires a non-empty tag name")
         case ' ' => SkipSpaceState(config, TagAttributeListState(config, this))
         case m => copy(name = name :+ m)
       }

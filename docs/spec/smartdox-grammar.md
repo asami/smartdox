@@ -1,7 +1,7 @@
 # SmartDox Grammar
 
 Status: draft specification
-Date: 2026-08-19
+Date: 2026-08-24
 
 This document describes the SmartDox grammar implemented by the current parser
 and covered by the parser tests. It is normative only for stable, parser-backed
@@ -391,11 +391,33 @@ Examples:
 ```
 
 XML-style inline tags are supported for known inline elements such as `b`, `i`,
-`u`, `code`, `pre`, `del`, `tt`, and `span`.
+`u`, `code`, `pre`, `del`, `tt`, and `span`. The generic tag productions
+describe the parser structure without claiming general HTML5 support.
 
 ```dox
 <span>*span*</span>
 ```
+
+Generic inline tags use these productions:
+
+```ebnf
+generic-open-tag         ::= "<" tag-name attributes? ">"
+generic-closing-tag      ::= "</" tag-name ">"
+generic-self-closing-tag ::= "<" tag-name attributes? "/>"
+generic-element          ::= generic-open-tag inline-content generic-closing-tag
+tag-name                 ::= name-character+
+```
+
+`tag-name` is non-empty. The slash in `generic-closing-tag` is structural at
+the empty tag-name position and is never a self-closing marker. The slash in
+`generic-self-closing-tag` is valid only after a non-empty tag name and its
+accepted attributes, immediately before `>`; paired opening and closing tags
+must have equal names.
+
+When Dox2Parser enables `LogicalLines.Config.useDoubleQuote`, a quoted
+attribute value such as `href="https://example.com/modeling/path"` is consumed
+as part of the opening tag. Slashes inside that URL are therefore protected
+from self-closing recognition.
 
 Generic inline open tags also support a terminal boolean attribute and an
 immediate self-closing form:
@@ -412,6 +434,13 @@ and boolean attributes in source order. A self-closing tag creates the
 supported tagged Dox node with empty contents and does not require a child or
 close-tag state. Its slash must be immediately followed by `>`; for example,
 `<span enabled/ >` remains on the deterministic malformed-input failure path.
+
+The goldenport `LogicalLines.Config.easyHtml` grammar groups a paired generic
+element across physical lines before inline parsing, so the opening tag,
+content, and closing tag may occupy separate physical lines while LogicalLines
+groups them into one logical line. Backquoted code
+protects its contents from inline-tag parsing, including angle brackets inside
+the code span.
 
 `<term ref="…" form="…">`, `<dfn about="…" id="…">`, and
 `<noterm>…</noterm>` are supported parser-backed terminology forms. They produce

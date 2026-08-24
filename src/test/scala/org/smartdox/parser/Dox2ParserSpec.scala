@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.goldenport.parser.{LogicalLine, LogicalParagraph, ParseLocation}
-import org.smartdox.{Dfn, Document, Dox, Hyperlink, InlineMacro, NoTerm, ReferenceImg, Span, Term}
+import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, ReferenceImg, Span, Term}
 
 /*
  * @since   Oct. 14, 2018
@@ -20,7 +20,7 @@ import org.smartdox.{Dfn, Document, Dox, Hyperlink, InlineMacro, NoTerm, Referen
  *  version Apr. 19, 2026
  *  version Jun. 23, 2026
  *  version Jul.  6, 2026
- * @version Aug. 21, 2026
+ * @version Aug. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -103,6 +103,26 @@ class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with 
       spans(2).attributes.list shouldBe List("enabled" -> "")
       spans(2).contents shouldBe Nil
       spans.foreach(_.location shouldBe Some(location))
+    }
+
+    "group a multiline generic div with its inline and image contents" in {
+      Given("a SmartDox document whose generic div has a quoted URL and closes on its own physical line")
+      val source =
+        """<div lang="ja" href="https://example.com/modeling/path">
+          |<span>日本語</span>
+          |[[images/model.png]]
+          |</div>
+          |""".stripMargin
+
+      When("Dox2Parser reads the document through goldenport logical-line grouping")
+      val document = Dox2Parser.parse(Dox2Parser.Config.smartdox, source).asInstanceOf[Document]
+      val div = _nodes(document).collectFirst { case m: Div => m }.get
+
+      Then("the paired div retains its language, inline span, and image reference")
+      div.attribute("lang") shouldBe Some("ja")
+      div.attribute("href") shouldBe Some("https://example.com/modeling/path")
+      _nodes(div).collectFirst { case m: Span => m }.get.contents shouldBe List(org.smartdox.Text("日本語"))
+      _nodes(div).collectFirst { case m: ReferenceImg => m }.get.src.toString shouldBe "images/model.png"
     }
 
     "attach a supplied logical-line location to site and generic inline macros" in {

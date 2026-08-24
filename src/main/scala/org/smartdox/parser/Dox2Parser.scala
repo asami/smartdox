@@ -55,7 +55,7 @@ import Dox._
  *  version Dec. 10, 2025
  *  version Jun.  8, 2026
  *  version Jun. 23, 2026
- * @version Aug. 19, 2026
+ * @version Aug. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -436,8 +436,8 @@ object Dox2Parser {
       GenericBeginAnnotationClass
     )
     val linesConfig = LogicalLines.Config.easyHtml.copy(
-      useBackQuote = true,
-      useAngleBracket = false
+      useDoubleQuote = true,
+      useBackQuote = true
     )
     val blocksConfig = LogicalBlocks.Config.easyHtml.
       addVerbatims(verbatims).

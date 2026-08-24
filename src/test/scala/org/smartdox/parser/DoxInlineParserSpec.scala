@@ -15,7 +15,7 @@ import org.smartdox._
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Aug. 21, 2026
+ * @version Aug. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -164,6 +164,23 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       }
       recovered.head.head.attributes.list shouldBe Nil
       recovered(1).head.attributes.list shouldBe List("enabled" -> "")
+    }
+
+    "distinguish a standalone closing tag from self-closing syntax" in {
+      Given("a standalone generic closing tag and an immediate self-closing span")
+      val closing = "</span>"
+      val selfclosingsource = "<span/>"
+
+      When("the inline parser reads both tag forms")
+      val error = intercept[org.goldenport.exception.SyntaxErrorFaultException] {
+        DoxInlineParser.apply(DoxInlineParser.Config.smartdox, closing)
+      }
+      val selfclosing = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, selfclosingsource)
+
+      Then("the closing tag is rejected as unmatched and the self-closing form remains an empty span")
+      error.getMessage should include("no matching open tag")
+      selfclosing shouldBe a [Span]
+      selfclosing.asInstanceOf[Span].contents shouldBe Nil
     }
 
     "preserve standalone self-closing nodes through the public parse method" in {
