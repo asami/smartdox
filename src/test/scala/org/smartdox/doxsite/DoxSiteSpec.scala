@@ -10,6 +10,7 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.attribute.FileTime
 import org.goldenport.i18n.I18NContext
 import org.goldenport.tree.TreeTransformer
 import org.smartdox._
@@ -28,7 +29,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 21, 2026
+ * @version Aug. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -47,6 +48,48 @@ class DoxSiteSpec
 
       Then("the site model is created for downstream site generation")
       site should not be null
+    }
+
+    "order article cards by creation time without modification-time tie breakers" in {
+      val historyfirst = Files.createTempDirectory("smartdox-card-order-history-first")
+      val historysecond = Files.createTempDirectory("smartdox-card-order-history-second")
+      val filesystemfirst = Files.createTempDirectory("smartdox-card-order-filesystem-first")
+      val filesystemsecond = Files.createTempDirectory("smartdox-card-order-filesystem-second")
+      try {
+        Given("pairs of same-created articles whose metadata history or file modification times are reversed")
+        _write_article_site(historyfirst, Some("2026-06-25"), Some("2026-06-26"))
+        _write_article_site(historysecond, Some("2026-06-26"), Some("2026-06-25"))
+        _write_article_site(filesystemfirst, None, None)
+        _write_article_site(filesystemsecond, None, None)
+        _set_article_modification_times(filesystemfirst, 1L, 2L)
+        _set_article_modification_times(filesystemsecond, 2L, 1L)
+
+        When("SmartDox orders the article-card notices")
+        val historyfirstcontext = Context.create()
+        val historysecondcontext = Context.create()
+        val filesystemfirstcontext = Context.create()
+        val filesystemsecondcontext = Context.create()
+        val historyfirstsite = create_site(historyfirstcontext, historyfirst.toFile)
+        val historysecondsite = create_site(historysecondcontext, historysecond.toFile)
+        val filesystemfirstsite = create_site(filesystemfirstcontext, filesystemfirst.toFile)
+        val filesystemsecondsite = create_site(filesystemsecondcontext, filesystemsecond.toFile)
+        val historyfirstorder = DoxSite.NoticeCardOrdering.sort(historyfirstsite.metadata.notices.notices).map(_.uri.toString)
+        val historysecondorder = DoxSite.NoticeCardOrdering.sort(historysecondsite.metadata.notices.notices).map(_.uri.toString)
+        val filesystemfirstorder = DoxSite.NoticeCardOrdering.sort(filesystemfirstsite.metadata.notices.notices).map(_.uri.toString)
+        val filesystemsecondorder = DoxSite.NoticeCardOrdering.sort(filesystemsecondsite.metadata.notices.notices).map(_.uri.toString)
+
+        Then("creation-time peers retain the same card order regardless of modification metadata or filesystem time")
+        historyfirstsite.metadata.notices.notices.map(_.uri.toString).toSet shouldBe Set("alpha.html", "beta.html")
+        historyfirstorder shouldBe historysecondorder
+        filesystemfirstorder shouldBe filesystemsecondorder
+        historyfirstorder.toSet shouldBe Set("alpha.html", "beta.html")
+        filesystemfirstorder.toSet shouldBe Set("alpha.html", "beta.html")
+      } finally {
+        _delete(historyfirst)
+        _delete(historysecond)
+        _delete(filesystemfirst)
+        _delete(filesystemsecond)
+      }
     }
 
     "resolve site inline macro as internal link" in {
@@ -961,6 +1004,38 @@ class DoxSiteSpec
   private def _write(path: java.nio.file.Path, content: String): Unit = {
     Option(path.getParent).foreach(Files.createDirectories(_))
     Files.write(path, content.getBytes(StandardCharsets.UTF_8))
+  }
+
+  private def _write_article_site(
+    dir: java.nio.file.Path,
+    alphamodified: Option[String],
+    betamodified: Option[String]
+  ): Unit = {
+    _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+    _write(dir.resolve("alpha.dox"), _article_source("Alpha", alphamodified))
+    _write(dir.resolve("beta.dox"), _article_source("Beta", betamodified))
+  }
+
+  private def _article_source(title: String, modified: Option[String]): String = {
+    val modification = modified.fold("")(x => "modified_at = [\"" + x + "\"]\n")
+    s"""$title
+       |${"=" * title.length}
+       |
+       |# HEAD
+       |
+       |title = "$title"
+       |status = "published"
+       |published_at = "2026-06-24"
+       |$modification
+       |# Body
+       |
+       |$title body.
+       |""".stripMargin
+  }
+
+  private def _set_article_modification_times(dir: java.nio.file.Path, alpha: Long, beta: Long): Unit = {
+    Files.setLastModifiedTime(dir.resolve("alpha.dox"), FileTime.fromMillis(alpha))
+    Files.setLastModifiedTime(dir.resolve("beta.dox"), FileTime.fromMillis(beta))
   }
 
   private def _fragment_body(content: String, sourcepath: String, locale: String): String = {

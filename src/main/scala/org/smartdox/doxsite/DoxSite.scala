@@ -34,7 +34,6 @@ import org.goldenport.i18n.I18NString
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.util.StringUtils
-import org.goldenport.util.OptionUtils
 import org.goldenport.util.OptionUtils.lastOption
 import org.goldenport.util.LocalDateUtils
 import org.goldenport.util.InstantUtils.instantOrderingAsc
@@ -85,7 +84,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version May. 14, 2026
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
- * @version Aug.  4, 2026
+ * @version Aug. 24, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -194,7 +193,7 @@ class DoxSite(
       case Strategy.Overview => _filter_draft_
       case Strategy.Test => _filter_test_
     }
-    val xs1 = xs0.sortWith(_compare)
+    val xs1 = DoxSite.NoticeCardOrdering.sort(xs0)
 //    val xs = xs1 ++ _make_stub(xs1.length)
     val xs = xs1
     val localizednotices = xs.flatMap { notice =>
@@ -528,45 +527,6 @@ class DoxSite(
     PathName(uri.getPath)
   }
 
-  private def _compare(lhs: Notice, rhs: Notice): Boolean =
-    config.strategy match {
-      case Strategy.WorkInProgress => _compare_draft(lhs, rhs)
-      case Strategy.Draft => _compare_draft(lhs, rhs)
-      case _ => _compare_default(lhs, rhs)
-    }
-
-  private def _compare_default(lhs: Notice, rhs: Notice): Boolean = (
-    _compare_status_option(lhs, rhs) orElse
-    _compare_published_option(lhs, rhs) orElse
-    _compare_updated_option(lhs, rhs) orElse
-    _compare_lastmodified_option(lhs, rhs) getOrElse false
-  )
-
-  private def _compare_draft(lhs: Notice, rhs: Notice): Boolean = (
-    _compare_status_option(lhs, rhs) orElse
-    _compare_published_option(lhs, rhs) orElse
-    _compare_updated_option(lhs, rhs) orElse
-    _compare_lastmodified_option(lhs, rhs) getOrElse false
-  )
-
-  private def _compare_status_option(lhs: Notice, rhs: Notice): Option[Boolean] =
-      DocumentMetaData.Status.compareDraftOption(lhs.status, rhs.status)
-
-  private def _compare_updated_option(lhs: Notice, rhs: Notice): Option[Boolean] =
-    if (lhs.updateds == rhs.updateds)
-      None
-    else
-      LocalDateUtils.compareDescOption(lhs.lastUpdated, rhs.lastUpdated)
-
-  private def _compare_published_option(lhs: Notice, rhs: Notice): Option[Boolean] =
-    if (lhs.published == rhs.published)
-      None
-    else
-      LocalDateUtils.compareDescOption(lhs.published, rhs.published)
-
-  private def _compare_lastmodified_option(lhs: Notice, rhs: Notice): Option[Boolean] =
-    OptionUtils.compareDescOption(lhs.lastModified, rhs.lastModified)
-
   private def _make_stub(n: Int): Vector[Notice] =
     if (n >= 10)
       Vector.empty
@@ -580,6 +540,25 @@ object DoxSite {
   import io.circe.generic.extras._
   import io.circe.generic.extras.semiauto._
   import org.goldenport.util.CirceUtils.Codec._
+
+  private[doxsite] object NoticeCardOrdering {
+    def sort(notices: Vector[Notice]): Vector[Notice] =
+      notices.sortWith(_compare)
+
+    private def _compare(lhs: Notice, rhs: Notice): Boolean = (
+      _compare_status_option(lhs, rhs) orElse
+      _compare_published_option(lhs, rhs) getOrElse false
+    )
+
+    private def _compare_status_option(lhs: Notice, rhs: Notice): Option[Boolean] =
+      DocumentMetaData.Status.compareDraftOption(lhs.status, rhs.status)
+
+    private def _compare_published_option(lhs: Notice, rhs: Notice): Option[Boolean] =
+      if (lhs.published == rhs.published)
+        None
+      else
+        LocalDateUtils.compareDescOption(lhs.published, rhs.published)
+  }
 
   implicit val circeconf = Configuration.default.
     withDefaults.withSnakeCaseMemberNames
