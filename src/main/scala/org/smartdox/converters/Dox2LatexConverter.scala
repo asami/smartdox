@@ -3,6 +3,7 @@ package org.smartdox.converters
 import scalaz._
 import java.io.File
 import java.nio.file.{Files, StandardCopyOption}
+import java.security.MessageDigest
 import scala.util.control.NonFatal
 import org.goldenport.context.Consequence
 import org.goldenport.tree.TreeNode
@@ -14,7 +15,8 @@ import org.smartdox.generators.KrokiGenerator
 
 /*
  * @since   Jun.  2, 2026
- * @version Jun.  3, 2026
+ *  version Jun.  3, 2026
+ * @version Aug. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2LatexConverter(
@@ -26,9 +28,33 @@ class Dox2LatexConverter(
   generatorContext: Option[GeneratorContext] = None,
   diagramDir: Option[File] = None,
   isDiagramGeneration: Boolean = false,
-  diagramRenderer: Option[Dox2LatexConverter.DiagramRenderer] = None
+  diagramRenderer: Option[Dox2LatexConverter.DiagramRenderer] = None,
+  resourceBaseDir: Option[File] = None
 ) extends Dox2TextDocConverter {
   import Dox2LatexConverter._
+
+  def this(
+    engine: Dox2LatexConverter.Engine,
+    format: Dox2LatexConverter.Format,
+    documentDate: Option[String],
+    affiliation: Option[String],
+    author: Option[String],
+    generatorContext: Option[GeneratorContext],
+    diagramDir: Option[File],
+    isDiagramGeneration: Boolean,
+    diagramRenderer: Option[Dox2LatexConverter.DiagramRenderer]
+  ) = this(
+    engine,
+    format,
+    documentDate,
+    affiliation,
+    author,
+    generatorContext,
+    diagramDir,
+    isDiagramGeneration,
+    diagramRenderer,
+    None
+  )
 
   private var _listStack: List[String] = Nil
   private lazy val _krokiGenerator: Option[KrokiGenerator] =
@@ -58,6 +84,7 @@ class Dox2LatexConverter(
   protected def bolditalic_close: String = "}}"
   protected def code_open: String = "\\texttt{"
   protected def code_close: String = "}"
+  override protected def is_ignore_img_in_figure: Boolean = true
 
   override protected def normalize_Text(p: String): String =
     _escape_latex(p)
@@ -122,6 +149,83 @@ class Dox2LatexConverter(
   override protected def enter_I18NFragment(p: I18NFragment): Unit = {}
 
   override protected def leave_I18NFragment(p: I18NFragment): Unit = {}
+
+  override protected def enter_Figure(p: Figure): Unit = {
+    val file = _image_include_file(p.img)
+    sb_println("\\begin{figure}[htbp]")
+    sb_println("\\centering")
+    _print_image(file)
+    val caption = to_text(p.caption.contents).trim
+    if (caption.nonEmpty)
+      sb_println(s"\\caption{${_escape_latex(caption)}}")
+    p.label.foreach(x => sb_println(s"\\label{${_figure_label(x)}}"))
+    sb_println("\\end{figure}")
+    sb_println()
+  }
+
+  override protected def enter_Img(p: Img): Unit = {
+    val file = _image_include_file(p)
+    sb_println("\\begin{center}")
+    _print_image(file)
+    sb_println("\\end{center}")
+    sb_println()
+  }
+
+  private def _print_image(file: File): Unit =
+    sb_println(s"\\includegraphics[width=\\linewidth,height=0.9\\textheight,keepaspectratio]{\\detokenize{${_diagram_path(file)}}}")
+
+  private def _image_include_file(p: Img): File = {
+    val source = _image_source_file(p)
+    diagramDir.map(_copy_image(_, source)).getOrElse(source)
+  }
+
+  private def _image_source_file(p: Img): File = {
+    val uri = p.src
+    val source =
+      if (uri.isAbsolute) {
+        if (!Option(uri.getScheme).exists(_.equalsIgnoreCase("file")))
+          throw new IllegalArgumentException(s"Unsupported non-file image URI: $uri")
+        new File(uri)
+      } else {
+        val base = resourceBaseDir.getOrElse(new File(".")).getAbsoluteFile
+        new File(base, uri.getPath)
+      }
+    if (!source.isFile)
+      throw new IllegalArgumentException(s"Local image does not exist or is not a regular file: ${source.getAbsolutePath}")
+    source
+  }
+
+  private def _copy_image(destinationdir: File, source: File): File = {
+    if (!destinationdir.exists && !destinationdir.mkdirs())
+      throw new IllegalArgumentException(s"Cannot create LaTeX image directory: ${destinationdir.getAbsolutePath}")
+    if (!destinationdir.isDirectory)
+      throw new IllegalArgumentException(s"LaTeX image directory is not a directory: ${destinationdir.getAbsolutePath}")
+    val target = new File(destinationdir, _image_filename(source))
+    val sourcepath = source.toPath.toAbsolutePath.normalize
+    val targetpath = target.toPath.toAbsolutePath.normalize
+    if (sourcepath != targetpath)
+      Files.copy(sourcepath, targetpath, StandardCopyOption.REPLACE_EXISTING)
+    target
+  }
+
+  private def _image_filename(source: File): String = {
+    val name = source.getName
+    val index = name.lastIndexOf('.')
+    val (body, suffix) =
+      if (index > 0) (name.substring(0, index), name.substring(index))
+      else (name, "")
+    val safebody = body.replaceAll("[^A-Za-z0-9._-]", "-")
+    s"$safebody-${_sha256(Files.readAllBytes(source.toPath))}$suffix"
+  }
+
+  private def _figure_label(label: String): String =
+    if (label.matches("[A-Za-z0-9][A-Za-z0-9:.-]*"))
+      label
+    else
+      s"figure-${_sha256(label.getBytes("UTF-8"))}"
+
+  private def _sha256(bytes: Array[Byte]): String =
+    MessageDigest.getInstance("SHA-256").digest(bytes).map(x => f"${x & 0xff}%02x").mkString
 
   override protected def enter_program(node: TreeNode[Dox], p: Program): Unit = {
     p.kind match {

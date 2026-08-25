@@ -18,8 +18,8 @@ import org.smartdox.transformers.Dox2HtmlTransformer
 
 /*
  * @since   Apr.  9, 2026
- *  version Apr.  9, 2026
- * @version Jun.  3, 2026
+ *  version Jun.  3, 2026
+ * @version Aug. 25, 2026
  * @author  ASAMI, Tomoharu
  */
 case object PdfOperationClass extends OperationClassWithOperation {
@@ -108,7 +108,8 @@ case object PdfOperationClass extends OperationClassWithOperation {
       cmd.latexAuthor,
       Some(ctx),
       Some(diagramDir),
-      isDiagramGeneration = true
+      isDiagramGeneration = true,
+      resourceBaseDir = Some(cmd.in.getAbsoluteFile.getParentFile)
     ).convert(dox).take
 
   private def _write_chrome_pdf(cmd: PdfCommand, html: String): ChunkBag = {
