@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.goldenport.parser.{LogicalLine, LogicalParagraph, ParseLocation}
-import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, ReferenceImg, Span, Term}
+import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, Program, ReferenceImg, Span, Term}
 
 /*
  * @since   Oct. 14, 2018
@@ -334,6 +334,39 @@ Published body.
       meta.titleImage.map(_.toString) should be (Some("https://example.com/image.jpg?q=80&w=1200"))
       meta.getEffectiveSummaryString(java.util.Locale.ENGLISH) should be (Some("Published summary."))
       dox.toString should include ("Published body.")
+    }
+
+    "parse published fenced Scala source with quoted scala-cli directives" in {
+      Given("a published SmartDox document containing a fenced Scala script with quoted directives")
+      val source =
+        """Scala CLI Script
+          |================
+          |
+          |# HEAD
+          |
+          |status=published
+          |published_at=2026-08-25
+          |
+          |# Body
+          |
+          |```scala
+          |#!/usr/bin/env -S scala-cli shebang
+          |//> using repository "https://repo.example/repository"
+          |//> using dep "org.example:library:1.0.0"
+          |
+          |val message = "quoted Scala string"
+          |```
+          |""".stripMargin
+
+      When("Dox2Parser parses the published document by filename")
+      val document = Dox2Parser.parseWithFilename("published.dox", source).asInstanceOf[Document]
+      val program = _nodes(document).collectFirst { case m: Program => m }.get
+
+      Then("publication metadata and representative directive and source text are retained")
+      document.head.metadata.status shouldBe org.smartdox.metadata.DocumentMetaData.Status.Published
+      program.contents should include ("//> using repository \"https://repo.example/repository\"")
+      program.contents should include ("//> using dep \"org.example:library:1.0.0\"")
+      program.contents should include ("val message = \"quoted Scala string\"")
     }
 
     "report explicit HEAD metadata parse errors" in {
