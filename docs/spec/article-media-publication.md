@@ -5,7 +5,9 @@ Date: 2026-08-04
 
 The authoritative design is
 `docs/design/article-media-publication.md`. This specification fixes the
-registry input and resolution behavior implemented by SmartDox Phase 1.
+article-media/video behavior implemented by SmartDox Phase 1. Its PDF-role and
+locale-selection sections define the Phase 9 contract for the future Phase 9.1
+consumer; they are not current implementation claims.
 
 ## Registry Entry
 
@@ -22,6 +24,14 @@ variants:
       public_path: /ja/development-process/images/example/video-summary-ja.png
       media_type: image/png
       alt: 動画の詳細インフォグラフィック
+    article_pdf:
+      public_path: /ja/development-process/pdf/example-article-ja.pdf
+      media_type: application/pdf
+      label: 記事 PDF
+    summary_slides_pdf:
+      public_path: /ja/development-process/pdf/example-summary-ja.pdf
+      media_type: application/pdf
+      label: 要約スライド PDF
     video:
       presentation: external-link
       status: published
@@ -40,6 +50,63 @@ metadata is otherwise equal.
 An infographic has a required non-empty `public_path`, and optional
 `media_type` and `alt`. Its path is a registered site-visible reference;
 SmartDox does not verify an artifact by scanning a filesystem.
+
+## Localized PDF Roles
+
+Each variant may independently contain the direct role fields
+`article_pdf` and `summary_slides_pdf`. Each present field is a single
+document reference with this shape:
+
+```yaml
+article_pdf:
+  public_path: /ja/development-process/pdf/example-article-ja.pdf
+  media_type: application/pdf
+  label: 記事 PDF
+summary_slides_pdf:
+  public_path: /ja/development-process/pdf/example-summary-ja.pdf
+  media_type: application/pdf
+  label: 要約スライド PDF
+```
+
+`article_pdf` and `summary_slides_pdf` are the only role discriminators. A
+separate role field and filename inference are forbidden. For each present
+role, `public_path` is required, non-empty, and site-visible; `media_type` is
+required and exactly `application/pdf`; `label` is optional and must be
+nonblank when supplied. Either role may be absent.
+
+The future registry consumer rejects duplicate role entries, invalid paths or
+media types, and invalid locale association. Role entries are not merged, and
+one role is never a fallback for the other. PDF `public_path` values are
+locale-agnostic site-visible references; only the enclosing canonical variant
+key associates a reference with a locale. SmartDox does not infer locale from
+a path or filename and does not require a locale path prefix. Locale variants
+are matched exactly; no locale fallback or merging is permitted.
+These PDF registry rules are the Phase 9 contract for Phase 9.1 and are not
+implemented by this Phase.
+
+Existing infographic, external-video, site-hosted-video, legacy
+`VideoPublication`, and no-media behavior remains compatible and is unchanged
+by this documentation-only contract.
+
+## Single-Document PDF Locale Selection
+
+The single-document PDF operation accepts an optional `--locale` selector.
+For this delivery, the selector accepts only canonical `ja` or `en`.
+Locale-neutral content remains in the output. Language-tagged Dox content is
+selected only when its language tag exactly matches the selected canonical
+tag; content in a different locale is never a fallback. When `--locale` is
+omitted, the legacy unfiltered single-document output is preserved.
+
+The selector reports stable diagnostics with these meanings:
+
+- `pdf.locale.invalid`: the value is malformed or noncanonical;
+- `pdf.locale.unsupported`: the value is valid but unsupported by this
+  delivery; and
+- `pdf.locale.unavailable`: source content for the selected locale is absent.
+
+The locale-selected PDF behavior is a Phase 9 contract; it does not claim
+that the current source implements the selector or its future registry and
+projection consumers.
 
 ## Video Rules
 

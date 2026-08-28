@@ -35,6 +35,13 @@ ArticleMediaPublication
 ArticleMediaVariant
   infographic: Optional[ImageReference]
   video: Optional[VideoReference]
+  articlePdf: Optional[PdfDocumentReference]
+  summarySlidesPdf: Optional[PdfDocumentReference]
+
+PdfDocumentReference
+  publicPath
+  mediaType
+  label
 
 VideoReference
   presentation: external-link | site-hosted
@@ -43,6 +50,48 @@ VideoReference
   watchUrl: Optional[URI]
   contentUrl: Optional[URI]
 ```
+
+The normalized `ArticleMediaVariant` has two independent optional PDF roles:
+`articlePdf` and `summarySlidesPdf`. Each present role is represented by a
+`PdfDocumentReference(publicPath, mediaType, label)`. The registry maps these
+roles from the exact variant fields `article_pdf` and `summary_slides_pdf`;
+those fields are the role discriminators. No separate role field and no
+filename inference is permitted.
+
+For each present role, `publicPath` is a non-empty, site-visible public path
+and `mediaType` is present and exactly `application/pdf`. `label` is optional,
+but is nonblank when supplied. Either role may be absent. The future registry
+consumer rejects duplicate role entries, invalid public paths or media types,
+and invalid locale association. PDF `publicPath` values are locale-agnostic
+site-visible references; only the enclosing canonical variant key associates a
+reference with a locale. SmartDox does not infer locale from a path or filename
+and does not require a locale path prefix. There is no role fallback or merging
+and no locale fallback or merging.
+
+Phase 9 defines this PDF-role contract only. It does not implement
+`PublishMetadata` parsing or article/Notice projection; those responsibilities
+belong to Phase 9.1. Existing infographic, external-video, site-hosted-video,
+legacy `VideoPublication`, and no-media behavior remains compatible.
+
+## Locale-Selected Single-Document PDF
+
+For single-document PDF generation, `pdf --locale` accepts only the canonical
+locale tags `ja` and `en` for this delivery. Locale-neutral content remains in
+the output. Language-tagged Dox content is included only when its language tag
+matches the selected canonical tag exactly; a different locale is never used
+as fallback. Omitting `--locale` preserves the legacy unfiltered
+single-document output.
+
+The locale-selection boundary has stable diagnostics:
+
+- `pdf.locale.invalid` identifies a malformed or noncanonical locale value;
+- `pdf.locale.unsupported` identifies a valid locale that this delivery does
+  not support; and
+- `pdf.locale.unavailable` identifies absent source content for the selected
+  locale.
+
+These locale-selection semantics are a Phase 9 contract for the future PDF
+consumer and do not claim that the current source implements them.
 
 `watchUrl` is the user-facing destination. `contentUrl` identifies a playable
 site-hosted asset. An infographic is independent of video availability.
