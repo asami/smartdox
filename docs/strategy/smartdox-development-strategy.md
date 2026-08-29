@@ -179,7 +179,7 @@ Primary reference:
 
 ### Phase 10: Markdown Image Admission and PDF Image Semantics
 
-Status: planned; starts only after Phase 9.1 release closure.
+Status: closed through the final release boundary.
 
 Purpose:
 
@@ -223,9 +223,16 @@ final release suite with logical argv `["--batch", "test"]` must pass before
 the distinct release commit succeeds. No Cozy implementation or downstream
 consumer acceptance is activated by this closure.
 
-Phase 10 is planned after Phase 9.1 for SmartDox-owned Markdown image
-admission and PDF image semantics. It does not introduce a Cozy preprocessor
-or a PDF receipt contract.
+Phase 10 closes through this release boundary after Markdown-image grammar and
+model documentation Step commit `64c8d895e86167dff1af69db16bd97175c907a91`,
+parser/PDF admission Step commit
+`413d0f501ab4e1d3bd5fc13fd7bd315bcce4a235`, and deterministic conversion
+acceptance Step commit `9e00eaad9710dd6ba3dcdc8a5d9064843dcb0405`. The
+mandatory Phase full review found only `CPB-P10-01`, which the accepted M0
+closure correction resolved. The frozen final release suite with logical argv
+`["--batch", "test"]` must pass before the distinct release commit succeeds.
+No Cozy preprocessor or PDF receipt contract is introduced, and no successor
+Phase is activated by this closure.
 
 ## 9. Development Item Status
 
@@ -233,4 +240,5 @@ or a PDF receipt contract.
 | --- | --- | --- | --- | --- | --- |
 | DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | CLOSED |
 | DEV-002 | SimpleModeling.org generated RDF graph evidence and Cozy public finalization feedback | Ensure generated RDF graph literal nodes have deterministic non-empty labels through SmartDox projection fallback semantics, then separately verify regenerated-site finalization and consumer acceptance. | NEW_PHASE | [Phase 8](../phase/phase-8.md) | CLOSED |
-| DEV-003 | Cozy Phase 39 scope decision on 2026-08-29 | Admit Markdown image syntax into the common SmartDox image model and preserve alt text, source-relative paths, and deterministic PDF-path behavior without a Cozy-local preprocessor. | NEW_PHASE | [Phase 10](../phase/phase-10.md) | PLANNED |
+| DEV-003 | Cozy Phase 39 scope decision on 2026-08-29 | Admit Markdown image syntax into the common SmartDox image model and preserve alt text, source-relative paths, and deterministic PDF-path behavior without a Cozy-local preprocessor. | NEW_PHASE | [Phase 10](../phase/phase-10.md) | CLOSED |
+| DEV-P10-01 | Phase 10 full review | Define explicit physical/virtual DoxSite source-root semantics for Markdown-image consumers instead of relying on a current-directory fallback. | DEVELOPMENT_CANDIDATE | Later DoxSite consumer work | OPEN |

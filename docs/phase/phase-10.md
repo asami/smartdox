@@ -1,6 +1,6 @@
 # Phase 10: Markdown Image Admission and PDF Image Semantics
 
-Status: PLANNED; NOT STARTED
+Status: CLOSED through the final release boundary
 
 Plan date: 2026-08-29
 
@@ -25,10 +25,13 @@ Markdown preprocessor or an image-model workaround.
 ### MDIMG10-01: Image Grammar and Model Contract
 
 Stage Status:
-- Current status: NOT STARTED
+- Current status: COMMITTED
+- Checklist basis: `MDIMG10-01`
 - Owner: SmartDox parser and document model
-- Update rule: complete only when the accepted forms, normalized model,
-  compatibility rules, and diagnostics are specified.
+- Update rule: update when the MDIMG10-01 checklist state changes.
+- Evidence: closed in Step commit
+  `64c8d895e86167dff1af69db16bd97175c907a91`
+  (`docs(phase10): specify Markdown image admission`).
 
 - Define `![alt](path)` as a Markdown image form distinct from a Markdown
   hyperlink.
@@ -42,10 +45,14 @@ Stage Status:
 ### MDIMG10-02: Parser and Renderer Admission
 
 Stage Status:
-- Current status: NOT STARTED
+- Current status: COMMITTED
+- Checklist basis: `MDIMG10-02`
 - Owner: SmartDox Markdown parser and PDF conversion boundary
-- Update rule: complete only when source parsing, model preservation, and
-  renderer behavior have focused Executable Specification evidence.
+- Update rule: update when the MDIMG10-02 checklist state changes.
+- Evidence: closed in Step commit
+  `413d0f501ab4e1d3bd5fc13fd7bd315bcce4a235`
+  (`feat(phase10): support Markdown images in PDF output`) after focused
+  serialized validation passed 80 specifications.
 
 - Parse supported Markdown image syntax into the common image model without a
   leading `!` text node.
@@ -57,10 +64,16 @@ Stage Status:
 ### MDIMG10-03: Executable Acceptance and Handoff
 
 Stage Status:
-- Current status: NOT STARTED
+- Current status: CLOSED
+- Checklist basis: `MDIMG10-03`
 - Owner: SmartDox Phase 10
-- Update rule: complete only when focused and full validation, independent
-  review, and the documented handoff are complete.
+- Update rule: update when the MDIMG10-03 checklist state changes.
+- Evidence: deterministic conversion acceptance closed in Step commit
+  `9e00eaad9710dd6ba3dcdc8a5d9064843dcb0405`; its focused serialized
+  validation passed 35 specifications. The mandatory Phase full review's
+  `CPB-P10-01` progress-ledger finding was resolved by the accepted M0 closure
+  correction. The final full suite runs once against this closure tree before
+  the distinct release commit.
 
 - Add Given/When/Then executable specifications for Japanese alt text,
   relative paths, invalid and missing resources, punctuation non-leakage, and
@@ -87,6 +100,18 @@ paths are preserved, unsupported or missing resources fail deterministically,
 Markdown punctuation does not leak into rendered output, executable evidence
 and full validation pass, and independent Phase review closes all Current
 Boundary Blockers.
+
+## Closure Evidence and Cozy Handoff
+
+Phase 10 is closed through this release boundary. Its closure becomes
+authoritative only when the final full SmartDox suite passes and the distinct
+release commit succeeds.
+
+The accepted SmartDox contract and downstream boundary are recorded in
+`docs/journal/2026/08/2026-08-29-phase-10-cozy-handoff.md`. Cozy may consume
+that release coordinate as an input dependency; no Cozy implementation,
+preprocessing, receipt management, publication, upload, deployment, or
+downstream consumer acceptance is activated by this closure.
 
 ## Structural Phase Plan Gate
 

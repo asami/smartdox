@@ -5,11 +5,10 @@ Purpose: engineering work management.
 Current phase state:
 
 - No execution phase is active.
-- Most recently closed phase: `phase-9.1.md`: Localized PDF Registry and
-  Article/Notice Projection.
-- Next planned successor: `phase-10.md`: Markdown Image Admission and PDF
-  Image Semantics. It remains planned and not started; a fresh Phase 10
-  invocation is required to begin it.
+- Most recently closed phase: `phase-10.md`: Markdown Image Admission and PDF
+  Image Semantics.
+- No successor phase is selected. A future Phase requires a fresh explicit
+  `$cncf-goal-phase` invocation.
 - Phase 7 was accepted in the `TAG7-01` Step commit
   `496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic
   inline open-tag grammar`). Its mandatory full Phase review found one bounded
@@ -55,7 +54,7 @@ through its release boundary; its authority is `phase-9.1.md` plus
 `phase-9.1-checklist.md`. SmartDox owns the registry and article/Notice
 consumer boundaries; Cozy generation and registration remain downstream.
 
-Phase 10 is the planned, not-started Markdown image-admission successor after
-Phase 9.1. Its authority is `phase-10.md` plus `phase-10-checklist.md`; it
-owns the common SmartDox image model and PDF-path acceptance, not a Cozy
-preprocessor or PDF receipt format.
+Phase 10 is closed through its release boundary. Its authority is
+`phase-10.md` plus `phase-10-checklist.md`; it admitted Markdown image syntax
+to the common SmartDox image model and PDF path without a Cozy preprocessor or
+PDF receipt format. No successor Phase is activated by this closure.
