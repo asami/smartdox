@@ -266,6 +266,15 @@ Image references use double brackets.
 image ::= "[[" image-uri "]]"
 ```
 
+This `[[image-uri]]` form remains the established SmartDox image grammar.
+Ordinary Markdown inline image semantics, including the admitted
+`![alt](path)` form, are specified normatively in
+[`docs/spec/markdown-image-admission.md`](markdown-image-admission.md), with
+the stable design boundary in
+[`docs/design/markdown-image-admission.md`](../design/markdown-image-admission.md).
+This delegation does not broaden the bracket/link grammar below or elsewhere
+in this document.
+
 Supported image suffixes include `png`, `jpeg`, `jpg`, `gif`, and `pdf`.
 
 ```dox
