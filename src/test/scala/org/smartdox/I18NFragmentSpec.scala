@@ -99,12 +99,9 @@ class I18NFragmentSpec extends AnyWordSpec with Matchers with ScalazMatchers wit
     "preserve regional I18NString provenance and canonical XML construction" in {
       Given("regional and simple I18NString inputs plus an XML input authored in canonical English")
       val regional = Locale.forLanguageTag("en-US")
-      val fromi18nstring = I18NFragment.create(I18NString(
-        "",
-        "",
-        "",
-        Map(regional -> "regional I18NString English")
-      ))
+      val fromi18nstring = I18NFragment.create(I18NString(Map(
+        regional -> "regional I18NString English"
+      )))
       val simple = I18NFragment.create(I18NString("plain"))
       val fromxml = I18NFragment.getC(
         "description",
@@ -129,6 +126,25 @@ class I18NFragmentSpec extends AnyWordSpec with Matchers with ScalazMatchers wit
       And("the supported canonical XML route remains an exact English source")
       fromxml.hasExactSource(Locale.ENGLISH) shouldBe true
       xmlexact should include ("canonical XML English")
+    }
+
+    "retain a distinct canonical I18NString field beside regional provenance" in {
+      Given("an I18NString with explicit canonical English and distinct en-US values")
+      val fragment = I18NFragment.create(I18NString(
+        "",
+        "canonical I18NString English",
+        "",
+        Map(Locale.forLanguageTag("en-US") -> "regional I18NString English")
+      ))
+
+      When("strict English projection is requested")
+      val english = Dox.toPlainText(fragment.distillExact(Locale.ENGLISH))
+
+      Then("the distinct canonical English field remains an exact authored source")
+      fragment.hasExactSource(Locale.ENGLISH) shouldBe true
+      english should include ("canonical I18NString English")
+      And("the regional English map source is excluded from strict canonical selection")
+      english should not include "regional I18NString English"
     }
 
     "serialize and transform only authored sources" in {

@@ -5,9 +5,10 @@ Date: 2026-08-04
 
 The authoritative design is
 `docs/design/article-media-publication.md`. This specification fixes the
-article-media/video behavior implemented by SmartDox Phase 1. Its PDF-role and
-locale-selection sections define the Phase 9 contract for the future Phase 9.1
-consumer; they are not current implementation claims.
+article-media/video behavior implemented by SmartDox Phase 1. Its PDF-role
+sections define the Phase 9 contract for the Phase 9.1 registry and projection
+consumer. Its locale-selection section specifies Phase 9's deterministic
+explicit locale selection for single-document PDF source input.
 
 ## Registry Entry
 
@@ -104,9 +105,9 @@ The selector reports stable diagnostics with these meanings:
   delivery; and
 - `pdf.locale.unavailable`: source content for the selected locale is absent.
 
-The locale-selected PDF behavior is a Phase 9 contract; it does not claim
-that the current source implements the selector or its future registry and
-projection consumers.
+Phase 9 implements deterministic explicit locale selection for single-document
+PDF source input. Registry parsing and article/Notice PDF projection remain
+Phase 9.1 work.
 
 ## Video Rules
 

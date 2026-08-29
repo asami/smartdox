@@ -495,13 +495,31 @@ object I18NFragment {
     val a = p.localeVector.map {
       case (k, v) => k -> List(Text(v))
     }
-    val source = if (p.map.nonEmpty)
-      p.map.toVector.map { case (k, v) => k -> List(Text(v)) }
-    else if (p.isSimple)
-      Vector(LocaleUtils.C -> List(Text(p.c)))
-    else
-      a
+    val source = _make_i18nstring_source(p, a)
     _create_source(source, I18NContainer.create(a))
+  }
+
+  private def _make_i18nstring_source(
+    p: I18NString,
+    legacy: Vector[(Locale, List[Dox])]
+  ): Vector[(Locale, List[Dox])] = {
+    if (p.map.isEmpty) {
+      if (p.isSimple)
+        Vector(LocaleUtils.C -> List(Text(p.c)))
+      else
+        legacy
+    } else {
+      val mapvalues = p.map.values.toSet
+      val canonical = Vector(
+        LocaleUtils.C -> p.c,
+        LocaleUtils.en -> p.en,
+        LocaleUtils.ja -> p.ja
+      ).collect {
+        case (locale, value) if value.trim.nonEmpty && !mapvalues.contains(value) =>
+          locale -> List[Dox](Text(value))
+      }
+      p.map.toVector.map { case (locale, value) => locale -> List[Dox](Text(value)) } ++ canonical
+    }
   }
 
   def create[A <: Dox](p: I18NHangar[A]): I18NFragment = {

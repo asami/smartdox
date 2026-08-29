@@ -146,6 +146,53 @@ Primary reference:
 - `docs/phase/phase-8.md`
 - `docs/phase/phase-8-checklist.md`
 
+### Phase 9: Localized PDF Contract and Source-Document Selection
+
+Status: closed through the final release boundary.
+
+Purpose:
+
+- define the public article-PDF and summary-slides-PDF role contract; and
+- select one exact locale from a bilingual SmartDox source document while
+  preserving locale-neutral content and reporting invalid selections
+  deterministically.
+
+Primary reference:
+
+- `docs/phase/phase-9.md`
+- `docs/phase/phase-9-checklist.md`
+
+### Phase 9.1: Localized PDF Registry and Article/Notice Projection
+
+Status: planned; starts only after Phase 9 release closure.
+
+Purpose:
+
+- implement the accepted PDF roles in publication metadata; and
+- project the exact-locale references to ordinary articles and global and
+  category-local Notices without changing existing media behavior.
+
+Primary reference:
+
+- `docs/phase/phase-9.1.md`
+- `docs/phase/phase-9.1-checklist.md`
+
+### Phase 10: Markdown Image Admission and PDF Image Semantics
+
+Status: planned; starts only after Phase 9.1 release closure.
+
+Purpose:
+
+- admit ordinary Markdown `![alt](path)` and established SmartDox image forms
+  into one common image model; and
+- preserve Japanese alt text and source-relative resources through PDF
+  conversion without source punctuation leakage or a Cozy workaround.
+
+Primary reference:
+
+- `docs/phase/phase-10.md`
+- `docs/phase/phase-10-checklist.md`
+
 ## Current Priority
 
 Phase 7 is closed by Step commit
@@ -154,10 +201,25 @@ inline open-tag grammar`), its mandatory Phase-full review, the accepted
 focused closure review for `CB-P7-FULL-001`, and final mandatory full-suite
 invocation `49720-20260821T020637Z` with logical argv `["--batch", "test"]`
 (261 succeeded / 0 failed across 32 suites; `sbt_exit=0`, `wrapper_exit=0`,
-`lock=released`). Phase 8 closes through this release boundary and does not
-activate a successor. The Phase 8 closure becomes authoritative only if the
-frozen final release suite with logical argv `["--batch", "test"]` passes and
-the release commit succeeds.
+`lock=released`). Phase 8 is closed by release commit
+`1ba56ec` (`Phase 8: close RDF graph literal label projection`).
+
+Phase 9 closes through this release boundary after its PDF-role contract and
+strict single-document locale selector were accepted in Step commits
+`fe23fc82936821d2da5c76250be6f1e9d353db10` and
+`834823b3118a6e08cf2eae5b4987111382f2dd67`. The mandatory Phase review
+findings `CB-P9-FULL-001` and `CB-P9-FULL-002` converged through focused
+re-review; the frozen final release suite with logical argv `["--batch",
+"test"]` must pass before the distinct release commit succeeds. No successor
+is automatically activated.
+
+Phase 9.1 remains planned and not started. A fresh invocation may begin it
+only after the Phase 9 release closure provides the accepted contract,
+locale-selection behavior, executable evidence, and handoff.
+
+Phase 10 is planned after Phase 9.1 for SmartDox-owned Markdown image
+admission and PDF image semantics. It does not introduce a Cozy preprocessor
+or a PDF receipt contract.
 
 ## 9. Development Item Status
 
@@ -165,3 +227,4 @@ the release commit succeeds.
 | --- | --- | --- | --- | --- | --- |
 | DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | CLOSED |
 | DEV-002 | SimpleModeling.org generated RDF graph evidence and Cozy public finalization feedback | Ensure generated RDF graph literal nodes have deterministic non-empty labels through SmartDox projection fallback semantics, then separately verify regenerated-site finalization and consumer acceptance. | NEW_PHASE | [Phase 8](../phase/phase-8.md) | CLOSED |
+| DEV-003 | Cozy Phase 39 scope decision on 2026-08-29 | Admit Markdown image syntax into the common SmartDox image model and preserve alt text, source-relative paths, and deterministic PDF-path behavior without a Cozy-local preprocessor. | NEW_PHASE | [Phase 10](../phase/phase-10.md) | PLANNED |

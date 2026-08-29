@@ -138,12 +138,9 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
     "reject regional-only I18NString I18NFragment construction" in {
       Given("an en-US-only fragment built through the I18NString route")
       val regional = Locale.forLanguageTag("en-US")
-      val fromi18nstring = I18NFragment.create(I18NString(
-        "",
-        "",
-        "",
-        Map(regional -> "regional I18NString English")
-      ))
+      val fromi18nstring = I18NFragment.create(I18NString(Map(
+        regional -> "regional I18NString English"
+      )))
       val stringsource = Document(Head.empty, Body(List(fromi18nstring)))
 
       When("canonical English PDF selection is requested")
@@ -152,6 +149,27 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       Then("the regional-only constructor route reports unavailable exact English content")
       stringresult.isError shouldBe true
       stringresult.message should include ("pdf.locale.unavailable")
+    }
+
+    "select distinct canonical I18NString English without regional fallback" in {
+      Given("an I18NString fragment with canonical English and distinct en-US sources")
+      val fragment = I18NFragment.create(I18NString(
+        "",
+        "canonical I18NString English",
+        "",
+        Map(Locale.forLanguageTag("en-US") -> "regional I18NString English")
+      ))
+      val source = Document(Head.empty, Body(List(fragment)))
+
+      When("canonical English PDF selection is requested")
+      val result = PdfOperationClass._select_locale(source, Some("en"))
+      val selected = result.getOrElse(fail(result.message))
+
+      Then("the explicit canonical source remains available")
+      result.isError shouldBe false
+      selected.toPlainText should include ("canonical I18NString English")
+      And("the regional source is excluded from strict English selection")
+      selected.toPlainText should not include "regional I18NString English"
     }
 
     "select one exact canonical I18NFragment without cross-locale leakage" in {

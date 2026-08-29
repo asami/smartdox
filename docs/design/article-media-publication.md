@@ -90,8 +90,9 @@ The locale-selection boundary has stable diagnostics:
 - `pdf.locale.unavailable` identifies absent source content for the selected
   locale.
 
-These locale-selection semantics are a Phase 9 contract for the future PDF
-consumer and do not claim that the current source implements them.
+Phase 9 implements deterministic explicit locale selection for single-document
+PDF source input. Registry parsing and article/Notice PDF projection remain
+Phase 9.1 work.
 
 `watchUrl` is the user-facing destination. `contentUrl` identifies a playable
 site-hosted asset. An infographic is independent of video availability.
