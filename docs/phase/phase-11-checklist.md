@@ -3,7 +3,7 @@
 This checklist is the authoritative progress ledger for Phase 11. It is not a
 normative behavior contract.
 
-Phase Status: IN PROGRESS / DSROOT11-01 ACCEPTED AND COMMITTED; DSROOT11-02 ACCEPTED / STEP COMMITTED; DSROOT11-03 IN PROGRESS / EXECUTABLE EVIDENCE AND FOCUSED VALIDATION COMPLETE; PHASE REVIEW SEALED; FINAL RELEASE VALIDATION PENDING
+Phase Status: CLOSED through the final release boundary
 
 Predecessor: Phase 10 release closure and its accepted Markdown-image
 contract.
@@ -35,19 +35,22 @@ Stage Status:
 ## DSROOT11-03: Executable Acceptance
 
 Stage Status:
-- Current status: IN PROGRESS / EXECUTABLE EVIDENCE AND FOCUSED VALIDATION COMPLETE; PHASE REVIEW SEALED; FINAL RELEASE VALIDATION PENDING
+- Current status: CLOSED through the final release boundary
 - Owner: SmartDox Phase 11
-- Update rule: Mark individual evidence/validation only when bound to current-tree receipts; Phase closure requires no open review blocker, final full validation, and release commit.
+- Update rule: Closure becomes authoritative only when the final full suite
+  passes and the distinct release commit succeeds.
 
 - [x] Add Given/When/Then specifications for physical, virtual, absent,
       traversal, cache, and compatibility behavior, including explicit cache
       isolation when the same document pathname is parsed under distinct
       physical or virtual source-root identities.
 - [x] Run focused validation after implementation.
-- [ ] Complete independent Phase review and final release validation.
+- [x] Complete independent Phase review and prepare the final release
+      validation.
 
 Phase 11 has an accepted and committed DSROOT11-01 parser-context Slice.
-DSROOT11-02 is accepted and committed by this Step. DSROOT11-03 is in progress
-with executable evidence and focused validation complete and the Phase review
-sealed; final release validation remains pending. No Phase closure,
-publication, push, deployment, or downstream consumer acceptance is claimed.
+DSROOT11-02 is accepted and committed by this Step. DSROOT11-03 has executable
+evidence and focused validation complete, and the Phase review is sealed.
+Phase 11 is CLOSED through this release boundary. Its authoritative closure
+requires the final full suite and the distinct release commit. No publication,
+push, deployment, or downstream consumer acceptance is claimed.

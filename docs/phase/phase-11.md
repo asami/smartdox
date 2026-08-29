@@ -1,6 +1,6 @@
 # Phase 11: DoxSite Source-Root Semantics for Local Resources
 
-Status: IN PROGRESS / DSROOT11-01 ACCEPTED AND COMMITTED; DSROOT11-02 ACCEPTED / STEP COMMITTED; DSROOT11-03 IN PROGRESS / EXECUTABLE EVIDENCE AND FOCUSED VALIDATION COMPLETE; PHASE REVIEW SEALED; FINAL RELEASE VALIDATION PENDING
+Status: CLOSED through the final release boundary
 
 Plan date: 2026-08-30
 
@@ -103,9 +103,10 @@ Stage Status:
 ### DSROOT11-03: Executable Acceptance
 
 Stage Status:
-- Current status: IN PROGRESS / EXECUTABLE EVIDENCE AND FOCUSED VALIDATION COMPLETE; PHASE REVIEW SEALED; FINAL RELEASE VALIDATION PENDING
+- Current status: CLOSED through the final release boundary
 - Owner: SmartDox Phase 11
-- Update rule: Mark individual evidence/validation only when bound to current-tree receipts; Phase closure requires no open review blocker, final full validation, and release commit.
+- Update rule: Closure becomes authoritative only when the final full suite
+  passes and the distinct release commit succeeds.
 
 - Add Given/When/Then executable specifications for all source-origin kinds,
   containment failures, deterministic reuse, and compatibility.
@@ -123,7 +124,8 @@ and existing link forms remain compatible; and executable evidence plus the
 required review and release gates pass.
 
 Current lifecycle position: DSROOT11-01 is accepted and committed; DSROOT11-02
-is accepted and committed by this Step; and DSROOT11-03 is in progress with
-executable evidence and focused validation complete and the Phase review
-sealed. Final release validation remains pending. No Phase closure,
+is accepted and committed by this Step; and DSROOT11-03 has executable evidence
+and focused validation complete with the Phase review sealed. Phase 11 is closed
+through this release boundary. Its closure becomes authoritative only when the
+final full SmartDox suite passes and the distinct release commit succeeds. No
 publication, push, deployment, or downstream consumer acceptance is claimed.
