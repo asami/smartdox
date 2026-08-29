@@ -1,6 +1,8 @@
 package org.smartdox.doxsite
 
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.time.Instant
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
@@ -17,7 +19,7 @@ import org.smartdox.converters.Dox2XmlConverter
 /*
  * @since   Jul. 23, 2025
  *  version Jul. 27, 2025
- * @version Aug.  7, 2025
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSiteCache(config: Option[DoxSite.Config], context: Context) {
@@ -28,7 +30,23 @@ class DoxSiteCache(config: Option[DoxSite.Config], context: Context) {
   private val _context_name =
     config.map(_.strategy).getOrElse(Strategy.Overview).name
 
-  private val _base = new File(s"doxsite-cache-${_context_name}.d")
+  private val _origin = config.flatMap(_.origin).map(_.getCanonicalFile)
+  private val _base = _origin.map { origin =>
+    new File(
+      new File(s"doxsite-cache-${_context_name}.d"),
+      _origin_key(origin)
+    )
+  }
+
+  private def _origin_key(origin: File): String = {
+    val digest = MessageDigest.getInstance("SHA-256").digest(
+      origin.getCanonicalPath.getBytes(StandardCharsets.UTF_8)
+    )
+    digest.map(x => "%02x".format(x & 0xff)).mkString
+  }
+
+  private def _cache_file(pathname: String): Option[File] =
+    _base.map(base => new File(base, pathname))
 
   private def _to_xml(dox: Dox): Consequence[String] = {
     val converter = new Dox2XmlConverter(context)
@@ -39,18 +57,19 @@ class DoxSiteCache(config: Option[DoxSite.Config], context: Context) {
     pathname: String,
     lastmodified: Option[Instant]
   ): Option[Dox] = Consequence {
-    val file = new File(_base, pathname)
-    if (file.exists)
-      lastmodified match {
-        case Some(s) =>
-          if (s.toEpochMilli < file.lastModified)
-            _get(file, s)
-          else
-            None
-        case None => None
-      }
-    else
-      None
+    _cache_file(pathname).flatMap { file =>
+      if (file.exists)
+        lastmodified match {
+          case Some(s) =>
+            if (s.toEpochMilli < file.lastModified)
+              _get(file, s)
+            else
+              None
+          case None => None
+        }
+      else
+        None
+    }
   }.toOption.flatten
 
   private def _get(file: File, lastmodified: Instant): Option[Dox] =
@@ -67,7 +86,7 @@ class DoxSiteCache(config: Option[DoxSite.Config], context: Context) {
     )
 
   private def _get(pathname: String): Option[Dox] = Consequence {
-    _parse(InputSource(new File(_base, pathname)))
+    _cache_file(pathname).flatMap(file => _parse(InputSource(file)))
   }.unsafeOnError(e =>
     context.log.error(s"Can't load cache: $pathname")
   ).toOption.flatten
@@ -84,24 +103,25 @@ class DoxSiteCache(config: Option[DoxSite.Config], context: Context) {
     for {
       s <- _to_xml(dox)
     } yield {
-      val file = new File(_base, pathname)
-      IoUtils.save(file, s)
-      if (_is_test_compare)
-        _compare(pathname, dox, s) match {
-          case CompareResult.Success => Unit
-          case CompareResult.Mismatch(diff) => 
-            context.log.error(s"Mismatch cache: $pathname")
-            _move_error(file)
-            _make_error_file(file, diff)
-          case CompareResult.NotFound =>  
-            RAISE.noReachDefect(s"Cache not found: $pathname")
-        }
+      _cache_file(pathname).foreach { file =>
+        IoUtils.save(file, s)
+        if (_is_test_compare)
+          _compare(pathname, dox, s) match {
+            case CompareResult.Success => Unit
+            case CompareResult.Mismatch(diff) =>
+              context.log.error(s"Mismatch cache: $pathname")
+              _move_error(file)
+              _make_error_file(file, diff)
+            case CompareResult.NotFound =>
+              RAISE.noReachDefect(s"Cache not found: $pathname")
+          }
+      }
     }
   }
 
   private def _load(pathname: String): Option[String] = Consequence {
-    InputSource(new File(_base, pathname)).asText
-  }.toOption
+    _cache_file(pathname).map(file => InputSource(file).asText)
+  }.toOption.flatten
 
   private def _compare(pathname: String, dox: Document, expected: String): CompareResult =
     _load(pathname) match {

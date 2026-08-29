@@ -84,7 +84,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version May. 14, 2026
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
- * @version Aug. 29, 2026
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1060,13 +1060,28 @@ object DoxSite {
     ) = {
       // println(s"_dox_page: $c")
       val dox = context.cache.get(node.pathname, lastmodified) getOrElse {
-        val pathname = rule.doxSiteConfig.origin match {
-          case Some(s) => new File(s, node.pathname).toString
-          case None => node.pathname
-        }
-        Dox2Parser.parseWithFilename(pathname, c)
+        val (pathname, parserconfig) = _source_parser(node, Dox2Parser.Config.default)
+        Dox2Parser.parseWithFilename(parserconfig, pathname, c)
       }
       _create_dox(node.name, dox, lastmodified)
+    }
+
+    private def _source_parser(
+      node: TreeNode[Realm.Data],
+      baseconfig: Dox2Parser.Config
+    ): (String, Dox2Parser.Config) = {
+      rule.doxSiteConfig.origin match {
+        case Some(origin) =>
+          val pathname = new File(origin, node.pathname).getCanonicalFile
+          (pathname.toString, baseconfig.withResourceRoot(pathname.getParentFile.toPath))
+        case None =>
+          (node.pathname, baseconfig._with_virtual_resource_parent(_virtual_parent(node.pathname)))
+      }
+    }
+
+    private def _virtual_parent(pathname: String): String = {
+      val index = pathname.lastIndexOf('/')
+      if (index < 0) "" else pathname.substring(0, index)
     }
 
     private def _error_page(
@@ -1085,11 +1100,8 @@ object DoxSite {
     }
 
     private def _markdown_page(node: TreeNode[Realm.Data], c: String) = {
-      val pathname = rule.doxSiteConfig.origin match {
-        case Some(s) => new File(s, node.pathname).toString
-        case None => node.pathname
-      }
-      val dox = Dox2Parser.parseWithFilename(pathname, c)
+      val (pathname, parserconfig) = _source_parser(node, Dox2Parser.Config.markdown)
+      val dox = Dox2Parser.parseWithFilename(parserconfig, pathname, c)
       _create_dox(node.name, dox)
     }
 
@@ -1953,13 +1965,15 @@ object DoxSite {
   }
 
   private def _parse_source_document(path: Path): Dox = {
-    val name = path.getFileName.toString.toLowerCase(java.util.Locale.ROOT)
+    val canonical = path.toFile.getCanonicalFile
+    val name = canonical.getName.toLowerCase(java.util.Locale.ROOT)
     val config =
       if (name.endsWith(".md") || name.endsWith(".markdown"))
         Dox2Parser.Config.markdown
       else
         Dox2Parser.Config.default
-    Dox2Parser.parseWithFilename(config, path.toString, Files.readString(path))
+    val parserconfig = config.withResourceRoot(canonical.getParentFile.toPath)
+    Dox2Parser.parseWithFilename(parserconfig, canonical.toString, Files.readString(canonical.toPath))
   }
 
   private def _bibliography_bibtex_entries(root: Path): Vector[Bibliography.Entry] = {

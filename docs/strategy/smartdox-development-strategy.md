@@ -195,7 +195,7 @@ Primary reference:
 
 ### Phase 11: DoxSite Source-Root Semantics for Local Resources
 
-Status: in progress: DSROOT11-01 accepted and committed; DSROOT11-02 pending.
+Status: in progress: DSROOT11-01 and DSROOT11-02 accepted and committed; DSROOT11-03 in progress / executable evidence and focused validation complete; Phase review sealed; final release validation pending.
 
 Purpose:
 
@@ -254,13 +254,14 @@ No Cozy preprocessor or PDF receipt contract is introduced, and no successor
 Phase is activated by this closure.
 
 Phase 11 is in progress through its accepted and committed DSROOT11-01 parser
-context Step. It owns the DoxSite consumer follow-up:
+context Step and DSROOT11-02 propagation. It owns the DoxSite consumer follow-up:
 explicit physical, virtual, and absent source-root semantics for Markdown
 images. Root-absent pages reject Markdown images with the stable
 unsupported-resource diagnostic without a process-current-directory fallback.
-It does not alter Phase 10's grammar or PDF contract. DSROOT11-02 DoxSite
-propagation and DSROOT11-03 acceptance remain pending; no Phase closure is
-claimed.
+It does not alter Phase 10's grammar or PDF contract. DSROOT11-03 is in
+progress with executable evidence and focused validation complete and the Phase
+review sealed; final release validation remains pending. No Phase closure,
+publication, push, deployment, or downstream consumer acceptance is claimed.
 
 ## 9. Development Item Status
 

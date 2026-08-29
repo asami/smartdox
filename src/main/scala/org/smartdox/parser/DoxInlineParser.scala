@@ -25,7 +25,7 @@ import org.smartdox._
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 29, 2026
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {

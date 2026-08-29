@@ -17,7 +17,7 @@ import org.smartdox._
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Aug. 29, 2026
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])

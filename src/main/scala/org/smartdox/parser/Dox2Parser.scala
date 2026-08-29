@@ -55,7 +55,7 @@ import Dox._
  *  version Dec. 10, 2025
  *  version Jun.  8, 2026
  *  version Jun. 23, 2026
- * @version Aug. 29, 2026
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {

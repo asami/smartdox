@@ -9,7 +9,7 @@ import org.smartdox.parser.DoxInlineParser._
 
 /*
  * @since   Aug. 29, 2026
- * @version Aug. 29, 2026
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 private[parser] object MarkdownImageInlineParser {

@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.attribute.FileTime
 import org.goldenport.i18n.I18NContext
+import org.goldenport.realm.Realm
 import org.goldenport.tree.TreeTransformer
 import org.smartdox._
 import org.smartdox.SmartDoxSpecVocabulary
@@ -29,7 +30,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 25, 2026
+ * @version Aug. 30, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -653,6 +654,263 @@ class DoxSiteSpec
       } finally {
         _delete(dir)
       }
+    }
+
+    "resolve physical Markdown image paths from the source document parent" in {
+      val dir = Files.createTempDirectory("smartdox-doxsite-physical-image-root")
+      try {
+        Given("an origin-backed Markdown page with a nested local image")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("articles/images/diagram.png"), "")
+        _write(dir.resolve("articles/page.md"),
+          """# Physical Image Page
+            |
+            |A local image: ![Diagram](images/../images/diagram.png)
+            |""".stripMargin)
+
+        When("DoxSite builds the origin-backed page")
+        val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site_realm(site, context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val html = html_at(realm, "/ja/articles/page.html", "ja/articles/page.html")
+
+        Then("the image is retained relative to the Markdown page parent")
+        html should include_html("src=\"images/diagram.png\"")
+        And("the normalized image does not retain its lexical dot segments")
+        html should not include ("images/../images/diagram.png")
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "resolve virtual Markdown image paths from the Realm page pathname" in {
+      Given("an origin-less Realm containing a Markdown page and a virtual local image")
+      val pathname = "guides/virtual-image.md"
+      val realm = Realm.create()
+      realm.backend.setContent(pathname, Realm.StringData(
+        "# Virtual Image Page\n\nA local image: ![Diagram](images/diagram.png)\n",
+        1L
+      ))
+
+      When("DoxSite builds the origin-less Realm")
+      val site = DoxSite.create(
+        context,
+        realm,
+        None,
+        DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
+      )
+      val output = site_realm(site, context)
+      implicit val i18ncontext: I18NContext = context.i18NContext
+      val html = html_at(output, "/ja/guides/virtual-image.html", "ja/guides/virtual-image.html")
+
+      Then("the image is retained relative to its virtual Markdown page")
+      html should include_html("src=\"images/diagram.png\"")
+    }
+
+    "reject physical and virtual Markdown image traversal at the DoxSite boundary" in {
+      val dir = Files.createTempDirectory("smartdox-doxsite-physical-image-escape")
+      try {
+        Given("an origin-backed page whose image path escapes its source parent")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("articles/escape.md"), "![Escape](../outside.png)\n")
+
+        When("DoxSite parses the physical page")
+        val physicalfailure = intercept[IllegalArgumentException] {
+          create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        }
+
+        Then("the physical traversal reports the stable unsupported-resource diagnostic")
+        physicalfailure.getMessage should include ("image.markdown.unsupported-resource")
+        physicalfailure.getMessage should include ("raw-path=../outside.png")
+      } finally {
+        _delete(dir)
+      }
+
+      Given("an origin-less Realm page whose image path escapes its virtual parent")
+      val realm = Realm.create()
+      realm.backend.setContent(
+        "guides/escape.md",
+        Realm.StringData("![Escape](../../outside.png)\n", 1L)
+      )
+
+      When("DoxSite parses the virtual page")
+      val virtualfailure = intercept[IllegalArgumentException] {
+        DoxSite.create(
+          context,
+          realm,
+          None,
+          DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
+        )
+      }
+
+      Then("the virtual traversal reports the stable unsupported-resource diagnostic")
+      virtualfailure.getMessage should include ("image.markdown.unsupported-resource")
+      virtualfailure.getMessage should include ("raw-path=../../outside.png")
+    }
+
+    "scan bibliography Markdown sources with their physical image roots" in {
+      val dir = Files.createTempDirectory("smartdox-doxsite-bibliography-image-root")
+      try {
+        Given("a bibliography entry and a Markdown source with a local image and citation")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("bibliography/concept/reference.bib.dox"),
+          """Reference Entry
+            |===============
+            |
+            |# HEAD
+            |
+            |id = "bib:reference"
+            |title = "Reference Entry"
+            |status = "published"
+            |
+            |# Body
+            |
+            |A curated reference.
+            |""".stripMargin)
+        _write(dir.resolve("technology/assets/diagram.png"), "")
+        _write(dir.resolve("technology/reference-source.md"),
+          """---
+            |title: Reference Source
+            |bibliography:
+            |  refs:
+            |    - bib:reference
+            |---
+            |
+            |# Reference Source
+            |
+            |![Diagram](assets/diagram.png)
+            |""".stripMargin)
+
+        When("DoxSite collects bibliography source references")
+        val site = DoxSite.create(
+          context,
+          dir.toFile,
+          None,
+          DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
+        )
+        val output = site_realm(site, context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val bibliography = metadata_at(output, "metadata/bibliography/bibliography.json")
+
+        Then("the source reference metadata survives Markdown image parsing")
+        bibliography should include_metadata("\"id\" : \"bib:reference\"")
+        bibliography should include_metadata("technology/reference-source")
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "isolate physical and virtual DoxSite cache identities through output" in {
+      val firstroot = Files.createTempDirectory("smartdox-doxsite-cache-first")
+      val secondroot = Files.createTempDirectory("smartdox-doxsite-cache-second")
+      try {
+        Given("two physical DoxSite roots with the same SmartDox source pathname and distinct bodies")
+        _write(firstroot.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(secondroot.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(firstroot.resolve("same.dox"),
+          """First Physical
+            |==============
+            |
+            |# HEAD
+            |
+            |title = "First Physical"
+            |status = "published"
+            |published_at = "2026-06-24"
+            |
+            |# Body
+            |
+            |First physical result
+            |""".stripMargin)
+        _write(secondroot.resolve("same.dox"),
+          """Second Physical
+            |===============
+            |
+            |# HEAD
+            |
+            |title = "Second Physical"
+            |status = "published"
+            |published_at = "2026-06-24"
+            |
+            |# Body
+            |
+            |Second physical result
+            |""".stripMargin)
+
+        When("DoxSite builds both physical roots through the normal output path")
+        val config = DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
+        val firstoutput = site_realm(create_site(context, firstroot.toFile, config), context)
+        val secondoutput = site_realm(create_site(context, secondroot.toFile, config), context)
+        implicit val i18ncontext: I18NContext = context.i18NContext
+        val firsthtml = html_at(firstoutput, "/ja/same.html", "ja/same.html")
+        val secondhtml = html_at(secondoutput, "/ja/same.html", "ja/same.html")
+
+        Then("each physical output contains only its own same-path SmartDox body")
+        firsthtml should include_html("First physical result")
+        firsthtml should not include ("Second physical result")
+        secondhtml should include_html("Second physical result")
+        secondhtml should not include ("First physical result")
+      } finally {
+        _delete(firstroot)
+        _delete(secondroot)
+      }
+
+      Given("two distinct origin-less Realm instances with the same SmartDox source pathname")
+      val firstrealm = Realm.create()
+      val secondrealm = Realm.create()
+      firstrealm.backend.setContent(
+        "same.dox",
+        Realm.StringData(
+          """First Virtual
+            |=============
+            |
+            |# HEAD
+            |
+            |title = "First Virtual"
+            |status = "published"
+            |published_at = "2026-06-24"
+            |
+            |# Body
+            |
+            |First virtual result
+            |""".stripMargin,
+          1L
+        )
+      )
+      secondrealm.backend.setContent(
+        "same.dox",
+        Realm.StringData(
+          """Second Virtual
+            |==============
+            |
+            |# HEAD
+            |
+            |title = "Second Virtual"
+            |status = "published"
+            |published_at = "2026-06-24"
+            |
+            |# Body
+            |
+            |Second virtual result
+            |""".stripMargin,
+          1L
+        )
+      )
+
+      When("DoxSite builds both virtual Realm instances")
+      val firstoutput = site_realm(
+        DoxSite.create(context, firstrealm, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)),
+        context
+      )
+      val secondoutput = site_realm(
+        DoxSite.create(context, secondrealm, None, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)),
+        context
+      )
+      implicit val i18ncontext: I18NContext = context.i18NContext
+
+      Then("the second virtual result is not replaced by a cached first result")
+      html_at(firstoutput, "/ja/same.html", "ja/same.html") should include_html("First virtual result")
+      html_at(secondoutput, "/ja/same.html", "ja/same.html") should include_html("Second virtual result")
+      html_at(secondoutput, "/ja/same.html", "ja/same.html") should not include ("First virtual result")
     }
 
     "emit Markdown glossary term metadata through Dox IR" in {

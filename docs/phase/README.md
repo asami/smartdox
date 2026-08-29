@@ -4,13 +4,18 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Phase 11 is active: DSROOT11-01 parser-context work is accepted and committed.
-  DSROOT11-02 and DSROOT11-03 remain pending.
+- Phase 11 is active: DSROOT11-01 parser-context work and DSROOT11-02 DoxSite
+  propagation are accepted and committed. DSROOT11-03 is in progress with
+  executable evidence and focused validation complete and the Phase review
+  sealed; final release validation remains pending.
 - Most recently closed phase: `phase-10.md`: Markdown Image Admission and PDF
   Image Semantics.
 - Phase 11 is the active phase: `phase-11.md`: DoxSite Source-Root Semantics
   for Local Resources. Its DSROOT11-01 parser-context Step is accepted and
-  committed; no Phase closure is claimed.
+  committed, DSROOT11-02 is accepted and committed, and DSROOT11-03 is in
+  progress with executable evidence and focused validation complete and the
+  Phase review sealed; final release validation remains pending. No Phase
+  closure is claimed.
 - Phase 7 was accepted in the `TAG7-01` Step commit
   `496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic
   inline open-tag grammar`). Its mandatory full Phase review found one bounded
@@ -60,5 +65,6 @@ Phase 10 is closed through its release boundary. Its authority is
 `phase-10.md` plus `phase-10-checklist.md`; it admitted Markdown image syntax
 to the common SmartDox image model and PDF path without a Cozy preprocessor or
 PDF receipt format. Phase 11 is the active DoxSite consumer follow-up. Its
-parser-context Step is accepted and committed; DoxSite propagation remains
-pending.
+parser-context Step and DoxSite propagation are accepted and committed;
+executable evidence and focused validation are complete, the Phase review is
+sealed, and final release validation remains pending.

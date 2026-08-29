@@ -1,6 +1,6 @@
 # Phase 11: DoxSite Source-Root Semantics for Local Resources
 
-Status: IN PROGRESS / DSROOT11-01 ACCEPTED AND COMMITTED; DSROOT11-02 PENDING
+Status: IN PROGRESS / DSROOT11-01 ACCEPTED AND COMMITTED; DSROOT11-02 ACCEPTED / STEP COMMITTED; DSROOT11-03 IN PROGRESS / EXECUTABLE EVIDENCE AND FOCUSED VALIDATION COMPLETE; PHASE REVIEW SEALED; FINAL RELEASE VALIDATION PENDING
 
 Plan date: 2026-08-30
 
@@ -80,6 +80,7 @@ Out of scope:
 Stage Status:
 - Current status: ACCEPTED / STEP COMMITTED
 - Owner: SmartDox parser and DoxSite boundary
+- Update rule: Preserve accepted/committed status unless a separately accepted Step or current-boundary repair changes its lifecycle evidence.
 
 - Finalize the physical, virtual, and absent source-root contract.
 - Introduce the typed parser context while retaining compatible physical-root
@@ -89,8 +90,9 @@ Stage Status:
 ### DSROOT11-02: DoxSite Propagation and Output Boundary
 
 Stage Status:
-- Current status: PLANNED / NOT STARTED
+- Current status: ACCEPTED / STEP COMMITTED
 - Owner: DoxSite page, bibliography, cache, and site-output paths
+- Update rule: Do not mark accepted/committed until open review blockers are repaired, current final-tree validation/review accepts it, and its exact Step commit succeeds.
 
 - Propagate physical roots for origin-backed pages and bibliography sources.
 - Propagate virtual roots for stable Realm page pathnames.
@@ -101,8 +103,9 @@ Stage Status:
 ### DSROOT11-03: Executable Acceptance
 
 Stage Status:
-- Current status: PLANNED / NOT STARTED
+- Current status: IN PROGRESS / EXECUTABLE EVIDENCE AND FOCUSED VALIDATION COMPLETE; PHASE REVIEW SEALED; FINAL RELEASE VALIDATION PENDING
 - Owner: SmartDox Phase 11
+- Update rule: Mark individual evidence/validation only when bound to current-tree receipts; Phase closure requires no open review blocker, final full validation, and release commit.
 
 - Add Given/When/Then executable specifications for all source-origin kinds,
   containment failures, deterministic reuse, and compatibility.
@@ -118,3 +121,9 @@ process-current-directory fallback; no image path can escape its selected root;
 DoxSite cache and output behavior preserve that context; Phase 10 PDF behavior
 and existing link forms remain compatible; and executable evidence plus the
 required review and release gates pass.
+
+Current lifecycle position: DSROOT11-01 is accepted and committed; DSROOT11-02
+is accepted and committed by this Step; and DSROOT11-03 is in progress with
+executable evidence and focused validation complete and the Phase review
+sealed. Final release validation remains pending. No Phase closure,
+publication, push, deployment, or downstream consumer acceptance is claimed.
