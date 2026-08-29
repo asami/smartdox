@@ -1063,7 +1063,7 @@ object PublishMetadata {
     if (mediatype != "application/pdf")
       throw new IllegalArgumentException(s"Article-media $role media_type must be application/pdf: $identity [$locale]")
     val label = _json_field(json, "label").map { value =>
-      value.asString.map(_.trim).filter(_.nonEmpty).getOrElse(
+      value.asString.filter(_.trim.nonEmpty).getOrElse(
         throw new IllegalArgumentException(s"Article-media $role label must be nonblank: $identity [$locale]")
       )
     }

@@ -45,7 +45,7 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val englisharticle = _string(site, "doxsite.d/en/development-process/example.html")
       val japanesearticle = _string(site, "doxsite.d/ja/development-process/example.html")
       englisharticle should include ("/en/development-process/pdf/example-article.pdf")
-      englisharticle should include ("Read the full English article")
+      englisharticle should include ("  Read the full English article  ")
       englisharticle should include ("/en/development-process/pdf/example-summary-slides.pdf")
       englisharticle should include ("Summary slides PDF")
       englisharticle should include ("smartdox-article-media")
@@ -57,7 +57,7 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf") should be < englisharticle.indexOf("https://example.com/watch-en")
       englisharticle.indexOf("smartdox-article-media-pdf") should be < englisharticle.indexOf("smartdox-article-media-video")
       japanesearticle should include ("/ja/development-process/pdf/example-article.pdf")
-      japanesearticle should include ("記事 PDF")
+      japanesearticle should include ("  記事 PDF  ")
       japanesearticle should not include ("summary-slides.pdf")
       japanesearticle should not include ("要約スライド PDF")
       japanesearticle should include ("https://example.com/watch-ja")
@@ -66,7 +66,7 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("https://example.com/watch-ja")
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should not include ("https://example.com/watch-en")
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("/ja/development-process/pdf/example-article.pdf")
-      _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("記事 PDF")
+      _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("  記事 PDF  ")
 
       And("Notice media preserves the exact role maps and shares each locale result globally and by category")
       _media(englishnotice) shouldBe Some(Map(
@@ -78,7 +78,7 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
         "article_pdf" -> Map(
           "public_path" -> "/en/development-process/pdf/example-article.pdf",
           "media_type" -> "application/pdf",
-          "label" -> "Read the full English article"
+          "label" -> "  Read the full English article  "
         ),
         "summary_slides_pdf" -> Map(
           "public_path" -> "/en/development-process/pdf/example-summary-slides.pdf",
@@ -98,7 +98,8 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
         ),
         "article_pdf" -> Map(
           "public_path" -> "/ja/development-process/pdf/example-article.pdf",
-          "media_type" -> "application/pdf"
+          "media_type" -> "application/pdf",
+          "label" -> "  記事 PDF  "
         ),
         "video" -> Map(
           "presentation" -> "external-link",

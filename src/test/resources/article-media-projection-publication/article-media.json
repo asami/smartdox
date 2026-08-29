@@ -11,7 +11,7 @@
       "article_pdf": {
         "public_path": "/en/development-process/pdf/example-article.pdf",
         "media_type": "application/pdf",
-        "label": "Read the full English article"
+        "label": "  Read the full English article  "
       },
       "summary_slides_pdf": {
         "public_path": "/en/development-process/pdf/example-summary-slides.pdf",
@@ -31,7 +31,8 @@
       },
       "article_pdf": {
         "public_path": "/ja/development-process/pdf/example-article.pdf",
-        "media_type": "application/pdf"
+        "media_type": "application/pdf",
+        "label": "  記事 PDF  "
       },
       "video": {
         "presentation": "external-link",

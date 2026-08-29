@@ -164,7 +164,7 @@ Primary reference:
 
 ### Phase 9.1: Localized PDF Registry and Article/Notice Projection
 
-Status: planned; starts only after Phase 9 release closure.
+Status: closed through the final release boundary.
 
 Purpose:
 
@@ -213,9 +213,15 @@ re-review; the frozen final release suite with logical argv `["--batch",
 "test"]` must pass before the distinct release commit succeeds. No successor
 is automatically activated.
 
-Phase 9.1 remains planned and not started. A fresh invocation may begin it
-only after the Phase 9 release closure provides the accepted contract,
-locale-selection behavior, executable evidence, and handoff.
+Phase 9.1 closes through this release boundary after its localized PDF registry
+and article/Notice projections were accepted in Step commits
+`5f479beda29355de3a728a4bd145d322547e5181` and
+`ec0a119b16f1ed95c83ae93c619760e09408903f`. The mandatory Phase full review
+found `CPB-APDF91-001`; focused repair validation passed 36/36 and the
+independent focused closure re-review returned `SEALED_LEDGER PASS`. The frozen
+final release suite with logical argv `["--batch", "test"]` must pass before
+the distinct release commit succeeds. No Cozy implementation or downstream
+consumer acceptance is activated by this closure.
 
 Phase 10 is planned after Phase 9.1 for SmartDox-owned Markdown image
 admission and PDF image semantics. It does not introduce a Cozy preprocessor

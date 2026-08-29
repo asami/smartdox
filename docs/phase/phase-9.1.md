@@ -1,6 +1,6 @@
 # Phase 9.1: Localized PDF Registry and Article/Notice Projection
 
-Status: PLANNED; NOT STARTED
+Status: CLOSED through the final release boundary
 
 Plan date: 2026-08-29
 
@@ -8,7 +8,7 @@ Split from Phase 9: 2026-08-29
 
 Predecessor: Phase 9 release closure.
 
-Successor: none in this split.
+Successor: Phase 10 remains planned and is not activated by this closure.
 
 ## Provenance and Dependency
 
@@ -84,10 +84,15 @@ Out of scope:
 ### APDF91-01: Registry and Normalized Model
 
 Stage Status:
-- Current status: OPEN
+- Current status: COMMITTED
 - Checklist basis: APDF91-01
 - Owner: SmartDox Phase 9.1
 - Update rule: Update when the APDF91-01 checklist state changes.
+- Evidence: closed in Step commit
+  `5f479beda29355de3a728a4bd145d322547e5181`
+  (`feat(metadata): add localized PDF registry roles`) after focused
+  serialized validation receipt `63381-20260829T045340Z` passed 24/24
+  specifications.
 
 - Extend registry parsing and the normalized article-media model with the two
   accepted PDF roles.
@@ -98,10 +103,14 @@ Stage Status:
 ### APDF91-02: Article and Notice Projection
 
 Stage Status:
-- Current status: OPEN
+- Current status: COMMITTED
 - Checklist basis: APDF91-02
 - Owner: SmartDox Phase 9.1
 - Update rule: Update when the APDF91-02 checklist state changes.
+- Evidence: closed in Step commit
+  `ec0a119b16f1ed95c83ae93c619760e09408903f`
+  (`feat(site): project localized PDF media roles`) after focused serialized
+  validation receipt `80513-20260829T052933Z` passed 11/11 specifications.
 
 - Project each available PDF role into the ordinary article media block.
 - Project the same resolved references into global and category-local Notice
@@ -112,10 +121,14 @@ Stage Status:
 ### APDF91-03: Executable Acceptance and Cozy Handoff
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED
 - Checklist basis: APDF91-03
 - Owner: SmartDox Phase 9.1
 - Update rule: Update when the APDF91-03 checklist state changes.
+- Evidence: CPB-APDF91-001 was repaired and passed focused serialized
+  validation receipt `93078-20260829T060229Z` (36/36). The independent
+  focused Phase re-review returned `SEALED_LEDGER PASS`; the final full suite
+  runs once against this closure tree before the distinct release commit.
 
 - Add Given/When/Then executable specifications for parsing, validation,
   locale resolution, article projection, Notice projection, and absence cases.
@@ -131,6 +144,32 @@ by exact locale, ordinary articles and Notices receive the same projected
 references, existing media behavior remains compatible, executable
 specifications and full validation pass, and the accepted SmartDox handoff is
 available to Cozy Phase 40.
+
+## Closure Evidence and Cozy Phase 40 Handoff
+
+Phase 9.1 is closed through this release boundary. Its closure becomes
+authoritative only if the frozen final full-suite validation passes and the
+distinct Phase release commit succeeds.
+
+Closure evidence:
+
+- APDF91-01 Step commit:
+  `5f479beda29355de3a728a4bd145d322547e5181`.
+- APDF91-02 Step commit:
+  `ec0a119b16f1ed95c83ae93c619760e09408903f`.
+- Mandatory Phase full review `phase91-full-review-001` found only
+  `CPB-APDF91-001`; the repair's focused validation passed 36/36 under receipt
+  `93078-20260829T060229Z`.
+- The independent focused closure re-review returned `SEALED_LEDGER PASS`.
+- The retained nonblocking follow-up items are
+  `HYG-APDF91-001` and `HYG-APDF91-002` in
+  `docs/journal/2026/08/2026-08-29-phase-9.1-hygiene-follow-up.md`.
+- The accepted downstream contract handoff is
+  `docs/journal/2026/08/2026-08-29-phase-9.1-cozy-phase-40-handoff.md`.
+
+The handoff fixes the accepted SmartDox registry and projection contract only.
+Cozy generation, receipt management, deployment, upload, publication, and
+downstream consumer acceptance remain outside Phase 9.1.
 
 ## References
 

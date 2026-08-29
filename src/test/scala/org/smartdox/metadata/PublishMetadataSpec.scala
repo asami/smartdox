@@ -113,6 +113,17 @@ class PublishMetadataSpec extends AnyWordSpec with Matchers with GivenWhenThen w
         error.getMessage should include ("nonblank")
       }
 
+      "preserve a nonblank PDF label verbatim" in {
+        Given("an article PDF with a nonblank label that has leading and trailing whitespace")
+        val metadata = _load_bundle(Vector(_native("development-process/pdf-example", _variants("en", """{"article_pdf":{"public_path":"/pdf/article.pdf","media_type":"application/pdf","label":"  Read the full article  "}}"""))))
+
+        When("the registry is loaded and its English article PDF is resolved")
+        val articlepdf = metadata.resolveArticleMedia("development-process/pdf-example", "en").flatMap(_.articlePdf)
+
+        Then("the supplied label is retained exactly after nonblank validation")
+        articlepdf.flatMap(_.label) shouldBe Some("  Read the full article  ")
+      }
+
       "load canonical BCP-47 extensions from YAML" in {
         Given("a standalone YAML article-media registry with a Unicode locale extension")
         val metadata = PublishMetadata.load(new File("src/test/resources/article-media-publication-yaml-fixture")).get
