@@ -10,6 +10,11 @@
         "media_type": "image/png",
         "alt": "Detailed video infographic"
       },
+      "article_pdf": {
+        "public_path": "/en/development-process/pdf/example-article-en.pdf",
+        "media_type": "application/pdf",
+        "label": "Article PDF"
+      },
       "video": {
         "presentation": "external-link",
         "status": "published",
@@ -18,6 +23,11 @@
       }
     },
     "ja": {
+      "summary_slides_pdf": {
+        "public_path": "/ja/development-process/pdf/example-summary-ja.pdf",
+        "media_type": "application/pdf",
+        "label": "要約スライド PDF"
+      },
       "video": {
         "presentation": "site-hosted",
         "status": "published",

@@ -14,7 +14,7 @@ import org.smartdox.metadata.PublishMetadata.{VideoPresentation, VideoStatus}
 
 /*
  * @since   Aug.  4, 2026
- * @version Aug.  4, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -29,13 +29,88 @@ class PublishMetadataSpec extends AnyWordSpec with Matchers with GivenWhenThen w
         val en = metadata.resolveArticleMedia("development-process/example", "en").get
         val ja = metadata.resolveArticleMedia("development-process/example", "ja").get
 
-        Then("external and site-hosted published video retain independent infographic data")
+        Then("external and site-hosted published video retain independent infographic and PDF role data")
         en.infographic.map(_.publicPath.toString) shouldBe Some("/en/development-process/images/example/video-summary-en.png")
+        en.articlePdf.map(_.publicPath.toString) shouldBe Some("/en/development-process/pdf/example-article-en.pdf")
+        en.articlePdf.map(_.mediaType) shouldBe Some("application/pdf")
+        en.articlePdf.flatMap(_.label) shouldBe Some("Article PDF")
+        en.summarySlidesPdf shouldBe empty
         en.video.map(_.presentation) shouldBe Some(VideoPresentation.ExternalLink)
         en.projectableVideo.flatMap(_.watchUrl).map(_.toString) shouldBe Some("https://youtu.be/example-en")
         ja.infographic shouldBe empty
+        ja.articlePdf shouldBe empty
+        ja.summarySlidesPdf.map(_.publicPath.toString) shouldBe Some("/ja/development-process/pdf/example-summary-ja.pdf")
+        ja.summarySlidesPdf.map(_.mediaType) shouldBe Some("application/pdf")
+        ja.summarySlidesPdf.flatMap(_.label) shouldBe Some("要約スライド PDF")
         ja.video.map(_.presentation) shouldBe Some(VideoPresentation.SiteHosted)
         ja.projectableVideo.flatMap(_.contentUrl).map(_.toString) shouldBe Some("/ja/development-process/videos/example.mp4")
+      }
+
+      "keep PDF roles independent across exact locale variants" in {
+        Given("one article whose English variant has only an article PDF and whose Japanese variant has only summary slides")
+        val metadata = _load_bundle(Vector(_native("development-process/pdf-example", """{
+          |"en":{"article_pdf":{"public_path":"/pdf/article-en.pdf","media_type":"application/pdf"}},
+          |"ja":{"summary_slides_pdf":{"public_path":"/pdf/summary-ja.pdf","media_type":"application/pdf"}}
+          |}""".stripMargin)))
+
+        When("the exact English, Japanese, and absent Japanese-region variants are resolved")
+        val en = metadata.resolveArticleMedia("development-process/pdf-example", "en").get
+        val ja = metadata.resolveArticleMedia("development-process/pdf-example", "ja").get
+        val absent = metadata.resolveArticleMedia("development-process/pdf-example", "ja-JP")
+
+        Then("each role remains attached only to its direct locale field without role or locale fallback")
+        en.articlePdf.map(_.publicPath.toString) shouldBe Some("/pdf/article-en.pdf")
+        en.summarySlidesPdf shouldBe empty
+        ja.articlePdf shouldBe empty
+        ja.summarySlidesPdf.map(_.publicPath.toString) shouldBe Some("/pdf/summary-ja.pdf")
+        absent shouldBe empty
+      }
+
+      "reject an article PDF with an invalid site-visible path" in {
+        Given("an article PDF whose public path is an external URI")
+        val records = Vector(_native("development-process/pdf-example", _variants("en", """{"article_pdf":{"public_path":"https://example.com/article.pdf","media_type":"application/pdf"}}""")))
+
+        When("the registry is loaded")
+        val error = intercept[IllegalArgumentException](_load_bundle(records))
+
+        Then("metadata loading requires a site-visible PDF path")
+        error.getMessage should include ("article_pdf public_path")
+        error.getMessage should include ("must be a site-visible path")
+      }
+
+      "reject a summary-slides PDF with a non-PDF media type" in {
+        Given("a summary-slides PDF whose declared media type is not application/pdf")
+        val records = Vector(_native("development-process/pdf-example", _variants("en", """{"summary_slides_pdf":{"public_path":"/pdf/summary.pdf","media_type":"application/octet-stream"}}""")))
+
+        When("the registry is loaded")
+        val error = intercept[IllegalArgumentException](_load_bundle(records))
+
+        Then("metadata loading requires the exact PDF media type")
+        error.getMessage should include ("summary_slides_pdf media_type")
+        error.getMessage should include ("application/pdf")
+      }
+
+      "reject an article PDF without its required media type" in {
+        Given("an article PDF that omits the required media_type field")
+        val records = Vector(_native("development-process/pdf-example", _variants("en", """{"article_pdf":{"public_path":"/pdf/article.pdf"}}""")))
+
+        When("the registry is loaded")
+        val error = intercept[IllegalArgumentException](_load_bundle(records))
+
+        Then("metadata loading identifies the missing PDF media type")
+        error.getMessage should include ("article_pdf media_type")
+      }
+
+      "reject a PDF label that is present but blank" in {
+        Given("an article PDF with a whitespace-only optional label")
+        val records = Vector(_native("development-process/pdf-example", _variants("en", """{"article_pdf":{"public_path":"/pdf/article.pdf","media_type":"application/pdf","label":"  "}}""")))
+
+        When("the registry is loaded")
+        val error = intercept[IllegalArgumentException](_load_bundle(records))
+
+        Then("metadata loading rejects a supplied label without visible text")
+        error.getMessage should include ("article_pdf label")
+        error.getMessage should include ("nonblank")
       }
 
       "load canonical BCP-47 extensions from YAML" in {

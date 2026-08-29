@@ -20,7 +20,7 @@ import org.smartdox.semanticweb.Rdf
  * @since   May. 13, 2026
  *  version May. 14, 2026
  *  version Jun. 24, 2026
- * @version Aug.  4, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 case class PublishMetadata(
@@ -454,11 +454,19 @@ object PublishMetadata {
   case class ArticleMediaVariant(
     locale: String,
     infographic: Option[ImageReference] = None,
-    video: Option[VideoReference] = None
+    video: Option[VideoReference] = None,
+    articlePdf: Option[PdfDocumentReference] = None,
+    summarySlidesPdf: Option[PdfDocumentReference] = None
   ) {
     def projectableVideo: Option[VideoReference] =
       video.filter(_.isProjectable)
   }
+
+  case class PdfDocumentReference(
+    publicPath: URI,
+    mediaType: String,
+    label: Option[String] = None
+  )
 
   case class ImageReference(
     publicPath: URI,
@@ -1042,7 +1050,28 @@ object PublishMetadata {
     val localetag = _normalize_locale(locale, requirecanonical = true)
     val infographic = _json_field(json, "infographic").map(_image_reference(_, identity, localetag, source))
     val video = _json_field(json, "video").map(_video_reference(_, identity, localetag, source))
-    ArticleMediaVariant(localetag, infographic, video)
+    val articlepdf = _json_field(json, "article_pdf").map(_pdf_document_reference(_, "article_pdf", identity, localetag, source))
+    val summaryslidespdf = _json_field(json, "summary_slides_pdf").map(_pdf_document_reference(_, "summary_slides_pdf", identity, localetag, source))
+    ArticleMediaVariant(localetag, infographic, video, articlepdf, summaryslidespdf)
+  }
+
+  private def _pdf_document_reference(json: Json, role: String, identity: String, locale: String, source: String): PdfDocumentReference = {
+    val publicpath = _required_json_string(json, source, "public_path")
+    val mediatype = _json_string(json, "media_type").getOrElse(
+      throw new IllegalArgumentException(s"Missing article-media $role media_type: $source")
+    )
+    if (mediatype != "application/pdf")
+      throw new IllegalArgumentException(s"Article-media $role media_type must be application/pdf: $identity [$locale]")
+    val label = _json_field(json, "label").map { value =>
+      value.asString.map(_.trim).filter(_.nonEmpty).getOrElse(
+        throw new IllegalArgumentException(s"Article-media $role label must be nonblank: $identity [$locale]")
+      )
+    }
+    PdfDocumentReference(
+      publicPath = _site_visible_uri(publicpath, s"Article-media $role public_path for $identity [$locale]"),
+      mediaType = mediatype,
+      label = label
+    )
   }
 
   private def _image_reference(json: Json, identity: String, locale: String, source: String): ImageReference = {
