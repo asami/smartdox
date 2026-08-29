@@ -126,25 +126,65 @@ private[parser] object MarkdownImageInlineParser {
       val path = Option(uri.getPath).getOrElse("")
       if (rawpath.isEmpty || uri.isAbsolute || uri.getRawAuthority != null || path.isEmpty)
         _unsupported_resource(config, source, Some(rawpath))
-      val root = config._resource_root_option.getOrElse(
-        _unsupported_resource(config, source, Some(rawpath))
-      )
-      val candidate = try {
-        Paths.get(path)
-      } catch {
-        case _: java.nio.file.InvalidPathException => _unsupported_resource(config, source, Some(rawpath))
+      config._resource_origin_context match {
+        case ResourceOrigin.Physical(rootpath) =>
+          val candidate = try {
+            Paths.get(path)
+          } catch {
+            case _: java.nio.file.InvalidPathException => _unsupported_resource(config, source, Some(rawpath))
+          }
+          if (candidate.isAbsolute)
+            _unsupported_resource(config, source, Some(rawpath))
+          val normalizedroot = rootpath.toAbsolutePath.normalize
+          val resolved = normalizedroot.resolve(candidate).normalize
+          if (!resolved.startsWith(normalizedroot))
+            _unsupported_resource(config, source, Some(rawpath))
+          val relative = normalizedroot.relativize(resolved).toString.replace(java.io.File.separatorChar, '/')
+          _create_reference(config, alt, relative, source, rawpath)
+        case ResourceOrigin.Virtual(parentsegments) =>
+          val relative = _normalize_virtual_path(parentsegments, path).
+            getOrElse(_unsupported_resource(config, source, Some(rawpath)))
+          _create_reference(config, alt, relative, source, rawpath)
+        case ResourceOrigin.Absent =>
+          _unsupported_resource(config, source, Some(rawpath))
       }
-      if (candidate.isAbsolute)
-        _unsupported_resource(config, source, Some(rawpath))
-      val rootpath = root.toAbsolutePath.normalize
-      val resolved = rootpath.resolve(candidate).normalize
-      if (!resolved.startsWith(rootpath))
-        _unsupported_resource(config, source, Some(rawpath))
-      val relative = rootpath.relativize(resolved).toString.replace(java.io.File.separatorChar, '/')
+    }
+
+    private def _create_reference(
+      config: Config,
+      alt: String,
+      relative: String,
+      source: String,
+      rawpath: String
+    ): ReferenceImg = {
       if (!config.isImageFile(relative))
         _unsupported_resource(config, source, Some(rawpath))
       val normalized = new URI(null, null, relative, null)
       ReferenceImg(normalized, Some(alt), location = config.location)
+    }
+
+    private def _normalize_virtual_path(
+      parentsegments: Vector[String],
+      path: String
+    ): Option[String] = {
+      if (path.startsWith("/"))
+        None
+      else {
+        val rootsize = parentsegments.size
+        var segments = parentsegments
+        var escaped = false
+        path.split("/", -1).foreach {
+          case "" | "." =>
+          case ".." =>
+            if (segments.size > rootsize)
+              segments = segments.dropRight(1)
+            else
+              escaped = true
+          case segment =>
+            segments = segments :+ segment
+        }
+        if (escaped) None else Some(segments.drop(rootsize).mkString("/"))
+      }
     }
 
     def _malformed(config: Config, source: String, rawpath: Option[String]): Nothing =

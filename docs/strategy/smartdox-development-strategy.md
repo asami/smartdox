@@ -193,6 +193,25 @@ Primary reference:
 - `docs/phase/phase-10.md`
 - `docs/phase/phase-10-checklist.md`
 
+### Phase 11: DoxSite Source-Root Semantics for Local Resources
+
+Status: in progress: DSROOT11-01 accepted and committed; DSROOT11-02 pending.
+
+Purpose:
+
+- give origin-backed and virtual DoxSite Markdown pages an explicit source-root
+  context for local resources; and
+- preserve deterministic containment without host-filesystem access for virtual
+  pages or a Cozy workaround; root-absent pages reject Markdown images with the
+  stable unsupported-resource diagnostic without a process-current-directory
+  fallback.
+
+Primary reference:
+
+- `docs/phase/phase-11.md`
+- `docs/phase/phase-11-checklist.md`
+- `docs/spec/doxsite-source-root-semantics.md`
+
 ## Current Priority
 
 Phase 7 is closed by Step commit
@@ -234,6 +253,15 @@ closure correction resolved. The frozen final release suite with logical argv
 No Cozy preprocessor or PDF receipt contract is introduced, and no successor
 Phase is activated by this closure.
 
+Phase 11 is in progress through its accepted and committed DSROOT11-01 parser
+context Step. It owns the DoxSite consumer follow-up:
+explicit physical, virtual, and absent source-root semantics for Markdown
+images. Root-absent pages reject Markdown images with the stable
+unsupported-resource diagnostic without a process-current-directory fallback.
+It does not alter Phase 10's grammar or PDF contract. DSROOT11-02 DoxSite
+propagation and DSROOT11-03 acceptance remain pending; no Phase closure is
+claimed.
+
 ## 9. Development Item Status
 
 | ID | Source | Development item | Disposition | Target | Status |
@@ -241,4 +269,4 @@ Phase is activated by this closure.
 | DEV-001 | `docs/journal/2026/08/2026-08-18-phase-2-deferred-work.md` (`P2-DFW-001`) | Complete the deferred generic boolean-attribute and self-closing inline open-tag grammar paths. | NEW_PHASE | [Phase 7](../phase/phase-7.md) | CLOSED |
 | DEV-002 | SimpleModeling.org generated RDF graph evidence and Cozy public finalization feedback | Ensure generated RDF graph literal nodes have deterministic non-empty labels through SmartDox projection fallback semantics, then separately verify regenerated-site finalization and consumer acceptance. | NEW_PHASE | [Phase 8](../phase/phase-8.md) | CLOSED |
 | DEV-003 | Cozy Phase 39 scope decision on 2026-08-29 | Admit Markdown image syntax into the common SmartDox image model and preserve alt text, source-relative paths, and deterministic PDF-path behavior without a Cozy-local preprocessor. | NEW_PHASE | [Phase 10](../phase/phase-10.md) | CLOSED |
-| DEV-P10-01 | Phase 10 full review | Define explicit physical/virtual DoxSite source-root semantics for Markdown-image consumers instead of relying on a current-directory fallback. | DEVELOPMENT_CANDIDATE | Later DoxSite consumer work | OPEN |
+| DEV-P10-01 | Phase 10 full review | Define explicit physical/virtual DoxSite source-root semantics for Markdown-image consumers instead of relying on a current-directory fallback. | ADOPTED | [Phase 11](../phase/phase-11.md) | ADOPTED |

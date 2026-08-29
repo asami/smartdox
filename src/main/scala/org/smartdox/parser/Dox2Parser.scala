@@ -397,6 +397,11 @@ object Dox2Parser {
     def withResourceRoot(p: java.nio.file.Path): Config =
       copy(linesConfig = linesConfig.withInlineConfig(linesConfig.inlineConfig.withResourceRoot(p)))
 
+    private[smartdox] def _with_virtual_resource_parent(parent: String): Config =
+      copy(linesConfig = linesConfig.withInlineConfig(
+        linesConfig.inlineConfig._with_virtual_resource_parent(parent)
+      ))
+
     def withoutComplementParagraph() = copy(linesConfig = linesConfig.withoutComplementParagraph())
 
     def withDoxStyle(p: Config.DoxStyle): Config =
@@ -421,7 +426,7 @@ object Dox2Parser {
         withPathname(filename)
 
     private def _inline_config(config: DoxInlineParser.Config): DoxInlineParser.Config =
-      linesConfig.inlineConfig._resource_root_option.fold(config)(config.withResourceRoot)
+      config._with_resource_origin(linesConfig.inlineConfig._resource_origin_context)
   }
   object Config {
     import DoxLinesParser.{Config => _, _}

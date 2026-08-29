@@ -30,6 +30,13 @@ import org.smartdox._
  */
 object DoxInlineParser {
   type Transition = (ParseMessageSequence, ParseResult[Dox], DoxInlineParseState)
+
+  private[smartdox] sealed trait ResourceOrigin
+  private[smartdox] object ResourceOrigin {
+    final case class Physical(rootpath: Path) extends ResourceOrigin
+    final case class Virtual(parentsegments: Vector[String]) extends ResourceOrigin
+    case object Absent extends ResourceOrigin
+  }
   // def parse(p: LogicalParagraph): Dox = parse(p.lines)
 
   // def parse(p: LogicalLines): Dox = toDox(p.lines.map(parse))
@@ -102,7 +109,7 @@ object DoxInlineParser {
     asciidoc: Config.Asciidoc = Config.Asciidoc.none,
     location: Option[ParseLocation] = None
   ) extends ParseConfig {
-    private var _resource_root: Option[Path] = None
+    private var _resource_origin: ResourceOrigin = ResourceOrigin.Absent
     def copy(
       isDebug: Boolean = this.isDebug,
       isLocation: Boolean = this.isLocation,
@@ -112,7 +119,7 @@ object DoxInlineParser {
       location: Option[ParseLocation] = this.location
     ): Config = {
       val result = Config(isDebug, isLocation, markdown, orgmode, asciidoc, location)
-      result._resource_root = _resource_root
+      result._resource_origin = _resource_origin
       result
     }
 
@@ -122,10 +129,26 @@ object DoxInlineParser {
 
     def withResourceRoot(p: Path): Config = {
       val result = copy()
-      result._resource_root = Some(p.toAbsolutePath.normalize)
+      result._resource_origin = ResourceOrigin.Physical(p.toAbsolutePath.normalize)
       result
     }
-    private[parser] def _resource_root_option: Option[Path] = _resource_root
+    private[smartdox] def _with_virtual_resource_parent(parent: String): Config = {
+      val result = copy()
+      result._resource_origin = Config._normalize_virtual_parent(parent).
+        map(ResourceOrigin.Virtual).
+        getOrElse(ResourceOrigin.Absent)
+      result
+    }
+    private[parser] def _resource_origin_context: ResourceOrigin = _resource_origin
+    private[parser] def _with_resource_origin(origin: ResourceOrigin): Config = {
+      val result = copy()
+      result._resource_origin = origin
+      result
+    }
+    private[parser] def _resource_root_option: Option[Path] = _resource_origin match {
+      case ResourceOrigin.Physical(rootpath) => Some(rootpath)
+      case _ => None
+    }
     def isSpace(c: Char): Boolean = Character.isWhitespace(c)
 
     def useAngleBracket: Boolean = true
@@ -159,6 +182,22 @@ object DoxInlineParser {
       orgmode = Config.OrgMode.model,
       markdown = Config.MarkDown.model
     )
+
+    private[smartdox] def _normalize_virtual_parent(path: String): Option[Vector[String]] = {
+      path.split("/", -1).foldLeft(Option(Vector.empty[String])) { (state, segment) =>
+        state.flatMap { parentsegments =>
+          segment match {
+            case "" | "." => Some(parentsegments)
+            case ".." =>
+              if (parentsegments.nonEmpty)
+                Some(parentsegments.dropRight(1))
+              else
+                None
+            case _ => Some(parentsegments :+ segment)
+          }
+        }
+      }
+    }
 
     case class MarkDown(
       isBold: Boolean, // *bold*

@@ -39,6 +39,20 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
         )
         val documentimage = document.find { case _: ReferenceImg => true; case _ => false }.
           collect { case m: ReferenceImg => m }.get
+        val virtualconfig = DoxInlineParser.Config.smartdox.
+          _with_virtual_resource_parent("articles")
+        val virtualcopy = virtualconfig.copy(isDebug = true)
+        val virtualimage = DoxInlineParser.parse(
+          virtualcopy,
+          "![virtual](images/diagram.png)"
+        ).asInstanceOf[ReferenceImg]
+        val virtualdocument = Dox2Parser.parseWithFilename(
+          Dox2Parser.Config.default._with_virtual_resource_parent("articles"),
+          "article.md",
+          "![virtual-document](images/diagram.png)"
+        )
+        val virtualdocumentimage = virtualdocument.find { case _: ReferenceImg => true; case _ => false }.
+          collect { case m: ReferenceImg => m }.get
 
         Then("both public case classes retain their six-argument constructor and product arity")
         classOf[DoxInlineParser.Config].getConstructors.map(_.getParameterTypes.length) should contain (6)
@@ -49,6 +63,9 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
         inlineimage.src.toString shouldBe "images/diagram.png"
         inlineimage.location should not be empty
         documentimage.src.toString shouldBe "images/diagram.png"
+        And("the internal virtual origin survives copy and Dox2 filename-driven style selection")
+        virtualimage.src.toString shouldBe "images/diagram.png"
+        virtualdocumentimage.src.toString shouldBe "images/diagram.png"
       } finally {
         org.goldenport.io.IoUtils.removeDirectory(root.toFile)
       }
@@ -81,6 +98,52 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       } finally {
         org.goldenport.io.IoUtils.removeDirectory(root.toFile)
       }
+    }
+
+    "admit virtual Markdown images within the lexical source parent" in {
+      Given("a Markdown-enabled parser with an internal virtual source parent")
+      val config = DoxInlineParser.Config.smartdox.
+        _with_virtual_resource_parent("articles/guides")
+
+      When("the parser reads an image path with lexical dot segments inside that parent")
+      val image = DoxInlineParser.parse(
+        config,
+        "![図](images/../images/diagram.png)"
+      ).asInstanceOf[ReferenceImg]
+
+      Then("the image is retained as a normalized virtual-root-relative reference")
+      image.src.toString shouldBe "images/diagram.png"
+      image.alt shouldBe Some("図")
+    }
+
+    "reject virtual Markdown image traversal outside the source parent" in {
+      Given("a Markdown-enabled parser with an internal virtual source parent")
+      val config = DoxInlineParser.Config.smartdox.
+        _with_virtual_resource_parent("articles/guides")
+
+      When("the parser reads an image path that traverses above that parent")
+      val failure = intercept[IllegalArgumentException] {
+        DoxInlineParser.parse(config, "![外](../../outside.png)")
+      }
+
+      Then("the stable unsupported-resource diagnostic identifies the authored path")
+      failure.getMessage should include("image.markdown.unsupported-resource")
+      failure.getMessage should include("source=![外](../../outside.png)")
+      failure.getMessage should include("raw-path=../../outside.png")
+    }
+
+    "reject rootless Markdown images without consulting the current directory" in {
+      Given("a Markdown-enabled parser with no source origin")
+      val config = DoxInlineParser.Config.smartdox
+
+      When("the parser reads a local Markdown image")
+      val failure = intercept[IllegalArgumentException] {
+        DoxInlineParser.parse(config, "![diagram](diagram.png)")
+      }
+
+      Then("the stable unsupported-resource diagnostic is returned without a derived root")
+      failure.getMessage shouldBe
+        "image.markdown.unsupported-resource: location=<absent> source=![diagram](diagram.png) raw-path=diagram.png"
     }
 
     "admit exact Markdown images with source-exact alternative text" in {
