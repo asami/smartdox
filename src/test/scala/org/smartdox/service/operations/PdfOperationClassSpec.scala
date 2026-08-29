@@ -173,6 +173,56 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       }
     }
 
+    "preserve normalized Japanese Markdown-image semantics across repeated local PDF conversions" in {
+      Given("a temporary Markdown input with a Japanese alt text, a dot-segment image path, and a fake local latexmk")
+      val root = Files.createTempDirectory("smartdox-pdf-local-latex-markdown-image")
+      val image = root.resolve("images/diagram.png")
+      val input = root.resolve("article.md")
+      val latexmk = root.resolve("latexmk")
+      Files.createDirectories(image.getParent)
+      Files.write(
+        image,
+        Base64.getDecoder.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL7WQAAAABJRU5ErkJggg==")
+      )
+      Files.write(input, "![日本語の図](images/../images/diagram.png)".getBytes("UTF-8"))
+      _write_local_latexmk(latexmk)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer",
+          "latex",
+          "--dependency-mode",
+          "local",
+          "--latexmk",
+          latexmk.toString,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("the PDF input is parsed and the same local LaTeX command executes twice")
+        val parsed = PdfOperationClass._parse_pdf_input(input.toFile)
+        val first = PdfOperationClass.execute(Environment.createJaJp(), command)
+        val second = PdfOperationClass.execute(Environment.createJaJp(), command)
+
+        val image = parsed.dox.find { case _: ReferenceImg => true; case _ => false }.
+          collect { case m: ReferenceImg => m }.get
+        Then("the parsed image keeps its Japanese alt text and normalized relative source")
+        image.src.toString shouldBe "images/diagram.png"
+        image.alt shouldBe Some("日本語の図")
+        And("both local PDF artifacts are regular, non-empty, and byte-for-byte equal")
+        Files.isRegularFile(first.artifact.toFile.toPath) shouldBe true
+        Files.isRegularFile(second.artifact.toFile.toPath) shouldBe true
+        Files.size(first.artifact.toFile.toPath) should be > 0L
+        Files.size(second.artifact.toFile.toPath) should be > 0L
+        Files.readAllBytes(first.artifact.toFile.toPath).toVector shouldBe
+          Files.readAllBytes(second.artifact.toFile.toPath).toVector
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
     "resolve a relative latexmk path before switching to the generated TeX directory" in {
       Given("a temporary Markdown input with one root-contained image and a fake latexmk below the invocation directory")
       val root = Files.createTempDirectory("smartdox-pdf-relative-latex-image")
@@ -855,6 +905,9 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
          |actualdir=$(pwd -P)
          |expectedtexdir=$(cd "$(dirname "$tex")" && pwd -P)
          |test "$actualdir" = "$expectedtexdir"
+         |if grep -F '!' "$tex" >/dev/null; then
+         |  exit 1
+         |fi
          |found_png=
          |for png in ./*.png; do
          |  if test -f "$png"; then
