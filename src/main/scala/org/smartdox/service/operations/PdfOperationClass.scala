@@ -3,9 +3,12 @@ package org.smartdox.service.operations
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardCopyOption}
+import java.util.Locale
 import org.goldenport.context.Consequence
 import org.goldenport.cli._
 import org.goldenport.bag.{ChunkBag, FileBag}
+import org.goldenport.i18n.I18NContext
+import org.goldenport.tree.TreeTransformer
 import org.goldenport.io.IoUtils
 import org.smartdox.Dox
 import org.smartdox.parser.Dox2Parser
@@ -15,11 +18,12 @@ import org.smartdox.doxsite.DoxSite
 import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.converters.Dox2LatexConverter
 import org.smartdox.transformers.Dox2HtmlTransformer
+import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Apr.  9, 2026
  *  version Jun.  3, 2026
- * @version Aug. 25, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 case object PdfOperationClass extends OperationClassWithOperation {
@@ -29,33 +33,49 @@ case object PdfOperationClass extends OperationClassWithOperation {
 
   def apply(env: Environment, req: Request): Response = {
     val cmd = PdfCommand.create(req)
-    val r = execute(env, cmd)
+    val selector = _locale_selector(req).take
+    val r = _execute(env, cmd, selector)
     FileResponse(r.artifact, r.target.toURI)
   }
 
   // Single-document PDF generation. Local dependencies are preferred; Docker
   // is used only when requested or when auto mode cannot find a local tool.
-  def execute(env: Environment, cmd: PdfCommand): PdfResult = {
+  def execute(env: Environment, cmd: PdfCommand): PdfResult =
+    _execute(env, cmd, None)
+
+  private def _execute(
+    env: Environment,
+    cmd: PdfCommand,
+    selector: Option[String]
+  ): PdfResult = {
     val target = cmd.output.getOrElse(_default_output_file(cmd.in))
     val artifact = cmd.renderer match {
-      case PdfRenderer.ChromeHeadless => _execute_chrome(env, cmd)
-      case PdfRenderer.Asciidoc => _execute_asciidoc(env, cmd)
-      case PdfRenderer.Latex => _execute_latex(env, cmd)
+      case PdfRenderer.ChromeHeadless => _execute_chrome(env, cmd, selector)
+      case PdfRenderer.Asciidoc => _execute_asciidoc(env, cmd, selector)
+      case PdfRenderer.Latex => _execute_latex(env, cmd, selector)
     }
     PdfResult(artifact, target)
   }
 
-  private def _execute_chrome(env: Environment, cmd: PdfCommand): ChunkBag = {
+  private def _execute_chrome(
+    env: Environment,
+    cmd: PdfCommand,
+    selector: Option[String]
+  ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
-    val dox = _parse(cmd.in)
+    val dox = _parse_selected(cmd.in, selector)
     val html = _html(ctx, dox)
     _write_chrome_pdf(cmd, html)
   }
 
-  private def _execute_asciidoc(env: Environment, cmd: PdfCommand): ChunkBag = {
+  private def _execute_asciidoc(
+    env: Environment,
+    cmd: PdfCommand,
+    selector: Option[String]
+  ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
     val config = DoxSite.Config.create(cmd)
-    val dox = _parse(cmd.in)
+    val dox = _parse_selected(cmd.in, selector)
     val adoc = _asciidoc(ctx, config, dox)
     val adocbag = _text_bag(_asciidoc_filename(cmd.in), adoc)
     val out = _output_bag(cmd.in)
@@ -67,9 +87,13 @@ case object PdfOperationClass extends OperationClassWithOperation {
     out
   }
 
-  private def _execute_latex(env: Environment, cmd: PdfCommand): ChunkBag = {
+  private def _execute_latex(
+    env: Environment,
+    cmd: PdfCommand,
+    selector: Option[String]
+  ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
-    val dox = _parse(cmd.in)
+    val dox = _parse_selected(cmd.in, selector)
     val workdir = Files.createTempDirectory(_temp_prefix(_latex_filename(cmd.in)))
     val latex = _latex(ctx, cmd, dox, workdir.toFile)
     val texbag = _text_bag_in(workdir, _latex_filename(cmd.in), latex)
@@ -87,6 +111,42 @@ case object PdfOperationClass extends OperationClassWithOperation {
     val text = scala.io.Source.fromFile(in, "UTF-8").mkString
     Dox2Parser.parseWithFilename(Dox2Parser.Config.default, in.getPath, text)
   }
+
+  private def _parse_selected(in: File, selector: Option[String]): Dox =
+    _select_locale(_parse(in), selector).take
+
+  private[operations] def _select_locale(dox: Dox, selector: Option[String]): Consequence[Dox] =
+    selector match {
+      case None => Consequence.success(dox)
+      case Some(value) =>
+        _locale(value).flatMap { locale =>
+          if (LanguageFilterTransformer._has_exact_locale(dox, locale)) {
+            val context = TreeTransformer.Context.default[Dox].
+              withI18NContext(I18NContext.default.withLocale(locale))
+            Consequence.execute {
+              Dox.transform(dox, LanguageFilterTransformer._strict(context))
+            }
+          } else {
+            Consequence.resourceNotFound[Dox](s"pdf.locale.unavailable: $value")
+          }
+        }
+    }
+
+  private def _locale(value: String): Consequence[Locale] = {
+    val locale = Locale.forLanguageTag(value)
+    if (value.isEmpty || value.trim != value || locale.toLanguageTag != value)
+      Consequence.invalidArgumentFault(s"pdf.locale.invalid: $value")
+    else if (value == "ja" || value == "en")
+      Consequence.success(locale)
+    else
+      Consequence.unsupportedOperation(s"pdf.locale.unsupported: $value")
+  }
+
+  private[operations] def _locale_selector(req: Request): Consequence[Option[String]] =
+    req.getPropertyString("locale") match {
+      case None => Consequence.success(None)
+      case Some(value) => _locale(value).map(_ => Some(value))
+    }
 
   private def _html(ctx: GeneratorContext, dox: Dox): String = {
     val rule = Dox2HtmlTransformer.Rule.default
@@ -483,6 +543,12 @@ case object PdfOperationClass extends OperationClassWithOperation {
       val docker = spec.Parameter.propertyFileOption("docker")
       val dockerImage = spec.Parameter.property("docker-image")
       val renderer = spec.Parameter.property("renderer")
+      val locale = spec.Parameter(
+        "locale",
+        spec.Parameter.PropertyKind,
+        spec.XString,
+        spec.Multiplicity.ZeroOne
+      )
     }
 
     def create(req: Request): PdfCommand =
@@ -527,6 +593,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
       params.docker,
       params.dockerImage,
       params.renderer,
+      params.locale,
       SiteParameters.params.in,
       SiteParameters.params.publication,
       SiteParameters.params.strategy,
@@ -539,6 +606,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
 
     private def _string_option(req: Request, name: String): Option[String] =
       req.getPropertyString(name)
+
   }
 
   case class PdfResult(
