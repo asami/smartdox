@@ -1,6 +1,8 @@
 package org.smartdox.generators
 
 import java.io.File
+import java.net.URI
+import java.util.Locale
 import org.yaml.snakeyaml.Yaml
 import scala.collection.JavaConverters._
 import org.junit.runner.RunWith
@@ -11,12 +13,15 @@ import org.scalatest.GivenWhenThen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
+import org.goldenport.collection.VectorMap
+import org.smartdox._
 import org.smartdox.doxsite.DoxSite
 import org.smartdox.generator.{Config, Context}
+import org.smartdox.metadata.PublishMetadata
 
 /*
  * @since   Aug.  4, 2026
- * @version Aug.  4, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -32,23 +37,52 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val site = new DoxSiteGenerator(_context, DoxSite.Config.default, publication).generate(input)
       val antora = new AntoraGenerator(_context, DoxSite.Config.default, publication).generate(input)
       val englishnotice = _notice(site, "doxsite.d/WEB-INF/data/en", "development-process/example.html")
+      val englishcategorynotice = _notice(site, "doxsite.d/WEB-INF/data/en/development-process", "development-process/example.html")
       val japanesenotice = _notice(site, "doxsite.d/WEB-INF/data/ja", "development-process/example.html")
+      val japanesecategorynotice = _notice(site, "doxsite.d/WEB-INF/data/ja/development-process", "development-process/example.html")
 
-      Then("each exact locale receives only its own article URL and localized label")
-      _string(site, "doxsite.d/en/development-process/example.html") should include ("https://example.com/watch-en")
-      _string(site, "doxsite.d/en/development-process/example.html") should include ("Watch video")
-      _string(site, "doxsite.d/ja/development-process/example.html") should include ("https://example.com/watch-ja")
-      _string(site, "doxsite.d/ja/development-process/example.html") should include ("動画を見る")
-      _string(site, "doxsite.d/ja/development-process/example.html") should not include ("watch-en")
+      Then("each exact locale receives only its own PDF and video controls with verbatim or local-default labels")
+      val englisharticle = _string(site, "doxsite.d/en/development-process/example.html")
+      val japanesearticle = _string(site, "doxsite.d/ja/development-process/example.html")
+      englisharticle should include ("/en/development-process/pdf/example-article.pdf")
+      englisharticle should include ("Read the full English article")
+      englisharticle should include ("/en/development-process/pdf/example-summary-slides.pdf")
+      englisharticle should include ("Summary slides PDF")
+      englisharticle should include ("smartdox-article-media")
+      englisharticle should include ("smartdox-article-media-pdf")
+      englisharticle should include ("https://example.com/watch-en")
+      englisharticle should include ("Watch video")
+      englisharticle should include ("smartdox-article-media-video")
+      englisharticle.indexOf("/en/development-process/pdf/example-article.pdf") should be < englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf")
+      englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf") should be < englisharticle.indexOf("https://example.com/watch-en")
+      englisharticle.indexOf("smartdox-article-media-pdf") should be < englisharticle.indexOf("smartdox-article-media-video")
+      japanesearticle should include ("/ja/development-process/pdf/example-article.pdf")
+      japanesearticle should include ("記事 PDF")
+      japanesearticle should not include ("summary-slides.pdf")
+      japanesearticle should not include ("要約スライド PDF")
+      japanesearticle should include ("https://example.com/watch-ja")
+      japanesearticle should include ("動画を見る")
+      japanesearticle should not include ("watch-en")
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("https://example.com/watch-ja")
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should not include ("https://example.com/watch-en")
+      _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("/ja/development-process/pdf/example-article.pdf")
+      _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("記事 PDF")
 
-      And("Notice media uses the exact normalized schema and locale-resolved URL")
+      And("Notice media preserves the exact role maps and shares each locale result globally and by category")
       _media(englishnotice) shouldBe Some(Map(
         "infographic" -> Map(
           "public_path" -> "/en/development-process/images/example.png",
           "media_type" -> "image/png",
           "alt" -> "English infographic"
+        ),
+        "article_pdf" -> Map(
+          "public_path" -> "/en/development-process/pdf/example-article.pdf",
+          "media_type" -> "application/pdf",
+          "label" -> "Read the full English article"
+        ),
+        "summary_slides_pdf" -> Map(
+          "public_path" -> "/en/development-process/pdf/example-summary-slides.pdf",
+          "media_type" -> "application/pdf"
         ),
         "video" -> Map(
           "presentation" -> "external-link",
@@ -62,12 +96,19 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
           "public_path" -> "/ja/development-process/images/example.png",
           "alt" -> "日本語インフォグラフィック"
         ),
+        "article_pdf" -> Map(
+          "public_path" -> "/ja/development-process/pdf/example-article.pdf",
+          "media_type" -> "application/pdf"
+        ),
         "video" -> Map(
           "presentation" -> "external-link",
           "status" -> "published",
           "watch_url" -> "https://example.com/watch-ja"
         )
       ))
+      _media(englishnotice) shouldBe _media(englishcategorynotice)
+      _media(japanesenotice) shouldBe _media(japanesecategorynotice)
+      _media(japanesenotice).flatMap(_.get("summary_slides_pdf")) shouldBe empty
     }
 
       "project the synthetic Phase 27 Part 5 article through localized article-top and Notice projections" in {
@@ -173,6 +214,48 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
         )
       ))
       _media(plainnotice) shouldBe empty
+      }
+
+      "retain PDF controls when a legacy source page suppresses only the projected video duplicate" in {
+      Given("a legacy video source page and an exact English resolved PDF role with a projectable video")
+      val source = Document(Head.empty, Body(List(
+        Paragraph(List(Text("Legacy article lead."))),
+        Html5("div", VectorMap("class" -> "smartdox-video-publication"), Nil)
+      )))
+      val media = PublishMetadata.ArticleMediaVariant(
+        locale = "en",
+        video = Some(PublishMetadata.VideoReference(
+          PublishMetadata.VideoPresentation.ExternalLink,
+          PublishMetadata.VideoStatus.Published,
+          watchUrl = Some(new URI("https://example.com/duplicate-video"))
+        )),
+        articlePdf = Some(PublishMetadata.PdfDocumentReference(
+          new URI("/en/development-process/pdf/legacy-article.pdf"),
+          "application/pdf"
+        ))
+      )
+
+      When("the ordinary article media projection is applied")
+      val projected = DoxSite.projectArticleMedia(source, Some(media), Locale.ENGLISH)
+      val pdfcallout = projected.body.contents.collectFirst {
+        case html: Html5 if html.attributes.get("class").contains("smartdox-article-media") => html
+      }.getOrElse(fail("Missing PDF article-media callout"))
+
+      Then("the established legacy player remains once while a PDF-only callout remains available")
+      projected.body.contents.count {
+        case html: Html5 if html.attributes.get("class").contains("smartdox-video-publication") => true
+        case _ => false
+      } shouldBe 1
+      pdfcallout.attributes.get("class") shouldBe Some("smartdox-article-media")
+      pdfcallout.elements.collectFirst {
+        case html: Html5 if html.attributes.get("class").contains("smartdox-article-media-pdf") => html
+      } should not be empty
+      pdfcallout.toPlainText should include ("Article PDF")
+      pdfcallout.toPlainText should not include ("Watch video")
+      pdfcallout.elements.exists {
+        case html: Html5 if html.attributes.get("class").contains("smartdox-article-media-video") => true
+        case _ => false
+      } shouldBe false
       }
 
       "preserve fixed site outputs when publication metadata is absent" in {

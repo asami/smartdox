@@ -8,6 +8,15 @@
         "media_type": "image/png",
         "alt": "English infographic"
       },
+      "article_pdf": {
+        "public_path": "/en/development-process/pdf/example-article.pdf",
+        "media_type": "application/pdf",
+        "label": "Read the full English article"
+      },
+      "summary_slides_pdf": {
+        "public_path": "/en/development-process/pdf/example-summary-slides.pdf",
+        "media_type": "application/pdf"
+      },
       "video": {
         "presentation": "external-link",
         "status": "published",
@@ -19,6 +28,10 @@
       "infographic": {
         "public_path": "/ja/development-process/images/example.png",
         "alt": "日本語インフォグラフィック"
+      },
+      "article_pdf": {
+        "public_path": "/ja/development-process/pdf/example-article.pdf",
+        "media_type": "application/pdf"
       },
       "video": {
         "presentation": "external-link",

@@ -28,7 +28,7 @@ import org.smartdox.semanticweb.Vocabulary
 import org.smartdox.semanticweb.SimpleModelingOrgPublicOntology
 import org.smartdox.semanticweb.SimpleModelingOrgPublicSchema
 import org.smartdox.semanticweb.Site._
-import org.smartdox.metadata.PublishMetadata.{ArticleMediaVariant, ImageReference, VideoReference}
+import org.smartdox.metadata.PublishMetadata.{ArticleMediaVariant, ImageReference, PdfDocumentReference, VideoReference}
 
 /*
  * @since   Apr. 28, 2025
@@ -39,7 +39,7 @@ import org.smartdox.metadata.PublishMetadata.{ArticleMediaVariant, ImageReferenc
  *  version Sep. 22, 2025
  *  version Oct. 12, 2025
  *  version Nov. 22, 2025
- * @version Aug.  4, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -280,6 +280,8 @@ object Notices {
     private def _media_json(media: ArticleMediaVariant): Option[Json] = {
       val fields = Vector(
         media.infographic.map(x => "infographic" -> _image_json(x)),
+        media.articlePdf.map(x => "article_pdf" -> _pdf_document_json(x)),
+        media.summarySlidesPdf.map(x => "summary_slides_pdf" -> _pdf_document_json(x)),
         media.projectableVideo.map(x => "video" -> _video_json(x))
       ).flatten
       if (fields.nonEmpty)
@@ -293,6 +295,12 @@ object Notices {
         "public_path" -> image.publicPath.toString.asJson
       ) ++ image.mediaType.map("media_type" -> _.asJson).toVector ++
         image.alt.map("alt" -> _.asJson).toVector): _*)
+
+    private def _pdf_document_json(pdf: PdfDocumentReference): Json =
+      Json.obj((Vector(
+        "public_path" -> pdf.publicPath.toString.asJson,
+        "media_type" -> pdf.mediaType.asJson
+      ) ++ pdf.label.map("label" -> _.asJson).toVector): _*)
 
     private def _video_json(video: VideoReference): Json =
       Json.obj((Vector(

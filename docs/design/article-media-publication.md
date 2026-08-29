@@ -1,7 +1,7 @@
 # Article Media Publication and Site Projection
 
 status=design
-published_at=2026-08-04
+published_at=2026-08-29
 
 ## Purpose
 
@@ -68,10 +68,11 @@ reference with a locale. SmartDox does not infer locale from a path or filename
 and does not require a locale path prefix. There is no role fallback or merging
 and no locale fallback or merging.
 
-Phase 9 defines this PDF-role contract only. It does not implement
-`PublishMetadata` parsing or article/Notice projection; those responsibilities
-belong to Phase 9.1. Existing infographic, external-video, site-hosted-video,
-legacy `VideoPublication`, and no-media behavior remains compatible.
+Phase 9 defines this PDF-role contract. Phase 9.1 consumes that accepted
+contract for `PublishMetadata` parsing and article/Notice projection without
+redefining the roles or locale semantics. Existing infographic, external-video,
+site-hosted-video, legacy `VideoPublication`, and no-media behavior remains
+compatible.
 
 ## Locale-Selected Single-Document PDF
 
@@ -152,15 +153,32 @@ package behavior remains unchanged.
 
 SmartDox resolves one variant before either projection is encoded.
 
-- A Notice receives an optional media block containing its infographic and
-  only a projectable video reference. Global and category-local Notice YAML
-  for the same article and locale receive the same resolved block.
+- A Notice receives an optional media block containing its infographic, direct
+  `article_pdf` and `summary_slides_pdf` maps for the independent present PDF
+  roles, and only a projectable video reference. Each PDF map preserves the
+  resolved `publicPath`, `mediaType`, and optional `label`; absent roles and an
+  otherwise empty `media` block are omitted. Global and category-local Notice
+  YAML for the same article and locale receive the same resolved block.
 - An ordinary article receives an article-top callout after its effective lead
-  and before its first body section. External video renders as a watch link.
-  A site-hosted video renders an embedded player only with a registered
+  and before its first body section. Its non-video outer container uses
+  `smartdox-article-media`. Present PDF roles are grouped in a
+  `smartdox-article-media-pdf` sub-block in the fixed order article PDF then
+  summary-slides PDF. The optional video follows in its existing exclusive
+  `smartdox-article-media-video` sub-block, with unchanged watch-link/player
+  markup. A supplied PDF label is verbatim; absent labels use the stable
+  English defaults `Article PDF` / `Summary slides PDF` or Japanese defaults
+  `記事 PDF` / `要約スライド PDF`. A PDF-only callout has the outer/PDF markup
+  and no video sub-block. External video renders as a watch link. A
+  site-hosted video renders an embedded player only with a registered
   `contentUrl`.
-- When no record, locale variant, infographic, or projectable video exists,
-  SmartDox keeps the existing article, Notice, dashboard, and feed behavior.
+- Article pages and all Notice outputs consume the same exact-locale resolver
+  result. Projection performs no filename inference, role merging, or locale
+  fallback.
+- When no record, locale variant, infographic, PDF role, or projectable video
+  exists, SmartDox keeps the existing article, Notice, dashboard, and feed
+  behavior. A legacy `VideoPublication` source-page player suppresses only its
+  duplicate projected video sub-block; it does not suppress available PDF
+  links.
 
 ## Non-goals
 

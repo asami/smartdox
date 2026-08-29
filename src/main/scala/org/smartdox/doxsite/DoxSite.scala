@@ -84,7 +84,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version May. 14, 2026
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
- * @version Aug. 24, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -1283,31 +1283,85 @@ object DoxSite {
     media: Option[PublishMetadata.ArticleMediaVariant],
     locale: Locale
   ): Document =
-    media.flatMap(_article_media_block(_, locale)) match {
-      case Some(block) if !_has_legacy_video_publication(document) => _insert_article_media(document, block)
+    media.flatMap(_article_media_block(_, locale, _has_legacy_video_publication(document))) match {
+      case Some(block) => _insert_article_media(document, block)
       case _ => document
     }
 
   private def _article_media_block(
     media: PublishMetadata.ArticleMediaVariant,
-    locale: Locale
-  ): Option[Html5] =
-    media.projectableVideo.flatMap { video =>
-      val contents = video.presentation match {
-        case PublishMetadata.VideoPresentation.ExternalLink =>
-          video.watchUrl.map { watchurl =>
-            val label = if (locale.getLanguage == "ja") "動画を見る" else "Watch video"
-            Html5("a", VectorMap("href" -> watchurl.toString), List(Text(label)))
-          }.toList
-        case PublishMetadata.VideoPresentation.SiteHosted =>
-          video.contentUrl.map { contenturl =>
-            Html5("video", VectorMap("controls" -> "controls", "src" -> contenturl.toString), Nil)
-          }.toList
-      }
-      if (contents.isEmpty)
-        None
+    locale: Locale,
+    suppressvideo: Boolean
+  ): Option[Html5] = {
+    val pdfcontrols: List[Dox] = List(
+      media.articlePdf.map(_article_pdf_link(_, locale)),
+      media.summarySlidesPdf.map(_summary_slides_pdf_link(_, locale))
+    ).flatten
+    val videocontrols: List[Dox] =
+      if (suppressvideo)
+        Nil
       else
-        Some(Html5("div", VectorMap("class" -> "smartdox-article-media-video"), contents))
+        media.projectableVideo.toList.flatMap { video =>
+          val contents = video.presentation match {
+            case PublishMetadata.VideoPresentation.ExternalLink =>
+              video.watchUrl.map { watchurl =>
+                val label = if (locale.getLanguage == "ja") "動画を見る" else "Watch video"
+                Html5("a", VectorMap("href" -> watchurl.toString), List(Text(label)))
+              }.toList
+            case PublishMetadata.VideoPresentation.SiteHosted =>
+              video.contentUrl.map { contenturl =>
+                Html5("video", VectorMap("controls" -> "controls", "src" -> contenturl.toString), Nil)
+              }.toList
+          }
+          if (contents.isEmpty)
+            Nil
+          else
+            List(Html5(
+              "div",
+              VectorMap("class" -> "smartdox-article-media-video"),
+              contents
+            ))
+        }
+    val pdfblock: List[Dox] =
+      if (pdfcontrols.isEmpty)
+        Nil
+      else
+        List(Html5(
+          "div",
+          VectorMap("class" -> "smartdox-article-media-pdf"),
+          _separate_media_controls(pdfcontrols)
+        ))
+    val controls = pdfblock ++ videocontrols
+    if (controls.isEmpty)
+      None
+    else
+      Some(Html5(
+        "div",
+        VectorMap("class" -> "smartdox-article-media"),
+        controls
+      ))
+  }
+
+  private def _article_pdf_link(pdf: PublishMetadata.PdfDocumentReference, locale: Locale): Html5 = {
+    val label = pdf.label getOrElse _article_pdf_label(locale)
+    Html5("a", VectorMap("href" -> pdf.publicPath.toString), List(Text(label)))
+  }
+
+  private def _summary_slides_pdf_link(pdf: PublishMetadata.PdfDocumentReference, locale: Locale): Html5 = {
+    val label = pdf.label getOrElse _summary_slides_pdf_label(locale)
+    Html5("a", VectorMap("href" -> pdf.publicPath.toString), List(Text(label)))
+  }
+
+  private def _article_pdf_label(locale: Locale): String =
+    if (locale.getLanguage == "ja") "記事 PDF" else "Article PDF"
+
+  private def _summary_slides_pdf_label(locale: Locale): String =
+    if (locale.getLanguage == "ja") "要約スライド PDF" else "Summary slides PDF"
+
+  private def _separate_media_controls(controls: List[Dox]): List[Dox] =
+    controls.zipWithIndex.flatMap {
+      case (control, 0) => List(control)
+      case (control, _) => List(Text(" "), control)
     }
 
   private def _has_legacy_video_publication(document: Document): Boolean =

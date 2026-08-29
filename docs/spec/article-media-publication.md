@@ -1,7 +1,7 @@
 # Article Media Publication Specification
 
 Status: draft specification
-Date: 2026-08-04
+Date: 2026-08-29
 
 The authoritative design is
 `docs/design/article-media-publication.md`. This specification fixes the
@@ -75,19 +75,19 @@ role, `public_path` is required, non-empty, and site-visible; `media_type` is
 required and exactly `application/pdf`; `label` is optional and must be
 nonblank when supplied. Either role may be absent.
 
-The future registry consumer rejects duplicate role entries, invalid paths or
+Registry parsing and projection reject duplicate role entries, invalid paths or
 media types, and invalid locale association. Role entries are not merged, and
 one role is never a fallback for the other. PDF `public_path` values are
 locale-agnostic site-visible references; only the enclosing canonical variant
 key associates a reference with a locale. SmartDox does not infer locale from
 a path or filename and does not require a locale path prefix. Locale variants
 are matched exactly; no locale fallback or merging is permitted.
-These PDF registry rules are the Phase 9 contract for Phase 9.1 and are not
-implemented by this Phase.
+These PDF registry rules are the accepted Phase 9 contract consumed by Phase
+9.1; this specification does not redefine them.
 
 Existing infographic, external-video, site-hosted-video, legacy
-`VideoPublication`, and no-media behavior remains compatible and is unchanged
-by this documentation-only contract.
+`VideoPublication`, and no-media behavior remains compatible under the Phase
+9.1 PDF projection contract.
 
 ## Single-Document PDF Locale Selection
 
@@ -137,6 +137,36 @@ Notice projection for one `(articleIdentity, locale)` uses the same resolved
 result. Article pages use that same result; they do not read an alternative
 Dox HEAD property.
 
+## PDF Projection
+
+For the one exact-locale resolved variant, Notice `media` may contain direct
+`article_pdf` and `summary_slides_pdf` maps. Each present map preserves the
+resolved `PdfDocumentReference` exactly as `public_path`, `media_type`, and
+optional `label`. An absent role is omitted; SmartDox emits neither an empty
+role map nor an empty `media` block.
+
+The ordinary article media callout renders each present role as a localized
+link in this fixed order: article PDF, summary-slides PDF, then the optional
+projectable video. A supplied PDF label is rendered verbatim. When the label
+is absent, the stable local defaults are `Article PDF` and `Summary slides
+PDF` in English, and `記事 PDF` and `要約スライド PDF` in Japanese. These
+presentation defaults do not alter the resolved reference or Notice data.
+
+The callout has a non-video `smartdox-article-media` outer container. Present
+PDF controls are grouped in `smartdox-article-media-pdf`; the existing
+`smartdox-article-media-video` class remains exclusively on the optional video
+sub-block, after the PDF controls, with its link/player markup unchanged. A
+PDF-only projection includes the outer/PDF markup and no video sub-block.
+
+The ordinary article and every global/category Notice projection for one
+`(articleIdentity, locale)` consume the same exact resolved result. There is
+no role merge, filename inference, or locale fallback at projection time.
+
+If a legacy `VideoPublication` source page already contains its established
+player, it suppresses only the duplicate projected video sub-block; available
+PDF role links remain projectable. With no infographic, PDF role, or
+projectable video, SmartDox emits no media block or callout.
+
 ## VideoPublication Compatibility
 
 Existing `VideoPublication` input stays valid. `sourcePackage` matching,
@@ -175,7 +205,7 @@ The adapter never changes the existing video-source-page rewrite/player path.
 
 ## Required Executable Evidence
 
-Phase 1 executable specifications must prove:
+Phase 9.1 executable specifications must prove:
 
 - registry parsing, path/URL/enum failure, conflict rejection, and exact locale
   association;
@@ -183,6 +213,9 @@ Phase 1 executable specifications must prove:
 - external published/draft/withdrawn and site-hosted presentation behavior;
 - identical global/category Notice media data;
 - article-top link/player selection; and
+- exact-locale PDF role links, verbatim/default labels, deterministic PDF/video
+  ordering, absent-role omission, absent-media omission, and legacy-video
+  duplicate suppression without suppressing available PDFs; and
 - all preserved `VideoPublication` source-package, slug, player, caption/link,
   and diagnostic behaviors; and
 - `index.dox` and non-index derived identity, `publicPath -> contentUrl`,
