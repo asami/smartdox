@@ -55,7 +55,7 @@ import Dox._
  *  version Dec. 10, 2025
  *  version Jun.  8, 2026
  *  version Jun. 23, 2026
- * @version Aug. 24, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -394,20 +394,23 @@ object Dox2Parser {
     def withInlineConfig(p: DoxInlineParser.Config) =
       copy(linesConfig = linesConfig.withInlineConfig(p))
 
+    def withResourceRoot(p: java.nio.file.Path): Config =
+      copy(linesConfig = linesConfig.withInlineConfig(linesConfig.inlineConfig.withResourceRoot(p)))
+
     def withoutComplementParagraph() = copy(linesConfig = linesConfig.withoutComplementParagraph())
 
     def withDoxStyle(p: Config.DoxStyle): Config =
       p match {
         case Config.DoxStyle.SmartDox => copy(
-          linesConfig = linesConfig.withInlineConfig(DoxInlineParser.Config.smartdox),
+          linesConfig = linesConfig.withInlineConfig(_inline_config(DoxInlineParser.Config.smartdox)),
           style = Config.DoxStyle.SmartDox
         )
         case Config.DoxStyle.Markdown => copy(
-          linesConfig = linesConfig.withInlineConfig(DoxInlineParser.Config.markdown),
+          linesConfig = linesConfig.withInlineConfig(_inline_config(DoxInlineParser.Config.markdown)),
           style = Config.DoxStyle.Markdown
         )
         case Config.DoxStyle.OrgMode => copy(
-          linesConfig = linesConfig.withInlineConfig(DoxInlineParser.Config.orgmode),
+          linesConfig = linesConfig.withInlineConfig(_inline_config(DoxInlineParser.Config.orgmode)),
           style = Config.DoxStyle.OrgMode
         )
       }
@@ -416,6 +419,9 @@ object Dox2Parser {
       Config.doxStyleForFilename(filename).
         fold(this)(withDoxStyle).
         withPathname(filename)
+
+    private def _inline_config(config: DoxInlineParser.Config): DoxInlineParser.Config =
+      linesConfig.inlineConfig._resource_root_option.fold(config)(config.withResourceRoot)
   }
   object Config {
     import DoxLinesParser.{Config => _, _}

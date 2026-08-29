@@ -1,7 +1,8 @@
 package org.smartdox.service.operations
 
-import java.util.Locale
+import java.util.{Base64, Locale}
 import java.net.URI
+import java.nio.file.{Files, Paths}
 import org.junit.runner.RunWith
 import org.scalatest.GivenWhenThen
 import org.scalatest.matchers.should.Matchers
@@ -9,9 +10,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
 import org.smartdox._
 import org.goldenport.collection.VectorMap
-import org.goldenport.cli.Request
+import org.goldenport.cli.{Environment, Request}
 import org.goldenport.context.{InvalidArgumentFault, ResourceNotFoundFault, UnsupportedOperationFault}
 import org.goldenport.i18n.{I18NContext, I18NHangar, I18NString}
+import org.goldenport.io.IoUtils
 import org.goldenport.tree.TreeTransformer
 import org.smartdox.metadata.{DocumentMetaData, Explanation}
 import org.smartdox.transformers.LanguageFilterTransformer
@@ -23,6 +25,199 @@ import org.smartdox.transformers.LanguageFilterTransformer
  */
 @RunWith(classOf[JUnitRunner])
 class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen {
+  "PDF Markdown-image parsing" should {
+    "propagate one canonical input parent through filename style selection and image admission" in {
+      Given("a temporary Markdown input with an in-root dot-segment image path")
+      val root = Files.createTempDirectory("smartdox-pdf-markdown-image")
+      val input = root.resolve("article.md")
+      Files.write(
+        input,
+        "![PDF図](images/../images/diagram.png)".getBytes("UTF-8")
+      )
+      try {
+        When("the package-visible PDF parsing seam establishes the input identity")
+        val parsed = PdfOperationClass._parse_pdf_input(input.toFile)
+        val image = parsed.dox.find { case _: ReferenceImg => true; case _ => false }.
+          collect { case m: ReferenceImg => m }.get
+
+        Then("the canonical parent survives Markdown filename style selection into inline image admission")
+        parsed.resourceroot.toPath shouldBe input.toFile.getCanonicalFile.getParentFile.toPath
+        image.src.toString shouldBe "images/diagram.png"
+        image.alt shouldBe Some("PDF図")
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "stage an admitted root-contained Markdown image at each renderer's generated reference" in {
+      Given("a temporary Markdown input with an existing image under its canonical resource root")
+      val root = Files.createTempDirectory("smartdox-pdf-markdown-image-stage")
+      val image = root.resolve("images/collection/diagram.png")
+      val input = root.resolve("article.md")
+      val payload = Array[Byte](1, 2, 3, 4)
+      Files.createDirectories(image.getParent)
+      Files.write(image, payload)
+      Files.write(input, "![diagram](images/collection/diagram.png)".getBytes("UTF-8"))
+      try {
+        When("the package-visible renderer-workspace seam stages the parsed document")
+        val parsed = PdfOperationClass._parse_pdf_input(input.toFile)
+        val chrome = PdfOperationClass._prepare_renderer_workspace(
+          PdfOperationClass.PdfRenderer.ChromeHeadless,
+          "article.html",
+          "<html></html>",
+          parsed.dox,
+          parsed.resourceroot
+        )
+        try {
+          val asciidoc = PdfOperationClass._prepare_renderer_workspace(
+            PdfOperationClass.PdfRenderer.Asciidoc,
+            "article.adoc",
+            "image::collection:diagram.png[]",
+            parsed.dox,
+            parsed.resourceroot
+          )
+          try {
+            Then("Chrome receives the normalized relative image URI path")
+            Files.readAllBytes(chrome.directory.resolve("images/collection/diagram.png")).toVector shouldBe payload.toVector
+            And("Asciidoc receives the current converter target name")
+            Files.readAllBytes(asciidoc.directory.resolve("collection:diagram.png")).toVector shouldBe payload.toVector
+          } finally {
+            asciidoc.dispose()
+          }
+        } finally {
+          chrome.dispose()
+        }
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "reject root-escaping Markdown images at the PDF parsing boundary" in {
+      Given("a temporary Markdown PDF input with a path that escapes its canonical parent")
+      val root = Files.createTempDirectory("smartdox-pdf-markdown-image-escape")
+      val input = root.resolve("escaping.md")
+      Files.write(input, "![escape](../outside.png)".getBytes("UTF-8"))
+      try {
+        When("the PDF parsing seam admits the Markdown image before any external renderer is selected")
+        val failure = intercept[IllegalArgumentException] {
+          PdfOperationClass._parse_pdf_input(input.toFile)
+        }
+
+        Then("the parser-owned unsupported-resource diagnostic rejects the escaped path")
+        failure.getMessage should include ("image.markdown.unsupported-resource")
+        failure.getMessage should include ("raw-path=../outside.png")
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "reject a missing Markdown image before Chrome, Asciidoc, or LaTeX can start an external renderer" in {
+      Given("normal local-renderer PDF requests whose admitted Markdown image is absent")
+      val renderers = Vector(
+        "chrome-headless" -> "--chrome",
+        "asciidoc" -> "--asciidoctor-pdf",
+        "latex" -> "--latexmk"
+      )
+
+      When("each PDF renderer receives its normal command with a deliberately unavailable renderer path")
+      val failures = renderers.map {
+        case (renderer, rendereroption) => renderer -> _missing_markdown_image_failure(renderer, rendereroption)
+      }
+
+      Then("every renderer fails with the missing-resource diagnostic before attempting its unavailable binary")
+      failures.foreach {
+        case (_, failure) =>
+          failure.getMessage should include ("image.local.missing-resource")
+          failure.getMessage should include ("source=images/missing.png")
+      }
+    }
+  }
+
+  "PDF local LaTeX rendering" should {
+    "render a Markdown image after launching latexmk in the generated TeX directory" in {
+      Given("a temporary Markdown input with one valid root-contained image and a fake local latexmk")
+      val root = Files.createTempDirectory("smartdox-pdf-local-latex-image")
+      val image = root.resolve("images/diagram.png")
+      val input = root.resolve("article.md")
+      val latexmk = root.resolve("latexmk")
+      Files.createDirectories(image.getParent)
+      Files.write(
+        image,
+        Base64.getDecoder.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL7WQAAAABJRU5ErkJggg==")
+      )
+      Files.write(input, "![diagram](images/diagram.png)".getBytes("UTF-8"))
+      _write_local_latexmk(latexmk)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer",
+          "latex",
+          "--dependency-mode",
+          "local",
+          "--latexmk",
+          latexmk.toString,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("local LaTeX PDF generation executes the generated TeX input")
+        val result = PdfOperationClass.execute(Environment.createJaJp(), command)
+
+        Then("the renderer creates a non-empty PDF artifact from the generated output path")
+        Files.isRegularFile(result.artifact.toFile.toPath) shouldBe true
+        Files.size(result.artifact.toFile.toPath) should be > 0L
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "resolve a relative latexmk path before switching to the generated TeX directory" in {
+      Given("a temporary Markdown input with one root-contained image and a fake latexmk below the invocation directory")
+      val root = Files.createTempDirectory("smartdox-pdf-relative-latex-image")
+      val image = root.resolve("images/diagram.png")
+      val input = root.resolve("article.md")
+      val invocationroot = Paths.get("").toAbsolutePath.normalize
+      val commandroot = Files.createTempDirectory(invocationroot, "smartdox-pdf-relative-latexmk")
+      val latexmk = commandroot.resolve("tools/latexmk")
+      val configuredlatexmk = invocationroot.relativize(latexmk).toString
+      Files.createDirectories(image.getParent)
+      Files.createDirectories(latexmk.getParent)
+      Files.write(
+        image,
+        Base64.getDecoder.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL7WQAAAABJRU5ErkJggg==")
+      )
+      Files.write(input, "![diagram](images/diagram.png)".getBytes("UTF-8"))
+      _write_local_latexmk(latexmk)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer",
+          "latex",
+          "--dependency-mode",
+          "local",
+          "--latexmk",
+          configuredlatexmk,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("local LaTeX PDF generation starts the relative configured executable from its invocation location")
+        val result = PdfOperationClass.execute(Environment.createJaJp(), command)
+
+        Then("the fake observes the generated TeX directory and staged PNG before producing a PDF artifact")
+        Files.isRegularFile(result.artifact.toFile.toPath) shouldBe true
+        Files.size(result.artifact.toFile.toPath) should be > 0L
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+        IoUtils.removeDirectory(commandroot.toFile)
+      }
+    }
+  }
+
   "PDF locale selection" should {
     "select exact Japanese content while retaining neutral content" which {
       "exclude English and regional English branches" in {
@@ -615,6 +810,63 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
     Paragraph(List(Text("English")), VectorMap("lang" -> "en")),
     Paragraph(List(Text("regional English")), VectorMap("lang" -> "en-US"))
   )))
+
+  private def _missing_markdown_image_failure(renderer: String, rendereroption: String): RuntimeException = {
+    val root = Files.createTempDirectory("smartdox-pdf-markdown-image-missing")
+    val input = root.resolve("missing.md")
+    Files.write(input, "![missing](images/missing.png)".getBytes("UTF-8"))
+    val request = Request.create(
+      PdfOperationClass.specification,
+      Array(
+        "--renderer",
+        renderer,
+        "--dependency-mode",
+        "local",
+        rendereroption,
+        root.resolve("unavailable-renderer").toString,
+        input.toString
+      )
+    )
+    val command = PdfOperationClass.PdfCommand.create(request)
+    try {
+      intercept[RuntimeException] {
+        PdfOperationClass.execute(Environment.createJaJp(), command)
+      }
+    } finally {
+      IoUtils.removeDirectory(root.toFile)
+    }
+  }
+
+  private def _write_local_latexmk(latexmk: java.nio.file.Path): Unit =
+    Files.write(
+      latexmk,
+      """|#!/bin/sh
+         |set -eu
+         |outdir=
+         |tex=
+         |for arg in "$@"; do
+         |  case "$arg" in
+         |    -outdir=*) outdir="${arg#-outdir=}" ;;
+         |    *.tex) tex="$arg" ;;
+         |  esac
+         |done
+         |test -n "$outdir"
+         |test -n "$tex"
+         |actualdir=$(pwd -P)
+         |expectedtexdir=$(cd "$(dirname "$tex")" && pwd -P)
+         |test "$actualdir" = "$expectedtexdir"
+         |found_png=
+         |for png in ./*.png; do
+         |  if test -f "$png"; then
+         |    found_png=$png
+         |    break
+         |  fi
+         |done
+         |test -n "$found_png"
+         |basename="${tex##*/}"
+         |printf '%%PDF-1.4\\n' > "$outdir/${basename%.tex}.pdf"
+         |""".stripMargin.getBytes("UTF-8")
+    )
 
   private lazy val _bilingual_fragment: I18NFragment = I18NFragment.createDox(List(
     Locale.ENGLISH -> List[Dox](Text("fragment English")),

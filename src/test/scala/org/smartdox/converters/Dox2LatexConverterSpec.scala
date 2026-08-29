@@ -17,7 +17,7 @@ import org.smartdox.parser.UseDox2Parser
 /*
  * @since   Jun.  2, 2026
  *  version Jun.  3, 2026
- * @version Aug. 25, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -237,11 +237,64 @@ date = "2026-06-02"
         }
 
         Then("the Figure is rejected rather than becoming a dangling includegraphics reference")
-        failure.getMessage should not be empty
+        failure.getMessage should include ("image.local.missing-resource")
+        failure.getMessage should include ("source=missing.png")
         workdir.listFiles.toVector shouldBe empty
       } finally {
         IoUtils.removeDirectory(articledir)
         IoUtils.removeDirectory(workdir)
+      }
+    }
+
+    "reject root-escaping local image resources before copying them" in {
+      Given("an article root, an existing image outside it, and a LaTeX work directory")
+      val parent = Files.createTempDirectory("smartdox-latex-root-escape")
+      val articledir = Files.createDirectory(parent.resolve("article")).toFile
+      val workdir = Files.createDirectory(parent.resolve("work")).toFile
+      val outside = parent.resolve("outside.png")
+      Files.write(outside, Array[Byte](0, 1, 2, 3))
+      try {
+        When("a root-relative model attempts dot-segment traversal outside the article root")
+        val failure = intercept[IllegalArgumentException] {
+          new Dox2LatexConverter(
+            diagramDir = Some(workdir),
+            resourceBaseDir = Some(articledir)
+          ).convert(Document.create(ReferenceImg("../outside.png"))).take
+        }
+
+        Then("the renderer rejects the resource before any work-directory copy or LaTeX output")
+        failure.getMessage should include ("image.local.outside-resource-root")
+        failure.getMessage should include ("source=../outside.png")
+        workdir.listFiles.toVector shouldBe empty
+      } finally {
+        IoUtils.removeDirectory(parent.toFile)
+      }
+    }
+
+    "reject canonical symlink escapes before copying local image resources" in {
+      Given("an article root with a symlinked image whose canonical target is outside that root")
+      val parent = Files.createTempDirectory("smartdox-latex-symlink-escape")
+      val articledir = Files.createDirectory(parent.resolve("article")).toFile
+      val workdir = Files.createDirectory(parent.resolve("work")).toFile
+      val outside = parent.resolve("outside.png")
+      val link = articledir.toPath.resolve("escape.png")
+      Files.write(outside, Array[Byte](0, 1, 2, 3))
+      Files.createSymbolicLink(link, outside)
+      try {
+        When("a root-relative image model resolves the symlink before its source is copied")
+        val failure = intercept[IllegalArgumentException] {
+          new Dox2LatexConverter(
+            diagramDir = Some(workdir),
+            resourceBaseDir = Some(articledir)
+          ).convert(Document.create(ReferenceImg("escape.png"))).take
+        }
+
+        Then("canonical containment rejects the resource without producing a work-directory artifact")
+        failure.getMessage should include ("image.local.outside-resource-root")
+        failure.getMessage should include ("source=escape.png")
+        workdir.listFiles.toVector shouldBe empty
+      } finally {
+        IoUtils.removeDirectory(parent.toFile)
       }
     }
 

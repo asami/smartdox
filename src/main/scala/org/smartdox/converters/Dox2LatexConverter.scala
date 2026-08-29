@@ -2,7 +2,7 @@ package org.smartdox.converters
 
 import scalaz._
 import java.io.File
-import java.nio.file.{Files, StandardCopyOption}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.security.MessageDigest
 import scala.util.control.NonFatal
 import org.goldenport.context.Consequence
@@ -16,7 +16,7 @@ import org.smartdox.generators.KrokiGenerator
 /*
  * @since   Jun.  2, 2026
  *  version Jun.  3, 2026
- * @version Aug. 25, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2LatexConverter(
@@ -181,18 +181,52 @@ class Dox2LatexConverter(
 
   private def _image_source_file(p: Img): File = {
     val uri = p.src
-    val source =
-      if (uri.isAbsolute) {
-        if (!Option(uri.getScheme).exists(_.equalsIgnoreCase("file")))
-          throw new IllegalArgumentException(s"Unsupported non-file image URI: $uri")
-        new File(uri)
-      } else {
-        val base = resourceBaseDir.getOrElse(new File(".")).getAbsoluteFile
-        new File(base, uri.getPath)
+    if (uri.isAbsolute) {
+      if (!Option(uri.getScheme).exists(_.equalsIgnoreCase("file")))
+        throw new IllegalArgumentException(s"Unsupported non-file image URI: $uri")
+      _existing_image_source_file(p, new File(uri).toPath)
+    } else {
+      resourceBaseDir match {
+        case Some(root) => _root_relative_image_source_file(p, root.toPath)
+        case None =>
+          _existing_image_source_file(p, new File(new File(".").getAbsoluteFile, uri.getPath).toPath)
       }
-    if (!source.isFile)
-      throw new IllegalArgumentException(s"Local image does not exist or is not a regular file: ${source.getAbsolutePath}")
-    source
+    }
+  }
+
+  private def _root_relative_image_source_file(p: Img, root: Path): File = {
+    val rootpath = root.toFile.getCanonicalFile.toPath
+    val sourcepath = try {
+      Paths.get(Option(p.src.getPath).getOrElse(""))
+    } catch {
+      case _: java.nio.file.InvalidPathException =>
+        throw new IllegalArgumentException(s"image.local.invalid-resource: ${_image_context(p, rootpath)}")
+    }
+    if (sourcepath.isAbsolute)
+      throw new IllegalArgumentException(s"image.local.outside-resource-root: ${_image_context(p, sourcepath)} root=$rootpath")
+    val candidate = rootpath.resolve(sourcepath).normalize
+    if (!candidate.startsWith(rootpath))
+      throw new IllegalArgumentException(s"image.local.outside-resource-root: ${_image_context(p, candidate)} root=$rootpath")
+    if (!Files.isRegularFile(candidate))
+      _missing_image_resource(p, candidate)
+    val canonical = candidate.toRealPath()
+    if (!canonical.startsWith(rootpath))
+      throw new IllegalArgumentException(s"image.local.outside-resource-root: ${_image_context(p, canonical)} root=$rootpath")
+    canonical.toFile
+  }
+
+  private def _existing_image_source_file(p: Img, source: Path): File = {
+    if (!Files.isRegularFile(source))
+      _missing_image_resource(p, source.toAbsolutePath.normalize)
+    source.toFile
+  }
+
+  private def _missing_image_resource(p: Img, path: Path): Nothing =
+    throw new IllegalArgumentException(s"image.local.missing-resource: ${_image_context(p, path)}")
+
+  private def _image_context(p: Img, path: Path): String = {
+    val location = p.location.map(_.toString).getOrElse("<absent>")
+    s"location=$location source=${p.src} path=$path"
   }
 
   private def _copy_image(destinationdir: File, source: File): File = {

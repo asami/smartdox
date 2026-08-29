@@ -2,7 +2,7 @@ package org.smartdox.service.operations
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, StandardCopyOption}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.util.Locale
 import org.goldenport.context.Consequence
 import org.goldenport.cli._
@@ -10,7 +10,7 @@ import org.goldenport.bag.{ChunkBag, FileBag}
 import org.goldenport.i18n.I18NContext
 import org.goldenport.tree.TreeTransformer
 import org.goldenport.io.IoUtils
-import org.smartdox.Dox
+import org.smartdox.{Dox, ReferenceImg}
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator.{Context => GeneratorContext}
 import org.smartdox.generators.AntoraGenerator
@@ -63,9 +63,23 @@ case object PdfOperationClass extends OperationClassWithOperation {
     selector: Option[String]
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
-    val dox = _parse_selected(cmd.in, selector)
+    val input = _parse_pdf_input(cmd.in)
+    val dox = _select_locale(input.dox, selector).take
     val html = _html(ctx, dox)
-    _write_chrome_pdf(cmd, html)
+    val workspace = _prepare_renderer_workspace(
+      PdfRenderer.ChromeHeadless,
+      _html_filename(cmd.in),
+      html,
+      dox,
+      input.resourceroot
+    )
+    try {
+      val out = _output_bag(cmd.in)
+      _print_to_pdf(cmd, workspace.input, out.toFile.toPath)
+      out
+    } finally {
+      workspace.dispose()
+    }
   }
 
   private def _execute_asciidoc(
@@ -75,16 +89,23 @@ case object PdfOperationClass extends OperationClassWithOperation {
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
     val config = DoxSite.Config.create(cmd)
-    val dox = _parse_selected(cmd.in, selector)
+    val input = _parse_pdf_input(cmd.in)
+    val dox = _select_locale(input.dox, selector).take
     val adoc = _asciidoc(ctx, config, dox)
-    val adocbag = _text_bag(_asciidoc_filename(cmd.in), adoc)
-    val out = _output_bag(cmd.in)
+    val workspace = _prepare_renderer_workspace(
+      PdfRenderer.Asciidoc,
+      _asciidoc_filename(cmd.in),
+      adoc,
+      dox,
+      input.resourceroot
+    )
     try {
-      _run_asciidoctor_pdf(cmd, adocbag.toFile.toPath, out.toFile.toPath)
+      val out = _output_bag(cmd.in)
+      _run_asciidoctor_pdf(cmd, workspace.input, out.toFile.toPath)
+      out
     } finally {
-      adocbag.dispose()
+      workspace.dispose()
     }
-    out
   }
 
   private def _execute_latex(
@@ -93,27 +114,159 @@ case object PdfOperationClass extends OperationClassWithOperation {
     selector: Option[String]
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
-    val dox = _parse_selected(cmd.in, selector)
+    val input = _parse_pdf_input(cmd.in)
+    val dox = _select_locale(input.dox, selector).take
     val workdir = Files.createTempDirectory(_temp_prefix(_latex_filename(cmd.in)))
-    val latex = _latex(ctx, cmd, dox, workdir.toFile)
-    val texbag = _text_bag_in(workdir, _latex_filename(cmd.in), latex)
-    val out = _output_bag(cmd.in)
     try {
-      _run_latex_pdf(cmd, texbag.toFile.toPath, out.toFile.toPath)
+      val latex = _latex(ctx, cmd, dox, workdir.toFile, input.resourceroot)
+      val texbag = _text_bag_in(workdir, _latex_filename(cmd.in), latex)
+      val out = _output_bag(cmd.in)
+      try {
+        _run_latex_pdf(cmd, texbag.toFile.toPath, out.toFile.toPath)
+      } finally {
+        texbag.dispose()
+      }
+      out
     } finally {
-      texbag.dispose()
       IoUtils.removeDirectory(workdir.toFile)
     }
-    out
   }
 
-  private def _parse(in: File): Dox = {
-    val text = scala.io.Source.fromFile(in, "UTF-8").mkString
-    Dox2Parser.parseWithFilename(Dox2Parser.Config.default, in.getPath, text)
+  private[operations] case class ParsedPdfInput(dox: Dox, resourceroot: File)
+
+  private[operations] case class RendererWorkspace(directory: Path, input: Path) {
+    def dispose(): Unit = IoUtils.removeDirectory(directory.toFile)
+  }
+
+  private[operations] def _parse_pdf_input(in: File): ParsedPdfInput = {
+    val file = in.getCanonicalFile
+    val root = Option(file.getParentFile).getOrElse(
+      throw new IllegalArgumentException(s"PDF input has no parent directory: ${file.getPath}")
+    )
+    val text = scala.io.Source.fromFile(file, "UTF-8").mkString
+    val config = Dox2Parser.Config.default.withResourceRoot(root.toPath)
+    ParsedPdfInput(Dox2Parser.parseWithFilename(config, file.getPath, text), root)
+  }
+
+  private[operations] def _prepare_renderer_workspace(
+    renderer: PdfRenderer,
+    filename: String,
+    content: String,
+    dox: Dox,
+    resourceroot: File
+  ): RendererWorkspace = {
+    val workspace = Files.createTempDirectory(_temp_prefix(filename))
+    try {
+      val input = workspace.resolve(filename)
+      Files.write(input, content.getBytes(StandardCharsets.UTF_8))
+      _stage_root_relative_images(renderer, workspace, dox, resourceroot)
+      RendererWorkspace(workspace, input)
+    } catch {
+      case e: Throwable =>
+        IoUtils.removeDirectory(workspace.toFile)
+        throw e
+    }
+  }
+
+  private def _stage_root_relative_images(
+    renderer: PdfRenderer,
+    workspace: Path,
+    dox: Dox,
+    resourceroot: File
+  ): Unit = {
+    val rootpath = resourceroot.getCanonicalFile.toPath
+    _root_relative_reference_images(dox).foreach { image =>
+      val sourcepath = _root_relative_image_source(image, rootpath)
+      val targetpath = workspace.resolve(_renderer_image_target(renderer, image)).normalize
+      if (!targetpath.startsWith(workspace))
+        throw new IllegalArgumentException(
+          s"image.local.outside-resource-root: ${_image_context(image, targetpath)} root=$workspace"
+        )
+      Option(targetpath.getParent).foreach(parent => Files.createDirectories(parent))
+      Files.copy(sourcepath, targetpath, StandardCopyOption.REPLACE_EXISTING)
+    }
+  }
+
+  private def _root_relative_reference_images(dox: Dox): Vector[ReferenceImg] = {
+    def _collect_(node: Dox): Vector[ReferenceImg] = {
+      val here = node match {
+        case image: ReferenceImg if _is_root_relative_reference_image(image) => Vector(image)
+        case _ => Vector.empty
+      }
+      here ++ node.elements.toVector.flatMap(_collect_)
+    }
+    _collect_(dox)
+  }
+
+  private def _is_root_relative_reference_image(image: ReferenceImg): Boolean = {
+    val uri = image.src
+    !uri.isAbsolute &&
+    uri.getRawAuthority == null &&
+    uri.getRawQuery == null &&
+    uri.getRawFragment == null &&
+    Option(uri.getPath).exists(_.nonEmpty)
+  }
+
+  private def _root_relative_image_source(image: ReferenceImg, rootpath: Path): Path = {
+    val sourcepath = try {
+      Paths.get(Option(image.src.getPath).getOrElse(""))
+    } catch {
+      case _: java.nio.file.InvalidPathException =>
+        throw new IllegalArgumentException(s"image.local.invalid-resource: ${_image_context(image, rootpath)}")
+    }
+    if (sourcepath.isAbsolute)
+      throw new IllegalArgumentException(
+        s"image.local.outside-resource-root: ${_image_context(image, sourcepath)} root=$rootpath"
+      )
+    val candidate = rootpath.resolve(sourcepath).normalize
+    if (!candidate.startsWith(rootpath))
+      throw new IllegalArgumentException(
+        s"image.local.outside-resource-root: ${_image_context(image, candidate)} root=$rootpath"
+      )
+    if (!Files.isRegularFile(candidate))
+      _missing_image_resource(image, candidate)
+    val canonical = candidate.toRealPath()
+    if (!canonical.startsWith(rootpath))
+      throw new IllegalArgumentException(
+        s"image.local.outside-resource-root: ${_image_context(image, canonical)} root=$rootpath"
+      )
+    canonical
+  }
+
+  private def _renderer_image_target(renderer: PdfRenderer, image: ReferenceImg): Path =
+    renderer match {
+      case PdfRenderer.ChromeHeadless => Paths.get(image.src.getPath)
+      case PdfRenderer.Asciidoc => _asciidoc_image_target(image)
+      case PdfRenderer.Latex =>
+        throw new IllegalArgumentException(s"PDF renderer workspace is unsupported for: $renderer")
+    }
+
+  private def _asciidoc_image_target(image: ReferenceImg): Path = {
+    val source = image.src.toString
+    val target =
+      if (source.startsWith("images/")) {
+        val rest = source.substring("images/".length)
+        val i = rest.indexOf('/')
+        if (i > 0)
+          s"${rest.substring(0, i)}:${rest.substring(i + 1)}"
+        else
+          rest
+      } else {
+        source
+      }
+    Paths.get(target)
+  }
+
+  private def _missing_image_resource(image: ReferenceImg, path: Path): Nothing =
+    throw new IllegalArgumentException(s"image.local.missing-resource: ${_image_context(image, path)}")
+
+  private def _image_context(image: ReferenceImg, path: Path): String = {
+    val location = image.location.map(_.toString).getOrElse("<absent>")
+    s"location=$location source=${image.src} path=$path"
   }
 
   private def _parse_selected(in: File, selector: Option[String]): Dox =
-    _select_locale(_parse(in), selector).take
+    _select_locale(_parse_pdf_input(in).dox, selector).take
 
   private[operations] def _select_locale(dox: Dox, selector: Option[String]): Consequence[Dox] =
     selector match {
@@ -159,7 +312,13 @@ case object PdfOperationClass extends OperationClassWithOperation {
     new Dox2AsciidocConverter(cctx).convert(dox).take
   }
 
-  private def _latex(ctx: GeneratorContext, cmd: PdfCommand, dox: Dox, diagramDir: File): String =
+  private def _latex(
+    ctx: GeneratorContext,
+    cmd: PdfCommand,
+    dox: Dox,
+    diagramdir: File,
+    resourceroot: File
+  ): String =
     new Dox2LatexConverter(
       cmd.latexEngine,
       cmd.latexFormat,
@@ -167,9 +326,9 @@ case object PdfOperationClass extends OperationClassWithOperation {
       cmd.latexAffiliation,
       cmd.latexAuthor,
       Some(ctx),
-      Some(diagramDir),
+      Some(diagramdir),
       isDiagramGeneration = true,
-      resourceBaseDir = Some(cmd.in.getAbsoluteFile.getParentFile)
+      resourceBaseDir = Some(resourceroot)
     ).convert(dox).take
 
   private def _write_chrome_pdf(cmd: PdfCommand, html: String): ChunkBag = {
@@ -307,7 +466,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
           case Dox2LatexConverter.Engine.UpLatex => Vector("-pdfdvi")
         }
         _run_process(
-          Vector(latexmk.getPath) ++
+          Vector(_local_latexmk_command(latexmk)) ++
           engineargs ++
           _latexmk_engine_options(cmd.latexEngine) ++
           Vector(
@@ -316,7 +475,8 @@ case object PdfOperationClass extends OperationClassWithOperation {
             s"-outdir=${out.getParent.toString}",
             tex.toString
           ).filter(_.nonEmpty),
-          "LaTeX PDF generation failed"
+          "LaTeX PDF generation failed",
+          Some(tex.getParent)
         )
       case None =>
         _run_latex_pdf_in_docker(cmd, tex, out)
@@ -333,6 +493,17 @@ case object PdfOperationClass extends OperationClassWithOperation {
 
   private def _latex_generated_pdf(tex: Path, out: Path): Path =
     out.getParent.resolve(s"${_filename_body(tex.getFileName.toString)}.pdf")
+
+  private def _local_latexmk_command(latexmk: File): String = {
+    val command = latexmk.getPath
+    if (latexmk.isAbsolute || !_is_path_bearing_command(command))
+      command
+    else
+      latexmk.toPath.toAbsolutePath.normalize.toString
+  }
+
+  private def _is_path_bearing_command(command: String): Boolean =
+    command.indexOf('/') >= 0 || command.indexOf('\\') >= 0
 
   private def _latexmk_engine_options(engine: Dox2LatexConverter.Engine): Vector[String] =
     engine match {
@@ -489,8 +660,14 @@ case object PdfOperationClass extends OperationClassWithOperation {
     )
   }
 
-  private def _run_process(args: Vector[String], error: String): Unit = {
-    val process = new ProcessBuilder(args: _*).redirectErrorStream(true).start()
+  private def _run_process(
+    args: Vector[String],
+    error: String,
+    workingdirectory: Option[Path] = None
+  ): Unit = {
+    val builder = new ProcessBuilder(args: _*).redirectErrorStream(true)
+    workingdirectory.foreach(path => builder.directory(path.toFile))
+    val process = builder.start()
     val message = scala.io.Source.fromInputStream(process.getInputStream, "UTF-8").mkString
     val code = process.waitFor()
     if (code != 0)

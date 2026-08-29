@@ -1,6 +1,7 @@
 package org.smartdox.parser
 
 import java.net.URI
+import java.nio.file.Path
 import org.goldenport.RAISE
 import org.goldenport.context.Consequence
 import org.goldenport.parser._
@@ -24,12 +25,11 @@ import org.smartdox._
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 24, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
   type Transition = (ParseMessageSequence, ParseResult[Dox], DoxInlineParseState)
-
   // def parse(p: LogicalParagraph): Dox = parse(p.lines)
 
   // def parse(p: LogicalLines): Dox = toDox(p.lines.map(parse))
@@ -102,9 +102,30 @@ object DoxInlineParser {
     asciidoc: Config.Asciidoc = Config.Asciidoc.none,
     location: Option[ParseLocation] = None
   ) extends ParseConfig {
-    def withLocation(p: Option[ParseLocation]): Config = copy(location = p)
-    def withLocation(p: ParseLocation): Config = copy(location = p.toOption)
+    private var _resource_root: Option[Path] = None
+    def copy(
+      isDebug: Boolean = this.isDebug,
+      isLocation: Boolean = this.isLocation,
+      markdown: Config.MarkDown = this.markdown,
+      orgmode: Config.OrgMode = this.orgmode,
+      asciidoc: Config.Asciidoc = this.asciidoc,
+      location: Option[ParseLocation] = this.location
+    ): Config = {
+      val result = Config(isDebug, isLocation, markdown, orgmode, asciidoc, location)
+      result._resource_root = _resource_root
+      result
+    }
 
+    def withLocation(p: Option[ParseLocation]): Config =
+      copy(location = p)
+    def withLocation(p: ParseLocation): Config = withLocation(p.toOption)
+
+    def withResourceRoot(p: Path): Config = {
+      val result = copy()
+      result._resource_root = Some(p.toAbsolutePath.normalize)
+      result
+    }
+    private[parser] def _resource_root_option: Option[Path] = _resource_root
     def isSpace(c: Char): Boolean = Character.isWhitespace(c)
 
     def useAngleBracket: Boolean = true
@@ -119,6 +140,7 @@ object DoxInlineParser {
     def usePlus: Boolean = orgmode.isStrikeThrough
     def useSlash: Boolean = orgmode.isItalic
     def useDallor: Boolean = false
+    def useMarkdownImage: Boolean = markdown != Config.MarkDown.none
 
     def isImageFile(uri: URI): Boolean = MimeType.isImageFile(uri)
     def isImageFile(filename: String): Boolean = MimeType.isImageFile(filename)
@@ -238,6 +260,7 @@ object DoxInlineParser {
     protected def use_plus: Boolean = config.usePlus
     protected def use_slash: Boolean = config.useSlash
     protected def use_dallor: Boolean = config.useDallor
+    protected def use_markdown_image: Boolean = config.useMarkdownImage
 
     protected def handle_char_event(p: CharEvent): Transition = p.c match {
       case c if use_space && is_space(c) => handle_space(p)
@@ -258,8 +281,13 @@ object DoxInlineParser {
       case '+' if use_plus => handle_plus(p)
       case '/' if use_slash => handle_slash(p)
       case '$' if use_dallor => handle_dallor(p)
+      case '!' if use_markdown_image => handle_markdown_image(p)
       case _ => handle_character(p)
     }
+    protected final def handle_markdown_image(evt: CharEvent): Transition =
+      (ParseMessageSequence.empty, ParseResult.empty, markdown_image_state(evt))
+
+    protected def markdown_image_state(evt: CharEvent): DoxInlineParseState = MarkdownImageInlineParser.state(config, this, evt)
 
     protected final def handle_start(): Transition =
       handle_Start()
@@ -717,6 +745,22 @@ object DoxInlineParser {
     def init(config: Config) = NormalState(config)
   }
 
+  case class SkipOneState(
+    config: Config,
+    parent: DoxInlineParseState,
+    skipChar: Char
+  ) extends ChildDoxInlineParseState with RawFeature {
+    override protected def character_State(c: Char): DoxInlineParseState =
+      if (c == skipChar)
+        leave_none
+      else
+        RAISE.noReachDefect(this, s"SkipOneState#character_State($this): $c")
+  }
+  object SkipOneState {
+    def apply(parent: DoxInlineParseState, skipChar: Char): SkipOneState =
+      SkipOneState(parent.config, parent, skipChar)
+  }
+
   trait RawFeature { self: DoxInlineParseState =>
     override protected def use_space: Boolean = false
     override protected def use_parenthesis: Boolean = false
@@ -732,6 +776,7 @@ object DoxInlineParser {
     override protected def use_plus: Boolean = false 
     override protected def use_slash: Boolean = false 
     override protected def use_dallor: Boolean = false 
+    override protected def use_markdown_image: Boolean = false
   }
 
   trait InlineFeature { self: DoxInlineParseState =>
@@ -1327,26 +1372,6 @@ object DoxInlineParser {
         leave_none
       else
         RAISE.noReachDefect(this, s"SkipSpaceStartState#character_State($this): $c")
-  }
-
-  case class SkipOneState(
-    config: Config,
-    parent: DoxInlineParseState,
-    skipChar: Char
-  ) extends ChildDoxInlineParseState with RawFeature {
-    override protected def character_State(c: Char): DoxInlineParseState = {
-      // println(s"SkipOneState: $c")
-      if (c == skipChar)
-        leave_none
-      else
-        RAISE.noReachDefect(this, s"SkipOneState#character_State($this): $c")
-    }
-  }
-  object SkipOneState {
-    def apply(
-      parent: DoxInlineParseState,
-      skipChar: Char
-    ): SkipOneState = SkipOneState(parent.config, parent, skipChar)
   }
 
   // case class AfterSpaceState(

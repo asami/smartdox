@@ -2,6 +2,8 @@ package org.smartdox.parser
 
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.nio.file.Files
+import org.goldenport.parser.ParseLocation
 import scalaz._, Scalaz._
 import org.scalatest.GivenWhenThen
 import org.scalatestplus.junit.JUnitRunner
@@ -15,12 +17,235 @@ import org.smartdox._
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Aug. 24, 2026
+ * @version Aug. 29, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with GivenWhenThen with UseDoxParser {
   "plain" should {
+    "retain six-field parser configuration products while carrying a resource root through location and style selection" in {
+      Given("the original inline and document parser configuration contracts and an article root")
+      val root = Files.createTempDirectory("smartdox-markdown-image-config")
+      try {
+        When("a resource-rooted inline configuration is relocated and a Dox2 configuration selects Markdown by filename")
+        val inline = DoxInlineParser.Config.smartdox.
+          withResourceRoot(root).
+          withLocation(ParseLocation.create(12))
+        val inlineimage = DoxInlineParser.parse(inline, "![inline](images/diagram.png)").asInstanceOf[ReferenceImg]
+        val document = Dox2Parser.parseWithFilename(
+          Dox2Parser.Config.default.withResourceRoot(root),
+          "article.md",
+          "![document](images/diagram.png)"
+        )
+        val documentimage = document.find { case _: ReferenceImg => true; case _ => false }.
+          collect { case m: ReferenceImg => m }.get
+
+        Then("both public case classes retain their six-argument constructor and product arity")
+        classOf[DoxInlineParser.Config].getConstructors.map(_.getParameterTypes.length) should contain (6)
+        DoxInlineParser.Config.default.productArity shouldBe 6
+        classOf[Dox2Parser.Config].getConstructors.map(_.getParameterTypes.length) should contain (6)
+        Dox2Parser.Config.default.productArity shouldBe 6
+        And("the root survives inline relocation and Dox2 filename-driven Markdown selection")
+        inlineimage.src.toString shouldBe "images/diagram.png"
+        inlineimage.location should not be empty
+        documentimage.src.toString shouldBe "images/diagram.png"
+      } finally {
+        org.goldenport.io.IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "retain the nested SkipOneState compatibility identity" in {
+      Given("a generic inline parent and the public SkipOneState companion")
+      val parent = DoxInlineParser.NormalState.init(DoxInlineParser.Config.default)
+
+      When("the companion is called with its compatibility named argument")
+      val state = DoxInlineParser.SkipOneState(parent = parent, skipChar = ']')
+
+      Then("the nested binary name and skip-character accessor remain callable")
+      classOf[DoxInlineParser.SkipOneState].getName shouldBe "org.smartdox.parser.DoxInlineParser$SkipOneState"
+      state.skipChar shouldBe ']'
+    }
+
+    "retain a resource root through ordinary public Config copy" in {
+      Given("a SmartDox configuration rooted at an article directory")
+      val root = Files.createTempDirectory("smartdox-markdown-image-copy")
+      val config = DoxInlineParser.Config.smartdox.withResourceRoot(root)
+      try {
+        When("a normal public copy changes an existing six-field configuration value")
+        val copied = config.copy(isDebug = true)
+        val image = DoxInlineParser.parse(copied, "![diagram](images/diagram.png)").asInstanceOf[ReferenceImg]
+
+        Then("the retained root admits the relative image as a ReferenceImg rather than an unsupported resource")
+        image.src.toString shouldBe "images/diagram.png"
+        image.alt shouldBe Some("diagram")
+      } finally {
+        org.goldenport.io.IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "admit exact Markdown images with source-exact alternative text" in {
+      Given("a Markdown-enabled parser rooted at an article directory")
+      val root = Files.createTempDirectory("smartdox-markdown-image-inline")
+      val config = DoxInlineParser.Config.smartdox.withResourceRoot(root)
+      try {
+        val source = "before ![日本語の代替テキスト](images/../images/team's-diagram.png) after"
+
+        When("the parser reads a local Markdown image whose path normalizes under that root")
+        val parsed = DoxInlineParser.parse(config, source)
+        val image = _nodes(parsed).collectFirst { case m: ReferenceImg => m }.get
+        val text = _nodes(parsed).collect { case m: Text => m.contents }.mkString
+        val decoded = DoxInlineParser.parse(config, "![decoded](images%2Fdiagram.png)").asInstanceOf[ReferenceImg]
+
+        Then("one shared image model preserves the authored Japanese alternative text and normalized URI")
+        image.src.toString shouldBe "images/team's-diagram.png"
+        image.alt shouldBe Some("日本語の代替テキスト")
+        image.attributes shouldBe empty
+        And("URI decoding occurs before the normalized root-relative model URI is retained")
+        decoded.src.toString shouldBe "images/diagram.png"
+        And("the Markdown image opener is syntax rather than emitted text")
+        text should not include "!"
+      } finally {
+        org.goldenport.io.IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "retain empty Markdown image alternative text" in {
+      Given("a Markdown-enabled parser rooted at an article directory")
+      val root = Files.createTempDirectory("smartdox-markdown-image-empty-alt")
+      val config = DoxInlineParser.Config.smartdox.withResourceRoot(root)
+      try {
+        When("the parser reads an exact image candidate with an empty alternative text")
+        val image = DoxInlineParser.parse(config, "![](empty.png)").asInstanceOf[ReferenceImg]
+
+        Then("the shared image model retains the observable empty alternative text")
+        image.alt shouldBe Some("")
+      } finally {
+        org.goldenport.io.IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "reject malformed and unsupported Markdown image candidates with stable context" in {
+      Given("a Markdown-enabled parser rooted at an article directory")
+      val root = Files.createTempDirectory("smartdox-markdown-image-diagnostics")
+      val config = DoxInlineParser.Config.smartdox.
+        withResourceRoot(root).
+        withLocation(ParseLocation.create(13))
+      try {
+        When("malformed grammar and every rejected local-resource category are parsed")
+        val closing = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram](diagram.png")
+        }
+        val title = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, """![diagram](diagram.png "title")""")
+        }
+        val reference = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram][reference]")
+        }
+        val unclosedreference = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram][reference")
+        }
+        val remote = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram](https://example.invalid/diagram.png)")
+        }
+        val absolute = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram](file:///tmp/diagram.png)")
+        }
+        val empty = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram]()")
+        }
+        val nonimage = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram](diagram.txt)")
+        }
+        val escaped = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram](../outside.png)")
+        }
+        val decodedinvalid = intercept[IllegalArgumentException] {
+          DoxInlineParser.parse(config, "![diagram](diagram%00.png)")
+        }
+
+        Then("the parser reports the stable malformed and unsupported-resource diagnostics")
+        closing.getMessage should include ("image.markdown.malformed")
+        closing.getMessage should include ("source=![diagram](diagram.png")
+        title.getMessage should include ("image.markdown.malformed")
+        title.getMessage should include ("source=![diagram](diagram.png \"title\")")
+        reference.getMessage should include ("source=![diagram][reference]")
+        reference.getMessage should include ("raw-path=<absent>")
+        unclosedreference.getMessage should include ("source=![diagram][reference")
+        List(remote, absolute, empty, nonimage, escaped, decodedinvalid).foreach { failure =>
+          failure.getMessage should include ("image.markdown.unsupported-resource")
+          failure.getMessage should include ("location=")
+          failure.getMessage should not include ("location=<absent>")
+        }
+        escaped.getMessage should include ("raw-path=../outside.png")
+        decodedinvalid.getMessage should include ("raw-path=diagram%00.png")
+      } finally {
+        org.goldenport.io.IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "stop malformed Markdown image reference diagnostics at the closing bracket" in {
+      Given("a Markdown-enabled parser reading a reference-style image followed by trailing text")
+      val source = "![diagram][reference] trailing"
+
+      When("the parser reads the unsupported reference-style image candidate")
+      val failure = intercept[IllegalArgumentException] {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      }
+
+      Then("the malformed diagnostic captures exactly the image candidate and excludes trailing text")
+      failure.getMessage shouldBe
+        "image.markdown.malformed: location=<absent> source=![diagram][reference] raw-path=<absent>"
+    }
+
+    "report a malformed Markdown image when the path delimiter reaches EOF" in {
+      Given("a Markdown-enabled parser reading an image whose opening path delimiter is terminal")
+      val source = "![diagram]("
+
+      When("the parser reads the terminal path delimiter")
+      val failure = intercept[IllegalArgumentException] {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      }
+
+      Then("the malformed diagnostic captures the exact available source without an identifiable raw path")
+      failure.getMessage shouldBe
+        "image.markdown.malformed: location=<absent> source=![diagram]( raw-path=<absent>"
+    }
+
+    "report a malformed Markdown image when the reference delimiter reaches EOF" in {
+      Given("a Markdown-enabled parser reading an image whose reference delimiter is terminal")
+      val source = "![diagram]["
+
+      When("the parser reads the terminal reference delimiter")
+      val failure = intercept[IllegalArgumentException] {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      }
+
+      Then("the malformed diagnostic captures the exact available source without an identifiable raw path")
+      failure.getMessage shouldBe
+        "image.markdown.malformed: location=<absent> source=![diagram][ raw-path=<absent>"
+    }
+
+    "retain bracket-link and default parser compatibility around Markdown image syntax" in {
+      Given("the established SmartDox and default parser configurations")
+      val root = Files.createTempDirectory("smartdox-markdown-image-compatibility")
+      val smartdox = DoxInlineParser.Config.smartdox.withResourceRoot(root)
+      try {
+        When("ordinary links and established bracket images are parsed beside the new image form")
+        val link = DoxInlineParser.parse(smartdox, "[overview](overview.dox)")
+        val bracket = DoxInlineParser.parse(smartdox, "[[diagram.png]]")
+        val default = DoxInlineParser.parse(DoxInlineParser.Config.default, "![diagram](diagram.png)")
+
+        Then("ordinary Markdown links and SmartDox bracket images retain their existing projections")
+        link shouldBe a [Hyperlink]
+        bracket shouldBe a [ReferenceImg]
+        bracket.asInstanceOf[ReferenceImg].alt shouldBe None
+        And("the non-Markdown default configuration retains literal exclamation text")
+        _nodes(default).collect { case m: Text => m.contents }.mkString should include ("!")
+      } finally {
+        org.goldenport.io.IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
     "simple" in {
       val r = DoxInlineParser.parse("特性一覧")
       println(r)
