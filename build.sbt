@@ -6,10 +6,6 @@ version := "2.4.18-SNAPSHOT"
 
 scalaVersion := "2.12.18"
 
-lazy val Master = config("master").extend(Compile)
-
-ivyConfigurations += Master
-
 // crossScalaVersions := Seq("2.11.6", "2.10.5")
 
 scalacOptions += "-deprecation"
@@ -42,7 +38,7 @@ resolvers += "SimpleModeling.org" at "https://www.simplemodeling.org/repository/
 
 // resolvers += "Asami Maven Repository" at "http://www.asamioffice.com/maven"
 
-resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"
+resolvers += Resolver.defaultLocal
 
 // =======
 // // libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.0.6"
