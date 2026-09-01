@@ -42,6 +42,7 @@ class DoxSiteSpec
   val context = Context.create()
   implicit val dctx = context.dateTimeContext
   "DoxSite" should {
+    "core site model and article ordering" which {
     "create" in {
       Given("an existing SmartDox site source directory")
       When("SmartDox creates a DoxSite model from the source directory")
@@ -93,6 +94,8 @@ class DoxSiteSpec
       }
     }
 
+    }
+    "site links and content transformation" which {
     "resolve site inline macro as internal link" in {
       Given("a site source that uses the site:[...] inline macro")
       val config = DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
@@ -378,6 +381,7 @@ class DoxSiteSpec
             |published_at=2026-06-05
             |
             |# Definition
+            |
             |Runtime term.
             |""".stripMargin)
         When("SmartDox generates the site with glossary auto-linking enabled")
@@ -518,6 +522,8 @@ class DoxSiteSpec
       }
     }
 
+    }
+    "publication strategy and Markdown source roots" which {
     "keep published dox pages in production strategy" in {
       val dir = Files.createTempDirectory("smartdox-production-published")
       try {
@@ -913,6 +919,8 @@ class DoxSiteSpec
       html_at(secondoutput, "/ja/same.html", "ja/same.html") should not include ("First virtual result")
     }
 
+    }
+    "site metadata projections" which {
     "emit Markdown glossary term metadata through Dox IR" in {
       val dir = Files.createTempDirectory("smartdox-markdown-glossary-term")
       try {
@@ -1210,6 +1218,8 @@ class DoxSiteSpec
       }
     }
 
+    }
+    "bibliography fault tolerance and document metadata" which {
     "continue when bibliography reference source parsing hits unsupported BOK inline markup" in {
       val dir = Files.createTempDirectory("smartdox-bibliography-source-parse-error")
       try {
@@ -1296,6 +1306,8 @@ class DoxSiteSpec
       }
     }
 
+    }
+    "document localization" which {
     "preserve multilingual head title" in {
       Given("a document head with English and Japanese title alternatives")
       val dox = Document(
@@ -1319,6 +1331,7 @@ class DoxSiteSpec
       transformed should have_default_head_title("Literate Model Example: Address")
       And("the target locale title is selected for localized consumers")
       transformed should have_localized_head_title("文芸モデルの実例：住所")
+    }
     }
   }
 

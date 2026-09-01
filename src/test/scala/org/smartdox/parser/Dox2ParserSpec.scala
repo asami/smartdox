@@ -410,105 +410,62 @@ Published body.
     }
   }
 
-  "Foundation" should {
-    "simple" which {
-    //   val in = "* OK"
-    //   val out = "<!DOCTYPE html><html><head/><body><section><h2>OK</h2></section></body></html>"
-    //   "plain" in {
-    //     parse_orgmode(in, out)
-    //   }
-    //   // "scalaz" in {
-    //   //   parse_orgmode_z(in, out)
-    //   // }
-    //   // "short" in {
-    //   //   parse_orgmode("* OK", out)
-    //   // }
-    // }
-    // "nest" which {
-    //   "first/second" in {
-    //     parse_orgmode("* First\n** Second\n",
-    //         "<!DOCTYPE html><html><head/><body><section><h2>First</h2><section><h3>Second</h3></section></section></body></html>")
-    //   }
-    //   "first,contents/second,contents" in { // TODO bold option
-    //     parse_orgmode("* First\n1st contents.\n** Second\n2nd *contents*.\n",
-    //         "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p>1st contents.</p><section><h3>Second</h3><p>2nd *contents*.</p></section></section></body></html>")
-    //   }
-    }
-    "ul" which {
-      "typical" in {
-        // parse_orgmode("* First\n - first\n - second\n - third\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ul><li>first</li><li>second</li><li>third</li></ul></section></body></html>")
-      }
-      "nest" in {
-        // parse_orgmode("* First\n - first\n  - first.first\n  - first.second\n - second\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ul><li>first<ul><li>first.first</li><li>first.second</li></ul></li><li>second</li></ul></section></body></html>")
-      }
+  "list parsing" should {
+    "unordered lists" which {
       "typical 2" in {
         Given("a flat unordered SmartDox list")
-        When("the parser renders the list")
+        val source = "- One\n- Two\n"
+        val expected = """<!DOCTYPE html><html><head/><body><ul><li>One</li><li>Two</li></ul></body></html>"""
+
+        When("Dox2Parser renders the list")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the resulting list structure matches the established behavior")
-        parse_orgmode_simple_debug("- One\n- Two\n",
-          """<ul><li>One</li><li>Two</li></ul>""")
+        rendered shouldBe expected
       }
       "continue" in {
         Given("an unordered list item continued on an indented line")
-        When("the parser renders the continued item")
+        val source = "- This is \n a pen.\n"
+        val expected = """<!DOCTYPE html><html><head/><body><ul><li>This is a pen.</li></ul></body></html>"""
+
+        When("Dox2Parser renders the continued item")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the continuation remains part of that list item")
-        parse_orgmode_simple_debug("- This is \n a pen.\n",
-                             """<ul><li>This is a pen.</li></ul>""")
+        rendered shouldBe expected
       }
       "continue 2" in {
         Given("a nested unordered list with continued content")
-        When("the parser renders the nested list")
+        val source = "- One\n - Two\n Two-One\n"
+        val expected = """<!DOCTYPE html><html><head/><body><ul><li>One<ul><li>Two Two-One</li></ul></li></ul></body></html>"""
+
+        When("Dox2Parser renders the nested list")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the nested item keeps its continued text")
-        parse_orgmode_simple("- One\n - Two\n Two-One\n",
-                             """<ul><li>One<ul><li>Two Two-One</li></ul></li></ul>""")
+        rendered shouldBe expected
       }
       "continue 2 xx" in {
         Given("paragraphs surrounding a nested unordered list")
-        When("the parser renders the document")
+        val source = "abc\n\n- One\n - Two\n - Three\n\nxyz"
+        val expected = """<!DOCTYPE html><html><head/><body><p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p></body></html>"""
+
+        When("Dox2Parser renders the document")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("paragraph and list boundaries remain unchanged")
-        parse_orgmode_simple_debug("abc\n\n- One\n - Two\n - Three\n\nxyz",
-          """<p>abc</p><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul><p>xyz</p>""")
+        rendered shouldBe expected
       }
       "continue 2 x" in {
         Given("a nested unordered list with two child items")
-        When("the parser renders the list")
+        val source = "- One\n - Two\n - Three\n"
+        val expected = """<!DOCTYPE html><html><head/><body><ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul></body></html>"""
+
+        When("Dox2Parser renders the list")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the child items remain grouped beneath their parent")
-        parse_orgmode_simple_debug("- One\n - Two\n - Three\n",
-          """<ul><li>One<ul><li>Two</li><li>Three</li></ul></li></ul>""")
-      }
-    }
-    "ol" which {
-      "typical" in {
-        // parse_orgmode("* First\n 1. first\n 2. second\n 3. third\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ol><li>first</li><li>second</li><li>third</li></ol></section></body></html>")
-      }
-      "nest" in {
-        // parse_orgmode("* First\n 1. first\n  1. first.first\n  2. first.second\n 2. second\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><ol><li>first<ol><li>first.first</li><li>first.second</li></ol></li><li>second</li></ol></section></body></html>")
-      }
-    }
-    "dl" which {
-      "typical" in {
-        // parse_orgmode("* First\n - first :: one\n - second :: two\n - third :: three\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><dl><dt>first</dt><dd>one</dd><dt>second</dt><dd>two</dd><dt>third</dt><dd>three</dd></dl></section></body></html>")
-      }
-    }
-    "inline" which {
-      "typical" in {
-        // parse_orgmode_full("* First\n pre *bold* /italic/ _underline_ =code= ~pre~ +del+ post\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p>pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
-      }
-    }
-    "inline xml" which {
-      "typical" in {
-        // parse_orgmode("* First\n pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post\n",
-        //     "<!DOCTYPE html><html><head/><body><section><h2>First</h2><p>pre <b>bold</b> <i>italic</i> <u>underline</u> <code>code</code> <pre>pre</pre> <del>del</del> post</p></section></body></html>")
-      }
-      "= in code" in {
-        // parse_orgmode_simple("""<code>(b >= 0).option(b.toString)</code>""",
-        //     """<p><code>(b &gt;= 0).option(b.toString)</code></p>""")
+        rendered shouldBe expected
       }
     }
 //     "structure" which {
@@ -766,31 +723,37 @@ Published body.
     "Include" which {
       "asciidoc style" in {
         Given("an AsciiDoc include directive")
-        When("the parser resolves the included SmartDox source")
+        val source = """include::src/test/resources/abc.dox[]"""
+        val expected = """<!DOCTYPE html><html><head/><body><p>X</p></body></html>"""
+
+        When("Dox2Parser resolves the included SmartDox source")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the included document content is rendered")
-        parse_orgmode_simple(
-          """include::src/test/resources/abc.dox[]""",
-          """<p>X</p>"""
-        )
+        rendered shouldBe expected
       }
       "orgmode style" in {
         Given("an Org-mode include directive")
-        When("the parser resolves the included SmartDox source")
+        val source = """#+INCLUDE: src/test/resources/abc.dox"""
+        val expected = """<!DOCTYPE html><html><head/><body><p>X</p></body></html>"""
+
+        When("Dox2Parser resolves the included SmartDox source")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the included document content is rendered")
-        parse_orgmode_simple(
-          """#+INCLUDE: src/test/resources/abc.dox""",
-          """<p>X</p>"""
-        )
+        rendered shouldBe expected
       }
       "scala" in {
         Given("an AsciiDoc include directive for Scala source")
-        When("the parser resolves the source include")
+        val source = """include::src/test/resources/sample.scala[]"""
+        val expected = """<!DOCTYPE html><html><head/><body><pre kind="scala" caption="sample.scala" kind="scala" caption="sample.scala" class="program">object x {}
+</pre></body></html>"""
+
+        When("Dox2Parser resolves the source include")
+        val rendered = Dox2Parser.parse(source).toString
+
         Then("the rendered program block retains its established attributes")
-        parse_orgmode_simple(
-          """include::src/test/resources/sample.scala[]""",
-          """<pre kind="scala" caption="sample.scala" kind="scala" caption="sample.scala" class="program">object x {}
-</pre>"""
-        )
+        rendered shouldBe expected
       }
     }
   }

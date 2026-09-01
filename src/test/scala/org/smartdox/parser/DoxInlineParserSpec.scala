@@ -309,15 +309,26 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       }
     }
 
-    "simple" in {
-      val r = DoxInlineParser.parse("特性一覧")
-      println(r)
+    "retain ordinary Japanese text as text" in {
+      Given("ordinary Japanese text without SmartDox inline syntax")
+
+      When("the inline parser reads the text")
+      val result = DoxInlineParser.parse("特性一覧")
+
+      Then("the result retains the authored text")
+      result shouldBe Text("特性一覧")
     }
 
     "parse markdown link with bilingual label" in {
-      val r = DoxInlineParser.parse("[Literate Model｜文芸モデル](/Users/asami/src/dev2025/simplemodeling-org/src/main/doxsite/literate-modeling/what-is-literate-model.dox)")
-      r shouldBe a [Hyperlink]
-      val link = r.asInstanceOf[Hyperlink]
+      Given("a Markdown link with an English and Japanese label")
+      val source = "[Literate Model｜文芸モデル](/Users/asami/src/dev2025/simplemodeling-org/src/main/doxsite/literate-modeling/what-is-literate-model.dox)"
+
+      When("the inline parser reads the link")
+      val result = DoxInlineParser.parse(source)
+
+      Then("the link destination and bilingual label are retained")
+      result shouldBe a [Hyperlink]
+      val link = result.asInstanceOf[Hyperlink]
       link.href.toString shouldBe "/Users/asami/src/dev2025/simplemodeling-org/src/main/doxsite/literate-modeling/what-is-literate-model.dox"
       link.contents should have size 1
       link.contents.head shouldBe a [Text]
@@ -325,9 +336,15 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
     }
 
     "parse pass inline macro as raw contents" in {
-      val r = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "pass:[^[A-Z]{2}$]")
-      r shouldBe a [InlineMacro]
-      val macroNode = r.asInstanceOf[InlineMacro]
+      Given("a pass inline macro containing a regular-expression payload")
+      val source = "pass:[^[A-Z]{2}$]"
+
+      When("the SmartDox inline parser reads the macro")
+      val result = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+
+      Then("the macro retains its raw payload and serialized representation")
+      result shouldBe a [InlineMacro]
+      val macroNode = result.asInstanceOf[InlineMacro]
       macroNode.name shouldBe "pass"
       macroNode.contents shouldBe "^[A-Z]{2}$"
       macroNode.toText shouldBe "^[A-Z]{2}$"
@@ -335,67 +352,106 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
     }
 
     "parse site inline macro as internal link" in {
-      val r = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "site:[overview.dox]")
-      r shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
+      Given("a SmartDox site inline macro")
+
+      When("the SmartDox inline parser reads the macro")
+      val result = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "site:[overview.dox]")
+
+      Then("the macro projects to the established internal link")
+      result shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
     }
 
     "warn legacy single bracket site link" in {
+      Given("a legacy single-bracket SmartDox site link")
       val buffer = new ByteArrayOutputStream()
-      val r = scala.Console.withErr(new PrintStream(buffer)) {
+
+      When("the SmartDox inline parser reads the legacy form")
+      val result = scala.Console.withErr(new PrintStream(buffer)) {
         DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "[overview.dox]")
       }
+
+      Then("the parser preserves the legacy link and emits its migration warning")
       buffer.toString("UTF-8") should include (
         "warning: Deprecated SmartDox site link '[overview.dox]'. Use 'site:[overview.dox]' instead."
       )
-      r shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
+      result shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
     }
 
     "keep markdown link label without legacy site link warning" in {
+      Given("a standard Markdown link")
       val buffer = new ByteArrayOutputStream()
-      val r = scala.Console.withErr(new PrintStream(buffer)) {
+
+      When("the SmartDox inline parser reads the Markdown form")
+      val result = scala.Console.withErr(new PrintStream(buffer)) {
         DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "[overview](overview.dox)")
       }
+
+      Then("the parser retains the Markdown link without emitting a legacy warning")
       buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
-      r shouldBe a [Hyperlink]
-      val link = r.asInstanceOf[Hyperlink]
+      result shouldBe a [Hyperlink]
+      val link = result.asInstanceOf[Hyperlink]
       link.href.toString shouldBe "overview.dox"
       link.contents shouldBe Vector(Text("overview"))
     }
 
     "keep asciidoc link label without legacy site link warning" in {
+      Given("an AsciiDoc link")
       val buffer = new ByteArrayOutputStream()
-      scala.Console.withErr(new PrintStream(buffer)) {
+
+      When("the SmartDox inline parser reads the AsciiDoc form")
+      val result = scala.Console.withErr(new PrintStream(buffer)) {
         DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "link:overview.dox[Overview]")
       }
+
+      Then("the parser retains the link without emitting a legacy warning")
       buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
+      result shouldBe a [Fragment]
     }
 
     "keep quoted bracket text without legacy site link warning" in {
+      Given("quoted bracket text that is not a site link")
       val buffer = new ByteArrayOutputStream()
-      val r = scala.Console.withErr(new PrintStream(buffer)) {
+
+      When("the SmartDox inline parser reads the text")
+      val result = scala.Console.withErr(new PrintStream(buffer)) {
         DoxInlineParser.parse(DoxInlineParser.Config.smartdox, """["SimpleEntity"]""")
       }
+
+      Then("the bracket text remains text without emitting a legacy warning")
       buffer.toString("UTF-8") should not include "Deprecated SmartDox site link"
-      r shouldBe Text("""[&quot;SimpleEntity&quot;]""")
+      result shouldBe Text("""[&quot;SimpleEntity&quot;]""")
     }
 
     "parse back quoted angle brackets as code inside span" in {
-      val r = DoxInlineParser.parse(
-        DoxInlineParser.Config.smartdox,
+      Given("a span that contains two back-quoted angle-bracket expressions")
+      val source =
         """<span lang="ja">`minimal.main.hello` は `<component>.<service>.<operation>` の形です。</span>"""
+
+      When("the SmartDox inline parser reads the span")
+      val result = DoxInlineParser.parse(
+        DoxInlineParser.Config.smartdox,
+        source
       )
-      val codes = _collect_code_text(r)
+
+      Then("both quoted expressions are retained as code")
+      val codes = _collect_code_text(result)
       codes should contain ("minimal.main.hello")
       codes should contain ("<component>.<service>.<operation>")
     }
 
     "keep inline tag outside back quote inside span" in {
-      val r = DoxInlineParser.parse(
+      Given("a span with an inline tag outside any back-quoted text")
+      val source = """<span lang="ja">This is <i>important</i>.</span>"""
+
+      When("the SmartDox inline parser reads the span")
+      val result = DoxInlineParser.parse(
         DoxInlineParser.Config.smartdox,
-        """<span lang="ja">This is <i>important</i>.</span>"""
+        source
       )
-      _contains_italic(r) shouldBe true
-      _collect_code_text(r) shouldBe Nil
+
+      Then("the nested tag remains italic text rather than code")
+      _contains_italic(result) shouldBe true
+      _collect_code_text(result) shouldBe Nil
     }
   }
 

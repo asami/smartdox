@@ -932,17 +932,17 @@ object LinkEnabler {
 
       // === Unicode category helpers ===
 
-      @inline def isAsciiLetter(c: Char): Boolean =
+      @inline def _is_ascii_letter_(c: Char): Boolean =
         c <= '\u007F' && c.isLetter
 
-      @inline def isHiragana(c: Char): Boolean =
+      @inline def _is_hiragana_(c: Char): Boolean =
         c >= '\u3040' && c <= '\u309F'
 
-      @inline def isKatakana(c: Char): Boolean =
+      @inline def _is_katakana_(c: Char): Boolean =
         (c >= '\u30A0' && c <= '\u30FF') ||
       (c >= '\u31F0' && c <= '\u31FF')
 
-      @inline def isKanji(c: Char): Boolean = {
+      @inline def _is_kanji_(c: Char): Boolean = {
         val cp = c.toInt
         (cp >= 0x4E00  && cp <= 0x9FFF )  || // CJK Unified Ideographs
         (cp >= 0x3400  && cp <= 0x4DBF )  || // Extension A
@@ -950,7 +950,7 @@ object LinkEnabler {
         (cp >= 0x20000 && cp <= 0x2FA1F)     // Extension B–G (surrogate pair range)
       }
 
-      @inline def dbg(msg: => String): Unit =
+      @inline def _debug_(msg: => String): Unit =
         if (boundaryConfig.debug) println("[GlossaryBoundary] " + msg)
 
       // === Boundary rule by glossary term kind ===
@@ -958,7 +958,7 @@ object LinkEnabler {
       // Returns true if the character can be treated as a boundary.
       // Returns false if it indicates the token is in the middle of another word.
       //
-      def isBoundaryFor(c: Char): Boolean = {
+      def _is_boundary_for_(c: Char): Boolean = {
         // Special blocker symbols → treated as “not boundary”
         if (boundaryConfig.isSpecialBlocker(c))
           return false
@@ -966,29 +966,29 @@ object LinkEnabler {
         kind match {
           // English terms: English letters imply "not a boundary"
           case GlossaryKind.English =>
-            !isAsciiLetter(c)
+            !_is_ascii_letter_(c)
 
           // Katakana terms
           case GlossaryKind.Katakana =>
             // If Katakana compounding is not allowed and next char is Katakana → NG
-            if (!boundaryConfig.katakanaCompoundOK && isKatakana(c))
+            if (!boundaryConfig.katakanaCompoundOK && _is_katakana_(c))
               false
             else
               // Otherwise allowed except ASCII letters or Kanji
-              !isAsciiLetter(c) && !isKanji(c)
+              !_is_ascii_letter_(c) && !_is_kanji_(c)
 
           // Kanji terms
           case GlossaryKind.KanjiTerm =>
             // If Kanji compounding is not allowed and next char is Kanji → NG
-            if (!boundaryConfig.kanjiCompoundOK && isKanji(c))
+            if (!boundaryConfig.kanjiCompoundOK && _is_kanji_(c))
               false
             else
               // ASCII letters also imply continuation
-              !isAsciiLetter(c)
+              !_is_ascii_letter_(c)
 
           // Default: English/Kanji continuation is forbidden
           case GlossaryKind.Other =>
-            !isAsciiLetter(c) && !isKanji(c)
+            !_is_ascii_letter_(c) && !_is_kanji_(c)
         }
       }
 
@@ -998,14 +998,14 @@ object LinkEnabler {
       while (pos >= 0) {
         val beforeOK =
           if (pos == 0) true
-          else isBoundaryFor(s.charAt(pos - 1))
+          else _is_boundary_for_(s.charAt(pos - 1))
 
         val afterPos = pos + token.length
         val afterOK =
           if (afterPos >= s.length) true
-          else isBoundaryFor(s.charAt(afterPos))
+          else _is_boundary_for_(s.charAt(afterPos))
 
-        dbg(s"token='$token' pos=$pos beforeOK=$beforeOK afterOK=$afterOK")
+        _debug_(s"token='$token' pos=$pos beforeOK=$beforeOK afterOK=$afterOK")
 
         // If both sides look like boundaries → valid glossary term occurrence
         if (beforeOK && afterOK)

@@ -123,6 +123,32 @@ Phase 7 generic inline open-tag implementation boundary.
   `Dox2ParserSpec`. This was present at the Phase base and is outside this
   parser-boundary repair.
 
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-P7-002
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-P7-002 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; active inline-parser scenarios have semantic Given/When/Then boundaries and observable expectations without parser behavior changes.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-P7-003
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-P7-003 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; dormant/no-op scenarios were removed and retained parser actions precede expectations.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
 Existing Phase 2 hygiene records remain resolved and are not duplicated here.
 
 ## Development Candidates

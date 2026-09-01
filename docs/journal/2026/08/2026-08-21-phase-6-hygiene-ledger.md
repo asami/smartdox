@@ -16,5 +16,18 @@ was admitted.
 | HYG-014 | Review-local `HYG-BASELINE-001`: existing unrelated SimpleModeling.org glossary worktree changes, including `src/main/doxsite/glossary/development-process/knowledge-model.dox` and `knowledge-modeling.dox`, plus the other already-dirty glossary/development artifacts | The external worktree contains glossary changes outside the bounded RDF acceptance fixture; this record does not imply that all of those files are defective | Outside this bounded RDF acceptance scope; preserve the user's worktree and do not diagnose or fix it in Phase 6 | Later hygiene-only glossary-format assessment |
 | HYG-015 | Review-local `HYG-P6-001`: `src/test/scala/org/smartdox/semanticweb/SimpleModelingRdfTermAcceptanceSpec.scala` scanner scenario | The scenario title says terms are not treated as links, but its current assertion only verifies that traversal succeeds | Nonblocking test-strength gap; no behavior or contract finding, and outside Phase 6 | Future executable-specification strengthening only |
 
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-015
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-015 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; the acceptance scenario now verifies all three scanner link collections are empty.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
 No Development Candidate was admitted. Both entries remain separate
 hygiene-only follow-up and must not reopen or expand Phase 6 behavior scope.

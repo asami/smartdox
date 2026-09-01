@@ -24,5 +24,44 @@ global IDs `HYG-010` through `HYG-013`, because existing global IDs reach
 | HYG-012 | `src/main/scala/org/smartdox/doxsite/LinkEnabler.scala` | Pre-existing 1,269-line `LinkEnabler` source-size and composite-responsibility debt. | Nonblocking hygiene; excluded from the closed Phase 5 behavior scope. | Separate hygiene-only responsibility and source-size assessment task. |
 | HYG-013 | `src/test/scala/org/smartdox/doxsite/DoxSiteSpec.scala:336-337` | A pre-existing generated Dox fixture lacks the blank line after `# Definition`. | Nonblocking hygiene; excluded from the closed Phase 5 behavior scope. | Separate hygiene-only generated-fixture formatting task. |
 
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-010
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-010 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; feature-level `which` groups preserve the existing DoxSite scenarios.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-011
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-011 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; all six method-local helpers and direct references use `_snake_case_`.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-013
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-013 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; the generated Dox fixture has the required blank line after `# Definition`.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
 No Development Candidate was admitted. Every listed item is separate
 hygiene-only follow-up and must not reopen or expand Phase 5 behavior scope.

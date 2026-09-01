@@ -56,8 +56,8 @@ class Dox2LatexConverter(
     None
   )
 
-  private var _listStack: List[String] = Nil
-  private lazy val _krokiGenerator: Option[KrokiGenerator] =
+  private var _list_stack: List[String] = Nil
+  private lazy val _kroki_generator: Option[KrokiGenerator] =
     generatorContext.map { ctx =>
       val dir = diagramDir.getOrElse(new File("kroki-cache.d"))
       new KrokiGenerator(ctx, KrokiCache(dir, false, ctx))
@@ -373,7 +373,7 @@ class Dox2LatexConverter(
 
   private def _diagram_file(kind: String, source: String): Option[File] =
     diagramRenderer.map(_.render(kind, source, "png")) orElse {
-      _krokiGenerator.map(_.generate(kind, source, "png").take)
+      _kroki_generator.map(_.generate(kind, source, "png").take)
     }
 
   protected def use_kroki(kind: String): Boolean =
@@ -482,15 +482,15 @@ class Dox2LatexConverter(
     }
 
   private def _begin_list(name: String): Unit = {
-    _listStack = name :: _listStack
+    _list_stack = name :: _list_stack
     sb_println(s"\\begin{$name}")
   }
 
   private def _end_list(): Unit = {
-    val name = _listStack.headOption.getOrElse("itemize")
+    val name = _list_stack.headOption.getOrElse("itemize")
     sb_println(s"\\end{$name}")
     sb_println()
-    _listStack = _listStack.drop(1)
+    _list_stack = _list_stack.drop(1)
   }
 
   private def _rows(p: TableCompartment, isHeader: Boolean): Unit =

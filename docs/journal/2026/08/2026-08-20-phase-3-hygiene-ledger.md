@@ -24,6 +24,19 @@ Phase 2 hygiene journal.
 | HYG-007 | `src/main/scala/org/smartdox/semanticweb/RdfTermDisplay.scala:22` | Private internal field `hrefValue` uses camelCase instead of the required internal flatcase naming. | Superseded by Phase closure repair CPB-002. | None; addressed by CPB-002. |
 | HYG-008 | `src/main/scala/org/smartdox/transformers/Dox2DomHtmlTransformer.scala:194,197,200,203,206,209,212` and `src/main/scala/org/smartdox/transformers/HtmlTransformerBase.scala:20` | Exceptional Phase 3 full review found pre-existing protected final helpers with leading-underscore names, contrary to the protected `snake_case` policy. | Nonblocking hygiene; preserve protected-call compatibility in this Phase. | Dedicated naming-hygiene boundary. |
 
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-008
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-008 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; the cited helpers already use protected snake-case names.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
 No separate hygiene resolution is recorded here; the Phase closure repairs are
 the applicable record for these findings.
 

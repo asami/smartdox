@@ -25,14 +25,18 @@ class SimpleModelingRdfTermAcceptanceSpec extends AnyWordSpec with Matchers with
     "traverse through the ordinary site scanner without treating terms as links" in {
       Given("the mirrored external SmartDox fixture")
       val document = _fixture_document
+      val scanner = new LinkCollector.SiteScanner.Scanner()
 
       When("the ordinary site scanner traverses the fixture")
       val result = scala.util.Try {
-        document.traverse(new LinkCollector.SiteScanner.Scanner())
+        document.traverse(scanner)
       }
 
-      Then("traversal completes without an exception")
+      Then("traversal completes without an exception and finds no document links")
       result.isSuccess shouldBe true
+      scanner.internalLinks.links shouldBe Vector.empty
+      scanner.externalLinks.links shouldBe Vector.empty
+      scanner.glossaryLinks.links shouldBe Vector.empty
     }
 
     "resolve only its explicit authoritative glossary references" in {

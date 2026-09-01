@@ -26,6 +26,19 @@ Proposed grouping: SmartDox Scala naming hygiene batch.
 
 Task/commit: not admitted to Phase 10.
 
+Hygiene Triage: HANDED_OFF
+Hygiene ID: HYG-P10-01
+Handoff Journal: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Handed Off On: 2026-09-02
+
+## HYG-P10-01 Resolution
+
+Hygiene Status: RESOLVED
+Resolution Batch: smartdox:docs/journal/2026/09/2026-09-02-hygiene-resolution-batch-handoff.md
+Final Focused Review: CLEAN; `_list_stack` and `_kroki_generator` are renamed with all direct references updated.
+Final Validation: `sbt --batch test`, invocation `95651-20260901T220319Z` (341 succeeded, 0 failed).
+Acceptance Commit: this hygiene-batch acceptance commit.
+
 ## HYG-P10-02
 
 Status: OPEN
