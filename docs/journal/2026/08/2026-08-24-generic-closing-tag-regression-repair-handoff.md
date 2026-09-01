@@ -3,6 +3,7 @@
 Status: COMPLETED
 Created: 2026-08-24
 Completed: 2026-08-24
+Consumer Acceptance Synchronized: 2026-08-25
 Source Repository: `/Users/asami/src/dev2025/smartdox` at
 `1ba56ece7d699ec78adf635a2490c2d2825c821d`
 Upstream Grammar Producer: `/Users/asami/src/dev2025/goldenport-scala-library` at
@@ -12,7 +13,8 @@ Target Repositories: `/Users/asami/src/dev2025/goldenport-scala-library` and
 Affected Consumer (read-only and out of scope):
 `/Users/asami/src/dev2025/simplemodeling-org` at
 `efa979b5fb5ae04f28756eff18db5f3e8ebd3b48`
-Suggested Invocation: `$cncf-diagnose-fix /Users/asami/src/dev2025/smartdox/docs/journal/2026/08/2026-08-24-generic-closing-tag-regression-repair-handoff.md`
+Consumer Acceptance Commit:
+`f8ada934ad295f618d51a0d769847a9ffdd4bfbf`
 
 ## Purpose
 
@@ -97,8 +99,9 @@ both Japanese and English (ten pages):
   The SmartDox production-source edits are limited to this configuration and
   the generic closing-tag/self-closing-tag state distinction in
   `DoxInlineParser`.
-- SimpleModeling.org is read-only and out of scope; downstream regeneration
-  remains a separate consumer step.
+- SimpleModeling.org is read-only and out of scope. Its downstream regeneration
+  was executed later as a separate consumer step and does not expand this
+  repair boundary.
 - No `DoxSite` source or generated-output edit is part of this closure.
 - Allowed semantic change: restore correct recognition of already-supported
   paired generic tags while retaining the accepted terminal boolean-attribute
@@ -168,15 +171,16 @@ checks merely for the absence of `Error:` output.
    site regeneration. Confirm that the five listed source articles produce
    their authored titles and that the Part 6 `site:` link label resolves to
    `Object Modeling as a Structural Foundation` / `構造基盤としてのオブジェクトモデリング`.
+   This downstream acceptance completed in SimpleModeling.org commit
+   `f8ada934ad295f618d51a0d769847a9ffdd4bfbf`.
 
 ## Completion Contract
 
 - The generic closing-tag parser defect is repaired at its grammar boundary.
 - The Markdown grammar and executable grammar specifications agree.
 - The focused and full validation evidence is recorded by the repair workflow.
-- The downstream site regeneration remains a separate consumer step until its
-  runtime version and the SimpleModeling.org dirty-worktree boundary are
-  explicitly authorized.
+- The separately authorized downstream site regeneration is recorded without
+  absorbing SimpleModeling.org into the SmartDox repair boundary.
 
 ## Completion Evidence
 
@@ -205,8 +209,19 @@ complete review found no Current Boundary Blocker: `</tag>` is structural,
 executable specifications agree.
 
 The SimpleModeling.org worktree remained excluded and user-owned throughout
-this closure. Its separately authorized runtime selection and site regeneration
-remain the next consumer step.
+the SmartDox repair closure. The separate consumer workflow subsequently
+regenerated and committed the site as SimpleModeling.org
+`f8ada934ad295f618d51a0d769847a9ffdd4bfbf`
+(`Version 1.0.56 (20260824)`) on 2026-08-24. The committed output confirms:
+
+- all five affected series articles have authored, non-`Error:` titles in
+  both English and Japanese; and
+- the Part 6 previous-article link resolves to
+  `Object Modeling as a Structural Foundation` and
+  `構造基盤としてのオブジェクトモデリング` in the corresponding language.
+
+The generic closing-tag repair and its downstream consumer acceptance are
+therefore fully synchronized. No consumer step remains for this handoff.
 
 ## Review Follow-up Disposition
 

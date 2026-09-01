@@ -1,6 +1,6 @@
 # Phase 11 Hygiene Follow-up
 
-Status: OPEN
+Status: CLOSED
 Date: 2026-08-30
 
 This non-normative ledger preserves the nonblocking maintenance finding from
@@ -23,4 +23,4 @@ Proposed grouping: SmartDox parser/DoxSite decomposition.
 
 Resolution: behavior-preserving decomposition moved the XML/generic-tag state machine, DoxSite build/rendering collaborators, article-media projection, and configuration decoding behind their existing public facades without changing parser source-origin or physical/virtual source-root behavior.
 
-Task/commit: `HYG-P11-FULL-001 SmartDox parser/DoxSite decomposition`; task-commit closure pending.
+Task/commit: `HYG-P11-FULL-001 SmartDox parser/DoxSite decomposition`; committed as `144faca Resolve HYG-P11-FULL-001 SmartDox decomposition`.
