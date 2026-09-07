@@ -20,7 +20,8 @@ import org.smartdox.semanticweb.Rdf
  * @since   May. 13, 2026
  *  version May. 14, 2026
  *  version Jun. 24, 2026
- * @version Aug. 29, 2026
+ *  version Aug. 29, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 case class PublishMetadata(
@@ -415,6 +416,8 @@ case class PublishMetadata(
 }
 
 object PublishMetadata {
+  private val _document_project_entrypoint_pattern = """^(.+)\.dox/index\.(?:dox|html)$""".r
+
   /**
    * Resolves publication-owned article media from a source-tree pathname.
    *
@@ -439,10 +442,12 @@ object PublishMetadata {
    */
   def sourcePathToArticleIdentity(sourcePath: String): Option[String] = {
     val normalized = sourcePath.trim.replace('\\', '/').stripPrefix("/")
-    val suffixfree =
-      if (normalized.endsWith(".dox")) normalized.stripSuffix(".dox")
-      else if (normalized.endsWith(".html")) normalized.stripSuffix(".html")
-      else normalized
+    val suffixfree = normalized match {
+      case _document_project_entrypoint_pattern(identity) => identity
+      case value if value.endsWith(".dox") => value.stripSuffix(".dox")
+      case value if value.endsWith(".html") => value.stripSuffix(".html")
+      case value => value
+    }
     _normalize_article_identity_option(suffixfree)
   }
 

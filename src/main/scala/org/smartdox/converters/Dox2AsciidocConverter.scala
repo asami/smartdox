@@ -483,6 +483,27 @@ class Dox2AsciidocConverter(
   override protected def enter_Foot(p: Foot): Unit = {
   }
 
+  override protected def enter_Html5(p: Html5): Unit = {
+    if (_is_in_pass_count == 0) {
+      sb_println("++++")
+      sb_println(p.showOpenText)
+    } else {
+      sb_print(p.showOpenText)
+    }
+    _is_in_pass_count = _is_in_pass_count + 1
+  }
+
+  override protected def leave_Html5(p: Html5): Unit = {
+    _is_in_pass_count = _is_in_pass_count - 1
+    if (_is_in_pass_count == 0) {
+      sb_println(p.showCloseText)
+      sb_println("++++")
+      sb_println()
+    } else {
+      sb_print(p.showCloseText)
+    }
+  }
+
   override protected def enter_Html_Element(p: Dox): Unit = {
     if (_is_in_pass_count == 0)
       sb_print("pass:[")

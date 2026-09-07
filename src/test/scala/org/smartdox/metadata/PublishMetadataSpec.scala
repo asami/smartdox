@@ -14,7 +14,8 @@ import org.smartdox.metadata.PublishMetadata.{VideoPresentation, VideoStatus}
 
 /*
  * @since   Aug.  4, 2026
- * @version Aug. 29, 2026
+ *  version Aug. 29, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -282,6 +283,25 @@ class PublishMetadataSpec extends AnyWordSpec with Matchers with GivenWhenThen w
     }
 
     "normalized resolution" which {
+      "derive identities for Document Project entrypoints" in {
+        Given("root and nested source Dox entrypoints, their generated HTML entrypoints, and ordinary article paths")
+        When("the source paths are converted to registry identities")
+        val sourceentrypoint = PublishMetadata.sourcePathToArticleIdentity("development-process/domain-modeling.dox/index.dox")
+        val generatedentrypoint = PublishMetadata.sourcePathToArticleIdentity("development-process/domain-modeling.dox/index.html")
+        val rootsourceentrypoint = PublishMetadata.sourcePathToArticleIdentity("guide.dox/index.dox")
+        val rootgeneratedentrypoint = PublishMetadata.sourcePathToArticleIdentity("guide.dox/index.html")
+        val ordinaryarticle = PublishMetadata.sourcePathToArticleIdentity("development-process/literate-modeling.dox")
+        val ordinarydirectoryindex = PublishMetadata.sourcePathToArticleIdentity("development-process/domain-modeling/index.dox")
+
+        Then("only root or nested Document Project entrypoints remove their project directory and ordinary terminal paths remain stable")
+        sourceentrypoint shouldBe Some("development-process/domain-modeling")
+        generatedentrypoint shouldBe Some("development-process/domain-modeling")
+        rootsourceentrypoint shouldBe Some("guide")
+        rootgeneratedentrypoint shouldBe Some("guide")
+        ordinaryarticle shouldBe Some("development-process/literate-modeling")
+        ordinarydirectoryindex shouldBe Some("development-process/domain-modeling/index")
+      }
+
       "normalize lookup paths while requiring an exact locale" in {
         Given("one canonical localized native record")
         val metadata = _load_bundle(Vector(_native("concepts/tutorial", _variants("en", _external_published))))
