@@ -9,6 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
 import org.goldenport.parser.{LogicalLine, LogicalParagraph, ParseLocation}
+import org.smartdox.diagnostics.{RenderingDiagnosticStage, StructuredRenderingDiagnosticException}
 import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, Program, ReferenceImg, Span, Term}
 
 /*
@@ -20,12 +21,36 @@ import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, Pr
  *  version Apr. 19, 2026
  *  version Jun. 23, 2026
  *  version Jul.  6, 2026
- * @version Aug. 24, 2026
+ *  version Aug. 24, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
 class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with GivenWhenThen with UseDox2Parser {
   "inline tag pipeline" should {
+    "report filename-aware unclosed inline syntax through the structured parse diagnostic" in {
+      Given("a filename-aware SmartDox input with an unsupported unclosed tilde delimiter")
+      val source = "~~~text"
+
+      When("Dox2Parser reaches end of input while parsing the authored delimiter")
+      val failure = intercept[StructuredRenderingDiagnosticException] {
+        Dox2Parser.parseWithFilename("articles/diagnostic.dox", source)
+      }
+
+      Then("the generic parse diagnostic retains bounded authored source facets without parser state")
+      failure.diagnostic.code shouldBe "document.syntax.invalid"
+      failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
+      failure.diagnostic.sourceIdentity shouldBe Some("articles/diagnostic.dox")
+      failure.diagnostic.line shouldBe Some(1)
+      failure.diagnostic.column shouldBe Some(1)
+      failure.diagnostic.tokenContext shouldBe Some(source)
+      failure.diagnostic.tokenContext.get.length should be <= 160
+      failure.diagnostic.terminal shouldBe true
+      failure.diagnostic.retryable shouldBe false
+      failure.getMessage should not include "end_Result"
+      failure.getMessage should not include "InlineState"
+    }
+
     "defer attributed generic and RDF tags to DoxInlineParser" in {
       Given("a SmartDox document containing generic and RDF inline tags")
       val source =

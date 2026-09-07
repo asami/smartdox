@@ -3,28 +3,29 @@
 This checklist is the authoritative progress ledger for Phase 12. It is not a
 normative behavior contract.
 
-Phase Status: PLANNED
+Phase Status: IN PROGRESS
 
 Predecessor: Phase 11 release closure.
 
 ## DIAG12-01: Diagnostic Vocabulary and Boundary Contract
 
 Stage Status:
-- Current status: PLANNED
+- Current status: COMMITTED
+- Commit: feeacbd9a36ed7a0fab73ff1498295f292f931c7
 - Owner: SmartDox parser, operation result, and CLI diagnostic boundary
 - Update rule: Advance only after the closed vocabulary, facets, and
   retryability semantics are accepted together.
 
-- [ ] Define the closed rendering-stage vocabulary.
-- [ ] Define `document.syntax.invalid` with path, line, column, and authored
+- [x] Define the closed rendering-stage vocabulary.
+- [x] Define `document.syntax.invalid` with path, line, column, and authored
       token context.
-- [ ] Define typed cause and terminal/retryable semantics.
-- [ ] Define aligned Record/JSON and human-readable CLI projections.
+- [x] Define typed cause and terminal/retryable semantics.
+- [x] Define aligned Record/JSON and human-readable CLI projections.
 
 ## DIAG12-02: Parser and PDF Stage Propagation
 
 Stage Status:
-- Current status: PLANNED
+- Current status: IN PROGRESS
 - Owner: SmartDox parser and PDF operation pipeline
 - Update rule: Do not conflate successful entry into one stage with entry into
   the next stage.

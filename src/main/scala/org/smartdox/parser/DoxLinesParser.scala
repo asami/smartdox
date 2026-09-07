@@ -39,7 +39,8 @@ import org.smartdox.util.DoxUtils
  *  version Sep.  9, 2025
  *  version Oct. 13, 2025
  *  version Nov.  5, 2025
- * @version Aug. 19, 2026
+ *  version Aug. 19, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxLinesParser {
@@ -78,6 +79,8 @@ object DoxLinesParser {
   ) extends ParseConfig {
     def withoutComplementParagraph() = copy(isComplementParagraph = false)
     def withInlineConfig(p: DoxInlineParser.Config) = copy(inlineConfig = p)
+    private[parser] def _with_source_identity(p: Option[URI]): Config =
+      copy(inlineConfig = inlineConfig._with_source_identity(p))
   }
   object Config {
     val default = Config()

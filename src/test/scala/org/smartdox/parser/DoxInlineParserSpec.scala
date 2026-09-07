@@ -11,6 +11,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import org.junit.runner.RunWith
 import org.goldenport.scalatest.ScalazMatchers
+import org.smartdox.diagnostics.{RenderingDiagnosticStage, StructuredRenderingDiagnosticException}
 import org.smartdox._
 
 /*
@@ -144,6 +145,40 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       Then("the stable unsupported-resource diagnostic is returned without a derived root")
       failure.getMessage shouldBe
         "image.markdown.unsupported-resource: location=<absent> source=![diagram](diagram.png) raw-path=diagram.png"
+    }
+
+    "retain the delegated Markdown image diagnostic identity beside generic syntax diagnostics" in {
+      Given("a Markdown-enabled parser with no resource root")
+      val config = DoxInlineParser.Config.smartdox
+
+      When("an established Markdown image admission failure is parsed")
+      val failure = intercept[IllegalArgumentException] {
+        DoxInlineParser.parse(config, "![diagram](diagram.png)")
+      }
+
+      Then("the specialized image code remains stable and is not relabeled as generic document syntax")
+      failure.getMessage should include ("image.markdown.unsupported-resource")
+      failure.getMessage should not include "document.syntax.invalid"
+    }
+
+    "provide complete fixed source facets for direct unclosed inline syntax" in {
+      Given("a direct SmartDox inline input without filename or parse location")
+      val source = "~~~text"
+
+      When("the inline parser reaches end of input while parsing the authored delimiter")
+      val failure = intercept[StructuredRenderingDiagnosticException] {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      }
+
+      Then("the structured syntax diagnostic identifies the supplied inline input with complete parse facets")
+      failure.diagnostic.code shouldBe "document.syntax.invalid"
+      failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
+      failure.diagnostic.sourceIdentity shouldBe Some("<inline-input>")
+      failure.diagnostic.line shouldBe Some(1)
+      failure.diagnostic.column shouldBe Some(1)
+      failure.diagnostic.tokenContext shouldBe Some(source)
+      failure.diagnostic.terminal shouldBe true
+      failure.diagnostic.retryable shouldBe false
     }
 
     "admit exact Markdown images with source-exact alternative text" in {

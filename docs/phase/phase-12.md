@@ -1,6 +1,6 @@
 # Phase 12: Structured Rendering Diagnostics and Terminal Failure Semantics
 
-Status: PLANNED
+Status: IN PROGRESS
 
 Plan date: 2026-09-07
 
@@ -64,7 +64,8 @@ Out of scope:
 ### DIAG12-01: Diagnostic Vocabulary and Boundary Contract
 
 Stage Status:
-- Current status: PLANNED
+- Current status: COMMITTED
+- Commit: feeacbd9a36ed7a0fab73ff1498295f292f931c7
 - Owner: SmartDox parser, operation result, and CLI diagnostic boundary
 - Update rule: Advance only after the closed vocabulary, facets, and
   retryability semantics are accepted together.
@@ -75,7 +76,7 @@ Stage Status:
 ### DIAG12-02: Parser and PDF Stage Propagation
 
 Stage Status:
-- Current status: PLANNED
+- Current status: IN PROGRESS
 - Owner: SmartDox parser and PDF operation pipeline
 - Update rule: Do not conflate successful entry into one stage with entry into
   the next stage.

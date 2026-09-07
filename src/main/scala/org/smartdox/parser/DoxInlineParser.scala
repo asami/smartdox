@@ -7,6 +7,7 @@ import org.goldenport.context.Consequence
 import org.goldenport.parser._
 import org.goldenport.io.MimeType
 import org.smartdox._
+import org.smartdox.diagnostics.{StructuredRenderingDiagnostic, StructuredRenderingDiagnosticException}
 
 /*
  * @since   Oct. 14, 2018
@@ -83,7 +84,8 @@ object DoxInlineParser {
   //   apply(Config.default, in)
 
   def apply(config: Config, in: String): (ParseMessageSequence, ParseResult[Vector[Dox]], DoxInlineParseState) = {
-    val parser = ParseReaderWriterStateClass[Config, Dox](config, NormalState.init(config))
+    val parserconfig = config._with_token_context(in)
+    val parser = ParseReaderWriterStateClass[Config, Dox](parserconfig, NormalState.init(parserconfig))
     val (msgs, result, state) = parser.apply(in)
     // println(s"DoxInlineParseState#apply $result")
     assume (result.toOption.map(_.forall(_ != null)).getOrElse(true), s"should not be null: input[$in]")
@@ -110,6 +112,8 @@ object DoxInlineParser {
     location: Option[ParseLocation] = None
   ) extends ParseConfig {
     private var _resource_origin: ResourceOrigin = ResourceOrigin.Absent
+    private var _source_identity: Option[String] = None
+    private var _token_context: Option[String] = None
     def copy(
       isDebug: Boolean = this.isDebug,
       isLocation: Boolean = this.isLocation,
@@ -120,6 +124,8 @@ object DoxInlineParser {
     ): Config = {
       val result = Config(isDebug, isLocation, markdown, orgmode, asciidoc, location)
       result._resource_origin = _resource_origin
+      result._source_identity = _source_identity
+      result._token_context = _token_context
       result
     }
 
@@ -140,6 +146,18 @@ object DoxInlineParser {
       result
     }
     private[parser] def _resource_origin_context: ResourceOrigin = _resource_origin
+    private[parser] def _with_source_identity(p: Option[URI]): Config = {
+      val result = copy()
+      result._source_identity = p.map(_.toString)
+      result
+    }
+    private[parser] def _source_identity_option: Option[String] = _source_identity
+    private[parser] def _with_token_context(p: String): Config = {
+      val result = copy()
+      result._token_context = Some(p)
+      result
+    }
+    private[parser] def _token_context_option: Option[String] = _token_context
     private[parser] def _with_resource_origin(origin: ResourceOrigin): Config = {
       val result = copy()
       result._resource_origin = origin
@@ -890,7 +908,14 @@ object DoxInlineParser {
     }
 
     override protected def end_Result(): ParseResult[Dox] =
-      RAISE.notImplementedYetDefect(s"end_Result(${getClass.getSimpleName}): $this")
+      throw new StructuredRenderingDiagnosticException(
+        StructuredRenderingDiagnostic.documentSyntaxInvalid(
+          sourceIdentity = config._source_identity_option.getOrElse("<inline-input>"),
+          line = config.location.flatMap(_.line).getOrElse(1),
+          column = config.location.flatMap(_.offset).getOrElse(1),
+          tokenContext = config._token_context_option.getOrElse(closeChar1.toString)
+        )
+      )
 
     override protected def open_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState = {
       val r = if (is_match(evt))

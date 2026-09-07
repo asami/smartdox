@@ -55,7 +55,8 @@ import Dox._
  *  version Dec. 10, 2025
  *  version Jun.  8, 2026
  *  version Jun. 23, 2026
- * @version Aug. 30, 2026
+ *  version Aug. 30, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -337,7 +338,7 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   private def _normalize(ps: List[Dox]): List[Dox] = ps.flatMap(_to_list)
 
   private def _paragraph(ctx: ParseContext, p: LogicalParagraph): Dox = {
-    DoxLinesParser.parse(ctx.config.linesConfig, p)
+    DoxLinesParser.parse(ctx.config.linesConfig._with_source_identity(ctx.config.file), p)
   }
 
   private def _vervatim(ctx: ParseContext, p: LogicalVerbatim): Dox = {
@@ -752,7 +753,7 @@ object Dox2Parser {
     private def _normalize(config: Config, ps: List[Dox]): List[Dox] = ps.flatMap(_to_list(config, _))
 
     private def _paragraph(config: Config, p: LogicalParagraph): (ParseMessageSequence, ParseResult[Dox], LogicalBlockReaderWriterState[Config, Dox]) = {
-      val dox = DoxLinesParser.parse(config.linesConfig, p)
+      val dox = DoxLinesParser.parse(config.linesConfig._with_source_identity(config.file), p)
       (ParseMessageSequence.empty, ParseSuccess(Dox.empty), copy(body = body :+ dox))
     }
 
