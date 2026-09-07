@@ -62,3 +62,9 @@ PDF receipt format. Phase 11 is closed through its final release boundary. Its
 authority is `phase-11.md` plus `phase-11-checklist.md`; it completes the
 DoxSite consumer follow-up with explicit physical, virtual, and absent
 source-root semantics without a current-directory fallback.
+
+Phase 12 is planned in `phase-12.md` plus `phase-12-checklist.md`. It will add
+structured source-located syntax diagnostics, distinct parse/locale/diagram/
+typesetting stage evidence, and terminal non-retryable semantics for
+deterministic input failures. Cozy retry orchestration and Cozy launcher/local-
+wrapper resolution remain outside the SmartDox Phase boundary.

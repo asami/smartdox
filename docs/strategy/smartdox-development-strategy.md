@@ -212,6 +212,26 @@ Primary reference:
 - `docs/phase/phase-11-checklist.md`
 - `docs/spec/doxsite-source-root-semantics.md`
 
+### Phase 12: Structured Rendering Diagnostics and Terminal Failure Semantics
+
+Status: planned.
+
+Purpose:
+
+- expose source-located `document.syntax.invalid` diagnostics instead of
+  parser-internal terminal-state dumps;
+- distinguish parse, locale-selection, diagram-generation, and typesetting
+  failures through one typed rendering-stage contract; and
+- mark deterministic input failures terminal and non-retryable before external
+  process startup, while leaving caller-side retry orchestration to Cozy.
+
+Primary reference:
+
+- `docs/phase/phase-12.md`
+- `docs/phase/phase-12-checklist.md`
+- `docs/design/structured-rendering-diagnostics.md`
+- `docs/spec/structured-rendering-diagnostics.md`
+
 ## Current Priority
 
 Phase 7 is closed by Step commit
@@ -265,6 +285,12 @@ sealed; its authoritative closure requires the final full SmartDox suite and
 the distinct release commit. No publication, push, deployment, or downstream
 consumer acceptance is claimed.
 
+Phase 12 is the planned successor. It is based on the 2026-09-07 KnowledgeHub
+weekly-report PDF incident, where unsupported tilde fences produced an internal
+parser-state dump that was misreported as a typesetting startup failure. Phase
+12 owns the SmartDox diagnostic and retryability contract; it does not own Cozy
+workflow retries or Cozy launcher/local-wrapper resolution.
+
 ## 9. Development Item Status
 
 | ID | Source | Development item | Disposition | Target | Status |
@@ -273,3 +299,4 @@ consumer acceptance is claimed.
 | DEV-002 | SimpleModeling.org generated RDF graph evidence and Cozy public finalization feedback | Ensure generated RDF graph literal nodes have deterministic non-empty labels through SmartDox projection fallback semantics, then separately verify regenerated-site finalization and consumer acceptance. | NEW_PHASE | [Phase 8](../phase/phase-8.md) | CLOSED |
 | DEV-003 | Cozy Phase 39 scope decision on 2026-08-29 | Admit Markdown image syntax into the common SmartDox image model and preserve alt text, source-relative paths, and deterministic PDF-path behavior without a Cozy-local preprocessor. | NEW_PHASE | [Phase 10](../phase/phase-10.md) | CLOSED |
 | DEV-P10-01 | Phase 10 full review | Define explicit physical/virtual DoxSite source-root semantics for Markdown-image consumers instead of relying on a current-directory fallback. | ADOPTED | [Phase 11](../phase/phase-11.md) | CLOSED |
+| DEV-004 | KnowledgeHub weekly-report PDF incident on 2026-09-07 | Replace parser-internal failure dumps with source-located structured rendering diagnostics, preserve stage identity through PDF generation, and expose deterministic failures as terminal/non-retryable. | NEW_PHASE | [Phase 12](../phase/phase-12.md) | PLANNED |
