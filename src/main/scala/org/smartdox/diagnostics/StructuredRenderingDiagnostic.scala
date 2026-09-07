@@ -75,6 +75,58 @@ case class StructuredRenderingDiagnostic(
 object StructuredRenderingDiagnostic {
   private val _token_context_limit = 160
 
+  def pdfLocaleInvalid(
+    tokenContext: String,
+    sourceIdentity: Option[String] = None,
+    cause: String = "invalid-locale-selector"
+  ): StructuredRenderingDiagnostic =
+    _pdf_locale_diagnostic(
+      code = "pdf.locale.invalid",
+      tokencontext = tokenContext,
+      sourceidentity = sourceIdentity,
+      cause = cause
+    )
+
+  def pdfLocaleUnsupported(
+    tokenContext: String,
+    sourceIdentity: Option[String] = None,
+    cause: String = "unsupported-locale-selector"
+  ): StructuredRenderingDiagnostic =
+    _pdf_locale_diagnostic(
+      code = "pdf.locale.unsupported",
+      tokencontext = tokenContext,
+      sourceidentity = sourceIdentity,
+      cause = cause
+    )
+
+  def pdfLocaleUnavailable(
+    tokenContext: String,
+    sourceIdentity: Option[String] = None,
+    cause: String = "selected-locale-unavailable"
+  ): StructuredRenderingDiagnostic =
+    _pdf_locale_diagnostic(
+      code = "pdf.locale.unavailable",
+      tokencontext = tokenContext,
+      sourceidentity = sourceIdentity,
+      cause = cause
+    )
+
+  def pdfRendererUnsupported(
+    tokenContext: String,
+    cause: String = "unsupported-pdf-renderer"
+  ): StructuredRenderingDiagnostic =
+    StructuredRenderingDiagnostic(
+      code = "pdf.renderer.unsupported",
+      stage = RenderingDiagnosticStage.Typesetting,
+      sourceIdentity = None,
+      line = None,
+      column = None,
+      tokenContext = Some(_bounded_token_context(tokenContext)),
+      cause = cause,
+      terminal = true,
+      retryable = false
+    )
+
   def documentSyntaxInvalid(
     sourceIdentity: String,
     line: Int,
@@ -89,6 +141,24 @@ object StructuredRenderingDiagnostic {
       line = Some(line),
       column = Some(column),
       tokenContext = Some(_bounded_token_context(tokenContext)),
+      cause = cause,
+      terminal = true,
+      retryable = false
+    )
+
+  private def _pdf_locale_diagnostic(
+    code: String,
+    tokencontext: String,
+    sourceidentity: Option[String],
+    cause: String
+  ): StructuredRenderingDiagnostic =
+    StructuredRenderingDiagnostic(
+      code = code,
+      stage = RenderingDiagnosticStage.LocaleSelection,
+      sourceIdentity = sourceidentity,
+      line = None,
+      column = None,
+      tokenContext = Some(_bounded_token_context(tokencontext)),
       cause = cause,
       terminal = true,
       retryable = false

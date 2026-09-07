@@ -10,6 +10,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
 import org.smartdox._
 import org.smartdox.converters.Dox2LatexConverter
+import org.smartdox.diagnostics.{RenderingDiagnosticStage, StructuredRenderingDiagnosticException}
 import org.smartdox.generator.{Context => GeneratorContext}
 import org.goldenport.collection.VectorMap
 import org.goldenport.cli.{Environment, Request}
@@ -383,6 +384,127 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
         unresolvedfailure.message should include ("pdf.site-link.target.unresolved")
         malformedfailure.message should include ("pdf.site-context.base-url.invalid")
         outsidefailure.message should include ("pdf.site-context.config.outside-root")
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+  }
+
+  "PDF structured rendering diagnostics" should {
+    "convert invalid and unsupported locale selectors before parsing or renderer startup" in {
+      Given("invalid and unsupported locale selectors with a configured executable marker renderer")
+      val root = Files.createTempDirectory("smartdox-pdf-locale-selector-diagnostic")
+      val input = root.resolve("must-not-be-parsed.dox")
+      val latexmk = root.resolve("latexmk")
+      val marker = root.resolve("renderer-started")
+      _write_renderer_marker(latexmk, marker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      try {
+        val invalidrequest = _pdf_request(input, latexmk, Some("EN"))
+        val unsupportedrequest = _pdf_request(input, latexmk, Some("fr"))
+
+        When("the public PDF operation validates each selector")
+        val invalidfailure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.apply(Environment.createJaJp(), invalidrequest)
+        }
+        val unsupportedfailure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.apply(Environment.createJaJp(), unsupportedrequest)
+        }
+
+        Then("the invalid selector has the terminal non-retryable locale-selection diagnostic")
+        invalidfailure.diagnostic.code shouldBe "pdf.locale.invalid"
+        invalidfailure.diagnostic.stage shouldBe RenderingDiagnosticStage.LocaleSelection
+        invalidfailure.diagnostic.tokenContext shouldBe Some("EN")
+        invalidfailure.diagnostic.terminal shouldBe true
+        invalidfailure.diagnostic.retryable shouldBe false
+        And("the unsupported selector retains its distinct stable diagnostic identity")
+        unsupportedfailure.diagnostic.code shouldBe "pdf.locale.unsupported"
+        unsupportedfailure.diagnostic.stage shouldBe RenderingDiagnosticStage.LocaleSelection
+        unsupportedfailure.diagnostic.tokenContext shouldBe Some("fr")
+        unsupportedfailure.diagnostic.terminal shouldBe true
+        unsupportedfailure.diagnostic.retryable shouldBe false
+        And("neither selector causes parsing or the configured renderer to start")
+        Files.exists(marker) shouldBe false
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "convert an unavailable document locale before a configured renderer starts" in {
+      Given("a document with no exact English source and a configured executable marker renderer")
+      val root = Files.createTempDirectory("smartdox-pdf-locale-unavailable-diagnostic")
+      val input = root.resolve("japanese-only.dox")
+      val latexmk = root.resolve("latexmk")
+      val marker = root.resolve("renderer-started")
+      Files.write(input, "日本語".getBytes("UTF-8"))
+      _write_renderer_marker(latexmk, marker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      try {
+        val request = _pdf_request(input, latexmk, Some("en"))
+
+        When("the public PDF operation selects the requested document locale")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.apply(Environment.createJaJp(), request)
+        }
+
+        Then("the failure binds the input identity in a terminal non-retryable locale-selection diagnostic")
+        failure.diagnostic.code shouldBe "pdf.locale.unavailable"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.LocaleSelection
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("en")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe false
+        And("the configured renderer does not start")
+        Files.exists(marker) shouldBe false
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "report an unsupported renderer while PdfCommand is created" in {
+      Given("a PDF request with an unsupported nonblank renderer token")
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array("--renderer", "unsupported-renderer", "input.dox")
+      )
+
+      When("PdfCommand is created before PDF execution")
+      val failure = intercept[StructuredRenderingDiagnosticException] {
+        PdfOperationClass.PdfCommand.create(request)
+      }
+
+      Then("the renderer failure is terminal and non-retryable at the typesetting stage")
+      failure.diagnostic.code shouldBe "pdf.renderer.unsupported"
+      failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+      failure.diagnostic.tokenContext shouldBe Some("unsupported-renderer")
+      failure.diagnostic.terminal shouldBe true
+      failure.diagnostic.retryable shouldBe false
+    }
+
+    "preserve a parser structured diagnostic without relabeling it as typesetting" in {
+      Given("a filename-aware parser failure and a configured executable marker renderer")
+      val root = Files.createTempDirectory("smartdox-pdf-parser-diagnostic")
+      val input = root.resolve("invalid-inline.dox")
+      val latexmk = root.resolve("latexmk")
+      val marker = root.resolve("renderer-started")
+      Files.write(input, "~~~text".getBytes("UTF-8"))
+      _write_renderer_marker(latexmk, marker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      try {
+        val request = _pdf_request(input, latexmk, None)
+
+        When("the public PDF operation parses the input")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.apply(Environment.createJaJp(), request)
+        }
+
+        Then("the parser-owned document syntax identity and parse stage remain intact")
+        failure.diagnostic.code shouldBe "document.syntax.invalid"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getCanonicalFile.getPath.stripPrefix("/"))
+        failure.diagnostic.tokenContext shouldBe Some("~~~text")
+        And("the renderer does not start")
+        Files.exists(marker) shouldBe false
       } finally {
         IoUtils.removeDirectory(root.toFile)
       }
@@ -981,6 +1103,20 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
     Paragraph(List(Text("English")), VectorMap("lang" -> "en")),
     Paragraph(List(Text("regional English")), VectorMap("lang" -> "en-US"))
   )))
+
+  private def _pdf_request(
+    input: java.nio.file.Path,
+    latexmk: java.nio.file.Path,
+    locale: Option[String]
+  ): Request = {
+    val localeargs = locale.toVector.flatMap(value => Vector("--locale", value))
+    val args = Vector(
+      "--renderer", "latex",
+      "--dependency-mode", "local",
+      "--latexmk", latexmk.toString
+    ) ++ localeargs ++ Vector(input.toString)
+    Request.create(PdfOperationClass.specification, args.toArray)
+  }
 
   private def _missing_markdown_image_failure(renderer: String, rendereroption: String): RuntimeException = {
     val root = Files.createTempDirectory("smartdox-pdf-markdown-image-missing")

@@ -50,6 +50,29 @@ startup. External process or service causes retain the stage at which they
 originate: `diagram-generation` or `typesetting`.
 `retryable` MUST NOT itself initiate, request, or imply a retry loop.
 
+The PDF-specific stable codes are:
+
+| Code | Stage | Required terminal/retryable values |
+| --- | --- | --- |
+| `pdf.locale.invalid` | `locale-selection` | `terminal=true`, `retryable=false` |
+| `pdf.locale.unsupported` | `locale-selection` | `terminal=true`, `retryable=false` |
+| `pdf.locale.unavailable` | `locale-selection` | `terminal=true`, `retryable=false` |
+| `pdf.renderer.unsupported` | `typesetting` | `terminal=true`, `retryable=false` |
+
+For PDF execution, command construction rejects an unsupported nonblank
+renderer token before an external renderer process can start. The operation
+then validates an authored locale selector before parsing, and validates an
+available selected document locale after parsing but before diagram generation,
+workspace preparation, or renderer-process startup. Parser-origin
+`StructuredRenderingDiagnosticException` values remain unchanged through this
+pipeline; in particular, a parse diagnostic is not relabeled as a typesetting
+diagnostic.
+
+This ordering changes only the deterministic PDF selector and renderer
+diagnostics named here. Remaining external diagram and process behavior is not
+changed by this specification and is not reclassified as terminal merely by
+this slice.
+
 ## Projections
 
 Human CLI output and machine Record/JSON output MUST derive from the same
@@ -65,6 +88,10 @@ Executable specifications for implementation of this contract MUST show that:
 
 - an unsupported or malformed authored syntax form yields
   `document.syntax.invalid` with its source facets and `parse` stage;
+- invalid, unsupported, and unavailable PDF locale selection yields its
+  corresponding `pdf.locale.*` code before a renderer process starts, and an
+  unsupported nonblank PDF renderer yields `pdf.renderer.unsupported` during
+  command construction;
 - deterministic syntax and locale-selection failures are terminal and
   non-retryable, while deterministic PDF renderer selection or descriptor
   failures, including unsupported `PdfRenderer` selection, are `typesetting`,

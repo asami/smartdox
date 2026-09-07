@@ -17,6 +17,7 @@ import org.smartdox.generators.AntoraGenerator
 import org.smartdox.doxsite.{DoxSite, SitePublicationContext}
 import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.converters.Dox2LatexConverter
+import org.smartdox.diagnostics.{StructuredRenderingDiagnostic, StructuredRenderingDiagnosticException}
 import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
 
@@ -33,7 +34,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
 
   def apply(env: Environment, req: Request): Response = {
     val cmd = PdfCommand.create(req)
-    val selector = _locale_selector(req).take
+    val selector = _locale_selector_or_throw(req)
     val r = _execute(env, cmd, selector)
     FileResponse(r.artifact, r.target.toURI)
   }
@@ -64,7 +65,12 @@ case object PdfOperationClass extends OperationClassWithOperation {
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
     val input = _parse_pdf_input(cmd.in)
-    val dox = _resolve_site_links(ctx, cmd, _select_locale(input.dox, selector).take, selector).take
+    val dox = _resolve_site_links(
+      ctx,
+      cmd,
+      _select_locale_or_throw(input.dox, selector, cmd.in.getPath),
+      selector
+    ).take
     val html = _html(ctx, dox)
     val workspace = _prepare_renderer_workspace(
       PdfRenderer.ChromeHeadless,
@@ -90,7 +96,12 @@ case object PdfOperationClass extends OperationClassWithOperation {
     val ctx = GeneratorContext.create(env)
     val config = DoxSite.Config.create(cmd)
     val input = _parse_pdf_input(cmd.in)
-    val dox = _resolve_site_links(ctx, cmd, _select_locale(input.dox, selector).take, selector).take
+    val dox = _resolve_site_links(
+      ctx,
+      cmd,
+      _select_locale_or_throw(input.dox, selector, cmd.in.getPath),
+      selector
+    ).take
     val adoc = _asciidoc(ctx, config, dox)
     val workspace = _prepare_renderer_workspace(
       PdfRenderer.Asciidoc,
@@ -115,7 +126,12 @@ case object PdfOperationClass extends OperationClassWithOperation {
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
     val input = _parse_pdf_input(cmd.in)
-    val dox = _resolve_site_links(ctx, cmd, _select_locale(input.dox, selector).take, selector).take
+    val dox = _resolve_site_links(
+      ctx,
+      cmd,
+      _select_locale_or_throw(input.dox, selector, cmd.in.getPath),
+      selector
+    ).take
     val workdir = Files.createTempDirectory(_temp_prefix(_latex_filename(cmd.in)))
     try {
       val latex = _latex(ctx, cmd, dox, workdir.toFile, input.resourceroot)
@@ -300,6 +316,46 @@ case object PdfOperationClass extends OperationClassWithOperation {
       case None => Consequence.success(None)
       case Some(value) => _locale(value).map(_ => Some(value))
     }
+
+  private def _locale_selector_or_throw(req: Request): Option[String] = {
+    val result = _locale_selector(req)
+    if (result.isError) {
+      val tokencontext = req.getPropertyString("locale").getOrElse("")
+      throw new StructuredRenderingDiagnosticException(
+        _locale_failure_diagnostic(tokencontext, None, result.message)
+      )
+    }
+    result.take
+  }
+
+  private def _select_locale_or_throw(
+    dox: Dox,
+    selector: Option[String],
+    sourceidentity: String
+  ): Dox = {
+    val result = _select_locale(dox, selector)
+    if (result.isError) {
+      val tokencontext = selector.getOrElse("")
+      throw new StructuredRenderingDiagnosticException(
+        _locale_failure_diagnostic(tokencontext, Some(sourceidentity), result.message)
+      )
+    }
+    result.take
+  }
+
+  private def _locale_failure_diagnostic(
+    tokencontext: String,
+    sourceidentity: Option[String],
+    message: String
+  ): StructuredRenderingDiagnostic =
+    if (message.startsWith("pdf.locale.invalid:"))
+      StructuredRenderingDiagnostic.pdfLocaleInvalid(tokencontext, sourceidentity)
+    else if (message.startsWith("pdf.locale.unsupported:"))
+      StructuredRenderingDiagnostic.pdfLocaleUnsupported(tokencontext, sourceidentity)
+    else if (message.startsWith("pdf.locale.unavailable:"))
+      StructuredRenderingDiagnostic.pdfLocaleUnavailable(tokencontext, sourceidentity)
+    else
+      throw new IllegalStateException(s"Unexpected PDF locale-selection failure: $message")
 
   private[operations] def _resolve_site_links(
     context: GeneratorContext,
@@ -848,12 +904,15 @@ case object PdfOperationClass extends OperationClassWithOperation {
     case object Latex extends PdfRenderer
 
     def create(p: Option[String]): PdfRenderer =
-      p.map(_.trim.toLowerCase).filter(_.nonEmpty) match {
+      p.map(value => value -> value.trim.toLowerCase).filter(_._2.nonEmpty) match {
         case None => Latex
-        case Some("chrome") | Some("chrome-headless") | Some("headless-chrome") => ChromeHeadless
-        case Some("asciidoc") | Some("asciidoctor") | Some("asciidoctor-pdf") => Asciidoc
-        case Some("latex") | Some("tex") | Some("uplatex") | Some("lualatex") | Some("latexmk") => Latex
-        case Some(s) => sys.error(s"Unsupported PDF renderer: $s")
+        case Some((_, "chrome")) | Some((_, "chrome-headless")) | Some((_, "headless-chrome")) => ChromeHeadless
+        case Some((_, "asciidoc")) | Some((_, "asciidoctor")) | Some((_, "asciidoctor-pdf")) => Asciidoc
+        case Some((_, "latex")) | Some((_, "tex")) | Some((_, "uplatex")) | Some((_, "lualatex")) | Some((_, "latexmk")) => Latex
+        case Some((tokencontext, _)) =>
+          throw new StructuredRenderingDiagnosticException(
+            StructuredRenderingDiagnostic.pdfRendererUnsupported(tokencontext)
+          )
       }
   }
 
