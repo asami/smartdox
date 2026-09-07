@@ -30,7 +30,7 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Aug. 25, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -548,10 +548,24 @@ object LinkEnabler {
       locale: Option[Locale],
       p: Hyperlink
     ): TreeTransformer.Directive[Dox] =
-      if (p.isLocalOrRelative)
+      if (p.isSite)
+        _transform_site_hyperlink(locale, p)
+      else if (p.isLocalOrRelative)
         _transform_hyperlink(locale, p, p.href)
       else
         _external_link(locale, p)
+
+    private def _transform_site_hyperlink(
+      locale: Option[Locale],
+      p: Hyperlink
+    ): TreeTransformer.Directive[Dox] =
+      LinkEnablerSiteLink.resolve(pageNode.pathnameRelative, p.href, enabler.getMetaData).toOption match {
+        case Some(resolved) =>
+          val title = _prepend(_link_mark, _inline_contents(locale, resolved.title))
+          val link = Hyperlink.createArticle(title, resolved.relativeUri, resolved.tooltip, pageNode.pathnameValue)
+          _internal_link(locale, link)
+        case None => _external_link(locale, p)
+      }
 
     private def _transform_hyperlink(
       locale: Option[Locale],

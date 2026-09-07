@@ -16,7 +16,7 @@ import org.smartdox.generators.KrokiGenerator
 /*
  * @since   Jun.  2, 2026
  *  version Jun.  3, 2026
- * @version Aug. 29, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2LatexConverter(
@@ -142,9 +142,13 @@ class Dox2LatexConverter(
     sb_println()
   }
 
-  override protected def enter_Hyperlink(p: Hyperlink): Unit = {}
+  override protected def enter_Hyperlink(p: Hyperlink): Unit =
+    if (_is_resolved_site_link(p))
+      sb_print(s"\\href{${_escape_latex_url(p.href.toASCIIString)}}{")
 
-  override protected def leave_Hyperlink(p: Hyperlink): Unit = {}
+  override protected def leave_Hyperlink(p: Hyperlink): Unit =
+    if (_is_resolved_site_link(p))
+      sb_print("}")
 
   override protected def enter_I18NFragment(p: I18NFragment): Unit = {}
 
@@ -409,6 +413,7 @@ class Dox2LatexConverter(
     sb_println(s"\\usepackage[${driverOption}a4paper,portrait,margin=25mm]{geometry}")
     sb_println("\\usepackage{longtable}")
     sb_println("\\usepackage{graphicx}")
+    sb_println("\\usepackage{hyperref}")
     sb_println("\\begin{document}")
     sb_println()
   }
@@ -522,6 +527,25 @@ class Dox2LatexConverter(
       case '~' => "\\textasciitilde{}"
       case c => c.toString
     }
+
+  private def _escape_latex_url(p: String): String =
+    p.flatMap {
+      case '\\' => "\\textbackslash{}"
+      case '{' => "\\{"
+      case '}' => "\\}"
+      case '%' => "\\%"
+      case '#' => "\\#"
+      case '&' => "\\&"
+      case '_' => "\\_"
+      case '^' => "\\textasciicircum{}"
+      case '~' => "\\textasciitilde{}"
+      case c => c.toString
+    }
+
+  private def _is_resolved_site_link(p: Hyperlink): Boolean =
+    p.isSite &&
+      Option(p.href.getScheme).exists(_.equalsIgnoreCase("https")) &&
+      Option(p.href.getHost).exists(_.nonEmpty)
 }
 
 object Dox2LatexConverter {

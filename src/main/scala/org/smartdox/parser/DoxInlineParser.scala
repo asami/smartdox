@@ -25,7 +25,7 @@ import org.smartdox._
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 30, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -71,7 +71,7 @@ object DoxInlineParser {
     if (config.asciidoc.isInlineMacro)
       in match {
         case _inline_macro_regex("site", contents) =>
-          Some(Dox.attachLocation(Hyperlink(Vector(Text(contents)), contents), config.location))
+          Some(DoxInlineParserSiteLink.create(contents, config.location))
         case _inline_macro_regex(name, contents) =>
           Some(Dox.attachLocation(InlineMacro(name, contents), config.location))
         case _ => None
@@ -1058,7 +1058,7 @@ object DoxInlineParser {
     private def _make_inline_macro: Inline = {
       val contents = cs.mkString
       name match {
-        case "site" => Dox.attachLocation(Hyperlink(Vector(Text(contents)), contents), config.location).asInstanceOf[Inline]
+        case "site" => DoxInlineParserSiteLink.create(contents, config.location).asInstanceOf[Inline]
         case _ => Dox.attachLocation(InlineMacro(name, contents), config.location).asInstanceOf[Inline]
       }
     }

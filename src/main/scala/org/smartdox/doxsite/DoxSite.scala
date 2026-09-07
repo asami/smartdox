@@ -89,7 +89,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  */
 class DoxSite(
   val config: DoxSite.Config,
-  space: Tree[Node],
+  private[doxsite] val space: Tree[Node],
   val metadata: MetaData,
   private val _article_media_projection: Option[PublishMetadata.ArticleMediaProjection]
 ) {

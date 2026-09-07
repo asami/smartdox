@@ -9,6 +9,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
 import org.smartdox._
+import org.smartdox.converters.Dox2LatexConverter
+import org.smartdox.generator.{Context => GeneratorContext}
 import org.goldenport.collection.VectorMap
 import org.goldenport.cli.{Environment, Request}
 import org.goldenport.context.{InvalidArgumentFault, ResourceNotFoundFault, UnsupportedOperationFault}
@@ -20,7 +22,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Aug. 29, 2026
- * @version Aug. 29, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -264,6 +266,125 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       } finally {
         IoUtils.removeDirectory(root.toFile)
         IoUtils.removeDirectory(commandroot.toFile)
+      }
+    }
+  }
+
+  "PDF site publication context" should {
+    "resolve a Site link to its localized HTTPS projection without a raw Dox fallback" in {
+      val root = Files.createTempDirectory("smartdox-pdf-site-link")
+      try {
+        Given("an explicit multi-locale site fixture with a Document Project source and sibling target")
+        val input = _write_site_publication_fixture(root)
+        val request = Request.create(
+          PdfOperationClass.specification,
+          Array(
+            "--site-root", root.toString,
+            "--site-config", root.resolve("site.conf").toString,
+            "--locale", "ja",
+            input.toString
+          )
+        )
+        val command = PdfOperationClass.PdfCommand.create(request)
+        val parsed = PdfOperationClass._parse_pdf_input(input.toFile)
+
+        When("the selected Japanese PDF document applies the explicit publication context")
+        val resolved = PdfOperationClass._resolve_site_links(
+          GeneratorContext.create(Environment.createJaJp()),
+          command,
+          PdfOperationClass._select_locale(parsed.dox, Some("ja")).take,
+          Some("ja")
+        ).take
+        val latex = new Dox2LatexConverter().convert(resolved).take
+
+        Then("the accepted Japanese FQN and localized visible title are projected as a hyperlink")
+        latex should include ("https://www.simplemodeling.org/ja/development-process/literate-modeling.html")
+        latex should include ("文芸モデリング")
+        And("neither the visible Dox nor LaTeX projection falls back to the authored Dox filename")
+        resolved.toPlainText should not include "literate-modeling.dox"
+        latex should not include "literate-modeling.dox"
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "fail closed before a configured renderer starts when a Site link lacks context" in {
+      val root = Files.createTempDirectory("smartdox-pdf-site-context-missing")
+      val input = root.resolve("article.dox")
+      val latexmk = root.resolve("latexmk")
+      val marker = root.resolve("renderer-started")
+      Files.write(input, "site:[target.dox]".getBytes("UTF-8"))
+      _write_renderer_marker(latexmk, marker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      try {
+        Given("a Site-link PDF command with a fake local renderer but no site-root or site-config inputs")
+        val request = Request.create(
+          PdfOperationClass.specification,
+          Array(
+            "--renderer", "latex",
+            "--dependency-mode", "local",
+            "--latexmk", latexmk.toString,
+            input.toString
+          )
+        )
+        val command = PdfOperationClass.PdfCommand.create(request)
+
+        When("the PDF operation is started")
+        val failure = intercept[RuntimeException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the stable missing-context diagnostic is returned before renderer invocation")
+        failure.getMessage should include ("pdf.site-context.missing")
+        Files.exists(marker) shouldBe false
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "retain ordinary PDF compatibility while rejecting malformed, escaping, and unresolved Site contexts" in {
+      val root = Files.createTempDirectory("smartdox-pdf-site-context-validation")
+      try {
+        Given("a no-site PDF input and explicit Site-link fixtures with invalid context conditions")
+        val plain = root.resolve("plain.dox")
+        Files.write(plain, "ordinary PDF text".getBytes("UTF-8"))
+        val plainrequest = Request.create(PdfOperationClass.specification, Array(plain.toString))
+        val plaincommand = PdfOperationClass.PdfCommand.create(plainrequest)
+        val plainparsed = PdfOperationClass._parse_pdf_input(plain.toFile)
+        val validinput = _write_site_publication_fixture(root.resolve("valid"))
+        val escaping = root.resolve("valid/development-process/domain-modeling.dox/escaping.dox")
+        Files.write(escaping, "site:[../../../outside.dox]".getBytes("UTF-8"))
+        val unresolved = root.resolve("valid/development-process/domain-modeling.dox/unresolved.dox")
+        Files.write(unresolved, "site:[missing.dox]".getBytes("UTF-8"))
+        val malformedroot = root.resolve("malformed")
+        val malformedinput = _write_site_publication_fixture(malformedroot)
+        Files.write(
+          malformedroot.resolve("site.conf"),
+          "site.metadata.url = \"http://example.test/\"\nsite.output.locale_mode = \"multi_locale_subdirs\"\n".getBytes("UTF-8")
+        )
+
+        When("the PDF resolver receives no Site link, an escaping target, an unresolved target, a non-HTTPS base URL, and a source outside its root")
+        val plainresult = PdfOperationClass._resolve_site_links(
+          GeneratorContext.create(Environment.createJaJp()),
+          plaincommand,
+          plainparsed.dox,
+          None
+        )
+        val escapingfailure = _site_resolution(escaping, root.resolve("valid"), root.resolve("valid/site.conf"))
+        val unresolvedfailure = _site_resolution(unresolved, root.resolve("valid"), root.resolve("valid/site.conf"))
+        val malformedfailure = _site_resolution(malformedinput, malformedroot, malformedroot.resolve("site.conf"))
+        val outsideroot = Files.createDirectories(root.resolve("other-root"))
+        val outsidefailure = _site_resolution(validinput, outsideroot, root.resolve("valid/site.conf"))
+
+        Then("ordinary documents remain compatible without context")
+        plainresult.take shouldBe plainparsed.dox
+        And("every Site-link failure is deterministic and does not degrade to a source filename")
+        escapingfailure.message should include ("pdf.site-link.target.outside-root")
+        unresolvedfailure.message should include ("pdf.site-link.target.unresolved")
+        malformedfailure.message should include ("pdf.site-context.base-url.invalid")
+        outsidefailure.message should include ("pdf.site-context.config.outside-root")
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
       }
     }
   }
@@ -714,8 +835,8 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       val command = PdfOperationClass.PdfCommand.cCreate(request)
       val selector = PdfOperationClass._locale_selector(request)
 
-      Then("the command retains its baseline fourteen-field product")
-      command.take.productArity shouldBe 14
+      Then("the command retains its baseline fields plus the explicit site-root and site-config inputs")
+      command.take.productArity shouldBe 16
       And("the operation boundary transports the parsed locale separately")
       selector.take shouldBe Some("en")
       And("the one-argument language filter constructor remains source-compatible")
@@ -886,6 +1007,74 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       IoUtils.removeDirectory(root.toFile)
     }
   }
+
+  private def _site_resolution(
+    input: java.nio.file.Path,
+    root: java.nio.file.Path,
+    config: java.nio.file.Path
+  ) = {
+    val request = Request.create(
+      PdfOperationClass.specification,
+      Array(
+        "--site-root", root.toString,
+        "--site-config", config.toString,
+        input.toString
+      )
+    )
+    val command = PdfOperationClass.PdfCommand.create(request)
+    val parsed = PdfOperationClass._parse_pdf_input(input.toFile)
+    PdfOperationClass._resolve_site_links(
+      GeneratorContext.create(Environment.createJaJp()),
+      command,
+      parsed.dox,
+      None
+    )
+  }
+
+  private def _write_site_publication_fixture(root: java.nio.file.Path): java.nio.file.Path = {
+    val source = root.resolve("development-process/domain-modeling.dox/index.dox")
+    _write(root.resolve("site.conf"),
+      """|site.metadata.url = "https://www.simplemodeling.org/"
+         |site.output.locale_mode = "multi_locale_subdirs"
+         |site.output.default_locale = "ja"
+         |""".stripMargin)
+    _write(source,
+      """|Domain Modeling｜ドメインモデリング
+         |====================================
+         |
+         |# HEAD
+         |
+         |status=published
+         |
+         |# Body
+         |
+         |Previous article: site:[literate-modeling.dox]
+         |""".stripMargin)
+    _write(root.resolve("development-process/literate-modeling.dox"),
+      """|Literate Modeling｜文芸モデリング
+         |==================================
+         |
+         |# HEAD
+         |
+         |status=published
+         |
+         |# Body
+         |
+         |Target article.
+         |""".stripMargin)
+    source
+  }
+
+  private def _write(path: java.nio.file.Path, content: String): Unit = {
+    Option(path.getParent).foreach(Files.createDirectories(_))
+    Files.write(path, content.getBytes("UTF-8"))
+  }
+
+  private def _write_renderer_marker(renderer: java.nio.file.Path, marker: java.nio.file.Path): Unit =
+    Files.write(
+      renderer,
+      s"#!/bin/sh\ntouch '${marker.toString}'\nexit 1\n".getBytes("UTF-8")
+    )
 
   private def _write_local_latexmk(latexmk: java.nio.file.Path): Unit =
     Files.write(

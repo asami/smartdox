@@ -17,7 +17,7 @@ import org.smartdox._
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Aug. 30, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -351,14 +351,20 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       macroNode.toData shouldBe "pass:[^[A-Z]{2}$]"
     }
 
-    "parse site inline macro as internal link" in {
+    "preserve site inline macro provenance as a Site link" in {
       Given("a SmartDox site inline macro")
 
       When("the SmartDox inline parser reads the macro")
-      val result = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, "site:[overview.dox]")
+      val link = DoxInlineParser.parse(
+        DoxInlineParser.Config.smartdox,
+        "site:[overview.dox]"
+      ).asInstanceOf[Hyperlink]
 
-      Then("the macro projects to the established internal link")
-      result shouldBe Hyperlink(Vector(Text("overview.dox")), "overview.dox")
+      Then("the authored target remains an internal URI with distinct Site provenance")
+      link.href.toString shouldBe "overview.dox"
+      link.contents shouldBe Vector(Text("overview.dox"))
+      link.linkKind shouldBe Hyperlink.LinkKind.Site
+      link.isSite shouldBe true
     }
 
     "warn legacy single bracket site link" in {

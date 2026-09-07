@@ -1,9 +1,11 @@
 package org.smartdox.doxsite
 
 import io.circe._
+import java.io.File
 import org.goldenport.config.ConfigLoader
 import org.goldenport.context.Consequence
 import org.goldenport.i18n.I18NContext
+import org.goldenport.io.InputSource
 import org.goldenport.realm.Realm
 import org.goldenport.tree.TreeTransformer
 import org.smartdox.semanticweb.Site.SiteMetadata
@@ -24,6 +26,12 @@ private[doxsite] object DoxSiteConfigLoader {
   }
 
   def config(
+    inconfig: Config,
+    configfile: File
+  )(implicit ctx: I18NContext): DoxSite.Config =
+    _exact_config(configfile) + inconfig
+
+  def config(
     realm: Realm,
     configname: Option[String]
   )(implicit ctx: I18NContext): DoxSite.Config =
@@ -36,34 +44,48 @@ private[doxsite] object DoxSiteConfigLoader {
   private def _named_config(
     realm: Realm,
     name: String
-  )(implicit ctx: I18NContext): DoxSite.Config = {
-      val c = for {
-        json <- ConfigLoader.loadConfigJson(realm, name)
-        simplemodelingorg <- _simplemodeling_org(json)
-        output <- _tree_transformer_config(json.hcursor.downField("output").focus)
-        sitemetadata <- _site_metadata(json.hcursor.downField("site").downField("metadata").focus)
-        sitenavigation <- _site_navigation(json.hcursor.downField("site").downField("navigation").focus)
-        siteoutput <- _site_output(json.hcursor.downField("site").downField("output").focus)
-        siteheader <- _site_header(json.hcursor.downField("site").downField("header").focus)
-      } yield {
-        val config = Config(
-          None,
-          None,
-          output,
-          siteMetadata = sitemetadata,
-          siteNavigation = sitenavigation,
-          siteOutput = siteoutput,
-          siteHeader = siteheader,
-          simplemodelingOrg = simplemodelingorg,
-          origin = realm.origin
+  )(implicit ctx: I18NContext): DoxSite.Config =
+    ConfigLoader.loadConfigJson(realm, name).map(_to_config).take
+
+  private def _exact_config(configfile: File)(implicit ctx: I18NContext): DoxSite.Config = {
+    val json = ConfigLoader.loadConfigHocon(InputSource(configfile)).flatMap { hocon =>
+      Consequence.execute {
+        io.circe.config.parser.parse(hocon.root.render()).fold(
+          error => throw new IllegalArgumentException(error.message),
+          identity
         )
-        if (simplemodelingorg)
-          config.withSimpleModelingOrgCompatibility
-        else
-          config
       }
-      c.take
+    }.take
+    _to_config(json)
+  }
+
+  private def _to_config(json: Json)(implicit ctx: I18NContext): DoxSite.Config = {
+    val c = for {
+      simplemodelingorg <- _simplemodeling_org(json)
+      output <- _tree_transformer_config(json.hcursor.downField("output").focus)
+      sitemetadata <- _site_metadata(json.hcursor.downField("site").downField("metadata").focus)
+      sitenavigation <- _site_navigation(json.hcursor.downField("site").downField("navigation").focus)
+      siteoutput <- _site_output(json.hcursor.downField("site").downField("output").focus)
+      siteheader <- _site_header(json.hcursor.downField("site").downField("header").focus)
+    } yield {
+      val config = Config(
+        None,
+        None,
+        output,
+        siteMetadata = sitemetadata,
+        siteNavigation = sitenavigation,
+        siteOutput = siteoutput,
+        siteHeader = siteheader,
+        simplemodelingOrg = simplemodelingorg,
+        origin = None
+      )
+      if (simplemodelingorg)
+        config.withSimpleModelingOrgCompatibility
+      else
+        config
     }
+    c.take
+  }
 
   private def _simplemodeling_org(json: Json): Consequence[Boolean] =
     json.hcursor.downField("simplemodelingorg").focus match {

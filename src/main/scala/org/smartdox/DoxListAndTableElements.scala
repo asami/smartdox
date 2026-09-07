@@ -2,7 +2,7 @@ package org.smartdox
 
 /*
  * @since   Aug. 19, 2026
- * @version Aug. 19, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 
@@ -119,8 +119,14 @@ case class Hyperlink(
     case _ => false
   }
 
+  def isSite: Boolean = linkKind match {
+    case LinkKind.Site => true
+    case _ => false
+  }
+
   lazy val linkKind: LinkKind = getHtmlClass match {
     case Some("glossary") => LinkKind.Glossary
+    case Some("site") => LinkKind.Site
     case _ => _link_kind_by_scheme
   }
 
@@ -141,6 +147,7 @@ object Hyperlink extends DoxFactory {
     case object Local extends LinkKind
     case object Relative extends LinkKind
     case object External extends LinkKind
+    case object Site extends LinkKind
     case object Glossary extends LinkKind
     case object Bibliography extends LinkKind
   }

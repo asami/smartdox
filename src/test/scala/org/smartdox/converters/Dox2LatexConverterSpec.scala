@@ -17,7 +17,7 @@ import org.smartdox.parser.UseDox2Parser
 /*
  * @since   Jun.  2, 2026
  *  version Jun.  3, 2026
- * @version Aug. 29, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -101,6 +101,31 @@ class Dox2LatexConverterSpec extends AnyWordSpec with Matchers with ScalazMatche
       val r = c.convert(dox).take
       r should include ("\\documentclass[uplatex,a4j,11pt]{jsarticle}")
       r should not include ("\\usepackage{luatexja}")
+    }
+
+    "emit a safe hyperlink only for a resolved Site link" in {
+      Given("a resolved HTTPS Site link with LaTeX-sensitive URL and label characters beside an ordinary link")
+      val site = Hyperlink(
+        List(Text("Target & Title")),
+        new java.net.URI("https://example.test/ja/literate_modeling%20guide.html"),
+        None,
+        org.goldenport.collection.VectorMap("class" -> "site")
+      )
+      val ordinary = Hyperlink(List(Text("ordinary")), new java.net.URI("relative.dox"))
+      val dox = Paragraph(List(site, Text(" and "), ordinary))
+
+      When("LuaLaTeX and UpLaTeX project the link-bearing document")
+      val lua = new Dox2LatexConverter(Dox2LatexConverter.Engine.LuaLatex).convert(dox).take
+      val up = new Dox2LatexConverter(Dox2LatexConverter.Engine.UpLatex).convert(dox).take
+
+      Then("both preambles load hyperref and both projections retain a safely escaped href")
+      Vector(lua, up).foreach { latex =>
+        latex should include ("\\usepackage{hyperref}")
+        latex should include ("\\href{https://example.test/ja/literate\\_modeling\\%20guide.html}{Target \\& Title}")
+      }
+      And("the ordinary untransformed link remains visible text without a link wrapper")
+      lua should include ("ordinary")
+      lua should not include ("\\href{relative.dox}")
     }
 
     "render business document title block when selected" in {

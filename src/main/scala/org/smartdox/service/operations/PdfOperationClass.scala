@@ -10,11 +10,11 @@ import org.goldenport.bag.{ChunkBag, FileBag}
 import org.goldenport.i18n.I18NContext
 import org.goldenport.tree.TreeTransformer
 import org.goldenport.io.IoUtils
-import org.smartdox.{Dox, ReferenceImg}
+import org.smartdox.{Dox, Hyperlink, ReferenceImg}
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator.{Context => GeneratorContext}
 import org.smartdox.generators.AntoraGenerator
-import org.smartdox.doxsite.DoxSite
+import org.smartdox.doxsite.{DoxSite, SitePublicationContext}
 import org.smartdox.converters.Dox2AsciidocConverter
 import org.smartdox.converters.Dox2LatexConverter
 import org.smartdox.transformers.Dox2HtmlTransformer
@@ -23,7 +23,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 /*
  * @since   Apr.  9, 2026
  *  version Jun.  3, 2026
- * @version Aug. 29, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 case object PdfOperationClass extends OperationClassWithOperation {
@@ -64,7 +64,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
     val input = _parse_pdf_input(cmd.in)
-    val dox = _select_locale(input.dox, selector).take
+    val dox = _resolve_site_links(ctx, cmd, _select_locale(input.dox, selector).take, selector).take
     val html = _html(ctx, dox)
     val workspace = _prepare_renderer_workspace(
       PdfRenderer.ChromeHeadless,
@@ -90,7 +90,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
     val ctx = GeneratorContext.create(env)
     val config = DoxSite.Config.create(cmd)
     val input = _parse_pdf_input(cmd.in)
-    val dox = _select_locale(input.dox, selector).take
+    val dox = _resolve_site_links(ctx, cmd, _select_locale(input.dox, selector).take, selector).take
     val adoc = _asciidoc(ctx, config, dox)
     val workspace = _prepare_renderer_workspace(
       PdfRenderer.Asciidoc,
@@ -115,7 +115,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
   ): ChunkBag = {
     val ctx = GeneratorContext.create(env)
     val input = _parse_pdf_input(cmd.in)
-    val dox = _select_locale(input.dox, selector).take
+    val dox = _resolve_site_links(ctx, cmd, _select_locale(input.dox, selector).take, selector).take
     val workdir = Files.createTempDirectory(_temp_prefix(_latex_filename(cmd.in)))
     try {
       val latex = _latex(ctx, cmd, dox, workdir.toFile, input.resourceroot)
@@ -300,6 +300,42 @@ case object PdfOperationClass extends OperationClassWithOperation {
       case None => Consequence.success(None)
       case Some(value) => _locale(value).map(_ => Some(value))
     }
+
+  private[operations] def _resolve_site_links(
+    context: GeneratorContext,
+    cmd: PdfCommand,
+    dox: Dox,
+    selector: Option[String]
+  ): Consequence[Dox] =
+    if (_site_links(dox).isEmpty)
+      Consequence.success(dox)
+    else {
+      val publication = (cmd.siteRoot, cmd.siteConfig) match {
+        case (Some(root), Some(config)) =>
+          SitePublicationContext.create(root, config, cmd.in, context)
+        case _ =>
+          Consequence.invalidArgumentFault[SitePublicationContext](
+            "pdf.site-context.missing: --site-root and --site-config are required for site:[...] links"
+          )
+      }
+      publication.flatMap { sitecontext =>
+        val locale = selector match {
+          case Some(value) => SitePublicationContext.locale(value)
+          case None => sitecontext.defaultLocale
+        }
+        locale.flatMap { selectedlocale =>
+          sitecontext.resolveDox(dox, selectedlocale)
+        }
+      }
+    }
+
+  private def _site_links(dox: Dox): Vector[Hyperlink] = {
+    val here = dox match {
+      case link: Hyperlink if link.isSite => Vector(link)
+      case _ => Vector.empty
+    }
+    here ++ dox.elements.toVector.flatMap(_site_links)
+  }
 
   private def _html(ctx: GeneratorContext, dox: Dox): String = {
     val rule = Dox2HtmlTransformer.Rule.default
@@ -687,6 +723,8 @@ case object PdfOperationClass extends OperationClassWithOperation {
 
   case class PdfCommand(
     siteParameters: SiteParameters,
+    siteRoot: Option[File],
+    siteConfig: Option[File],
     output: Option[File],
     chrome: Option[File],
     asciidoctorPdf: Option[File],
@@ -708,6 +746,8 @@ case object PdfOperationClass extends OperationClassWithOperation {
 
     object params {
       val output = spec.Parameter.propertyFileOption("output")
+      val siteRoot = spec.Parameter.propertyFileOption("site-root")
+      val siteConfig = spec.Parameter.propertyFileOption("site-config")
       val chrome = spec.Parameter.propertyFileOption("chrome")
       val asciidoctorPdf = spec.Parameter.propertyFileOption("asciidoctor-pdf")
       val latexmk = spec.Parameter.propertyFileOption("latexmk")
@@ -734,12 +774,16 @@ case object PdfOperationClass extends OperationClassWithOperation {
     def cCreate(req: Request): Consequence[PdfCommand] =
       for {
         sp <- SiteParameters.createC(req)
+        siteroot <- req.cFileOption(params.siteRoot)
+        siteconfig <- req.cFileOption(params.siteConfig)
         output <- req.cFileOption(params.output)
         chrome <- req.cFileOption(params.chrome)
         asciidoctorpdf <- req.cFileOption(params.asciidoctorPdf)
       } yield {
         PdfCommand(
           sp,
+          _file_option(req, "site-root", siteroot),
+          _file_option(req, "site-config", siteconfig),
           _file_option(req, "output", output),
           _file_option(req, "chrome", chrome),
           _file_option(req, "asciidoctor-pdf", asciidoctorpdf),
@@ -757,6 +801,8 @@ case object PdfOperationClass extends OperationClassWithOperation {
       }
 
     def specification: spec.Request = spec.Request(
+      params.siteRoot,
+      params.siteConfig,
       params.output,
       params.chrome,
       params.asciidoctorPdf,

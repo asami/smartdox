@@ -30,7 +30,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Aug. 30, 2026
+ * @version Sep.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -111,6 +111,154 @@ class DoxSiteSpec
       html should include_html("Target Page")
       And("the unresolved source macro does not leak into the generated page")
       html should not (include_text("site:[target.dox]"))
+    }
+
+    "resolve Document Project site links through one localized publication mapping" in {
+      val dir = Files.createTempDirectory("smartdox-site-publication-context")
+      try {
+        Given("a multi-locale site whose Document Project index refers to a sibling article")
+        _write(dir.resolve("site.conf"),
+          """|site.metadata.url = "https://inferred.example.test/"
+             |site.output.locale_mode = "multi_locale_subdirs"
+             |site.output.default_locale = "ja"
+             |""".stripMargin)
+        _write(dir.resolve("publication.conf"),
+          """|site.metadata.url = "https://www.simplemodeling.org/"
+             |site.output.locale_mode = "multi_locale_subdirs"
+             |site.output.default_locale = "ja"
+             |""".stripMargin)
+        _write(dir.resolve("development-process/domain-modeling.dox/index.dox"),
+          """|Domain Modeling｜ドメインモデリング
+             |====================================
+             |
+             |# HEAD
+             |
+             |status=published
+             |
+             |# Body
+             |
+             |Previous article: site:[literate-modeling.dox]
+             |""".stripMargin)
+        _write(dir.resolve("development-process/literate-modeling.dox"),
+          """|Literate Modeling｜文芸モデリング
+             |==================================
+             |
+             |# HEAD
+             |
+             |status=published
+             |
+             |# Body
+             |
+             |Target article.
+             |""".stripMargin)
+        val resolvercontext = Context.create()
+
+        When("the explicit context selects publication.conf while ordinary DoxSite HTML still uses the inferable site.conf")
+        val publication = SitePublicationContext.create(
+          dir.toFile,
+          dir.resolve("publication.conf").toFile,
+          dir.resolve("development-process/domain-modeling.dox/index.dox").toFile,
+          resolvercontext
+        ).take
+        val japanese = publication.resolve(new java.net.URI("literate-modeling.dox"), java.util.Locale.JAPANESE).take
+        val english = publication.resolve(new java.net.URI("literate-modeling.dox"), java.util.Locale.ENGLISH).take
+        val site = DoxSite.create(
+          resolvercontext,
+          dir.toFile,
+          Some("site"),
+          DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
+        )
+        val realm = site.toRealm(resolvercontext)
+        implicit val i18ncontext: I18NContext = resolvercontext.i18NContext
+        val html = html_at(
+          realm,
+          "/ja/development-process/domain-modeling.dox/index.html",
+          "ja/development-process/domain-modeling.dox/index.html"
+        )
+
+        Then("the exact selected configuration yields the accepted Japanese HTTPS route and localized title")
+        japanese.uri.toString shouldBe "https://www.simplemodeling.org/ja/development-process/literate-modeling.html"
+        japanese.title shouldBe "文芸モデリング"
+        And("the English locale shares the target mapping while selecting its own route and title")
+        english.uri.toString shouldBe "https://www.simplemodeling.org/en/development-process/literate-modeling.html"
+        english.title shouldBe "Literate Modeling"
+        And("HTML retains its relative link form through the same resolver")
+        html should include_html("href=\"../literate-modeling.html\"")
+        html should include_html("文芸モデリング")
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "fail closed for unpublished and cross-root Site-link targets in PDF publication context" in {
+      val root = Files.createTempDirectory("smartdox-site-publication-closed")
+      val outside = Files.createTempDirectory("smartdox-site-publication-outside")
+      try {
+        Given("a selected site with an unpublished titled target, a symlink target, and an external sibling source")
+        _write(root.resolve("publication.conf"),
+          """|site.metadata.url = "https://www.simplemodeling.org/"
+             |site.output.locale_mode = "multi_locale_subdirs"
+             |site.output.default_locale = "ja"
+             |""".stripMargin)
+        _write(root.resolve("source.dox"), "Source\n======\n\n# HEAD\n\nstatus=published\n\n# Body\n\nsite:[draft.dox]\n")
+        _write(root.resolve("draft.dox"), "Draft title\n===========\n\n# HEAD\n\nstatus=draft\n\n# Body\n\nDraft target.\n")
+        _write(outside.resolve("outside.dox"), "Outside\n=======\n\n# HEAD\n\nstatus=published\n\n# Body\n\nOutside target.\n")
+        Files.createSymbolicLink(root.resolve("linked.dox"), outside.resolve("outside.dox"))
+        val context = Context.create()
+        val publication = SitePublicationContext.create(root.toFile, root.resolve("publication.conf").toFile, root.resolve("source.dox").toFile, context).take
+
+        When("the PDF projection resolves an unpublished, symlinked, and sibling-root Site link")
+        val unpublished = publication.resolve(new java.net.URI("draft.dox"), java.util.Locale.JAPANESE)
+        val symlinked = publication.resolve(new java.net.URI("linked.dox"), java.util.Locale.JAPANESE)
+        val crossroot = publication.resolve(new java.net.URI("../outside.dox"), java.util.Locale.JAPANESE)
+        val external = SitePublicationContext.create(root.toFile, root.resolve("publication.conf").toFile, outside.resolve("outside.dox").toFile, context)
+
+        Then("none can emit a public FQN")
+        unpublished.isError shouldBe true
+        unpublished.message should include("pdf.site-link.target.unresolved")
+        symlinked.isError shouldBe true
+        symlinked.message should include("pdf.site-link.target.outside-root")
+        crossroot.isError shouldBe true
+        crossroot.message should include("pdf.site-link.target.outside-root")
+        external.isError shouldBe true
+        external.message should include("pdf.site-context.source.outside-root")
+      } finally {
+        _delete(root)
+        _delete(outside)
+      }
+    }
+
+    "reject current-working-directory-relative publication root and selected configuration before admission" in {
+      val cwd = java.nio.file.Paths.get("").toAbsolutePath.normalize
+      val target = cwd.resolve("target")
+      Files.createDirectories(target)
+      val root = Files.createTempDirectory(target, "smartdox-site-publication-relative-")
+      try {
+        Given("an otherwise valid publication fixture below the current test invocation directory")
+        val config = root.resolve("publication.conf")
+        val source = root.resolve("source.dox")
+        _write(config,
+          """|site.metadata.url = "https://www.simplemodeling.org/"
+             |site.output.locale_mode = "multi_locale_subdirs"
+             |site.output.default_locale = "ja"
+             |""".stripMargin)
+        _write(source, "Source\n======\n\n# HEAD\n\nstatus=published\n\n# Body\n\nSource.\n")
+        val context = Context.create()
+        val relativeroot = cwd.relativize(root)
+        val relativeconfig = cwd.relativize(config)
+
+        When("publication context creation receives a relative root or a relative selected configuration")
+        val rootfailure = SitePublicationContext.create(relativeroot.toFile, config.toFile, source.toFile, context)
+        val configfailure = SitePublicationContext.create(root.toFile, relativeconfig.toFile, source.toFile, context)
+
+        Then("both inputs fail before a current-working-directory-derived context can be admitted")
+        rootfailure.isError shouldBe true
+        rootfailure.message should include("pdf.site-context.root.absolute-required")
+        configfailure.isError shouldBe true
+        configfailure.message should include("pdf.site-context.config.absolute-required")
+      } finally {
+        _delete(root)
+      }
     }
 
     "emit localized document fragments after glossary and site link processing" in {
