@@ -6,7 +6,6 @@ import org.goldenport.tree._
 import org.goldenport.values.PathName
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NString
-import org.goldenport.io.UriUtils
 import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.metadata.DocumentMetaData
@@ -19,7 +18,8 @@ import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.ProgramHolder
 /*
  * @since   Nov. 14, 2025
  *  version Nov. 22, 2025
- * @version Dec. 16, 2025
+ *  version Dec. 16, 2025
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 case class LinkCollection(
@@ -38,8 +38,7 @@ object LinkCollection {
     private val _link_mark = DoxSite.Config.WorkAround.textMark.article
 
     def toListContent(newsource: PathName): ListContent = {
-      val a = PathName.getRelativePath(newsource, source)
-      val uri = new URI(a.v)
+      val uri = new URI(DoxSite.relativePublicPath(newsource.v, source.v))
       val tooltip = doc.getEffectiveTooltip
       doc.title.map(_make_link(uri, _, tooltip)) getOrElse Hyperlink.createArticle(source.toString)
     }
@@ -49,8 +48,7 @@ object LinkCollection {
 
     private def _make_link(uri: URI, ps: List[Dox], tooltip: Option[I18NString]): List[Hyperlink] = {
       val a = Dox.toInlineContents(Text(_link_mark) :: ps)
-      val to = UriUtils.changeSuffix(uri, "html")
-      List(Hyperlink.createArticle(a, to, tooltip, source))
+      List(Hyperlink.createArticle(a, uri, tooltip, source))
     }
   }
   object IncomingLink {

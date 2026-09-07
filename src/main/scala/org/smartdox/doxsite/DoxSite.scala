@@ -22,6 +22,7 @@ import org.goldenport.tree.TreeCursor
 import org.goldenport.tree.TreeTransformer
 import org.goldenport.tree.HomoTreeTransformer
 import org.goldenport.tree.TreeVisitor
+import org.goldenport.tree.ContentTreeVisitor
 import org.goldenport.tree.ControlTreeNode
 import org.goldenport.realm.Realm
 import org.goldenport.realm.Realm.FileData
@@ -84,7 +85,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version May. 14, 2026
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
- * @version Aug. 30, 2026
+ *  version Aug. 30, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -115,7 +117,7 @@ class DoxSite(
   ): Realm = {
     val rule = RealmBuilder.Rule(config.outputTreeTransformerConfig)
     val a = space.transform(new RealmBuilder(context, rule, None, _article_media_projection))
-    Realm(a)
+    Realm(_normalize_public_paths(a))
   }
 
   private def _build_multi(
@@ -138,7 +140,25 @@ class DoxSite(
     rule: RealmBuilder.Rule
   ) = {
     val a = space.transform(new RealmBuilder(context, rule, None, _article_media_projection))
-    Realm(a)
+    Realm(_normalize_public_paths(a))
+  }
+
+  private def _normalize_public_paths(base: Tree[Realm.Data]): Tree[Realm.Data] = {
+    val rewrites = ArrayBuffer.empty[(String, String, Realm.Data)]
+    base.traverse(new ContentTreeVisitor[Realm.Data] {
+      override protected def enter_Content(node: TreeNode[Realm.Data], content: Realm.Data): Unit = {
+        val source = node.pathnameRelative
+        val target = DoxSite.publicPath(source)
+        if (source != target)
+          rewrites += ((source, target, content))
+      }
+    })
+    rewrites.foreach {
+      case (source, target, content) =>
+        base.setContent(target, content)
+        base.remove(source)
+    }
+    base
   }
 
   // private def _build_en(
@@ -465,7 +485,7 @@ class DoxSite(
   }
 
   private def _document_public_path(sourcepath: String): String =
-    StringUtils.changeSuffix(sourcepath, "html")
+    DoxSite.publicPath(sourcepath)
 
   private def _document_category(sourcepath: String, category: Option[String]): Option[String] =
     category.orElse {
@@ -540,6 +560,36 @@ object DoxSite {
   import io.circe.generic.extras._
   import io.circe.generic.extras.semiauto._
   import org.goldenport.util.CirceUtils.Codec._
+
+  def publicPath(path: String): String = {
+    val normalized = path.replace('\\', '/')
+    val prefix = if (normalized.startsWith("/")) "/" else ""
+    val segments = normalized.split('/').toVector.filter(_.nonEmpty)
+    val publicsegments = segments match {
+      case xs if xs.size >= 2 &&
+        (xs.last == "index.dox" || xs.last == "index.html") &&
+        xs(xs.size - 2).endsWith(".dox") =>
+        xs.dropRight(2) :+ s"${xs(xs.size - 2).stripSuffix(".dox")}.html"
+      case xs if xs.lastOption.exists(_.endsWith(".dox")) =>
+        xs.dropRight(1) :+ s"${xs.last.stripSuffix(".dox")}.html"
+      case xs => xs
+    }
+    prefix + publicsegments.mkString("/")
+  }
+
+  private[doxsite] def relativePublicPath(sourcePath: String, targetPath: String): String = {
+    val source = _public_path_segments(sourcePath).dropRight(1)
+    val target = _public_path_segments(targetPath)
+    val shared = source.zip(target).takeWhile { case (lhs, rhs) => lhs == rhs }.length
+    val relative = Vector.fill(source.length - shared)("..") ++ target.drop(shared)
+    if (relative.nonEmpty)
+      relative.mkString("/")
+    else
+      target.lastOption.getOrElse("")
+  }
+
+  private def _public_path_segments(path: String): Vector[String] =
+    publicPath(path).stripPrefix("/").split('/').toVector.filter(_.nonEmpty)
 
   private[doxsite] object NoticeCardOrdering {
     def sort(notices: Vector[Notice]): Vector[Notice] =
@@ -1324,7 +1374,7 @@ object DoxSite {
   ) {
     def sourceRef: Bibliography.SourceRef = Bibliography.SourceRef(
       sourcepath,
-      StringUtils.changeSuffix(sourcepath, "html"),
+      DoxSite.publicPath(sourcepath),
       Some(category),
       bibid,
       ordinal
@@ -1619,7 +1669,7 @@ object DoxSite {
             summary = None,
             category = Some(category),
             sourcePath = sourcepath,
-            publicPath = StringUtils.changeSuffix(sourcepath, "html"),
+            publicPath = DoxSite.publicPath(sourcepath),
             authors = bib.get("author").map(_bibtex_authors).getOrElse(Vector.empty),
             publishedAt = bib.get("year"),
             publisher = bib.get("publisher"),

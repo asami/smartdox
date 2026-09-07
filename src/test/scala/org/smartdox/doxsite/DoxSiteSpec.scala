@@ -30,7 +30,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -113,7 +113,7 @@ class DoxSiteSpec
       html should not (include_text("site:[target.dox]"))
     }
 
-    "resolve Document Project site links through one localized publication mapping" in {
+    "normalize Document Project public paths across localized generation and publication links" in {
       val dir = Files.createTempDirectory("smartdox-site-publication-context")
       try {
         Given("a multi-locale site whose Document Project index refers to a sibling article")
@@ -127,6 +127,25 @@ class DoxSiteSpec
              |site.output.locale_mode = "multi_locale_subdirs"
              |site.output.default_locale = "ja"
              |""".stripMargin)
+        _write(dir.resolve("development-process/domain-modeling.dox/category.yaml"),
+          """|name: architecture
+             |title: Architecture
+             |description: Document Project architecture articles.
+             |""".stripMargin)
+        _write(dir.resolve("bibliography/concept/document-project-reference.bib.dox"),
+          """|Document Project Reference
+             |==========================
+             |
+             |# HEAD
+             |
+             |id = "bib:document-project-reference"
+             |title = "Document Project Reference"
+             |status = "published"
+             |
+             |# Body
+             |
+             |A reference for the Document Project article.
+             |""".stripMargin)
         _write(dir.resolve("development-process/domain-modeling.dox/index.dox"),
           """|Domain Modeling｜ドメインモデリング
              |====================================
@@ -134,6 +153,9 @@ class DoxSiteSpec
              |# HEAD
              |
              |status=published
+             |published_at=2026-09-08
+             |tags=["architecture"]
+             |bibliography.refs = ["bib:document-project-reference"]
              |
              |# Body
              |
@@ -146,6 +168,7 @@ class DoxSiteSpec
              |# HEAD
              |
              |status=published
+             |published_at=2026-09-08
              |
              |# Body
              |
@@ -170,21 +193,92 @@ class DoxSiteSpec
         )
         val realm = site.toRealm(resolvercontext)
         implicit val i18ncontext: I18NContext = resolvercontext.i18NContext
-        val html = html_at(
+        val japanesehtml = html_at(
           realm,
-          "/ja/development-process/domain-modeling.dox/index.html",
-          "ja/development-process/domain-modeling.dox/index.html"
+          "/ja/development-process/domain-modeling.html",
+          "ja/development-process/domain-modeling.html"
         )
+        val englishhtml = html_at(
+          realm,
+          "/en/development-process/domain-modeling.html",
+          "en/development-process/domain-modeling.html"
+        )
+        val fragments = metadata_at(realm, "metadata/documents/fragments.json")
+        val tags = metadata_at(realm, "metadata/tags/tags.json")
+        val turtle = metadata_at(realm, "site.ttl")
+        val jsonld = metadata_at(realm, "site.jsonld")
+        val japaneseatom = metadata_at(realm, "ja/atom.xml")
+        val englishatom = metadata_at(realm, "en/atom.xml")
+        val category = metadata_at(realm, "WEB-INF/data/ja/development-process/category.yaml")
+        val japanesenotice = metadata_at(realm, "WEB-INF/data/ja/development-process/notice01.yaml")
+        val englishnotice = metadata_at(realm, "WEB-INF/data/en/development-process/notice01.yaml")
+        val bibliography = metadata_at(realm, "metadata/bibliography/bibliography.json")
 
-        Then("the exact selected configuration yields the accepted Japanese HTTPS route and localized title")
+        Then("the canonical mapper flattens a Document Project package while retaining ordinary source mapping")
+        DoxSite.publicPath("development-process/domain-modeling.dox/index.dox") shouldBe
+          "development-process/domain-modeling.html"
+        DoxSite.publicPath("development-process/literate-modeling.dox") shouldBe
+          "development-process/literate-modeling.html"
+        DoxSite.publicPath("development-process/assets/diagram.png") shouldBe
+          "development-process/assets/diagram.png"
+        DoxSite.relativePublicPath(
+          "development-process/domain-modeling.dox/index.dox",
+          "development-process/literate-modeling.dox"
+        ) shouldBe "literate-modeling.html"
+        DoxSite.relativePublicPath(
+          "development-process/literate-modeling.dox",
+          "development-process/domain-modeling.dox/index.dox"
+        ) shouldBe "domain-modeling.html"
+        realm.getString("ja/development-process/domain-modeling.dox/index.html") shouldBe None
+        realm.getString("en/development-process/domain-modeling.dox/index.html") shouldBe None
+        And("the exact selected configuration yields the accepted Japanese HTTPS route and localized title")
         japanese.uri.toString shouldBe "https://www.simplemodeling.org/ja/development-process/literate-modeling.html"
         japanese.title shouldBe "文芸モデリング"
         And("the English locale shares the target mapping while selecting its own route and title")
         english.uri.toString shouldBe "https://www.simplemodeling.org/en/development-process/literate-modeling.html"
         english.title shouldBe "Literate Modeling"
-        And("HTML retains its relative link form through the same resolver")
-        html should include_html("href=\"../literate-modeling.html\"")
-        html should include_html("文芸モデリング")
+        And("localized HTML uses the normalized sibling link form")
+        japanesehtml should include_html("href=\"literate-modeling.html\"")
+        japanesehtml should include_html("文芸モデリング")
+        englishhtml should include_html("href=\"literate-modeling.html\"")
+        englishhtml should include_html("Literate Modeling")
+        And("incoming related-link records calculate the normalized Document Project route")
+        val incoming = LinkCollection.IncomingLink(
+          LinkCollection.IncomingLink.Kind.Direct,
+          org.goldenport.values.PathName("development-process/domain-modeling.dox/index.dox"),
+          org.smartdox.metadata.DocumentMetaData.empty.withTitle("Domain Modeling"),
+          org.goldenport.i18n.I18NHangar.empty
+        )
+        val relatedlink = incoming.toListContent(
+          org.goldenport.values.PathName("development-process/literate-modeling.dox")
+        ).asInstanceOf[I18NFragment].distill(java.util.Locale.ENGLISH).collectFirst {
+          case link: Hyperlink => link
+        }.get
+        relatedlink.href.toString shouldBe "domain-modeling.html"
+        And("category and notice metadata use the flattened Document Project public route")
+        category should include_metadata("development-process/domain-modeling.html")
+        japanesenotice should include_metadata("development-process/domain-modeling.html")
+        englishnotice should include_metadata("development-process/domain-modeling.html")
+        category should not (include_metadata("domain-modeling.dox/index.html"))
+        japanesenotice should not (include_metadata("domain-modeling.dox/index.html"))
+        englishnotice should not (include_metadata("domain-modeling.dox/index.html"))
+        And("bibliography source references retain only the normalized Document Project public path")
+        bibliography should include_metadata("\"id\" : \"bib:document-project-reference\"")
+        bibliography should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
+        bibliography should not (include_metadata("domain-modeling.dox/index.html"))
+        And("document fragments, tags, RDF, JSON-LD, and Atom feeds retain only the normalized public path")
+        fragments should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
+        tags should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
+        turtle should include_metadata("development-process/domain-modeling.html")
+        jsonld should include_metadata("development-process/domain-modeling.html")
+        japaneseatom should include_metadata("development-process/domain-modeling.html")
+        englishatom should include_metadata("development-process/domain-modeling.html")
+        fragments should not (include_metadata("domain-modeling.dox/index.html"))
+        tags should not (include_metadata("domain-modeling.dox/index.html"))
+        turtle should not (include_metadata("domain-modeling.dox/index.html"))
+        jsonld should not (include_metadata("domain-modeling.dox/index.html"))
+        japaneseatom should not (include_metadata("domain-modeling.dox/index.html"))
+        englishatom should not (include_metadata("domain-modeling.dox/index.html"))
       } finally {
         _delete(dir)
       }
@@ -832,6 +926,13 @@ class DoxSiteSpec
         html should include_html("src=\"images/diagram.png\"")
         And("the normalized image does not retain its lexical dot segments")
         html should not include ("images/../images/diagram.png")
+        And("static image resources retain their original suffix in the generated realm")
+        realm.getString("/ja/articles/images/diagram.png").orElse(
+          realm.getString("ja/articles/images/diagram.png")
+        ) should not be None
+        realm.getString("/ja/articles/images/diagram.html").orElse(
+          realm.getString("ja/articles/images/diagram.html")
+        ) shouldBe None
       } finally {
         _delete(dir)
       }

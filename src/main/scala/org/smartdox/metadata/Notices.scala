@@ -19,8 +19,8 @@ import org.goldenport.util.InstantUtils
 import org.goldenport.util.LocalDateUtils.Implicits._
 import org.goldenport.util.CirceUtils
 import org.goldenport.util.CirceUtils.Codec._
-import org.goldenport.util.StringUtils
 import org.smartdox._
+import org.smartdox.doxsite.DoxSite
 import org.smartdox.doxsite.Node
 import org.smartdox.doxsite.Page
 import org.smartdox.doxsite.CategoryMetaData
@@ -39,7 +39,8 @@ import org.smartdox.metadata.PublishMetadata.{ArticleMediaVariant, ImageReferenc
  *  version Sep. 22, 2025
  *  version Oct. 12, 2025
  *  version Nov. 22, 2025
- * @version Aug. 29, 2026
+ *  version Aug. 29, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 case class Notices(
@@ -210,7 +211,7 @@ object Notices {
           md <- m.getMetadata
           title <- md.getTitleI18NString
         } yield {
-          val pathname = StringUtils.changeSuffix(node.pathnameRelative, "html")
+          val pathname = DoxSite.publicPath(node.pathnameRelative)
           val uri = new URI(pathname)
           val category = _find_category(node, md.category)
           Notice(

@@ -30,7 +30,7 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -280,7 +280,7 @@ object LinkEnabler {
                 val category = _document_category(sourcepath, metadata.category)
                 val tags = _document_tags(metadata).map(_tag_key(_, category)).filter(_.nonEmpty)
                 if (tags.contains(key)) {
-                  val publicpath = StringUtils.changeSuffix(sourcepath, "html")
+                  val publicpath = DoxSite.publicPath(sourcepath)
                   if (!seen(publicpath)) {
                     seen += publicpath
                     val title = metadata.getTitleStringDefault.getOrElse(publicpath)
@@ -395,7 +395,7 @@ object LinkEnabler {
     }
 
     private def _page_bibliography_entries: Vector[org.smartdox.metadata.Bibliography.Entry] = {
-      val current = StringUtils.changeSuffix(pageNode.pathnameRelative, "html")
+      val current = DoxSite.publicPath(pageNode.pathnameRelative)
       context.metadata.bibliography.entries.filter { entry =>
         entry.sourceRefs.exists(_.publicPath == current)
       }.sortBy { entry =>
@@ -580,8 +580,7 @@ object LinkEnabler {
             case Some(s) => s.title match {
               case Some(title0) =>
                 val title = _prepend(_link_mark, _inline_contents(locale, title0))
-                val relpath0 = StringUtils.relativizePathSafe(base, path)
-                val relpath = StringUtils.changeSuffix(relpath0, "html")
+                val relpath = DoxSite.relativePublicPath(base, path)
                 val tooltip = s.getEffectiveTooltip // .map(_text(locale, _))
                 val r = Hyperlink.createArticle(title, new URI(relpath), tooltip, pageNode.pathnameValue)
                 _internal_link(locale, r)

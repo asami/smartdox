@@ -26,7 +26,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Aug. 30, 2026
- * @version Aug. 30, 2026
+ *  version Aug. 30, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
   class DoxSiteBuilder(
@@ -166,7 +167,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
       }
 
     private def _yaml_category(pathname: String, name: String, s: String): List[Node] = try {
-      val index = StringUtils.changeLeafRelative(pathname, "index.html")
+      val index = DoxSite.publicPath(StringUtils.changeLeafRelative(pathname, "index.html"))
       implicit def decoder = Category.categoryDecoder(new URI(index))
 
       val in = InputSource(s)

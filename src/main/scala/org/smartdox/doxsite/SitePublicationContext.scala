@@ -14,7 +14,7 @@ import org.smartdox.transformer.DoxHomoTreeTransformer
 
 /*
  * @since   Sep.  7, 2026
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 final case class SitePublicationContext private (
@@ -154,7 +154,7 @@ object SitePublicationContext {
               sourcePath,
               targetpath,
               relative,
-              StringUtils.changeSuffix(targetpath, "html"),
+              DoxSite.publicPath(targetpath),
               title,
               lookup(targetpath).flatMap(_.getEffectiveTooltip)
             )
@@ -297,11 +297,8 @@ object SitePublicationContext {
     }
 
   private def _relative_uri(sourcePath: String, targetPath: String, fragment: String): URI = {
-    val sourceparent = sourcePath.split('/').toVector.filter(_.nonEmpty).dropRight(1)
-    val target = targetPath.split('/').toVector.filter(_.nonEmpty)
-    val shared = sourceparent.zip(target).takeWhile { case (lhs, rhs) => lhs == rhs }.length
-    val path = (Vector.fill(sourceparent.length - shared)("..") ++ target.drop(shared)).mkString("/")
-    new URI(null, null, StringUtils.changeSuffix(path, "html"), null, fragment)
+    val path = DoxSite.relativePublicPath(sourcePath, targetPath)
+    new URI(null, null, path, null, fragment)
   }
 
   private class SiteLinkProjection(context: SitePublicationContext, locale: Locale) extends DoxHomoTreeTransformer {
