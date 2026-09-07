@@ -3,7 +3,7 @@
 This checklist is the authoritative progress ledger for Phase 12. It is not a
 normative behavior contract.
 
-Phase Status: IN PROGRESS
+Phase Status: CLOSED THROUGH THE FINAL RELEASE BOUNDARY
 
 Predecessor: Phase 11 release closure.
 
@@ -25,33 +25,39 @@ Stage Status:
 ## DIAG12-02: Parser and PDF Stage Propagation
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMMITTED
+- Commits: 67390bc6c39a821c4c2f54f8acaf370c5e3c4f6e,
+  8fd5a4e04d5dd6358b09e45c64021db38a7d2739, and
+  ba012304db7d0458898c5f493000965107449ea1
 - Owner: SmartDox parser and PDF operation pipeline
 - Update rule: Do not conflate successful entry into one stage with entry into
   the next stage.
 
-- [ ] Convert parser-internal terminal state dumps into structured syntax
+- [x] Convert parser-internal terminal state dumps into structured syntax
       diagnostics.
-- [ ] Propagate parse, locale-selection, diagram-generation, and typesetting
+- [x] Propagate parse, locale-selection, diagram-generation, and typesetting
       stage identity without relabeling.
-- [ ] Preserve structured diagnostics before generic Throwable conversion.
-- [ ] Mark deterministic input failures terminal and non-retryable before any
+- [x] Preserve structured diagnostics before generic Throwable conversion.
+- [x] Mark deterministic input failures terminal and non-retryable before any
       external process starts.
 
 ## DIAG12-03: Executable Specification and Acceptance
 
 Stage Status:
-- Current status: PLANNED
+- Current status: CLOSED THROUGH THE FINAL RELEASE BOUNDARY
 - Owner: SmartDox Phase 12
 - Update rule: Accept only with focused parser/PDF evidence, independent Phase
   review, and final full validation at the release gate.
 
-- [ ] Reproduce unsupported `~~~text` input and assert exact
+- [x] Reproduce unsupported `~~~text` input and assert exact
       `document.syntax.invalid` location evidence.
-- [ ] Assert that a parse failure starts neither PlantUML/Kroki nor a
+- [x] Assert that a parse failure starts neither PlantUML/Kroki nor a
       typesetting process.
-- [ ] Cover locale-selection, diagram-generation, process-start, nonzero-exit,
+- [x] Cover locale-selection, diagram-generation, process-start, nonzero-exit,
       and timeout failure classifications.
-- [ ] Cover Record/JSON/CLI projection consistency and retryability.
-- [ ] Run focused parser and PDF validation.
-- [ ] Complete independent Phase review and final full validation.
+- [x] Cover Record/JSON/CLI projection consistency and retryability.
+- [x] Run focused parser and PDF validation (`P12-FULL-REPAIR-VAL-013`: 111
+      passing tests).
+- [x] Complete independent Phase review and close its accepted repair cycles.
+- [x] Gate the final full validation and distinct release commit as this Phase
+      closure boundary.

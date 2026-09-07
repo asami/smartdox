@@ -26,7 +26,7 @@ import org.smartdox.diagnostics.{StructuredRenderingDiagnostic, StructuredRender
  *  version Nov.  5, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 object DoxInlineParser {
@@ -493,7 +493,7 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, ParseResult.empty, asterisc_State(evt))
 
     protected def asterisc_State(evt: CharEvent): DoxInlineParseState =
-      asterisc_State(evt.c)
+      InlineState(BoldState(config, this), '*', evt.location)
 
     protected def asterisc_State(c: Char): DoxInlineParseState =
       InlineState(BoldState(config, this), '*')
@@ -505,7 +505,12 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, ParseResult.empty, underscore_State(evt))
 
     protected def underscore_State(evt: CharEvent): DoxInlineParseState =
-      underscore_State(evt.c)
+      if (config.markdown.isItalic || config.markdown.isItalic2)
+        InlineState(ItalicState(config, this), '_', evt.location)
+      else if (config.orgmode.isUnderline)
+        InlineState(UnderlineState(config, this), '_', evt.location)
+      else
+        character_State(evt.c)
 
     protected def underscore_State(c: Char): DoxInlineParseState =
       if (config.markdown.isItalic || config.markdown.isItalic2)
@@ -534,7 +539,7 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, ParseResult.empty, tilde_State(evt))
 
     protected def tilde_State(evt: CharEvent): DoxInlineParseState =
-      tilde_State(evt.c)
+      InlineState(CodeState.console(config, this), '~', evt.location)
 
     protected def tilde_State(c: Char): DoxInlineParseState =
       InlineState(CodeState.console(config, this), '~')
@@ -570,7 +575,7 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, ParseResult.empty, plus_State(evt))
 
     protected def plus_State(evt: CharEvent): DoxInlineParseState =
-      plus_State(evt.c)
+      InlineState(StrikeThroughState(config, this), '+', evt.location)
 
     protected def plus_State(c: Char): DoxInlineParseState =
       InlineState(StrikeThroughState(config, this), '+')
@@ -582,7 +587,7 @@ object DoxInlineParser {
       (ParseMessageSequence.empty, ParseResult.empty, slash_State(evt))
 
     protected def slash_State(evt: CharEvent): DoxInlineParseState =
-      slash_State(evt.c)
+      InlineState(ItalicState(config, this), '/', evt.location)
 
     protected def slash_State(c: Char): DoxInlineParseState =
       InlineState(ItalicState(config, this), '/')
@@ -866,7 +871,8 @@ object DoxInlineParser {
     closeChar2: Option[Char] = None,
     doxes: Vector[Dox] = Vector.empty,
     cs: Vector[Char] = Vector.empty,
-    isInSpace: Boolean = false
+    isInSpace: Boolean = false,
+    private val openinglocation: ParseLocation = ParseLocation.start
   ) extends ChildDoxInlineParseState with InlineFeature {
     override protected def use_parenthesis: Boolean = true
 
@@ -911,11 +917,36 @@ object DoxInlineParser {
       throw new StructuredRenderingDiagnosticException(
         StructuredRenderingDiagnostic.documentSyntaxInvalid(
           sourceIdentity = config._source_identity_option.getOrElse("<inline-input>"),
-          line = config.location.flatMap(_.line).getOrElse(1),
-          column = config.location.flatMap(_.offset).getOrElse(1),
-          tokenContext = config._token_context_option.getOrElse(closeChar1.toString)
+          line = _source_line,
+          column = _source_column,
+          tokenContext = _token_context
         )
       )
+
+    private def _source_line: Int =
+      (config.location.flatMap(_.line), openinglocation.line) match {
+        case (Some(origin), Some(relative)) => origin + relative - 1
+        case (Some(origin), None) => origin
+        case (None, Some(relative)) => relative
+        case (None, None) => 1
+      }
+
+    private def _source_column: Int =
+      (openinglocation.line, config.location.flatMap(_.offset), openinglocation.offset) match {
+        case (Some(1), Some(origin), Some(relative)) => origin + relative - 1
+        case (_, _, Some(relative)) => relative
+        case (_, Some(origin), None) => origin
+        case _ => 1
+      }
+
+    private def _token_context: String =
+      config._token_context_option.map { input =>
+        CharEvent.make(input).
+          dropWhile(_.location != openinglocation).
+          map(_.c).
+          mkString.
+          take(160)
+      }.filter(_.nonEmpty).getOrElse(closeChar1.toString)
 
     override protected def open_Angle_Bracket_State(evt: CharEvent): DoxInlineParseState = {
       val r = if (is_match(evt))
@@ -1020,15 +1051,52 @@ object DoxInlineParser {
 
     def apply(
       parent: DoxInlineParseState,
+      closeChar: Char,
+      openingLocation: ParseLocation
+    ): InlineState = InlineState(
+      parent.config,
+      parent,
+      closeChar,
+      openinglocation = openingLocation
+    )
+
+    def apply(
+      parent: DoxInlineParseState,
       closeChar1: Char,
       closeChar2: Char
     ): InlineState = InlineState(parent.config, parent, closeChar1, Some(closeChar2))
 
+    def apply(
+      parent: DoxInlineParseState,
+      closeChar1: Char,
+      closeChar2: Char,
+      openingLocation: ParseLocation
+    ): InlineState = InlineState(
+      parent.config,
+      parent,
+      closeChar1,
+      Some(closeChar2),
+      openinglocation = openingLocation
+    )
+
     def createCloseFirst(
       parent: DoxInlineParseState,
       closeChar: Char,
-      firstchar: Char
-    ): InlineState = InlineState(parent.config, parent, closeChar, cs = Vector(firstchar))
+      firstChar: Char
+    ): InlineState = InlineState(parent.config, parent, closeChar, cs = Vector(firstChar))
+
+    def createCloseFirst(
+      parent: DoxInlineParseState,
+      closeChar: Char,
+      firstChar: Char,
+      openingLocation: ParseLocation
+    ): InlineState = InlineState(
+      parent.config,
+      parent,
+      closeChar,
+      cs = Vector(firstChar),
+      openinglocation = openingLocation
+    )
 
     // def create(
     //   parent: DoxInlineParseState,
@@ -1145,14 +1213,14 @@ object DoxInlineParser {
 
     override protected def space_State(c: Char): DoxInlineParseState = this
 
-    override protected def open_Bracket_State(c: Char): DoxInlineParseState =
-      InlineState(OrgModeLinkUrnState(config, parent), ']')
+    override protected def open_Bracket_State(evt: CharEvent): DoxInlineParseState =
+      InlineState(OrgModeLinkUrnState(config, parent), ']', evt.location)
 
     override protected def close_Bracket_State(c: Char): DoxInlineParseState =
       ???
 
-    override protected def character_State(c: Char): DoxInlineParseState = {
-      val r = InlineState.createCloseFirst(MarkdownLinkUrnState(config, parent), ']', c)
+    override protected def character_State(evt: CharEvent): DoxInlineParseState = {
+      val r = InlineState.createCloseFirst(MarkdownLinkUrnState(config, parent), ']', evt.c, evt.location)
       r
     }
   }
@@ -1184,8 +1252,8 @@ object DoxInlineParser {
 
     override def returnInlineFrom(doxes: Seq[Inline]) = copy(urn = doxes)
 
-    override protected def open_Bracket_State(c: Char): DoxInlineParseState =
-      InlineState(OrgModeLinkLabelState(config, parent, urn), ']', ']')
+    override protected def open_Bracket_State(evt: CharEvent): DoxInlineParseState =
+      InlineState(OrgModeLinkLabelState(config, parent, urn), ']', ']', evt.location)
 
     override protected def close_Bracket_State(c: Char): DoxInlineParseState = {
       // // XXX annotation, block, figure
@@ -1256,7 +1324,7 @@ object DoxInlineParser {
 
     override protected def handle_char_event(evt: CharEvent): Transition =
       evt.c match {
-        case '(' => to_transition(InlineState(MarkdownLinkLabelState(config, parent, urn), ')'))
+        case '(' => to_transition(InlineState(MarkdownLinkLabelState(config, parent, urn), ')', evt.location))
         case _ =>
           _deprecated_site_link(evt)
       }

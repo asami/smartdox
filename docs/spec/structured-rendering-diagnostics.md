@@ -34,7 +34,9 @@ Every structured rendering diagnostic MUST provide these fields:
 | `retryable` | Descriptive retryability information only. |
 
 For `document.syntax.invalid`, source path/identity, line, column, and concise
-authored-token context are required syntax facets. The stage is `parse`.
+authored-token context are required syntax facets. Generic syntax facets MUST
+identify the active offending delimiter; their bounded context MUST begin at
+that delimiter rather than at parser input start. The stage is `parse`.
 
 ## Stage and failure semantics
 
@@ -110,7 +112,8 @@ boundary before waiting. When the configured deadline expires, it terminates
 the entire observed process tree in reverse descendant order: it asks each
 descendant and then the parent to terminate, allows one fixed private
 1000-millisecond graceful period, and forcibly terminates any remaining
-descendants and parent. It then produces `pdf.typesetting.timeout`, with stage
+descendants and parent. It MUST wait for verified termination of every observed
+descendant and parent before it produces `pdf.typesetting.timeout`, with stage
 `typesetting`, the `PdfCommand` input path as source identity, no line or
 column, the bounded canonical renderer token, cause
 `external-typesetting-timeout`, `terminal=true`, and `retryable=true`. The
@@ -132,7 +135,7 @@ Throwable display string.
 Executable specifications for implementation of this contract MUST show that:
 
 - an unsupported or malformed authored syntax form yields
-  `document.syntax.invalid` with its source facets and `parse` stage;
+  `document.syntax.invalid` with active-delimiter source facets and `parse` stage;
 - invalid, unsupported, and unavailable PDF locale selection yields its
   corresponding `pdf.locale.*` code before a renderer process starts, and an
   unsupported nonblank PDF renderer yields `pdf.renderer.unsupported` during
@@ -149,8 +152,8 @@ Executable specifications for implementation of this contract MUST show that:
   details; and
 - malformed, nonpositive, and overflowed supplied typesetting deadlines fail
   with `pdf.typesetting.timeout.invalid` before renderer startup, while an
-  expired deadline produces `pdf.typesetting.timeout` and terminates a recorded
-  renderer descendant; and
+  expired deadline produces `pdf.typesetting.timeout` only after a recorded
+  renderer descendant has terminated; and
 - CLI and Record/JSON views agree because they project one typed diagnostic.
 
 This specification does not admit `~~~` grammar, define a retry loop, change a

@@ -28,7 +28,7 @@ import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, Pr
 @RunWith(classOf[JUnitRunner])
 class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with GivenWhenThen with UseDox2Parser {
   "inline tag pipeline" should {
-    "report filename-aware unclosed inline syntax through the structured parse diagnostic" in {
+    "report the filename-aware active delimiter through the structured parse diagnostic" in {
       Given("a filename-aware SmartDox input with an unsupported unclosed tilde delimiter")
       val source = "~~~text"
 
@@ -37,18 +37,37 @@ class Dox2ParserSpec extends AnyWordSpec with Matchers with ScalazMatchers with 
         Dox2Parser.parseWithFilename("articles/diagnostic.dox", source)
       }
 
-      Then("the generic parse diagnostic retains bounded authored source facets without parser state")
+      Then("the generic parse diagnostic retains the active delimiter source facets without parser state")
       failure.diagnostic.code shouldBe "document.syntax.invalid"
       failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
       failure.diagnostic.sourceIdentity shouldBe Some("articles/diagnostic.dox")
       failure.diagnostic.line shouldBe Some(1)
-      failure.diagnostic.column shouldBe Some(1)
-      failure.diagnostic.tokenContext shouldBe Some(source)
+      failure.diagnostic.column shouldBe Some(3)
+      failure.diagnostic.tokenContext shouldBe Some("~text")
       failure.diagnostic.tokenContext.get.length should be <= 160
       failure.diagnostic.terminal shouldBe true
       failure.diagnostic.retryable shouldBe false
       failure.getMessage should not include "end_Result"
       failure.getMessage should not include "InlineState"
+    }
+
+    "retain a later active delimiter location and bounded context after a long prefix" in {
+      Given("a filename-aware SmartDox input whose unsupported delimiter follows a long authored prefix")
+      val prefix = "x" * 200
+      val source = s"$prefix~~~text"
+
+      When("Dox2Parser reaches end of input while parsing the final authored tilde delimiter")
+      val failure = intercept[StructuredRenderingDiagnosticException] {
+        Dox2Parser.parseWithFilename("articles/diagnostic.dox", source)
+      }
+
+      Then("the syntax diagnostic starts its context at that delimiter rather than at input start")
+      failure.diagnostic.code shouldBe "document.syntax.invalid"
+      failure.diagnostic.sourceIdentity shouldBe Some("articles/diagnostic.dox")
+      failure.diagnostic.line shouldBe Some(1)
+      failure.diagnostic.column shouldBe Some(203)
+      failure.diagnostic.tokenContext shouldBe Some("~text")
+      failure.diagnostic.tokenContext.get.length should be <= 160
     }
 
     "defer attributed generic and RDF tags to DoxInlineParser" in {

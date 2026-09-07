@@ -25,7 +25,10 @@ specialized syntax contracts retain their stable identities, including
 `image.markdown.malformed` and `image.markdown.unsupported-resource` under
 [`docs/spec/markdown-image-admission.md`](../spec/markdown-image-admission.md).
 It retains source identity or path, line, column, and concise authored-token
-context. Parser-internal terminal states and generic exception displays are
+context. A generic syntax facet identifies the active offending delimiter: its
+position composes the parser event position with any configured authored-line
+origin, and its bounded context begins at that delimiter rather than at parser
+input start. Parser-internal terminal states and generic exception displays are
 not a public diagnostic identity.
 
 The PDF pipeline assigns exactly one primary stage. Its vocabulary is closed:
@@ -73,7 +76,8 @@ nor projected. When a started renderer exceeds its deadline, the seam owns
 private tree cleanup: it visits the observed descendants in reverse order,
 requests graceful descendant-then-parent termination, waits one fixed private
 1000-millisecond grace period, and forcibly terminates still-live descendants
-and parent. Its public outcome is only the terminal, retryable
+and parent. It then waits again for verified termination of every observed
+descendant and parent before its timeout outcome escapes. Its public outcome is only the terminal, retryable
 `pdf.typesetting.timeout` diagnostic at `typesetting`, bound to the
 `PdfCommand` input and canonical renderer token with cause
 `external-typesetting-timeout`. Child PIDs, commands, executable paths, and
@@ -104,11 +108,13 @@ workspace preparation, or renderer-process startup. The parser's existing
 document-syntax identity and `parse` stage pass through unchanged.
 
 This boundary maps the external LaTeX diagram-generation failure and all common
-renderer-process outcomes. The shared process seam raises one of the
-PDF-private outcome types for start failure, nonzero exit, or deadline expiry,
-and the Chrome, Asciidoctor, and LaTeX output checks raise the missing-output
-outcome.
-`_execute` alone translates those types into the stable typed diagnostics.
+renderer-process outcomes. `PdfRendererExecution` owns the package-private
+process seam, its PDF-private diagram adapter, failure algebra, canonical
+renderer-token projection, and Docker execution-path value. The shared process
+seam raises one of the PDF-private outcome types for start failure, nonzero
+exit, or deadline expiry, and the Chrome, Asciidoctor, and LaTeX output checks
+raise the missing-output outcome. `_execute` invokes that seam's stable typed
+diagnostic mapping.
 Parser and locale `StructuredRenderingDiagnosticException` values, and the
 accepted diagram-generation translation, do not enter that translation path
 and retain their earlier-stage identities. Merged process output is discarded

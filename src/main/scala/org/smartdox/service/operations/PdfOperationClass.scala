@@ -4,7 +4,6 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, LinkOption, Path, Paths, StandardCopyOption}
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import org.goldenport.context.Consequence
 import org.goldenport.cli._
 import org.goldenport.bag.{ChunkBag, FileBag}
@@ -60,9 +59,9 @@ case object PdfOperationClass extends OperationClassWithOperation {
       }
       PdfResult(artifact, target)
     } catch {
-      case failure: PdfTypesettingProcessFailure =>
+      case failure: PdfRendererExecution.PdfTypesettingProcessFailure =>
         throw new StructuredRenderingDiagnosticException(
-          _typesetting_failure_diagnostic(cmd, failure)
+          PdfRendererExecution.typesettingFailureDiagnostic(cmd, failure)
         )
     }
   }
@@ -158,7 +157,14 @@ case object PdfOperationClass extends OperationClassWithOperation {
     ).take
     val workdir = Files.createTempDirectory(_temp_prefix(_latex_filename(cmd.in)))
     try {
-      val latex = _latex(ctx, cmd, dox, workdir.toFile, input.resourceroot, diagramrenderer)
+      val latex = PdfRendererExecution.latex(
+        ctx,
+        cmd,
+        dox,
+        workdir.toFile,
+        input.resourceroot,
+        diagramrenderer
+      )
       val texbag = _text_bag_in(workdir, _latex_filename(cmd.in), latex)
       val out = _output_bag(cmd.in)
       try {
@@ -428,71 +434,6 @@ case object PdfOperationClass extends OperationClassWithOperation {
     new Dox2AsciidocConverter(cctx).convert(dox).take
   }
 
-  private def _latex(
-    ctx: GeneratorContext,
-    cmd: PdfCommand,
-    dox: Dox,
-    diagramdir: File,
-    resourceroot: File,
-    diagramrenderer: Option[Dox2LatexConverter.DiagramRenderer]
-  ): String = {
-    val converter = new PdfDox2LatexConverter(
-      cmd,
-      ctx,
-      diagramdir,
-      resourceroot,
-      diagramrenderer
-    )
-    val latex = converter.convert(dox).take
-    converter.diagramGenerationFailure.foreach { failure =>
-      throw new StructuredRenderingDiagnosticException(
-        StructuredRenderingDiagnostic.pdfDiagramGenerationFailed(
-          sourceIdentity = cmd.in.getPath,
-          tokenContext = failure.kind
-        )
-      )
-    }
-    latex
-  }
-
-  private final case class PdfDiagramGenerationFailure(
-    kind: String,
-    source: String,
-    error: Throwable
-  )
-
-  private final class PdfDox2LatexConverter(
-    cmd: PdfCommand,
-    ctx: GeneratorContext,
-    diagramdir: File,
-    resourceroot: File,
-    diagramrenderer: Option[Dox2LatexConverter.DiagramRenderer]
-  ) extends Dox2LatexConverter(
-    cmd.latexEngine,
-    cmd.latexFormat,
-    cmd.latexDate,
-    cmd.latexAffiliation,
-    cmd.latexAuthor,
-    Some(ctx),
-    Some(diagramdir),
-    isDiagramGeneration = true,
-    diagramRenderer = diagramrenderer,
-    resourceBaseDir = Some(resourceroot)
-  ) {
-    private var _diagram_generation_failure: Option[PdfDiagramGenerationFailure] = None
-
-    def diagramGenerationFailure: Option[PdfDiagramGenerationFailure] =
-      _diagram_generation_failure
-
-    override protected def on_DiagramGenerationFailure(
-      kind: String,
-      source: String,
-      error: Throwable
-    ): Unit =
-      if (_diagram_generation_failure.isEmpty)
-        _diagram_generation_failure = Some(PdfDiagramGenerationFailure(kind, source, error))
-  }
-
   private def _write_chrome_pdf(cmd: PdfCommand, html: String): ChunkBag = {
     val htmlbag = _text_bag(_html_filename(cmd.in), html)
     val out = _output_bag(cmd.in)
@@ -507,7 +448,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
   private def _print_to_pdf(cmd: PdfCommand, html: Path, out: Path): Unit = {
     _local_chrome(cmd) match {
       case Some(chrome) =>
-        _run_process(
+        PdfRendererExecution.runProcess(
           cmd,
           Vector(
             chrome.getPath,
@@ -525,7 +466,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
         _run_chrome_pdf_in_docker(cmd, html, out)
     }
     if (!_has_pdf_output(out))
-      throw PdfTypesettingOutputMissing()
+      throw PdfRendererExecution.PdfTypesettingOutputMissing()
   }
 
   private def _detect_chrome(): File = {
@@ -607,7 +548,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
   private def _run_asciidoctor_pdf(cmd: PdfCommand, adoc: Path, out: Path): Unit = {
     _local_asciidoctor_pdf(cmd) match {
       case Some(asciidoctorpdf) =>
-        _run_process(
+        PdfRendererExecution.runProcess(
           cmd,
           Vector(
             asciidoctorpdf.getPath,
@@ -620,7 +561,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
         _run_asciidoctor_pdf_in_docker(cmd, adoc, out)
     }
     if (!_has_pdf_output(out))
-      throw PdfTypesettingOutputMissing()
+      throw PdfRendererExecution.PdfTypesettingOutputMissing()
   }
 
   private def _run_latex_pdf(cmd: PdfCommand, tex: Path, out: Path): Unit = {
@@ -630,7 +571,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
           case Dox2LatexConverter.Engine.LuaLatex => Vector("-lualatex")
           case Dox2LatexConverter.Engine.UpLatex => Vector("-pdfdvi")
         }
-        _run_process(
+        PdfRendererExecution.runProcess(
           cmd,
           Vector(_local_latexmk_command(latexmk)) ++
           engineargs ++
@@ -652,7 +593,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
     } else if (_has_pdf_output(generated)) {
       Files.copy(generated, out, StandardCopyOption.REPLACE_EXISTING)
     } else {
-      throw PdfTypesettingOutputMissing()
+      throw PdfRendererExecution.PdfTypesettingOutputMissing()
     }
   }
 
@@ -734,9 +675,9 @@ case object PdfOperationClass extends OperationClassWithOperation {
     }
 
   private def _run_chrome_pdf_in_docker(cmd: PdfCommand, html: Path, out: Path): Unit = {
-    val input = _docker_file(html, "input")
-    val output = _docker_file(out, "output")
-    _run_process(
+    val input = PdfRendererExecution.dockerFile(html, "input")
+    val output = PdfRendererExecution.dockerFile(out, "output")
+    PdfRendererExecution.runProcess(
       cmd,
       _docker_prefix(cmd, input.parent, output.parent) ++ Vector(
         "chromium",
@@ -754,9 +695,9 @@ case object PdfOperationClass extends OperationClassWithOperation {
   }
 
   private def _run_asciidoctor_pdf_in_docker(cmd: PdfCommand, adoc: Path, out: Path): Unit = {
-    val input = _docker_file(adoc, "input")
-    val output = _docker_file(out, "output")
-    _run_process(
+    val input = PdfRendererExecution.dockerFile(adoc, "input")
+    val output = PdfRendererExecution.dockerFile(out, "output")
+    PdfRendererExecution.runProcess(
       cmd,
       _docker_prefix(cmd, input.parent, output.parent) ++ Vector(
         "asciidoctor-pdf",
@@ -772,9 +713,9 @@ case object PdfOperationClass extends OperationClassWithOperation {
   }
 
   private def _run_latex_pdf_in_docker(cmd: PdfCommand, tex: Path, out: Path): Unit = {
-    val input = _docker_file(tex, "input")
+    val input = PdfRendererExecution.dockerFile(tex, "input")
     val outputdir = Files.createTempDirectory(_temp_prefix(s"${_filename_body(input.name)}-latex-output"))
-    val output = DockerFile(outputdir, out.getFileName.toString, "output")
+    val output = PdfRendererExecution.DockerFile(outputdir, out.getFileName.toString, "output")
     val dvi = s"${output.parentContainerPath}/${_filename_body(input.name)}.dvi"
     val command = cmd.latexEngine match {
       case Dox2LatexConverter.Engine.LuaLatex =>
@@ -786,7 +727,7 @@ case object PdfOperationClass extends OperationClassWithOperation {
         ).mkString(" && ")
     }
     try {
-      _run_process(
+      PdfRendererExecution.runProcess(
         cmd,
         _docker_prefix(cmd, input.parent, output.parent) ++ Vector(
           "sh",
@@ -815,153 +756,6 @@ case object PdfOperationClass extends OperationClassWithOperation {
       "/work",
       cmd.dockerImage.getOrElse(PdfCommand.defaultDockerImage)
     )
-
-  private def _docker_file(path: Path, containerRoot: String): DockerFile = {
-    val absolute = path.toAbsolutePath.normalize
-    DockerFile(
-      absolute.getParent,
-      absolute.getFileName.toString,
-      containerRoot
-    )
-  }
-
-  private def _run_process(
-    cmd: PdfCommand,
-    args: Vector[String],
-    workingdirectory: Option[Path] = None
-  ): Unit = {
-    val builder = new ProcessBuilder(args: _*)
-      .redirectErrorStream(true)
-      .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-    workingdirectory.foreach(path => builder.directory(path.toFile))
-    val process =
-      try builder.start()
-      catch {
-        case _: java.io.IOException => throw PdfTypesettingProcessStartFailed()
-      }
-    val completed =
-      try process.waitFor(cmd.typesettingTimeoutMillis, TimeUnit.MILLISECONDS)
-      catch {
-        case e: InterruptedException =>
-          Thread.currentThread.interrupt()
-          throw e
-      }
-    if (!completed) {
-      _terminate_process_tree(process)
-      throw PdfTypesettingTimeout()
-    }
-    val code = process.exitValue()
-    if (code != 0)
-      throw PdfTypesettingNonzeroExit()
-  }
-
-  private def _terminate_process_tree(process: Process): Unit = {
-    val handles = _process_tree_handles(process)
-    handles.foreach(_destroy_process)
-    _await_process_tree_termination(handles)
-    handles.foreach(_force_destroy_process)
-  }
-
-  private def _process_tree_handles(process: Process): Vector[ProcessHandle] = {
-    val stream = process.toHandle.descendants()
-    try {
-      val iterator = stream.iterator()
-      val builder = Vector.newBuilder[ProcessHandle]
-      while (iterator.hasNext)
-        builder += iterator.next()
-      builder.result().reverse :+ process.toHandle
-    } finally {
-      stream.close()
-    }
-  }
-
-  private def _destroy_process(handle: ProcessHandle): Unit =
-    if (handle.isAlive)
-      handle.destroy()
-
-  private def _await_process_tree_termination(handles: Vector[ProcessHandle]): Unit = {
-    val deadline = System.nanoTime +
-      TimeUnit.MILLISECONDS.toNanos(_process_termination_grace_millis)
-    while (handles.exists(_.isAlive) && System.nanoTime < deadline) {
-      val remainingnanos = deadline - System.nanoTime
-      if (remainingnanos > 0L) {
-        val waitnanos = math.min(
-          remainingnanos,
-          TimeUnit.MILLISECONDS.toNanos(_process_termination_poll_millis)
-        )
-        try TimeUnit.NANOSECONDS.sleep(waitnanos)
-        catch {
-          case _: InterruptedException => Thread.currentThread.interrupt()
-        }
-      }
-    }
-  }
-
-  private def _force_destroy_process(handle: ProcessHandle): Unit =
-    if (handle.isAlive)
-      handle.destroyForcibly()
-
-  private def _typesetting_failure_diagnostic(
-    cmd: PdfCommand,
-    failure: PdfTypesettingProcessFailure
-  ): StructuredRenderingDiagnostic =
-    failure match {
-      case _: PdfTypesettingProcessStartFailed =>
-        StructuredRenderingDiagnostic.pdfTypesettingProcessStartFailed(
-          sourceIdentity = cmd.in.getPath,
-          tokenContext = _canonical_renderer_token(cmd.renderer)
-        )
-      case _: PdfTypesettingNonzeroExit =>
-        StructuredRenderingDiagnostic.pdfTypesettingNonzeroExit(
-          sourceIdentity = cmd.in.getPath,
-          tokenContext = _canonical_renderer_token(cmd.renderer)
-        )
-      case _: PdfTypesettingOutputMissing =>
-        StructuredRenderingDiagnostic.pdfTypesettingOutputMissing(
-          sourceIdentity = cmd.in.getPath,
-          tokenContext = _canonical_renderer_token(cmd.renderer)
-        )
-      case _: PdfTypesettingTimeout =>
-        StructuredRenderingDiagnostic.pdfTypesettingTimeout(
-          sourceIdentity = cmd.in.getPath,
-          tokenContext = _canonical_renderer_token(cmd.renderer)
-        )
-    }
-
-  private def _canonical_renderer_token(renderer: PdfRenderer): String =
-    renderer match {
-      case PdfRenderer.ChromeHeadless => "chrome-headless"
-      case PdfRenderer.Asciidoc => "asciidoc"
-      case PdfRenderer.Latex => "latex"
-    }
-
-  private sealed abstract class PdfTypesettingProcessFailure extends RuntimeException
-
-  private final case class PdfTypesettingProcessStartFailed()
-    extends PdfTypesettingProcessFailure
-
-  private final case class PdfTypesettingNonzeroExit()
-    extends PdfTypesettingProcessFailure
-
-  private final case class PdfTypesettingOutputMissing()
-    extends PdfTypesettingProcessFailure
-
-  private final case class PdfTypesettingTimeout()
-    extends PdfTypesettingProcessFailure
-
-  private val _process_termination_grace_millis = 1000L
-  private val _process_termination_poll_millis = 10L
-
-  private case class DockerFile(parent: Path, name: String, containerRoot: String) {
-    def containerPath: String =
-      s"/work/$containerRoot/$name"
-
-    def parentContainerPath: String =
-      s"/work/$containerRoot"
-
-    def containerUri: String =
-      s"file://$containerPath"
-  }
 
   case class PdfCommand(
     siteParameters: SiteParameters,

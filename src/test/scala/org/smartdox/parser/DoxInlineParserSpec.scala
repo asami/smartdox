@@ -161,7 +161,7 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       failure.getMessage should not include "document.syntax.invalid"
     }
 
-    "provide complete fixed source facets for direct unclosed inline syntax" in {
+    "identify the active delimiter for direct unclosed inline syntax" in {
       Given("a direct SmartDox inline input without filename or parse location")
       val source = "~~~text"
 
@@ -170,15 +170,31 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
         DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
       }
 
-      Then("the structured syntax diagnostic identifies the supplied inline input with complete parse facets")
+      Then("the structured syntax diagnostic identifies the third tilde and its bounded authored fragment")
       failure.diagnostic.code shouldBe "document.syntax.invalid"
       failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
       failure.diagnostic.sourceIdentity shouldBe Some("<inline-input>")
       failure.diagnostic.line shouldBe Some(1)
-      failure.diagnostic.column shouldBe Some(1)
-      failure.diagnostic.tokenContext shouldBe Some(source)
+      failure.diagnostic.column shouldBe Some(3)
+      failure.diagnostic.tokenContext shouldBe Some("~text")
       failure.diagnostic.terminal shouldBe true
       failure.diagnostic.retryable shouldBe false
+    }
+
+    "retain the active multiline delimiter location and context" in {
+      Given("a direct SmartDox inline input whose unsupported delimiter starts after an authored line break")
+      val source = "abc\n~~~text"
+
+      When("the inline parser reaches end of input while parsing the third tilde on the second line")
+      val failure = intercept[StructuredRenderingDiagnosticException] {
+        DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      }
+
+      Then("the structured syntax diagnostic begins its bounded context at that second-line delimiter")
+      failure.diagnostic.code shouldBe "document.syntax.invalid"
+      failure.diagnostic.line shouldBe Some(2)
+      failure.diagnostic.column shouldBe Some(3)
+      failure.diagnostic.tokenContext shouldBe Some("~text")
     }
 
     "admit exact Markdown images with source-exact alternative text" in {

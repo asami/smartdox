@@ -4,12 +4,13 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Most recently closed phase: `phase-11.md`: DoxSite Source-Root Semantics
-  for Local Resources. Its DSROOT11-01 parser-context Step and DSROOT11-02
-  DoxSite-propagation Step are accepted and committed; DSROOT11-03 has
-  executable evidence and focused validation complete with the Phase review
-  sealed. Its closure becomes authoritative only when the final full suite and
-  distinct release commit succeed.
+- Most recently closed phase: `phase-12.md`: Structured Rendering Diagnostics
+  and Terminal Failure Semantics. Its DIAG12-01 vocabulary, DIAG12-02 parser/
+  PDF propagation, and DIAG12-03 executable-acceptance stages are committed or
+  closed through this final release boundary. The focused closure review sealed
+  its two-cycle repair delta after 111 focused tests passed; closure becomes
+  authoritative only when the final full suite and distinct release commit
+  succeed.
 - Phase 7 was accepted in the `TAG7-01` Step commit
   `496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic
   inline open-tag grammar`). Its mandatory full Phase review found one bounded
@@ -63,8 +64,9 @@ authority is `phase-11.md` plus `phase-11-checklist.md`; it completes the
 DoxSite consumer follow-up with explicit physical, virtual, and absent
 source-root semantics without a current-directory fallback.
 
-Phase 12 is planned in `phase-12.md` plus `phase-12-checklist.md`. It will add
-structured source-located syntax diagnostics, distinct parse/locale/diagram/
-typesetting stage evidence, and terminal non-retryable semantics for
-deterministic input failures. Cozy retry orchestration and Cozy launcher/local-
-wrapper resolution remain outside the SmartDox Phase boundary.
+Phase 12 is closed through this final release boundary in `phase-12.md` plus
+`phase-12-checklist.md`. It adds structured source-located syntax diagnostics,
+distinct parse/locale/diagram/typesetting stage evidence, and terminal
+non-retryable semantics for deterministic input failures. Cozy retry
+orchestration and Cozy launcher/local-wrapper resolution remain outside the
+SmartDox Phase boundary.

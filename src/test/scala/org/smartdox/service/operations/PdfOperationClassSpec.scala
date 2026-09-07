@@ -2,7 +2,8 @@ package org.smartdox.service.operations
 
 import java.util.{Base64, Locale}
 import java.net.URI
-import java.nio.file.{Files, Paths}
+import java.nio.file.{FileSystems, Files, Paths, StandardWatchEventKinds}
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.runner.RunWith
 import io.circe.Json
 import org.scalatest.GivenWhenThen
@@ -720,7 +721,7 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       }
     }
 
-    "terminate a local renderer process tree when its configured typesetting deadline expires" in {
+    "return from a timeout only after its observed local renderer process tree terminates" in {
       Given("a valid PDF input, a local latexmk that waits for a long-lived child, and a short deadline")
       val root = Files.createTempDirectory("smartdox-pdf-typesetting-timeout")
       val input = root.resolve("typesetting.dox")
@@ -741,7 +742,7 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       )
       val command = PdfOperationClass.PdfCommand.create(request)
       try {
-        When("the public local LaTeX operation reaches its configured process deadline")
+      When("the public local LaTeX operation reaches its configured deadline and forcefully terminates the observed tree")
         val failure = intercept[StructuredRenderingDiagnosticException] {
           PdfOperationClass.execute(Environment.createJaJp(), command)
         }
@@ -772,9 +773,66 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
           expectedterminal = true,
           expectedretryable = true
         )
-        And("the recorded renderer descendant is no longer alive when the public operation returns")
+        And("the recorded renderer descendant is no longer alive before the public timeout operation returns")
         childalive shouldBe false
       } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "preserve an interruption that arrives during timeout cleanup after terminating the observed renderer tree" in {
+      Given("a renderer timeout whose child writes a cleanup marker before resisting graceful termination")
+      val root = Files.createTempDirectory("smartdox-pdf-typesetting-timeout-interruption")
+      val input = root.resolve("typesetting.dox")
+      val latexmk = root.resolve("latexmk")
+      val childpid = root.resolve("typesetting-child.pid")
+      val cleanupmarker = root.resolve("timeout-cleanup-active")
+      val watcher = FileSystems.getDefault.newWatchService()
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_interruption_timeout_latexmk(latexmk, childpid, cleanupmarker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      root.register(watcher, StandardWatchEventKinds.ENTRY_CREATE)
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer", "latex",
+          "--dependency-mode", "local",
+          "--latexmk", latexmk.toString,
+          "--typesetting-timeout-ms", "1000",
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      val outcome = new AtomicReference[Throwable]()
+      val runner = new Thread(new Runnable {
+        override def run(): Unit =
+          try PdfRendererExecution.runProcess(command, Vector(latexmk.toString))
+          catch {
+            case e: Throwable => outcome.set(e)
+          }
+      })
+      try {
+        When("the cleanup marker proves process-tree termination is active and the renderer thread is interrupted")
+        runner.start()
+        val key = watcher.take()
+        Files.isRegularFile(cleanupmarker) shouldBe true
+        key.reset() shouldBe true
+        runner.interrupt()
+        runner.join()
+        val pid = new String(Files.readAllBytes(childpid), "UTF-8").trim.toLong
+        val childalive = {
+          val handle = ProcessHandle.of(pid)
+          handle.isPresent && handle.get().isAlive
+        }
+
+        Then("the interruption is propagated only after the observed renderer tree has terminated")
+        outcome.get shouldBe a [InterruptedException]
+        childalive shouldBe false
+        And("the interrupted cleanup does not acquire the typesetting-timeout failure identity")
+        outcome.get should not be a [PdfRendererExecution.PdfTypesettingTimeout]
+        outcome.get should not be a [StructuredRenderingDiagnosticException]
+      } finally {
+        watcher.close()
         IoUtils.removeDirectory(root.toFile)
       }
     }
@@ -957,7 +1015,7 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
         failure.diagnostic.code shouldBe "document.syntax.invalid"
         failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
         failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getCanonicalFile.getPath.stripPrefix("/"))
-        failure.diagnostic.tokenContext shouldBe Some("~~~text")
+        failure.diagnostic.tokenContext shouldBe Some("~text")
         And("neither diagram generation nor typesetting starts")
         Files.exists(diagrammarker) shouldBe false
         Files.exists(latexmarker) shouldBe false
@@ -1766,6 +1824,25 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       "#!/bin/sh",
       "set -eu",
       "sleep 30 &",
+      "child=$!",
+      "printf '%s\\n' \"$child\" > '" + childpid.toString + "'",
+      "wait \"$child\""
+    ).mkString("", "\n", "\n")
+    Files.write(latexmk, script.getBytes("UTF-8"))
+  }
+
+  private def _write_interruption_timeout_latexmk(
+    latexmk: java.nio.file.Path,
+    childpid: java.nio.file.Path,
+    cleanupmarker: java.nio.file.Path
+  ): Unit = {
+    val script = Vector(
+      "#!/bin/sh",
+      "set -eu",
+      "(",
+      "  trap 'touch \"" + cleanupmarker.toString + "\"; while :; do :; done' TERM",
+      "  while :; do sleep 30; done",
+      ") &",
       "child=$!",
       "printf '%s\\n' \"$child\" > '" + childpid.toString + "'",
       "wait \"$child\""

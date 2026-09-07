@@ -1,6 +1,6 @@
 # Phase 12: Structured Rendering Diagnostics and Terminal Failure Semantics
 
-Status: IN PROGRESS
+Status: CLOSED THROUGH THE FINAL RELEASE BOUNDARY
 
 Plan date: 2026-09-07
 
@@ -76,7 +76,10 @@ Stage Status:
 ### DIAG12-02: Parser and PDF Stage Propagation
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMMITTED
+- Commits: 67390bc6c39a821c4c2f54f8acaf370c5e3c4f6e,
+  8fd5a4e04d5dd6358b09e45c64021db38a7d2739, and
+  ba012304db7d0458898c5f493000965107449ea1
 - Owner: SmartDox parser and PDF operation pipeline
 - Update rule: Do not conflate successful entry into one stage with entry into
   the next stage.
@@ -87,7 +90,7 @@ Stage Status:
 ### DIAG12-03: Executable Specification and Acceptance
 
 Stage Status:
-- Current status: PLANNED
+- Current status: CLOSED THROUGH THE FINAL RELEASE BOUNDARY
 - Owner: SmartDox Phase 12
 - Update rule: Accept only with focused parser/PDF evidence, independent Phase
   review, and final full validation at the release gate.
@@ -98,4 +101,9 @@ Stage Status:
 ## Completion Criteria
 
 Phase 12 is complete only when the authoritative specification has focused
-executable evidence and the required review and release gates pass.
+executable evidence and the required review and release gates pass. The
+focused closure review sealed the two-cycle repair delta after
+`P12-FULL-REPAIR-VAL-013` passed 111 focused tests. This document becomes the
+authoritative closed ledger only with this distinct release commit after the
+final full SmartDox suite passes; it does not claim publication, deployment,
+or downstream Cozy acceptance.
