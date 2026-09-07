@@ -127,6 +127,82 @@ object StructuredRenderingDiagnostic {
       retryable = false
     )
 
+  def pdfDiagramGenerationFailed(
+    sourceIdentity: String,
+    tokenContext: String,
+    cause: String = "external-diagram-generation-failed"
+  ): StructuredRenderingDiagnostic =
+    StructuredRenderingDiagnostic(
+      code = "pdf.diagram-generation.failed",
+      stage = RenderingDiagnosticStage.DiagramGeneration,
+      sourceIdentity = Some(sourceIdentity),
+      line = None,
+      column = None,
+      tokenContext = Some(_bounded_token_context(tokenContext)),
+      cause = cause,
+      terminal = true,
+      retryable = true
+    )
+
+  def pdfTypesettingProcessStartFailed(
+    sourceIdentity: String,
+    tokenContext: String
+  ): StructuredRenderingDiagnostic =
+    _pdf_typesetting_diagnostic(
+      code = "pdf.typesetting.process-start-failed",
+      sourceidentity = sourceIdentity,
+      tokencontext = tokenContext,
+      cause = "external-typesetting-process-start-failed"
+    )
+
+  def pdfTypesettingNonzeroExit(
+    sourceIdentity: String,
+    tokenContext: String
+  ): StructuredRenderingDiagnostic =
+    _pdf_typesetting_diagnostic(
+      code = "pdf.typesetting.nonzero-exit",
+      sourceidentity = sourceIdentity,
+      tokencontext = tokenContext,
+      cause = "external-typesetting-nonzero-exit"
+    )
+
+  def pdfTypesettingOutputMissing(
+    sourceIdentity: String,
+    tokenContext: String
+  ): StructuredRenderingDiagnostic =
+    _pdf_typesetting_diagnostic(
+      code = "pdf.typesetting.output-missing",
+      sourceidentity = sourceIdentity,
+      tokencontext = tokenContext,
+      cause = "external-typesetting-output-missing"
+    )
+
+  def pdfTypesettingTimeoutInvalid(
+    tokenContext: String
+  ): StructuredRenderingDiagnostic =
+    StructuredRenderingDiagnostic(
+      code = "pdf.typesetting.timeout.invalid",
+      stage = RenderingDiagnosticStage.Typesetting,
+      sourceIdentity = None,
+      line = None,
+      column = None,
+      tokenContext = Some(_bounded_token_context(tokenContext)),
+      cause = "invalid-typesetting-timeout",
+      terminal = true,
+      retryable = false
+    )
+
+  def pdfTypesettingTimeout(
+    sourceIdentity: String,
+    tokenContext: String
+  ): StructuredRenderingDiagnostic =
+    _pdf_typesetting_diagnostic(
+      code = "pdf.typesetting.timeout",
+      sourceidentity = sourceIdentity,
+      tokencontext = tokenContext,
+      cause = "external-typesetting-timeout"
+    )
+
   def documentSyntaxInvalid(
     sourceIdentity: String,
     line: Int,
@@ -162,6 +238,24 @@ object StructuredRenderingDiagnostic {
       cause = cause,
       terminal = true,
       retryable = false
+    )
+
+  private def _pdf_typesetting_diagnostic(
+    code: String,
+    sourceidentity: String,
+    tokencontext: String,
+    cause: String
+  ): StructuredRenderingDiagnostic =
+    StructuredRenderingDiagnostic(
+      code = code,
+      stage = RenderingDiagnosticStage.Typesetting,
+      sourceIdentity = Some(sourceidentity),
+      line = None,
+      column = None,
+      tokenContext = Some(_bounded_token_context(tokencontext)),
+      cause = cause,
+      terminal = true,
+      retryable = true
     )
 
   private def _bounded_token_context(p: String): String =

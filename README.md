@@ -170,7 +170,12 @@ cozy pdf system.dox --renderer latex --dependency-mode docker
 cozy pdf system.dox --renderer latex --latex-engine uplatex --dependency-mode docker
 cozy pdf system.dox --renderer asciidoc --dependency-mode docker
 cozy pdf system.dox --docker-image simplemodeling/smartdox-pdf:latest
+cozy pdf system.dox --typesetting-timeout-ms 600000
 ```
+
+Every started Chrome, Asciidoctor, or LaTeX typesetting process has a finite
+deadline. `--typesetting-timeout-ms` accepts a positive decimal millisecond
+value and defaults to `300000` milliseconds (five minutes) when omitted.
 
 Kroki command mode is the default for uncached diagrams:
 

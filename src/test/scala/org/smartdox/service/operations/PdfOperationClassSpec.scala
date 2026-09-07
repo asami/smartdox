@@ -4,17 +4,19 @@ import java.util.{Base64, Locale}
 import java.net.URI
 import java.nio.file.{Files, Paths}
 import org.junit.runner.RunWith
+import io.circe.Json
 import org.scalatest.GivenWhenThen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
 import org.smartdox._
 import org.smartdox.converters.Dox2LatexConverter
-import org.smartdox.diagnostics.{RenderingDiagnosticStage, StructuredRenderingDiagnosticException}
+import org.smartdox.diagnostics.{RenderingDiagnosticStage, StructuredRenderingDiagnostic, StructuredRenderingDiagnosticException}
 import org.smartdox.generator.{Context => GeneratorContext}
 import org.goldenport.collection.VectorMap
 import org.goldenport.cli.{Environment, Request}
 import org.goldenport.context.{InvalidArgumentFault, ResourceNotFoundFault, UnsupportedOperationFault}
+import org.goldenport.extension.IRecord
 import org.goldenport.i18n.{I18NContext, I18NHangar, I18NString}
 import org.goldenport.io.IoUtils
 import org.goldenport.tree.TreeTransformer
@@ -23,7 +25,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Aug. 29, 2026
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -391,6 +393,449 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
   }
 
   "PDF structured rendering diagnostics" should {
+    "convert an external PlantUML generation failure before a configured latexmk starts" in {
+      Given("a valid PlantUML Dox input, a throwing diagram renderer, and an executable latexmk marker")
+      val root = Files.createTempDirectory("smartdox-pdf-diagram-generation-diagnostic")
+      val input = root.resolve("diagram.dox")
+      val latexmk = root.resolve("latexmk")
+      val marker = root.resolve("latexmk-started")
+      Files.write(
+        input,
+        """|Diagram
+           |=======
+           |
+           |```plantuml
+           |@startuml
+           |Alice -> Bob: render
+           |@enduml
+           |```
+           |""".stripMargin.getBytes("UTF-8")
+      )
+      _write_renderer_marker(latexmk, marker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val command = PdfOperationClass.PdfCommand.create(_pdf_request(input, latexmk, None))
+      val renderer = new Dox2LatexConverter.DiagramRenderer {
+        def render(kind: String, source: String, format: String): java.io.File =
+          throw new RuntimeException("external diagram renderer detail")
+      }
+      try {
+        When("the package-visible LaTeX PDF seam converts the document before typesetter startup")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass._execute_latex_with_diagram_renderer(
+            Environment.createJaJp(),
+            command,
+            renderer
+          )
+        }
+
+        Then("the external generation failure has the safe typed diagram-generation diagnostic")
+        failure.diagnostic.code shouldBe "pdf.diagram-generation.failed"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.DiagramGeneration
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.line shouldBe None
+        failure.diagnostic.column shouldBe None
+        failure.diagnostic.tokenContext shouldBe Some("plantuml")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        failure.getMessage should not include "external diagram renderer detail"
+        And("Record and JSON projections retain the complete diagram-generation diagnostic")
+        _assert_pdf_diagnostic_projection(
+          failure.diagnostic,
+          expectedcode = "pdf.diagram-generation.failed",
+          expectedstage = "diagram-generation",
+          expectedsource = Some(input.toFile.getPath),
+          expectedtoken = Some("plantuml"),
+          expectedcause = "external-diagram-generation-failed",
+          expectedterminal = true,
+          expectedretryable = true
+        )
+        And("the latexmk marker does not exist because typesetting has not started")
+        Files.exists(marker) shouldBe false
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "translate a configured nonexistent local latexmk into a safe process-start diagnostic" in {
+      Given("a valid PDF input and a configured local latexmk path that does not exist")
+      val root = Files.createTempDirectory("smartdox-pdf-typesetting-process-start")
+      val input = root.resolve("typesetting.dox")
+      val latexmk = root.resolve("missing-latexmk")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      val command = PdfOperationClass.PdfCommand.create(_pdf_request(input, latexmk, None))
+      try {
+        When("the local LaTeX renderer process is started")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the failure has the terminal retryable typesetting process-start identity")
+        failure.diagnostic.code shouldBe "pdf.typesetting.process-start-failed"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("latex")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        And("Record and JSON projections retain the complete process-start diagnostic")
+        _assert_pdf_diagnostic_projection(
+          failure.diagnostic,
+          expectedcode = "pdf.typesetting.process-start-failed",
+          expectedstage = "typesetting",
+          expectedsource = Some(input.toFile.getPath),
+          expectedtoken = Some("latex"),
+          expectedcause = "external-typesetting-process-start-failed",
+          expectedterminal = true,
+          expectedretryable = true
+        )
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "translate an untrusted local latexmk nonzero exit without exposing its stderr detail" in {
+      Given("a valid PDF input and a local latexmk that writes an untrusted stderr detail before failing")
+      val root = Files.createTempDirectory("smartdox-pdf-typesetting-nonzero-exit")
+      val input = root.resolve("typesetting.dox")
+      val latexmk = root.resolve("latexmk")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_nonzero_latexmk(latexmk)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val command = PdfOperationClass.PdfCommand.create(_pdf_request(input, latexmk, None))
+      try {
+        When("the local LaTeX renderer exits with a nonzero status")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the failure has the terminal retryable typesetting nonzero-exit identity")
+        failure.diagnostic.code shouldBe "pdf.typesetting.nonzero-exit"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("latex")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        And("Record and JSON projections retain the complete nonzero-exit diagnostic")
+        _assert_pdf_diagnostic_projection(
+          failure.diagnostic,
+          expectedcode = "pdf.typesetting.nonzero-exit",
+          expectedstage = "typesetting",
+          expectedsource = Some(input.toFile.getPath),
+          expectedtoken = Some("latex"),
+          expectedcause = "external-typesetting-nonzero-exit",
+          expectedterminal = true,
+          expectedretryable = true
+        )
+        And("the safe CLI projection omits the untrusted renderer stderr detail")
+        failure.getMessage should not include "untrusted renderer stderr detail"
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "translate a successful local latexmk with no PDF into an output-missing diagnostic" in {
+      Given("a valid PDF input and a successful local latexmk that emits no PDF")
+      val root = Files.createTempDirectory("smartdox-pdf-typesetting-output-missing")
+      val input = root.resolve("typesetting.dox")
+      val latexmk = root.resolve("latexmk")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_no_output_latexmk(latexmk)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val command = PdfOperationClass.PdfCommand.create(_pdf_request(input, latexmk, None))
+      try {
+        When("the local LaTeX renderer exits successfully without its required PDF")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the failure has the terminal retryable typesetting output-missing identity")
+        failure.diagnostic.code shouldBe "pdf.typesetting.output-missing"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("latex")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        And("Record and JSON projections retain the complete output-missing diagnostic")
+        _assert_pdf_diagnostic_projection(
+          failure.diagnostic,
+          expectedcode = "pdf.typesetting.output-missing",
+          expectedstage = "typesetting",
+          expectedsource = Some(input.toFile.getPath),
+          expectedtoken = Some("latex"),
+          expectedcause = "external-typesetting-output-missing",
+          expectedterminal = true,
+          expectedretryable = true
+        )
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "reject a Docker LaTeX renderer whose generated PDF is a nonempty symlink" in {
+      Given("a valid PDF input and a fake Docker executable that creates a nonempty generated-PDF symlink")
+      val root = Files.createTempDirectory("smartdox-pdf-docker-latex-symlink-output")
+      val input = root.resolve("typesetting.dox")
+      val docker = root.resolve("docker")
+      val marker = root.resolve("docker-latex-symlink-created")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_symlink_output_docker(docker, marker)
+      docker.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer", "latex",
+          "--dependency-mode", "docker",
+          "--docker", docker.toString,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("the public PDF operation runs the Docker LaTeX renderer")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the generated symlink is rejected with the typesetting output-missing diagnostic")
+        failure.diagnostic.code shouldBe "pdf.typesetting.output-missing"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("latex")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        And("the fake Docker executable created and verified its generated-PDF symlink")
+        Files.exists(marker) shouldBe true
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "translate a successful local Chrome renderer with no PDF into an output-missing diagnostic" in {
+      Given("a valid PDF input and a successful local Chrome renderer that emits no PDF")
+      val root = Files.createTempDirectory("smartdox-pdf-chrome-output-missing")
+      val input = root.resolve("typesetting.dox")
+      val chrome = root.resolve("chrome")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_no_output_renderer(chrome)
+      chrome.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer", "chrome-headless",
+          "--dependency-mode", "local",
+          "--chrome", chrome.toString,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("the local Chrome renderer exits successfully without its required PDF")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the failure has the terminal retryable typesetting output-missing identity for Chrome")
+        failure.diagnostic.code shouldBe "pdf.typesetting.output-missing"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("chrome-headless")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "reject a local Chrome renderer that replaces the pre-created PDF with a nonempty symlink" in {
+      Given("a valid PDF input and a successful local Chrome renderer that replaces its PDF target with a symlink")
+      val root = Files.createTempDirectory("smartdox-pdf-chrome-symlink-output")
+      val input = root.resolve("typesetting.dox")
+      val chrome = root.resolve("chrome")
+      val marker = root.resolve("chrome-symlink-created")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_symlink_output_chrome(chrome, marker)
+      chrome.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer", "chrome-headless",
+          "--dependency-mode", "local",
+          "--chrome", chrome.toString,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("the local Chrome renderer exits successfully after replacing the required PDF with a symlink")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the failure has the terminal retryable typesetting output-missing identity for Chrome")
+        failure.diagnostic.code shouldBe "pdf.typesetting.output-missing"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("chrome-headless")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        And("the fake renderer created and verified its symlink replacement")
+        Files.exists(marker) shouldBe true
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "translate a successful local Asciidoctor renderer with no PDF into an output-missing diagnostic" in {
+      Given("a valid PDF input and a successful local Asciidoctor renderer that emits no PDF")
+      val root = Files.createTempDirectory("smartdox-pdf-asciidoc-output-missing")
+      val input = root.resolve("typesetting.dox")
+      val asciidoctor = root.resolve("asciidoctor-pdf")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_no_output_renderer(asciidoctor)
+      asciidoctor.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer", "asciidoc",
+          "--dependency-mode", "local",
+          "--asciidoctor-pdf", asciidoctor.toString,
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("the local Asciidoctor renderer exits successfully without its required PDF")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+
+        Then("the failure has the terminal retryable typesetting output-missing identity for Asciidoctor")
+        failure.diagnostic.code shouldBe "pdf.typesetting.output-missing"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.tokenContext shouldBe Some("asciidoc")
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "terminate a local renderer process tree when its configured typesetting deadline expires" in {
+      Given("a valid PDF input, a local latexmk that waits for a long-lived child, and a short deadline")
+      val root = Files.createTempDirectory("smartdox-pdf-typesetting-timeout")
+      val input = root.resolve("typesetting.dox")
+      val latexmk = root.resolve("latexmk")
+      val childpid = root.resolve("typesetting-child.pid")
+      Files.write(input, "Valid typesetting input".getBytes("UTF-8"))
+      _write_timeout_latexmk(latexmk, childpid)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      val request = Request.create(
+        PdfOperationClass.specification,
+        Array(
+          "--renderer", "latex",
+          "--dependency-mode", "local",
+          "--latexmk", latexmk.toString,
+          "--typesetting-timeout-ms", "1000",
+          input.toString
+        )
+      )
+      val command = PdfOperationClass.PdfCommand.create(request)
+      try {
+        When("the public local LaTeX operation reaches its configured process deadline")
+        val failure = intercept[StructuredRenderingDiagnosticException] {
+          PdfOperationClass.execute(Environment.createJaJp(), command)
+        }
+        val pid = new String(Files.readAllBytes(childpid), "UTF-8").trim.toLong
+        val childalive = {
+          val handle = ProcessHandle.of(pid)
+          handle.isPresent && handle.get().isAlive
+        }
+
+        Then("the timeout exposes the terminal retryable safe typesetting diagnostic")
+        failure.diagnostic.code shouldBe "pdf.typesetting.timeout"
+        failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+        failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getPath)
+        failure.diagnostic.line shouldBe None
+        failure.diagnostic.column shouldBe None
+        failure.diagnostic.tokenContext shouldBe Some("latex")
+        failure.diagnostic.cause shouldBe "external-typesetting-timeout"
+        failure.diagnostic.terminal shouldBe true
+        failure.diagnostic.retryable shouldBe true
+        And("Record and JSON projections retain the complete expiry diagnostic")
+        _assert_pdf_diagnostic_projection(
+          failure.diagnostic,
+          expectedcode = "pdf.typesetting.timeout",
+          expectedstage = "typesetting",
+          expectedsource = Some(input.toFile.getPath),
+          expectedtoken = Some("latex"),
+          expectedcause = "external-typesetting-timeout",
+          expectedterminal = true,
+          expectedretryable = true
+        )
+        And("the recorded renderer descendant is no longer alive when the public operation returns")
+        childalive shouldBe false
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
+    "reject malformed and nonpositive typesetting timeouts before a configured renderer can start" in {
+      Given("a configured local latexmk marker and invalid timeout option values")
+      val root = Files.createTempDirectory("smartdox-pdf-typesetting-timeout-invalid")
+      val input = root.resolve("typesetting.dox")
+      val latexmk = root.resolve("latexmk")
+      val marker = root.resolve("latexmk-started")
+      val timeouts = Vector("", "milliseconds", "0", "-1", "9223372036854775808")
+      _write_renderer_marker(latexmk, marker)
+      latexmk.toFile.setExecutable(true) shouldBe true
+      try {
+        When("each PDF command is created with its supplied timeout")
+        val failures = timeouts.map { timeout =>
+          val request = Request.create(
+            PdfOperationClass.specification,
+            Array(
+              "--renderer", "latex",
+              "--dependency-mode", "local",
+              "--latexmk", latexmk.toString,
+              "--typesetting-timeout-ms", timeout,
+              input.toString
+            )
+          )
+          timeout -> intercept[StructuredRenderingDiagnosticException] {
+            PdfOperationClass.PdfCommand.create(request)
+          }
+        }
+
+        Then("each supplied value has the terminal non-retryable timeout-configuration diagnostic")
+        failures.foreach { case (timeout, failure) =>
+          failure.diagnostic.code shouldBe "pdf.typesetting.timeout.invalid"
+          failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Typesetting
+          failure.diagnostic.sourceIdentity shouldBe None
+          failure.diagnostic.line shouldBe None
+          failure.diagnostic.column shouldBe None
+          failure.diagnostic.tokenContext shouldBe Some(timeout)
+          failure.diagnostic.cause shouldBe "invalid-typesetting-timeout"
+          failure.diagnostic.terminal shouldBe true
+          failure.diagnostic.retryable shouldBe false
+          And("Record and JSON projections retain the null source and invalid-timeout facets")
+          _assert_pdf_diagnostic_projection(
+            failure.diagnostic,
+            expectedcode = "pdf.typesetting.timeout.invalid",
+            expectedstage = "typesetting",
+            expectedsource = None,
+            expectedtoken = Some(timeout),
+            expectedcause = "invalid-typesetting-timeout",
+            expectedterminal = true,
+            expectedretryable = false
+          )
+        }
+        And("command creation starts neither the configured renderer nor a typesetting process")
+        Files.exists(marker) shouldBe false
+      } finally {
+        IoUtils.removeDirectory(root.toFile)
+      }
+    }
+
     "convert invalid and unsupported locale selectors before parsing or renderer startup" in {
       Given("invalid and unsupported locale selectors with a configured executable marker renderer")
       val root = Files.createTempDirectory("smartdox-pdf-locale-selector-diagnostic")
@@ -482,20 +927,30 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
     }
 
     "preserve a parser structured diagnostic without relabeling it as typesetting" in {
-      Given("a filename-aware parser failure and a configured executable marker renderer")
+      Given("a filename-aware parser failure, a diagram renderer marker, and an executable latexmk marker")
       val root = Files.createTempDirectory("smartdox-pdf-parser-diagnostic")
       val input = root.resolve("invalid-inline.dox")
       val latexmk = root.resolve("latexmk")
-      val marker = root.resolve("renderer-started")
+      val latexmarker = root.resolve("latexmk-started")
+      val diagrammarker = root.resolve("diagram-renderer-started")
       Files.write(input, "~~~text".getBytes("UTF-8"))
-      _write_renderer_marker(latexmk, marker)
+      _write_renderer_marker(latexmk, latexmarker)
       latexmk.toFile.setExecutable(true) shouldBe true
+      val command = PdfOperationClass.PdfCommand.create(_pdf_request(input, latexmk, None))
+      val diagramrenderer = new Dox2LatexConverter.DiagramRenderer {
+        def render(kind: String, source: String, format: String): java.io.File = {
+          Files.write(diagrammarker, Array.emptyByteArray)
+          diagrammarker.toFile
+        }
+      }
       try {
-        val request = _pdf_request(input, latexmk, None)
-
-        When("the public PDF operation parses the input")
+        When("the package-visible LaTeX PDF seam parses the input")
         val failure = intercept[StructuredRenderingDiagnosticException] {
-          PdfOperationClass.apply(Environment.createJaJp(), request)
+          PdfOperationClass._execute_latex_with_diagram_renderer(
+            Environment.createJaJp(),
+            command,
+            diagramrenderer
+          )
         }
 
         Then("the parser-owned document syntax identity and parse stage remain intact")
@@ -503,8 +958,9 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
         failure.diagnostic.stage shouldBe RenderingDiagnosticStage.Parse
         failure.diagnostic.sourceIdentity shouldBe Some(input.toFile.getCanonicalFile.getPath.stripPrefix("/"))
         failure.diagnostic.tokenContext shouldBe Some("~~~text")
-        And("the renderer does not start")
-        Files.exists(marker) shouldBe false
+        And("neither diagram generation nor typesetting starts")
+        Files.exists(diagrammarker) shouldBe false
+        Files.exists(latexmarker) shouldBe false
       } finally {
         IoUtils.removeDirectory(root.toFile)
       }
@@ -957,8 +1413,9 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
       val command = PdfOperationClass.PdfCommand.cCreate(request)
       val selector = PdfOperationClass._locale_selector(request)
 
-      Then("the command retains its baseline fields plus the explicit site-root and site-config inputs")
-      command.take.productArity shouldBe 16
+      Then("the command retains its baseline fields plus its default typesetting deadline")
+      command.take.productArity shouldBe 17
+      command.take.typesettingTimeoutMillis shouldBe 300000L
       And("the operation boundary transports the parsed locale separately")
       selector.take shouldBe Some("en")
       And("the one-argument language filter constructor remains source-compatible")
@@ -1104,6 +1561,43 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
     Paragraph(List(Text("regional English")), VectorMap("lang" -> "en-US"))
   )))
 
+  private def _assert_pdf_diagnostic_projection(
+    diagnostic: StructuredRenderingDiagnostic,
+    expectedcode: String,
+    expectedstage: String,
+    expectedsource: Option[String],
+    expectedtoken: Option[String],
+    expectedcause: String,
+    expectedterminal: Boolean,
+    expectedretryable: Boolean
+  ): Unit = {
+    val record = diagnostic.toIRecord
+    val json = diagnostic.toJson
+
+    record shouldBe IRecord.data(
+      "code" -> expectedcode,
+      "stage" -> expectedstage,
+      "sourceIdentity" -> expectedsource,
+      "line" -> None,
+      "column" -> None,
+      "tokenContext" -> expectedtoken,
+      "cause" -> expectedcause,
+      "terminal" -> expectedterminal,
+      "retryable" -> expectedretryable
+    )
+    json shouldBe Json.obj(
+      "code" -> Json.fromString(expectedcode),
+      "stage" -> Json.fromString(expectedstage),
+      "sourceIdentity" -> expectedsource.map(Json.fromString).getOrElse(Json.Null),
+      "line" -> Json.Null,
+      "column" -> Json.Null,
+      "tokenContext" -> expectedtoken.map(Json.fromString).getOrElse(Json.Null),
+      "cause" -> Json.fromString(expectedcause),
+      "terminal" -> Json.fromBoolean(expectedterminal),
+      "retryable" -> Json.fromBoolean(expectedretryable)
+    )
+  }
+
   private def _pdf_request(
     input: java.nio.file.Path,
     latexmk: java.nio.file.Path,
@@ -1245,6 +1739,100 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
          |printf '%%PDF-1.4\\n' > "$outdir/${basename%.tex}.pdf"
          |""".stripMargin.getBytes("UTF-8")
     )
+
+  private def _write_nonzero_latexmk(latexmk: java.nio.file.Path): Unit =
+    Files.write(
+      latexmk,
+      "#!/bin/sh\nprintf '%s\\n' 'untrusted renderer stderr detail' >&2\nexit 17\n".getBytes("UTF-8")
+    )
+
+  private def _write_no_output_latexmk(latexmk: java.nio.file.Path): Unit =
+    Files.write(
+      latexmk,
+      "#!/bin/sh\nexit 0\n".getBytes("UTF-8")
+    )
+
+  private def _write_no_output_renderer(renderer: java.nio.file.Path): Unit =
+    Files.write(
+      renderer,
+      "#!/bin/sh\nexit 0\n".getBytes("UTF-8")
+    )
+
+  private def _write_timeout_latexmk(
+    latexmk: java.nio.file.Path,
+    childpid: java.nio.file.Path
+  ): Unit = {
+    val script = Vector(
+      "#!/bin/sh",
+      "set -eu",
+      "sleep 30 &",
+      "child=$!",
+      "printf '%s\\n' \"$child\" > '" + childpid.toString + "'",
+      "wait \"$child\""
+    ).mkString("", "\n", "\n")
+    Files.write(latexmk, script.getBytes("UTF-8"))
+  }
+
+  private def _write_symlink_output_chrome(
+    renderer: java.nio.file.Path,
+    marker: java.nio.file.Path
+  ): Unit = {
+    val script = Vector(
+      "#!/bin/sh",
+      "set -eu",
+      "out=",
+      "for arg in \"$@\"; do",
+      "  case \"$arg\" in",
+      "    --print-to-pdf=*) out=\"${arg#--print-to-pdf=}\" ;;",
+      "  esac",
+      "done",
+      "test -n \"$out\"",
+      "payload=\"$(dirname \"$out\")/renderer-payload.pdf\"",
+      "printf '%%PDF-1.4\\n' > \"$payload\"",
+      "rm -f \"$out\"",
+      "ln -s \"$payload\" \"$out\"",
+      "test -L \"$out\"",
+      s"touch '${marker.toString}'"
+    ).mkString("", "\n", "\n")
+    Files.write(renderer, script.getBytes("UTF-8"))
+  }
+
+  private def _write_symlink_output_docker(
+    docker: java.nio.file.Path,
+    marker: java.nio.file.Path
+  ): Unit = {
+    val script = Vector(
+      "#!/bin/sh",
+      "set -eu",
+      "inputdir=",
+      "outputdir=",
+      "for arg in \"$@\"; do",
+      "  case \"$arg\" in",
+      "    *:/work/input:ro) inputdir=\"${arg%:/work/input:ro}\" ;;",
+      "    *:/work/output) outputdir=\"${arg%:/work/output}\" ;;",
+      "  esac",
+      "done",
+      "test -d \"$inputdir\"",
+      "test -d \"$outputdir\"",
+      "tex=",
+      "for candidate in \"$inputdir\"/*.tex; do",
+      "  if test -f \"$candidate\"; then",
+      "    tex=$candidate",
+      "    break",
+      "  fi",
+      "done",
+      "test -n \"$tex\"",
+      "body=\"${tex##*/}\"",
+      "body=\"${body%.tex}\"",
+      "payload=\"$outputdir/docker-latex-payload.pdf\"",
+      "generated=\"$outputdir/$body.pdf\"",
+      "printf '%%PDF-1.4\\n' > \"$payload\"",
+      "ln -s \"$payload\" \"$generated\"",
+      "test -L \"$generated\"",
+      s"touch '${marker.toString}'"
+    ).mkString("", "\n", "\n")
+    Files.write(docker, script.getBytes("UTF-8"))
+  }
 
   private lazy val _bilingual_fragment: I18NFragment = I18NFragment.createDox(List(
     Locale.ENGLISH -> List[Dox](Text("fragment English")),

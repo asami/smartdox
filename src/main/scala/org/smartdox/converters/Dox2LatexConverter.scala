@@ -299,8 +299,11 @@ class Dox2LatexConverter(
       }
     } catch {
       case NonFatal(e) =>
-        _enter_diagram_error(kind, p.contents, e)
+        on_DiagramGenerationFailure(kind, p.contents, e)
     }
+
+  protected def on_DiagramGenerationFailure(kind: String, source: String, error: Throwable): Unit =
+    _enter_diagram_error(kind, source, error)
 
   private def _enter_diagram_error(kind: String, source: String, error: Throwable): Unit = {
     _enter_diagnostic(DiagnosticBlock.error(

@@ -48,6 +48,50 @@ at `locale-selection`, plus `pdf.renderer.unsupported` at `typesetting`.
 Locale diagnostic token context preserves the authored selector; selected
 document locale failures also bind the `PdfCommand` input path when available.
 
+The typed PDF constructors also own the terminal/retryable typesetting
+identities `pdf.typesetting.process-start-failed`,
+`pdf.typesetting.nonzero-exit`, and `pdf.typesetting.output-missing`. Each
+binds the authored `PdfCommand` input path, no line or column, and one bounded
+canonical renderer token: `chrome-headless`, `asciidoc`, or `latex`. Their
+fixed semantic causes describe only the process-start, nonzero-exit, or
+missing-output category. They never contain command arguments, configured
+executable paths, process output, or untrusted renderer detail.
+
+`PdfCommand` owns the public `--typesetting-timeout-ms` input and its
+`300000`-millisecond default. A supplied value must be a positive decimal
+millisecond count. A missing supplied value, non-decimal input, nonpositive
+value, or overflow is rejected before renderer-process startup as the safe,
+terminal, non-retryable `pdf.typesetting.timeout.invalid` diagnostic. It has
+no source identity and retains only bounded supplied-value context with cause
+`invalid-typesetting-timeout`; its public field shape is otherwise the stable
+structured-diagnostic shape.
+
+The shared renderer-process seam owns the deadline for every local and Docker
+Chrome, Asciidoctor, and LaTeX execution path. It configures merged standard
+output for discard at `ProcessBuilder` creation, so output is neither retained
+nor projected. When a started renderer exceeds its deadline, the seam owns
+private tree cleanup: it visits the observed descendants in reverse order,
+requests graceful descendant-then-parent termination, waits one fixed private
+1000-millisecond grace period, and forcibly terminates still-live descendants
+and parent. Its public outcome is only the terminal, retryable
+`pdf.typesetting.timeout` diagnostic at `typesetting`, bound to the
+`PdfCommand` input and canonical renderer token with cause
+`external-typesetting-timeout`. Child PIDs, commands, executable paths, and
+process output never cross that private boundary. Interrupted waits preserve
+the interruption and do not acquire the timeout identity.
+
+An external diagram-generation failure on the LaTeX PDF route is the stable
+`pdf.diagram-generation.failed` identity at `diagram-generation`. It binds the
+`PdfCommand` input path as source identity, a bounded diagram-kind token
+context, no line or column, the semantic cause
+`external-diagram-generation-failed`, `terminal=true`, and `retryable=true`.
+The PDF-private converter adapter captures the diagram kind, source, and error
+without emitting the converter's in-document diagnostic block, then raises this
+typed diagnostic after conversion and before TeX-file creation or typesetter
+startup. Direct `Dox2LatexConverter` use retains its existing in-document
+diagnostic-block fallback. The CLI view remains the safe typed projection and
+does not expose the raw external error message.
+
 ## PDF ordering boundary
 
 `PdfCommand` creates the renderer selection before PDF execution, so an
@@ -59,9 +103,16 @@ workspace preparation, or renderer-process startup. The parser's existing
 `StructuredRenderingDiagnosticException` is deliberately not caught, so its
 document-syntax identity and `parse` stage pass through unchanged.
 
-This boundary does not alter the remaining external diagram-generation or
-renderer-process behavior, and it does not designate those external failures
-as terminal solely because of this slice.
+This boundary maps the external LaTeX diagram-generation failure and all common
+renderer-process outcomes. The shared process seam raises one of the
+PDF-private outcome types for start failure, nonzero exit, or deadline expiry,
+and the Chrome, Asciidoctor, and LaTeX output checks raise the missing-output
+outcome.
+`_execute` alone translates those types into the stable typed diagnostics.
+Parser and locale `StructuredRenderingDiagnosticException` values, and the
+accepted diagram-generation translation, do not enter that translation path
+and retain their earlier-stage identities. Merged process output is discarded
+before process startup and is never retained in a public diagnostic.
 
 ## Deliberate exclusions
 
