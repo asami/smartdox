@@ -47,7 +47,7 @@ object DoxInlineParser {
   def parse(in: String): Dox = parse(Config.default, in)
 
   def parse(config: Config, in: String): Dox =
-    _parse_inline_macro(config, in).getOrElse {
+    DoxInlineParserInlineMacro.parse(config, in).getOrElse {
       // println(s"Inline($config): $in")
       val (messages, result, state) = apply(config, in)
       result match {
@@ -65,20 +65,6 @@ object DoxInlineParser {
     case x :: Nil => x
     case xs => Fragment(xs)
   }
-
-  private val _inline_macro_regex = """^([A-Za-z][A-Za-z0-9_-]*):\[(.*)\]$""".r
-
-  private def _parse_inline_macro(config: Config, in: String): Option[Dox] =
-    if (config.asciidoc.isInlineMacro)
-      in match {
-        case _inline_macro_regex("site", contents) =>
-          Some(DoxInlineParserSiteLink.create(contents, config.location))
-        case _inline_macro_regex(name, contents) =>
-          Some(Dox.attachLocation(InlineMacro(name, contents), config.location))
-        case _ => None
-      }
-    else
-      None
 
   // def apply(in: String): (ParseMessageSequence, ParseResult[Vector[Dox]], DoxInlineParseState) =
   //   apply(Config.default, in)
@@ -752,7 +738,7 @@ object DoxInlineParser {
         character_State(evt.c)
 
     private def _inline_macro_state(evt: CharEvent): DoxInlineParseState = {
-      val (prefix, name) = _split_inline_macro_name(cs)
+      val (prefix, name) = DoxInlineParserInlineMacro.splitName(cs)
       if (name.isEmpty)
         character_State(evt.c)
       else {
@@ -765,7 +751,7 @@ object DoxInlineParser {
     }
 
     private def _inline_macro_state_from_open_bracket(evt: CharEvent): DoxInlineParseState = {
-      val (prefix, name) = _split_inline_macro_name(cs.dropRight(1))
+      val (prefix, name) = DoxInlineParserInlineMacro.splitName(cs.dropRight(1))
       if (name.isEmpty)
         super.open_Bracket_State(evt)
       else {
@@ -776,20 +762,6 @@ object DoxInlineParser {
         InlineMacroState(config, base, name)
       }
     }
-
-    private def _split_inline_macro_name(p: Vector[Char]): (Option[String], String) = {
-      val s = p.mkString
-      val i = s.lastIndexWhere(ch => !Character.isLetterOrDigit(ch) && ch != '_' && ch != '-')
-      val name = s.drop(i + 1)
-      val prefix = if (i < 0) None else Some(s.take(i + 1))
-      if (_is_inline_macro_name(name))
-        prefix -> name
-      else
-        None -> ""
-    }
-
-    private def _is_inline_macro_name(p: String): Boolean =
-      p.nonEmpty && p.head.isLetter && p.forall(ch => Character.isLetterOrDigit(ch) || ch == '_' || ch == '-')
 
     override protected def space_State(c: Char): DoxInlineParseState =
       if (doxes.isEmpty && cs.isEmpty)
@@ -1150,10 +1122,7 @@ object DoxInlineParser {
 
     private def _make_inline_macro: Inline = {
       val contents = cs.mkString
-      name match {
-        case "site" => DoxInlineParserSiteLink.create(contents, config.location).asInstanceOf[Inline]
-        case _ => Dox.attachLocation(InlineMacro(name, contents), config.location).asInstanceOf[Inline]
-      }
+      DoxInlineParserInlineMacro.create(config, name, contents)
     }
   }
 

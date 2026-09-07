@@ -1,0 +1,108 @@
+# Phase 13: Parser and PDF Operation Responsibility Decomposition
+
+Status: OPEN
+
+Plan date: 2026-09-08
+
+Predecessor: Phase 12 release closure
+`7b88b63ec1728d0a3a8eac55c94dce13cb9f4560`.
+
+Authoritative responsibility boundary:
+
+- `docs/design/parser-pdf-responsibility-decomposition.md`
+- `docs/spec/parser-pdf-decomposition-compatibility.md`
+
+## Goal
+
+Separate the cohesive parser and PDF-operation responsibilities recorded by
+`HYG-P10-02`, while preserving all established observable behavior and facade
+identities.  The linked design and specification define the stable boundary;
+this page is the Phase work ledger.
+
+## Origin
+
+Phase 10 full review recorded `DoxInlineParser.scala`, `Dox2Parser.scala`, and
+`PdfOperationClass.scala` as a parser/PDF responsibility decomposition
+candidate.  Later Phase 12 work extracted renderer-process execution but did
+not admit the remaining parser/PDF boundary into that diagnostic Phase.
+
+## Phase Plan Gate
+
+Phase Plan Gate: PROCEED
+
+- target: approximately 6–8 hours at the selected profile;
+- planning demand: protected parser-state, source-origin, diagnostic, and
+  package-visible PDF seam preservation;
+- accepted profile: user-selected `gpt-5.6-terra / xhigh`;
+- split disposition: retain one Phase because each extraction preserves one
+  parser-to-PDF compatibility surface and its focused executable evidence;
+- no implementation, validation, publication, deployment, or commit is
+  authorized by this plan alone.
+
+## Scope
+
+In scope:
+
+- decompose the internal responsibilities of `DoxInlineParser` and
+  `Dox2Parser` behind their existing facades;
+- decompose PDF input/workspace, locale/site projection, and renderer
+  invocation behind `PdfOperationClass` and `PdfRendererExecution`;
+- preserve or extend only behavior-preserving executable specifications; and
+- maintain this Phase ledger and the Strategy record.
+
+Out of scope:
+
+- grammar, metadata, AST, diagnostic, rendering, or CLI behavior changes;
+- DoxLinesParser, DoxSite, and Cozy changes; and
+- `PublishMetadata.scala` decomposition (`HYG-APDF91-001`), which is the
+  separately planned Phase 14 successor responsibility only.
+
+## Stages
+
+### DECOMP13-01: Inline and Document Parser Extraction
+
+Stage Status:
+- Current status: CLOSED
+- Owner: SmartDox parser facades and internal parser collaborators
+- Update rule: Advance only after the preserved parser facades and focused
+  inline/document executable evidence are accepted together.
+
+- Separate package-internal inline-macro recognition/construction,
+  document-assembly, and front-matter responsibilities without changing the
+  parser entry points or observable grammar/diagnostics.  DECOMP13-01D assigns
+  complete-input macro recognition, embedded macro-name lexical
+  splitting/validation, and established Site-link or generic `InlineMacro`
+  construction to `DoxInlineParserInlineMacro`; all public nested parser-state
+  identities remain owned by `DoxInlineParser`.
+
+### DECOMP13-02: PDF Operation Extraction
+
+Stage Status:
+- Current status: OPEN
+- Owner: SmartDox PDF operation and renderer collaborators
+- Update rule: Advance only after package-visible PDF seams and focused PDF
+  executable evidence preserve the existing operation behavior.
+
+- Separate PDF input/workspace, locale/site projection, and renderer-invocation
+  responsibilities without changing the PDF operation contract.
+
+### DECOMP13-03: Compatibility Acceptance and Closure
+
+Stage Status:
+- Current status: OPEN
+- Owner: SmartDox Phase 13
+- Update rule: Close only after every checklist item has exact-tree focused
+  evidence, independent Phase review, final full validation, and a distinct
+  release commit.
+
+- Prove the frozen compatibility boundary through focused parser/PDF evidence,
+  the mandatory Phase review, and the release gate.
+
+## Completion Criteria
+
+Phase 13 is complete only when every Stage checklist item is checked, the
+focused parser and PDF specifications preserve the linked compatibility
+contract, the mandatory independent Phase review is clean or converged, the
+full SmartDox suite passes on the final tree, and the distinct release commit
+succeeds.  It does not claim PublishMetadata (reserved for Phase 14 only), Cozy, publication, deployment,
+or downstream-consumer acceptance.

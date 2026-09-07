@@ -18,7 +18,7 @@ import org.smartdox._
  * @since   Nov. 29, 2020
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -82,6 +82,32 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       Then("the nested binary name and skip-character accessor remain callable")
       classOf[DoxInlineParser.SkipOneState].getName shouldBe "org.smartdox.parser.DoxInlineParser$SkipOneState"
       state.skipChar shouldBe ']'
+    }
+
+    "retain public link-state companion construction and nested binary identities" in {
+      Given("a public inline parser parent and the established public link-state companions")
+      val config = DoxInlineParser.Config.default
+      val parent = DoxInlineParser.NormalState.init(config)
+
+      When("each public link-state companion constructs its established state product")
+      val states: Seq[DoxInlineParser.DoxInlineParseState] = Seq(
+        DoxInlineParser.LinkState(config, parent),
+        DoxInlineParser.OrgModeLinkUrnState(parent),
+        DoxInlineParser.OrgModeLinkLabelState(config, parent, Vector.empty),
+        DoxInlineParser.MarkdownLinkUrnState(parent),
+        DoxInlineParser.MarkdownLinkUrnContState(config, parent),
+        DoxInlineParser.MarkdownLinkLabelState(config, parent, Vector.empty)
+      )
+
+      Then("every source-visible case class retains its original DoxInlineParser-owned binary name")
+      states.map(_.getClass.getName) shouldBe Seq(
+        "org.smartdox.parser.DoxInlineParser$LinkState",
+        "org.smartdox.parser.DoxInlineParser$OrgModeLinkUrnState",
+        "org.smartdox.parser.DoxInlineParser$OrgModeLinkLabelState",
+        "org.smartdox.parser.DoxInlineParser$MarkdownLinkUrnState",
+        "org.smartdox.parser.DoxInlineParser$MarkdownLinkUrnContState",
+        "org.smartdox.parser.DoxInlineParser$MarkdownLinkLabelState"
+      )
     }
 
     "retain a resource root through ordinary public Config copy" in {
@@ -400,6 +426,59 @@ class DoxInlineParserSpec extends AnyWordSpec with Matchers with ScalazMatchers 
       macroNode.contents shouldBe "^[A-Z]{2}$"
       macroNode.toText shouldBe "^[A-Z]{2}$"
       macroNode.toData shouldBe "pass:[^[A-Z]{2}$]"
+    }
+
+    "preserve an embedded generic inline macro with underscore and hyphen name characters" in {
+      Given("a SmartDox inline input with non-macro prefix text and a valid generic macro name")
+      val source = "before macro_name-kind:[payload]"
+
+      When("the inline parser separates the embedded macro from its preceding text")
+      val result = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      val nodes = _nodes(result)
+      val macronode = nodes.collectFirst { case m: InlineMacro => m }.get
+
+      Then("the prefix text and exact generic macro representation remain intact")
+      result.elements.collect { case m: Text => m.contents }.mkString shouldBe "before "
+      macronode.name shouldBe "macro_name-kind"
+      macronode.contents shouldBe "payload"
+      macronode.toData shouldBe "macro_name-kind:[payload]"
+    }
+
+    "reject complete generic macro syntax when inline macros are disabled" in {
+      Given("the default parser configuration with AsciiDoc inline macros disabled")
+      val source = "generic:[payload]"
+
+      When("the complete-input inline macro recognizer reads the syntax")
+      val result = DoxInlineParserInlineMacro.parse(DoxInlineParser.Config.default, source)
+
+      Then("the recognizer rejects the syntax without creating an InlineMacro")
+      result shouldBe None
+    }
+
+    "reject a digit-leading candidate as an inline macro name" in {
+      Given("a digit-leading candidate name")
+      val candidate = "1macro".toVector
+
+      When("the inline macro recognizer separates the candidate name")
+      val result = DoxInlineParserInlineMacro.splitName(candidate)
+
+      Then("the digit-leading candidate is not accepted as a macro name")
+      result shouldBe (None, "")
+    }
+
+    "treat punctuation as an inline macro prefix delimiter" in {
+      Given("a SmartDox inline input with punctuation before a valid macro name")
+      val source = "macro.name:[payload]"
+
+      When("the inline parser separates the punctuation prefix from the macro name")
+      val result = DoxInlineParser.parse(DoxInlineParser.Config.smartdox, source)
+      val macronode = result.elements.collectFirst { case m: InlineMacro => m }.get
+
+      Then("the punctuation remains literal and only the valid name is recognized as a macro")
+      result.elements.collect { case m: Text => m.contents }.mkString shouldBe "macro."
+      macronode.name shouldBe "name"
+      macronode.contents shouldBe "payload"
+      macronode.toData shouldBe "name:[payload]"
     }
 
     "preserve site inline macro provenance as a Site link" in {

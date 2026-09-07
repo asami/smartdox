@@ -22,7 +22,7 @@ import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, Pr
  *  version Jun. 23, 2026
  *  version Jul.  6, 2026
  *  version Aug. 24, 2026
- * @version Sep.  7, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -378,6 +378,30 @@ Published body.
       meta.titleImage.map(_.toString) should be (Some("https://example.com/image.jpg?q=80&w=1200"))
       meta.getEffectiveSummaryString(java.util.Locale.ENGLISH) should be (Some("Published summary."))
       dox.toString should include ("Published body.")
+    }
+
+    "parse YAML front matter through filename based Markdown parsing" in {
+      Given("a filename-addressed Markdown document with published YAML front matter")
+      val source =
+        """---
+          |title: YAML Published Article
+          |status: published
+          |published_at: 2026-06-24
+          |---
+          |# Markdown Body
+          |
+          |Markdown body is preserved.
+          |""".stripMargin
+
+      When("Dox2Parser parses the Markdown document using its filename")
+      val document = Dox2Parser.parseWithFilename("articles/yaml-published.md", source).asInstanceOf[Document]
+      val metadata = document.head.metadata
+
+      Then("the YAML metadata is normalized and the Markdown body remains document content")
+      metadata.getTitleStringDefault shouldBe Some("YAML Published Article")
+      metadata.status shouldBe org.smartdox.metadata.DocumentMetaData.Status.Published
+      metadata.getPublishedString(java.util.Locale.ENGLISH) shouldBe Some("2026-06-24")
+      document.toString should include ("Markdown body is preserved.")
     }
 
     "parse published fenced Scala source with quoted scala-cli directives" in {
