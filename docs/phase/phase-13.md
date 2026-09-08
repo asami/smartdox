@@ -1,6 +1,6 @@
 # Phase 13: Parser and PDF Operation Responsibility Decomposition
 
-Status: OPEN
+Status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 
 Plan date: 2026-09-08
 
@@ -108,20 +108,28 @@ Stage Status:
 ### DECOMP13-04: Compatibility Acceptance and Closure
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 - Owner: SmartDox Phase 13
 - Update rule: Close only after every checklist item has exact-tree focused
   evidence, independent Phase review, final full validation, and a distinct
   release commit.
 
-- Prove the frozen compatibility boundary through focused parser/PDF evidence,
-  the mandatory Phase review, and the release gate.
+- The mandatory independent Phase review `P13-PHASE-REV-001` accepted the
+  frozen `73ce206..557ca5f` compatibility range without a Current Boundary
+  Blocker. Its four pre-existing maintenance findings are persisted in the
+  Phase Hygiene Ledger; they are not source repairs in this Phase.
+- The final full-suite validation `P13-DECOMP13-04-FULL-VAL-001` passed on the
+  release tree (378 succeeded, 0 failed; 35 suites completed and 4 ignored).
+  The distinct release boundary is authoritative only if its release commit
+  also succeeds.
 
 ## Completion Criteria
 
-Phase 13 is complete only when every Stage checklist item is checked, the
-focused parser, PDF, and DoxSite specifications preserve the linked
-compatibility contract, the mandatory independent Phase review is clean or
-converged, the full SmartDox suite passes on the final tree, and the distinct
-release commit succeeds. It does not claim PublishMetadata (reserved for Phase
-14 only), Cozy, publication, deployment, or downstream-consumer acceptance.
+Phase 13 closes through its final release boundary: every Stage checklist item
+is carried by the one release commit; the parser, PDF, and DoxSite focused
+specifications preserve the linked compatibility contract; and
+`P13-PHASE-REV-001` is clean of Current Boundary Blockers; and
+`P13-DECOMP13-04-FULL-VAL-001` passed the full SmartDox suite. The closure
+remains authoritative only if the distinct release commit succeeds. It does
+not claim PublishMetadata (reserved for Phase 14 only), Cozy, publication,
+deployment, or downstream-consumer acceptance.

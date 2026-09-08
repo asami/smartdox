@@ -3,7 +3,7 @@
 This checklist is the authoritative progress ledger for Phase 13.  It is not a
 normative behavior contract.
 
-Phase Status: OPEN
+Phase Status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 
 Predecessor: Phase 12 release closure
 `7b88b63ec1728d0a3a8eac55c94dce13cb9f4560`.
@@ -64,16 +64,20 @@ Stage Status:
 ## DECOMP13-04: Compatibility Acceptance and Closure
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 - Owner: SmartDox Phase 13
 - Update rule: Close only after all prior checklist items are checked, the
   mandatory Phase review is accepted, final full validation passes, and the
   distinct release commit succeeds.
 
-- [ ] Complete independent Step reviews and focused validation for each
+- [x] Complete independent Step reviews and focused validation for each
       accepted parser, PDF, and DoxSite compatibility Slice.
-- [ ] Complete mandatory independent Phase review and any bounded convergence
-      cycle.
-- [ ] Run the final full SmartDox suite on the final release tree.
-- [ ] Create the distinct Phase 13 release commit and synchronize the Strategy
-      and hygiene disposition records.
+- [x] Complete mandatory independent Phase review and any bounded convergence
+      cycle. `P13-PHASE-REV-001` found no Current Boundary Blocker.
+- [x] Run the final full SmartDox suite on the final release tree as the
+      release-bound validation `P13-DECOMP13-04-FULL-VAL-001` (378 succeeded,
+      0 failed; 35 suites completed and 4 ignored); this checked state becomes
+      authoritative only with the release commit.
+- [x] Create the distinct Phase 13 release commit and synchronize closure and
+      hygiene disposition records; shared Phase 15 planning projections remain
+      explicitly preserved rather than adopted by this Phase.
