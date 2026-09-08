@@ -149,6 +149,34 @@ for one derived article identity produce a deterministic article-media
 diagnostic and no compatibility adapter, while their independent legacy source
 package behavior remains unchanged.
 
+## Antora Compatibility Projection
+
+The existing Antora article-top media callout remains a distinct compatibility
+consumer from the direct DoxSite article-header presentation. For an ordinary
+article it is placed after the effective lead and before the first body
+section. Its outer container is `smartdox-article-media`; present PDF roles are
+grouped in `smartdox-article-media-pdf` and retain the fixed Antora role order
+article PDF, then summary-slides PDF. A supplied PDF label is rendered
+verbatim. An absent label uses the exact locale default `Article PDF` or
+`Summary slides PDF` in `en`, and `記事 PDF` or `要約スライド PDF` in `ja`.
+
+The optional video follows the PDF group in an exclusive
+`smartdox-article-media-video` sub-block. A PDF-only callout has the outer and
+PDF markup and omits the video sub-block. An external video is an Antora
+watch-link using `watchUrl`; a site-hosted video is an Antora player only when
+the registered `contentUrl` is present. These callout rules preserve the
+historical Antora link/player markup and do not redefine the separate direct
+DoxSite header contract.
+
+On an established legacy `VideoPublication` source page, the Antora
+compatibility callout retains its existing player, captions, and publication
+links and suppresses only the duplicate
+`smartdox-article-media-video` sub-block. Any available Antora PDF links
+remain projectable. This Antora sub-block suppression is separate from the
+direct DoxSite header rule, which suppresses only its own duplicate projected
+video action on that source page; neither rule suppresses independent PDF or
+infographic actions.
+
 ## Site Projections
 
 SmartDox resolves one variant before either projection is encoded.
@@ -159,26 +187,25 @@ SmartDox resolves one variant before either projection is encoded.
   resolved `publicPath`, `mediaType`, and optional `label`; absent roles and an
   otherwise empty `media` block are omitted. Global and category-local Notice
   YAML for the same article and locale receive the same resolved block.
-- An ordinary article receives an article-top callout after its effective lead
-  and before its first body section. Its non-video outer container uses
-  `smartdox-article-media`. Present PDF roles are grouped in a
-  `smartdox-article-media-pdf` sub-block in the fixed order article PDF then
-  summary-slides PDF. The optional video follows in its existing exclusive
-  `smartdox-article-media-video` sub-block, with unchanged watch-link/player
-  markup. A supplied PDF label is verbatim; absent labels use the stable
-  English defaults `Article PDF` / `Summary slides PDF` or Japanese defaults
-  `記事 PDF` / `要約スライド PDF`. A PDF-only callout has the outer/PDF markup
-  and no video sub-block. External video renders as a watch link. A
-  site-hosted video renders an embedded player only with a registered
-  `contentUrl`.
+- A direct DoxSite article consumes the same resolved media values through the
+  title-adjacent header and post-effective-LEAD infographic figure defined by
+  `docs/design/article-header-metadata-and-media-actions.md`. That design owns
+  direct-page anatomy, metadata, action order and labels, semantic markup, and
+  the figure. This media-publication design retains ownership of which values
+  are resolved: its independent PDF roles, projectable video rules, registered
+  paths and URLs, and exact-locale selection are unchanged.
 - Article pages and all Notice outputs consume the same exact-locale resolver
   result. Projection performs no filename inference, role merging, or locale
   fallback.
-- When no record, locale variant, infographic, PDF role, or projectable video
-  exists, SmartDox keeps the existing article, Notice, dashboard, and feed
-  behavior. A legacy `VideoPublication` source-page player suppresses only its
-  duplicate projected video sub-block; it does not suppress available PDF
-  links.
+- Only when neither (a) a native exact-locale `ArticleMediaPublication` variant
+  nor (b) a valid locale-neutral `VideoPublication` compatibility candidate
+  resolves does the direct article emit no media actions or inline infographic;
+  it still projects an independent title-adjacent metadata header when tags or
+  published date is available. When an otherwise resolved variant lacks an
+  infographic, PDF role, or projectable video, the direct article emits no
+  corresponding media action or inline figure while retaining independently
+  available header metadata. Existing article behavior otherwise remains
+  unchanged, and Notice, dashboard, and feed behavior remains unchanged.
 
 ## Non-goals
 

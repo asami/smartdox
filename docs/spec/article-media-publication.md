@@ -145,27 +145,52 @@ resolved `PdfDocumentReference` exactly as `public_path`, `media_type`, and
 optional `label`. An absent role is omitted; SmartDox emits neither an empty
 role map nor an empty `media` block.
 
-The ordinary article media callout renders each present role as a localized
-link in this fixed order: article PDF, summary-slides PDF, then the optional
-projectable video. A supplied PDF label is rendered verbatim. When the label
-is absent, the stable local defaults are `Article PDF` and `Summary slides
-PDF` in English, and `記事 PDF` and `要約スライド PDF` in Japanese. These
-presentation defaults do not alter the resolved reference or Notice data.
+Direct DoxSite article-page anatomy, metadata, action order and labels,
+semantic markup, and inline infographic behavior are specified by
+`docs/spec/article-header-metadata-and-media-actions.md`. That specification
+consumes the resolved roles defined here. In particular, it does not alter the
+role values, projection eligibility, or exact-locale result defined by this
+specification.
 
-The callout has a non-video `smartdox-article-media` outer container. Present
-PDF controls are grouped in `smartdox-article-media-pdf`; the existing
-`smartdox-article-media-video` class remains exclusively on the optional video
-sub-block, after the PDF controls, with its link/player markup unchanged. A
-PDF-only projection includes the outer/PDF markup and no video sub-block.
+## Antora Compatibility Projection
+
+The existing Antora article-top media callout MUST remain a distinct
+compatibility consumer from the direct DoxSite article-header contract. For an
+ordinary article it MUST be placed after the effective lead and before the
+first body section. Its outer container MUST be `smartdox-article-media`;
+present PDF roles MUST be grouped in `smartdox-article-media-pdf` and MUST
+retain the fixed Antora role order article PDF, then summary-slides PDF.
+
+A supplied PDF label MUST be rendered verbatim. An absent label MUST use the
+exact locale default `Article PDF` or `Summary slides PDF` in `en`, and
+`記事 PDF` or `要約スライド PDF` in `ja`. The optional video MUST follow the
+PDF group in an exclusive `smartdox-article-media-video` sub-block. A
+PDF-only callout MUST retain the outer/PDF markup and MUST omit the video
+sub-block. An external video MUST render as an Antora watch-link using
+`watchUrl`; a site-hosted video MUST render as an Antora player only when its
+registered `contentUrl` is present. This historical callout/link/player
+contract is compatibility behavior and does not redefine the separate direct
+DoxSite header projection.
+
+On an established legacy `VideoPublication` source page, the Antora
+compatibility callout MUST retain its existing player, captions, and
+publication links and MUST suppress only the duplicate
+`smartdox-article-media-video` sub-block. Available Antora PDF role links MUST
+remain projectable. This Antora sub-block suppression is separate from the
+direct DoxSite header rule, which MUST suppress only its own duplicate
+projected video action on that source page; neither rule suppresses independent
+PDF or infographic actions.
 
 The ordinary article and every global/category Notice projection for one
 `(articleIdentity, locale)` consume the same exact resolved result. There is
 no role merge, filename inference, or locale fallback at projection time.
 
-If a legacy `VideoPublication` source page already contains its established
-player, it suppresses only the duplicate projected video sub-block; available
-PDF role links remain projectable. With no infographic, PDF role, or
-projectable video, SmartDox emits no media block or callout.
+For a direct article, SmartDox emits no media actions or inline figure only
+when neither (a) a native exact-locale `ArticleMediaPublication` variant nor
+(b) a valid locale-neutral `VideoPublication` compatibility candidate resolves.
+Within an otherwise resolved variant, an absent infographic, PDF role, or
+projectable video emits no corresponding direct-page media action or inline
+figure while leaving the other available roles independent.
 
 ## VideoPublication Compatibility
 
@@ -212,10 +237,12 @@ Phase 9.1 executable specifications must prove:
 - absent metadata and absent locale behavior;
 - external published/draft/withdrawn and site-hosted presentation behavior;
 - identical global/category Notice media data;
-- article-top link/player selection; and
+- Antora compatibility article-top callout link/player selection, including
+  its outer/PDF/video containers, fixed role order, exact supplied/default
+  labels, PDF-only video omission, and `watchUrl`/`contentUrl` requirements;
 - exact-locale PDF role links, verbatim/default labels, deterministic PDF/video
   ordering, absent-role omission, absent-media omission, and legacy-video
-  duplicate suppression without suppressing available PDFs; and
+  duplicate suppression without suppressing available PDFs;
 - all preserved `VideoPublication` source-package, slug, player, caption/link,
   and diagnostic behaviors; and
 - `index.dox` and non-index derived identity, `publicPath -> contentUrl`,

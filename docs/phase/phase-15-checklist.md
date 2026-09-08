@@ -3,21 +3,21 @@
 This checklist is the authoritative progress ledger for Phase 15. It is not a
 normative behavior contract.
 
-Phase Status: PLANNED
+Phase Status: IN PROGRESS
 
 ## AHEAD15-01: Page Anatomy and Metadata Contract
 
 Stage Status:
-- Current status: OPEN
+- Current status: ACCEPTED
 - Owner: SmartDox article-page projection
 - Update rule: Close only when every AHEAD15-01 item is checked.
 
-- [ ] Promote the title, metadata strip, media action group, effective LEAD,
+- [x] Promote the title, metadata strip, media action group, effective LEAD,
       inline infographic, and body ordering into design and specification.
-- [ ] Select canonical initial metadata fields and define omission, ordering,
+- [x] Select canonical initial metadata fields and define omission, ordering,
       localization, symbolic-label, accessibility, responsive, and print
       semantics.
-- [ ] Preserve existing article-media roles, exact-locale resolution, and
+- [x] Preserve existing article-media roles, exact-locale resolution, and
       Notice projection without filename inference or Cozy-specific schema.
 
 ## AHEAD15-02: Header Actions and Inline Infographic Projection

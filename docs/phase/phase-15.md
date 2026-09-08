@@ -1,6 +1,6 @@
 # Phase 15: Article Header Metadata and Media Actions
 
-Status: PLANNED
+Status: IN PROGRESS
 
 Plan date: 2026-09-08
 
@@ -52,10 +52,11 @@ Out of scope:
 ### AHEAD15-01: Page Anatomy and Metadata Contract
 
 Stage Status:
-- Current status: OPEN
+- Current status: ACCEPTED
 - Owner: SmartDox article-page projection
-- Update rule: Advance only after the header, metadata, action, fallback, and
-  consumer-ownership decisions are promoted into design and specification.
+- Update rule: Accepted after the header, metadata, action, fallback, and
+  consumer-ownership decisions are promoted into design and specification and
+  the bounded review-convergence ledger is clean.
 
 - Define semantic regions, stable ordering, localized labels, accessibility,
   responsive/print behavior, and the first canonical metadata fields.
