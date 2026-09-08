@@ -48,7 +48,7 @@ Stage Status:
 - Update rule: Mark an item complete only after registry, page, realm, video,
   and RDF compatibility evidence is accepted.
 
-- [ ] Extract registry and catalog-page responsibilities without changing
+- [x] Extract registry and catalog-page responsibilities without changing
       public page paths, realm entries, or nested public model identities.
 - [ ] Extract video publication and RDF artifact responsibilities while
       preserving configured merge and missing-policy behavior.
