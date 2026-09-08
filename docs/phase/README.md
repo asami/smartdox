@@ -4,6 +4,14 @@ Purpose: engineering work management.
 
 Current phase state:
 
+- Active phase: `phase-13.md`: Parser and PDF Operation Responsibility
+  Decomposition. It preserves established parser and PDF behavior while
+  separating their internal responsibilities behind the existing facades.
+- Planned phase: `phase-15.md`: Article Header Metadata and Media Actions. It
+  adds a title-adjacent metadata/action region and effective-LEAD infographic
+  projection shared by direct SmartDox sites and Cozy-built BoKs. Phase 14
+  remains reserved for the previously recorded `PublishMetadata`
+  responsibility decomposition; Phase 15 is not started.
 - Most recently closed phase: `phase-12.md`: Structured Rendering Diagnostics
   and Terminal Failure Semantics. Its DIAG12-01 vocabulary, DIAG12-02 parser/
   PDF propagation, and DIAG12-03 executable-acceptance stages are committed or
