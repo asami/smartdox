@@ -50,7 +50,7 @@ Stage Status:
 
 - [x] Extract registry and catalog-page responsibilities without changing
       public page paths, realm entries, or nested public model identities.
-- [ ] Extract video publication and RDF artifact responsibilities while
+- [x] Extract video publication and RDF artifact responsibilities while
       preserving configured merge and missing-policy behavior.
 
 ## PMD14-04: Acceptance and Closure
