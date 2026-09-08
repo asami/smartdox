@@ -9,6 +9,12 @@ large SmartDox inline/document-parser and PDF-operation sources.  This is a
 behavior-preserving design: it creates no grammar, AST, rendering, diagnostic,
 or command-line contract.
 
+Phase 13 also carries the narrow DoxSite compatibility repair required to make
+the established Document Project public-URL flattening observable consistently:
+consumers use logical `xxx.dox` content for physical
+`xxx.dox/index.dox`, while the physical source page and package metadata remain
+available.
+
 ## Stable Facades
 
 The following types remain the owner-facing compatibility facades.
@@ -58,6 +64,13 @@ operation or a replacement public parser API.
   typesetting diagnostic translation remain owned by
   `PdfRendererExecution`.
 
+### Document Project effective content
+
+- `DoxSiteEffectiveContent` owns the shared logical-content view of a Document
+  Project package; and
+- LinkCollection, related-link projection, and Antora consume that view rather
+  than independently recognizing `xxx.dox/index.dox`.
+
 ## Invariants
 
 - SmartDox, Markdown, and Org-mode accepted/rejected grammar is unchanged.
@@ -73,6 +86,7 @@ operation or a replacement public parser API.
 ## Non-goals
 
 - changing SmartDox grammar or metadata semantics;
-- redesigning DoxLinesParser, DoxSite, PublishMetadata, or Cozy consumers; and
+- redesigning DoxLinesParser, DoxSite beyond the effective-content compatibility
+  repair, PublishMetadata, or Cozy consumers; and
 - the separate PublishMetadata responsibility decomposition, which is Phase 14
   only and not part of Phase 13.

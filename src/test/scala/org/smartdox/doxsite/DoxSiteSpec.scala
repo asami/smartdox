@@ -173,6 +173,47 @@ class DoxSiteSpec
              |# Body
              |
              |Target article.
+             |
+             |Document Project: site:[domain-modeling.dox/index.html]
+             |""".stripMargin)
+        _write(dir.resolve("development-process/backlink.dox"),
+          """|Backlink Article
+             |================
+             |
+             |# HEAD
+             |
+             |status=published
+             |published_at=2026-09-08
+             |
+             |# Body
+             |
+             |Document Project: site:[domain-modeling.dox/index.html]
+             |""".stripMargin)
+        _write(dir.resolve("development-process/guides/nested.dox/domain-modeling.dox/index.dox"),
+          """|Nested Domain Modeling
+             |======================
+             |
+             |# HEAD
+             |
+             |status=published
+             |published_at=2026-09-08
+             |
+             |# Body
+             |
+             |Nested Document Project article.
+             |""".stripMargin)
+        _write(dir.resolve("development-process/guides/nested.dox/following.dox"),
+          """|Following Nested Article
+             |========================
+             |
+             |# HEAD
+             |
+             |status=published
+             |published_at=2026-09-08
+             |
+             |# Body
+             |
+             |The sibling must retain its nested Antora path.
              |""".stripMargin)
         val resolvercontext = Context.create()
 
@@ -192,6 +233,11 @@ class DoxSiteSpec
           DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full)
         )
         val realm = site.toRealm(resolvercontext)
+        val links = site.metadata.linkCollection.get
+        val antora = new org.smartdox.generators.AntoraGenerator(
+          resolvercontext,
+          DoxSite.Config.default
+        ).generate(Realm.create(DoxSite.realmConfig, dir.toFile))
         implicit val i18ncontext: I18NContext = resolvercontext.i18NContext
         val japanesehtml = html_at(
           realm,
@@ -217,6 +263,21 @@ class DoxSiteSpec
         Then("the canonical mapper flattens a Document Project package while retaining ordinary source mapping")
         DoxSite.publicPath("development-process/domain-modeling.dox/index.dox") shouldBe
           "development-process/domain-modeling.html"
+        DoxSiteEffectiveContent.effectivePath("development-process/domain-modeling.dox/index.dox") shouldBe
+          "development-process/domain-modeling.dox"
+        DoxSiteEffectiveContent.effectivePath(
+          "development-process/domain-modeling.dox",
+          "literate-modeling.dox"
+        ) shouldBe "development-process/literate-modeling.dox"
+        DoxSiteEffectiveContent.effectivePath(
+          "development-process/domain-modeling.dox",
+          "literate-modeling.html"
+        ) shouldBe "development-process/literate-modeling.dox"
+        DoxSiteEffectiveContent.effectivePath(
+          "development-process/literate-modeling.dox",
+          "domain-modeling.dox/index.html"
+        ) shouldBe "development-process/domain-modeling.dox"
+        DoxSiteEffectiveContent.effectivePath("index.dox", "target.dox") shouldBe "target.dox"
         DoxSite.publicPath("development-process/literate-modeling.dox") shouldBe
           "development-process/literate-modeling.html"
         DoxSite.publicPath("development-process/assets/diagram.png") shouldBe
@@ -229,6 +290,15 @@ class DoxSiteSpec
           "development-process/literate-modeling.dox",
           "development-process/domain-modeling.dox/index.dox"
         ) shouldBe "domain-modeling.html"
+        And("the physical Document Project index and package metadata remain available while consumers receive its effective content")
+        site.space.getContent("development-process/domain-modeling.dox/index.dox").collect {
+          case page: Page => page.name.name
+        } shouldBe Some("index.dox")
+        site.space.getContent("development-process/domain-modeling.dox/category.yaml") should not be empty
+        val effective = site.space.getNode("development-process/domain-modeling.dox").flatMap(DoxSiteEffectiveContent.effectiveContent)
+        effective.map(_.logicalPath.v) shouldBe Some("development-process/domain-modeling.dox")
+        effective.map(_.sourcePath.v) shouldBe Some("development-process/domain-modeling.dox/index.dox")
+        effective.map(_.getDox) should not be empty
         realm.getString("ja/development-process/domain-modeling.dox/index.html") shouldBe None
         realm.getString("en/development-process/domain-modeling.dox/index.html") shouldBe None
         And("the exact selected configuration yields the accepted Japanese HTTPS route and localized title")
@@ -242,6 +312,32 @@ class DoxSiteSpec
         japanesehtml should include_html("文芸モデリング")
         englishhtml should include_html("href=\"literate-modeling.html\"")
         englishhtml should include_html("Literate Modeling")
+        And("related-link embedding resolves the Document Project through its logical identity")
+        japanesehtml should include_html("href=\"backlink.html\"")
+        japanesehtml should include_html("Backlink Article")
+        englishhtml should include_html("href=\"backlink.html\"")
+        englishhtml should include_html("Backlink Article")
+        And("link collection uses the logical Document Project identity for the outgoing and incoming relation")
+        links.get("development-process/domain-modeling.dox") should not be empty
+        links.get("development-process/domain-modeling.dox/index.dox") shouldBe None
+        links.get("development-process/literate-modeling.dox").map(_.incomingLinks.links.map(_.source.v)) shouldBe
+          Some(Vector("development-process/domain-modeling.dox"))
+        links.get("development-process/domain-modeling.dox").map(_.incomingLinks.links.map(_.source.v).toSet) shouldBe
+          Some(Set(
+            "development-process/literate-modeling.dox",
+            "development-process/backlink.dox"
+          ))
+        And("reciprocal related links resolve an authored physical index source from the logical Document Project base")
+        val reciprocal = LinkEnabler.LinkEmbedder.LinkHolder(Vector(
+          LinkEnabler.LinkEmbedder.Link(
+            new java.net.URI("literate-modeling.html"),
+            Some(org.goldenport.values.PathName("development-process/domain-modeling.dox/index.dox")),
+            org.goldenport.i18n.I18NHangar.empty
+          )
+        ))
+        links.get("development-process/domain-modeling.dox").map(
+          _.incomingLinks.filterNot(reciprocal).links.map(_.source.v).toSet
+        ) shouldBe Some(Set("development-process/backlink.dox"))
         And("incoming related-link records calculate the normalized Document Project route")
         val incoming = LinkCollection.IncomingLink(
           LinkCollection.IncomingLink.Kind.Direct,
@@ -266,19 +362,29 @@ class DoxSiteSpec
         bibliography should include_metadata("\"id\" : \"bib:document-project-reference\"")
         bibliography should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
         bibliography should not (include_metadata("domain-modeling.dox/index.html"))
-        And("document fragments, tags, RDF, JSON-LD, and Atom feeds retain only the normalized public path")
+        And("document fragments retain their source Site-link while published metadata uses only the normalized public path")
         fragments should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
         tags should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
         turtle should include_metadata("development-process/domain-modeling.html")
         jsonld should include_metadata("development-process/domain-modeling.html")
         japaneseatom should include_metadata("development-process/domain-modeling.html")
         englishatom should include_metadata("development-process/domain-modeling.html")
-        fragments should not (include_metadata("domain-modeling.dox/index.html"))
+        fragments should include_metadata("domain-modeling.dox/index.html")
         tags should not (include_metadata("domain-modeling.dox/index.html"))
         turtle should not (include_metadata("domain-modeling.dox/index.html"))
         jsonld should not (include_metadata("domain-modeling.dox/index.html"))
         japaneseatom should not (include_metadata("domain-modeling.dox/index.html"))
         englishatom should not (include_metadata("domain-modeling.dox/index.html"))
+        And("Antora receives the same logical Document Project page for both locales")
+        antora.get("antora.d/ja/docs/development-process/modules/ROOT/pages/domain-modeling.adoc") should not be empty
+        antora.get("antora.d/en/docs/development-process/modules/ROOT/pages/domain-modeling.adoc") should not be empty
+        antora.get("antora.d/ja/docs/development-process/modules/domain-modeling.dox/pages/index.adoc") shouldBe empty
+        antora.get("antora.d/en/docs/development-process/modules/domain-modeling.dox/pages/index.adoc") shouldBe empty
+        And("a following sibling retains its nested Antora module path after a virtual Document Project page")
+        antora.get("antora.d/ja/docs/development-process/modules/guides/pages/nested.dox/following.adoc") should not be empty
+        antora.get("antora.d/en/docs/development-process/modules/guides/pages/nested.dox/following.adoc") should not be empty
+        antora.get("antora.d/ja/docs/development-process/modules/guides/pages/following.adoc") shouldBe empty
+        antora.get("antora.d/en/docs/development-process/modules/guides/pages/following.adoc") shouldBe empty
       } finally {
         _delete(dir)
       }

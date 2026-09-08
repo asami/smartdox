@@ -3,14 +3,14 @@ package org.smartdox.doxsite
 import java.net.URI
 import java.util.Locale
 import org.goldenport.tree._
-import org.goldenport.values.PathName
 import org.smartdox._
 import org.smartdox.converter.DoxTreeScanner
 import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.LinkHolder
 
 /*
  * @since   Nov. 14, 2025
- * @version Nov. 22, 2025
+ *  version Nov. 22, 2025
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkCollector(
@@ -36,19 +36,18 @@ object LinkCollector {
 
     private val _builder: LinkCollection.Builder = new LinkCollection.Builder()
 
-    override protected def enter_Content(node: TreeNode[Node], content: Node): Unit = {
-      content match {
-        case m: Page => _scan_link(node, node.pathnameValue, m)
-        case _ => {}
-      }
-    }
+    override protected def enter_Container(node: TreeNode[Node]): Unit =
+      DoxSiteEffectiveContent.effectiveContent(node).foreach(_scan_link)
 
-    private def _scan_link(node: TreeNode[Node], pathname: PathName, p: Page): Unit = {
-      val dox = p.dox
+    override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
+      DoxSiteEffectiveContent.effectiveContent(node).foreach(_scan_link)
+
+    private def _scan_link(p: DoxSiteEffectiveContent.EffectiveContent): Unit = {
+      val dox = p.getDox
       val scanner = new Scanner()
       dox.traverse(scanner)
       _builder.add(
-        node,
+        p.logicalPath,
         dox,
         scanner.internalLinks,
         scanner.externalLinks,
@@ -90,7 +89,7 @@ object LinkCollector {
       }
 
       override protected def enter_Hyperlink(p: Hyperlink): Unit = {
-        if (p.isLocalOrRelative)
+        if (p.isLocalOrRelative || p.isSite)
           _scan_link(p, p.href)
         else if (p.isGlossary)
           _glossary_link(p)

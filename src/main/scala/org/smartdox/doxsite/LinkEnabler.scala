@@ -203,8 +203,9 @@ object LinkEnabler {
     }
 
     private def _create_reference_relation_related: Vector[Dox] = {
-      val a = _link_collection.get(pageNode.pathname) match {
-        case Some(s) => s.incomingLinks.filterNot(_internal_links).toListContents(pageNode.pathnameValue)
+      val pathname = PathName(DoxSiteEffectiveContent.effectivePath(pageNode.pathname))
+      val a = _link_collection.get(pathname.v) match {
+        case Some(s) => s.incomingLinks.filterNot(_internal_links).toListContents(pathname)
         case None => Vector.empty
       }
       val xs = _create_ul(a)

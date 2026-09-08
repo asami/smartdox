@@ -31,7 +31,7 @@ import org.goldenport.util.ListUtils
 import org.smartdox._
 import org.smartdox.parser.Dox2Parser
 import org.smartdox.generator.{Context => GeneratorContext, _}
-import org.smartdox.doxsite.DoxSite
+import org.smartdox.doxsite.{DoxSite, DoxSiteEffectiveContent}
 import org.smartdox.doxsite.{Node, Page, MetaDataNode}
 import org.smartdox.doxsite.ImageNode
 import org.smartdox.metadata.MetaData
@@ -53,7 +53,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version May. 14, 2026
  *  version Jun. 21, 2026
  *  version Jul. 13, 2026
- * @version Aug.  4, 2026
+ *  version Aug.  4, 2026
+ * @version Sep.  8, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -1097,20 +1098,14 @@ object AntoraGenerator {
     }
 
     private def _enter(node: TreeNode[Node]) = {
-      node.getContent match {
-        case Some(s) => _effective_depth match {
-          case 0 => _at_home(node, s)
-          case 1 => _at_component(node, s)
-          case 2 => _at_module(node, s)
-          case _ => _at_ingredient(node, s)
-        }
-        case None =>
-          _effective_depth match {
-            case 0 => _at_home(node)
-            case 1 => _at_component(node)
-            case 2 => _at_module(node)
-            case _ => _at_ingredient(node)
-          }
+      val content = DoxSiteEffectiveContent.effectiveContent(node).map(_.page).orElse(
+        node.getContent.collect { case s if !s.isInstanceOf[Page] => s }
+      )
+      _effective_depth match {
+        case 0 => content.fold(_at_home(node))(value => _at_home(node, value))
+        case 1 => content.fold(_at_component(node))(value => _at_component(node, value))
+        case 2 => content.fold(_at_module(node))(value => _at_module(node, value))
+        case _ => content.fold(_at_ingredient(node))(value => _at_ingredient(node, value))
       }
       _depth = _depth + 1
       if (_is_images(node))
@@ -1151,14 +1146,17 @@ object AntoraGenerator {
       _depth = _depth - 1
       if (_is_images(node))
         _in_images = false
-      node.getContent match {
-        case Some(s) => {}
+      val content = DoxSiteEffectiveContent.effectiveContent(node).map(_.page).orElse(
+        node.getContent.collect { case s if !s.isInstanceOf[Page] => s }
+      )
+      content match {
+        case Some(_) => ()
         case None =>
           _effective_depth match {
             case 0 => _return_to_home(node)
             case 1 => _return_to_component(node)
             case 2 => _return_to_module(node)
-          case _ => _return_to_ingredient(node)
+            case _ => _return_to_ingredient(node)
           }
       }
     }

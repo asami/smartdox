@@ -47,13 +47,17 @@ In scope:
   `Dox2Parser` behind their existing facades;
 - decompose PDF input/workspace, locale/site projection, and renderer
   invocation behind `PdfOperationClass` and `PdfRendererExecution`;
+- preserve the established Document Project public-URL flattening by exposing
+  `xxx.dox/index.dox` as logical `xxx.dox` to DoxSite link collection,
+  related-link projection, and Antora while retaining the physical source page
+  and package metadata;
 - preserve or extend only behavior-preserving executable specifications; and
 - maintain this Phase ledger and the Strategy record.
 
 Out of scope:
 
 - grammar, metadata, AST, diagnostic, rendering, or CLI behavior changes;
-- DoxLinesParser, DoxSite, and Cozy changes; and
+- DoxLinesParser, unrelated DoxSite feature work, and Cozy changes; and
 - `PublishMetadata.scala` decomposition (`HYG-APDF91-001`), which is the
   separately planned Phase 14 successor responsibility only.
 
@@ -78,7 +82,7 @@ Stage Status:
 ### DECOMP13-02: PDF Operation Extraction
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED
 - Owner: SmartDox PDF operation and renderer collaborators
 - Update rule: Advance only after package-visible PDF seams and focused PDF
   executable evidence preserve the existing operation behavior.
@@ -86,7 +90,22 @@ Stage Status:
 - Separate PDF input/workspace, locale/site projection, and renderer-invocation
   responsibilities without changing the PDF operation contract.
 
-### DECOMP13-03: Compatibility Acceptance and Closure
+### DECOMP13-03: Document Project Effective-Content Compatibility
+
+Stage Status:
+- Current status: CLOSED
+- Owner: SmartDox DoxSite effective-content collaborators
+- Update rule: Advance only after the logical `xxx.dox` identity preserves the
+  physical `index.dox` source/package representation, focused DoxSite
+  executable evidence, and independent Step review pass together.
+
+- Introduce one package-internal effective-content view for Document Project
+  packages and consume it in link collection, related-link projection, and
+  Antora generation. Preserve the established flattened public URL and all
+  physical source/package metadata without creating a new DoxSite authoring or
+  public-URL feature.
+
+### DECOMP13-04: Compatibility Acceptance and Closure
 
 Stage Status:
 - Current status: OPEN
@@ -101,8 +120,8 @@ Stage Status:
 ## Completion Criteria
 
 Phase 13 is complete only when every Stage checklist item is checked, the
-focused parser and PDF specifications preserve the linked compatibility
-contract, the mandatory independent Phase review is clean or converged, the
-full SmartDox suite passes on the final tree, and the distinct release commit
-succeeds.  It does not claim PublishMetadata (reserved for Phase 14 only), Cozy, publication, deployment,
-or downstream-consumer acceptance.
+focused parser, PDF, and DoxSite specifications preserve the linked
+compatibility contract, the mandatory independent Phase review is clean or
+converged, the full SmartDox suite passes on the final tree, and the distinct
+release commit succeeds. It does not claim PublishMetadata (reserved for Phase
+14 only), Cozy, publication, deployment, or downstream-consumer acceptance.

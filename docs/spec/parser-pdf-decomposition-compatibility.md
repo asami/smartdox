@@ -11,6 +11,12 @@ or rendering behavior.
 The separate PublishMetadata responsibility decomposition belongs to Phase 14
 only and is excluded from this Phase 13 compatibility boundary.
 
+The Phase also admits a narrow DoxSite compatibility repair: the established
+public URL flattening for a physical `xxx.dox/index.dox` source must use logical
+`xxx.dox` content consistently in LinkCollection, related-link projection, and
+Antora. The physical source page and package metadata remain addressable; no
+new public URL, Dox authoring form, or DoxSite feature is introduced.
+
 ## Parser compatibility
 
 - `DoxInlineParser` continues to parse the established SmartDox, Markdown,
@@ -48,6 +54,19 @@ only regression coverage that observes an already established behavior.
 `PdfOperationClassSpec` is the primary executable specification.  Its focused
 execution must cover each extracted PDF responsibility and preserve the
 operation's existing behavior.
+
+## Document Project compatibility
+
+- LinkCollection records outgoing and incoming relations under logical
+  `xxx.dox` identity, including Site-link references authored as
+  `xxx.dox/index.html`.
+- Related links and Antora use that same effective content and never emit an
+  `xxx.dox/index` page for a Document Project.
+- A nested Document Project must not alter the Antora module path of a following
+  sibling page.
+
+`DoxSiteSpec` is the primary executable specification for this compatibility
+repair.
 
 ## Acceptance
 

@@ -6,7 +6,6 @@ import org.goldenport.tree._
 import org.goldenport.values.PathName
 import org.goldenport.i18n.I18NHangar
 import org.goldenport.i18n.I18NString
-import org.goldenport.util.StringUtils
 import org.smartdox._
 import org.smartdox.metadata.DocumentMetaData
 import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.LinkHolder
@@ -71,11 +70,8 @@ object LinkCollection {
     def filterNot(p: LinkHolder): IncomingLinkHolder = {
       val excludes: Set[String] = p.links.flatMap { link =>
         link.pathname.map { base =>
-          val resolved = StringUtils.resolvePath(base.v, link.href.toString)
-          if (resolved.endsWith(".html"))
-            StringUtils.changeSuffix(resolved, "dox")
-          else
-            resolved
+          val effectivebase = DoxSiteEffectiveContent.effectivePath(base.v)
+          DoxSiteEffectiveContent.effectivePath(effectivebase, link.href.toString)
         }
       }.toSet
       def _is_match_(link: IncomingLink): Boolean =
@@ -140,7 +136,7 @@ object LinkCollection {
     }
 
     def add(
-      node: TreeNode[Node],
+      logicalPath: PathName,
       dox: Dox,
       internallinks: LinkHolder,
       externallinks: LinkHolder,
@@ -150,9 +146,9 @@ object LinkCollection {
       programs: ProgramHolder
     ): Unit = {
       val dl = DoxLinks(dox, internallinks, externallinks, glossarylinks, figures, tables)
-      _set(node.pathname, DoxLinks.Candidate.Complete(dl))
+      _set(logicalPath.v, DoxLinks.Candidate.Complete(dl))
       for (x <- internallinks.links) {
-        _set_internallink(node, dox, x)
+        _set_internallink(logicalPath, dox, x)
       }
     }
 
@@ -171,20 +167,20 @@ object LinkCollection {
     }
 
     private def _set_internallink(
-      node: TreeNode[Node],
+      logicalpath: PathName,
       dox: Dox,
       p: Link
     ): Unit = {
-      val pathname = StringUtils.resolvePath(node.pathname, p.href.toString)
+      val pathname = DoxSiteEffectiveContent.effectivePath(logicalpath.v, p.href.toString)
       val doc = Dox.toDocument(dox).head.metadata
       val x = tree.getContent(pathname) match {
-        case Some(s) => s.addIncoming(node.pathnameValue, doc, p)
+        case Some(s) => s.addIncoming(logicalpath, doc, p)
         case None =>
-          val doc = Dox.toDocument(dox).head.metadata
-          DoxLinks.Candidate.Incoming.create(node.pathnameValue, doc, p)
+          DoxLinks.Candidate.Incoming.create(logicalpath, doc, p)
       }
       tree.setContent(pathname, x)
     }
+
   }
   object Builder {
   }

@@ -33,20 +33,35 @@ Stage Status:
 ## DECOMP13-02: PDF Operation Extraction
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED
 - Owner: SmartDox PDF operation and renderer collaborators
 - Update rule: Mark an item complete only after package-visible seam
   compatibility, focused validation, and independent Step review pass.
 
-- [ ] Preserve `PdfOperationClass` operation/command/result/renderer and
+- [x] Preserve `PdfOperationClass` operation/command/result/renderer and
       package-visible seam compatibility while extracting PDF input/workspace
       responsibilities.
-- [ ] Preserve locale/site projection and renderer-invocation responsibilities
+- [x] Preserve locale/site projection and renderer-invocation responsibilities
       without changing renderer process or structured-diagnostic behavior.
-- [ ] Prove input-root, image, locale, Site-link, renderer, and failure-order
+- [x] Prove input-root, image, locale, Site-link, renderer, and failure-order
       behavior with focused executable specifications.
 
-## DECOMP13-03: Compatibility Acceptance and Closure
+## DECOMP13-03: Document Project Effective-Content Compatibility
+
+Stage Status:
+- Current status: CLOSED
+- Owner: SmartDox DoxSite effective-content collaborators
+- Update rule: Mark an item complete only after physical/package preservation,
+  focused DoxSite validation, and independent Step review pass.
+
+- [x] Preserve physical `xxx.dox/index.dox` source and package metadata while
+      exposing one logical `xxx.dox` effective-content identity.
+- [x] Make link collection, related-link projection, and Antora consume that
+      identity without emitting a nested Document Project public page.
+- [x] Prove relative Site-link mapping, incoming/outgoing relations, locale
+      output, and nested Antora sibling paths with `DoxSiteSpec`.
+
+## DECOMP13-04: Compatibility Acceptance and Closure
 
 Stage Status:
 - Current status: OPEN
@@ -56,7 +71,7 @@ Stage Status:
   distinct release commit succeeds.
 
 - [ ] Complete independent Step reviews and focused validation for each
-      accepted extraction.
+      accepted parser, PDF, and DoxSite compatibility Slice.
 - [ ] Complete mandatory independent Phase review and any bounded convergence
       cycle.
 - [ ] Run the final full SmartDox suite on the final release tree.
