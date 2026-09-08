@@ -30,7 +30,8 @@ compatibility specification.
 ### PMD14-01: Contract and Regression Coverage
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMPLETED
+- Acceptance commit: `e0c7c0d130a276f8cffc18da215844eadf503223`
 - Owner: `PublishMetadata` compatibility boundary
 - Update rule: Advance only after the established loading, catalog, and RDF
   behavior has executable regression coverage and focused validation.
@@ -42,7 +43,7 @@ RDF artifact merge and missing-policy behavior.
 ### PMD14-02: Article-Media Internal Extraction
 
 Stage Status:
-- Current status: OPEN
+- Current status: IN PROGRESS
 - Owner: internal article-media loading, normalization, and projection
   collaborators
 - Update rule: Advance only after exact-locale, role, legacy compatibility,

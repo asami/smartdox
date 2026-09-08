@@ -11,24 +11,25 @@ Predecessor: Phase 13 release closure
 ## PMD14-01: Contract and Regression Coverage
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMPLETED
+- Acceptance commit: `e0c7c0d130a276f8cffc18da215844eadf503223`
 - Owner: `PublishMetadata` compatibility boundary
 - Update rule: Mark an item complete only after its exact-tree executable
   evidence and independent Step review are accepted.
 
-- [ ] Establish the Phase 14 design and compatibility specification as the
+- [x] Establish the Phase 14 design and compatibility specification as the
       stable decomposition boundary.
-- [ ] Prove bundle selection over standalone metadata without changing the
+- [x] Prove bundle selection over standalone metadata without changing the
       established loading behavior.
-- [ ] Prove standalone metadata loading and the observable catalog page
+- [x] Prove standalone metadata loading and the observable catalog page
       projection.
-- [ ] Prove configured RDF artifact merge and warn/fail missing-artifact
+- [x] Prove configured RDF artifact merge and warn/fail missing-artifact
       behavior.
 
 ## PMD14-02: Article-Media Internal Extraction
 
 Stage Status:
-- Current status: OPEN
+- Current status: IN PROGRESS
 - Owner: internal article-media collaborators
 - Update rule: Mark an item complete only after facade compatibility, focused
   validation, and independent Step review.
