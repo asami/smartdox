@@ -4,12 +4,13 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Active phase: none. Phase 14 is closed through its final release boundary;
-  no successor implementation is activated by that closure.
-- Planned phase: `phase-15.md`: Article Header Metadata and Media Actions. It
-  adds a title-adjacent metadata/action region and effective-LEAD infographic
-  projection shared by direct SmartDox sites and Cozy-built BoKs. It remains
-  planned and not started.
+- Active phase: `phase-15.md`: Article Header Metadata and Media Actions. It is
+  `IN PROGRESS`; AHEAD15-02 is accepted and AHEAD15-03 remains in progress for
+  independent review, final full validation, and release closure. Direct
+  DoxSite proof is complete; actual Cozy BoK fixture acceptance is recorded as
+  Future Development Candidate `DEV-006` and is not claimed here.
+- Phase 14 is closed through its final release boundary; no successor phase is
+  created or activated by that closure or by this Phase 15 status update.
 - Most recently closed phase: `phase-14.md`: PublishMetadata Responsibility
   Decomposition. It preserves the `PublishMetadata` facade and nested public
   model identities while separating internal loading, article-media, registry,
@@ -83,4 +84,5 @@ Phase 14 is closed through its final release boundary in `phase-14.md` plus
 `phase-14-checklist.md`. It preserves the established PublishMetadata facade,
 loading, realm, catalog, article-media, video, and RDF behavior through
 internal responsibility extraction. The three retained hygiene records are
-separate maintenance work; Phase 15 remains planned and not started.
+separate maintenance work; Phase 15 is now in progress under its own bounded
+closure contract.

@@ -129,6 +129,17 @@ preprocessor, HTML rewrite, registry schema, or mutation for this behavior.
 The existing Antora media-callout projection MUST remain a compatibility
 consumer and is not the header presentation target.
 
+## Consumer Acceptance Boundary
+
+Direct-DoxSite physical and virtual source-root evidence is evidence for the
+SmartDox-owned projection and the accepted Phase 11 source-root semantics. It
+MUST NOT be represented as acceptance of an actual Cozy BoK fixture. An actual
+Cozy-built BoK fixture remains a required consumer-acceptance proof of this
+same projection and is deferred to a later explicitly invoked cross-repository
+acceptance Phase, initially freezing both the SmartDox and Cozy repositories.
+The deferral introduces no Cozy-only HTML rewrite, preprocessor, registry
+schema, or mutation responsibility.
+
 This specification MUST NOT change the article-media registry roles or schema,
 filename-inference prohibition, exact-locale behavior, asset discovery,
 generation, upload, publication, Notice/card/dashboard/feed behavior, Antora
@@ -142,9 +153,12 @@ A later implementation delivery MUST add executable specifications covering:
 - every one of the sixteen availability combinations of projectable video,
   summary-slides PDF, article PDF, and infographic, including complete,
   partial, and absent action groups, for each exact `en` and `ja` locale through
-  both (a) a direct DoxSite fixture with a physical source root and (b) a
-  Cozy-built BoK fixture whose direct DoxSite projection uses a virtual source
-  root;
+  both (a) direct SmartDox DoxSite fixture coverage with physical and virtual
+  source roots and (b) an actual Cozy-built BoK fixture whose direct DoxSite
+  projection uses a virtual source root;
+- the actual Cozy-built BoK fixture as an independent required proof after
+  direct-DoxSite evidence, because direct virtual-Realm coverage is not Cozy BoK
+  fixture acceptance;
 - source-root propagation in both fixtures using the accepted Phase 11
   semantics (canonical physical document parent or normalized virtual Realm
   parent), proving no process-current-directory fallback or root escape and

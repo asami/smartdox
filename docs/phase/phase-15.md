@@ -5,9 +5,11 @@ Status: IN PROGRESS
 Plan date: 2026-09-08
 
 Scheduling note: Phase 14 remains reserved for the previously recorded
-`PublishMetadata` responsibility decomposition. Phase 15 is not activated by
-this plan and must be sequenced against the accepted Phase 13/14 boundaries
-before implementation starts.
+`PublishMetadata` responsibility decomposition. Phase 15 is active after the
+accepted Phase 13/14 boundaries. AHEAD15-02 is accepted; AHEAD15-03 remains in
+progress for its independent review, final full validation, and release gates.
+The actual Cozy BoK fixture acceptance is recorded as Future Development
+Candidate `DEV-006` and is not started by this closure contract.
 
 ## Goal
 
@@ -37,7 +39,9 @@ In scope:
 - project a registered infographic as an accessible inline figure immediately
   below the effective LEAD, with a deterministic no-LEAD fallback;
 - preserve exact-locale publication resolution and Notice projections; and
-- prove direct SmartDox and Cozy BoK consumption of the same common projection.
+- prove direct SmartDox consumption of the same common projection while
+  retaining actual Cozy BoK fixture acceptance as the deferred `DEV-006`
+  requirement.
 
 Out of scope:
 
@@ -64,10 +68,13 @@ Stage Status:
 ### AHEAD15-02: Header Actions and Inline Infographic Projection
 
 Stage Status:
-- Current status: OPEN
+- Current status: ACCEPTED
+- Step commit: `ba7b672c2bc1ba5c50e1b51e724d7b0d5e031a2b`
+- Focused validation: receipt `P15-AHEAD15-02-VAL-006` (24 succeeded,
+  0 failed)
 - Owner: SmartDox DoxSite and article-media projection
-- Update rule: Advance only after all partial-media, LEAD/no-LEAD, locale, and
-  no-media cases have deterministic executable evidence.
+- Update rule: Preserve accepted status against the exact Step commit and
+  focused receipt; later closure remains governed by the Phase checklist.
 
 - Implement the title-adjacent metadata and action groups without changing the
   existing publication registry or Notice contract.
@@ -77,23 +84,28 @@ Stage Status:
 ### AHEAD15-03: Common Consumer Acceptance
 
 Stage Status:
-- Current status: OPEN
+- Current status: IN_PROGRESS
 - Owner: SmartDox Phase 15
-- Update rule: Close only after direct DoxSite and Cozy BoK fixture acceptance,
-  independent Phase review, final full validation, and release closure.
+- Update rule: Close only after the direct DoxSite proof, independent Phase
+  review, final full validation, and release closure. The actual Cozy fixture
+  requirement is retained as Future Development Candidate `DEV-006` and is not
+  claimed by the direct-DoxSite evidence.
 
-- Prove that Cozy BoK consumes the common SmartDox projection without a
-  consumer-specific rewrite.
+- Complete the direct DoxSite proof and preserve the common projection contract
+  for the later actual Cozy BoK fixture acceptance.
 
 ## Completion Criteria
 
 Phase 15 is complete only when the checklist is fully closed, the promoted
 design/specification fixes the common page contract, available media actions
 are discoverable below the title, infographic placement follows the effective
-LEAD contract, metadata remains extensible and accessible, direct SmartDox and
-Cozy BoK fixtures pass, and the mandatory review/full-validation/release gates
-complete. Planning this Phase does not activate it or claim implementation,
-publication, deployment, or downstream production acceptance.
+LEAD contract, metadata remains extensible and accessible, direct DoxSite proof
+is accepted, and the mandatory review/full-validation/release gates complete.
+The actual Cozy BoK fixture remains a normative consumer-acceptance requirement
+in the design and specification, but is explicitly deferred as `DEV-006` to a
+later explicitly invoked cross-repository Phase. This closure contract does
+not create or activate that Phase, and claims no publication, deployment, or
+downstream production acceptance.
 
 ## References
 

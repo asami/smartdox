@@ -23,33 +23,41 @@ Stage Status:
 ## AHEAD15-02: Header Actions and Inline Infographic Projection
 
 Stage Status:
-- Current status: OPEN
+- Current status: ACCEPTED
+- Step commit: `ba7b672c2bc1ba5c50e1b51e724d7b0d5e031a2b`
+- Focused validation: receipt `P15-AHEAD15-02-VAL-006` (24 succeeded,
+  0 failed)
 - Owner: SmartDox DoxSite and article-media projection
-- Update rule: Close only when every AHEAD15-02 item is checked and focused
-  executable evidence passes on the exact implementation tree.
+- Update rule: Preserve accepted status against the exact Step commit and
+  focused receipt; all four implementation items are checked below.
 
-- [ ] Render available video, summary-slides PDF, article PDF, and infographic
+- [x] Render available video, summary-slides PDF, article PDF, and infographic
       roles as deterministic localized button-style links below the title.
-- [ ] Render reliable compact metadata in a distinct extensible header strip;
+- [x] Render reliable compact metadata in a distinct extensible header strip;
       omit absent values and preserve meaningful text when icons or CSS are
       unavailable.
-- [ ] Render an accessible registered infographic immediately below the
+- [x] Render an accessible registered infographic immediately below the
       effective LEAD, or at the specified no-LEAD fallback, and link to its
       full-size registered asset.
-- [ ] Prove partial-media combinations, unavailable-media omission, locale,
+- [x] Prove partial-media combinations, unavailable-media omission, locale,
       LEAD/no-LEAD placement, metadata, no-media compatibility, keyboard use,
       responsive wrapping, and print representation.
 
 ## AHEAD15-03: Common Consumer Acceptance
 
 Stage Status:
-- Current status: OPEN
+- Current status: IN_PROGRESS
 - Owner: SmartDox Phase 15
 - Update rule: Close only when every AHEAD15-03 item is checked and the Phase
-  review/full-validation/release gates complete.
+  review/full-validation/release gates complete. Direct-DoxSite evidence must
+  not be represented as actual Cozy BoK fixture acceptance.
 
-- [ ] Prove the same projection with a direct SmartDox fixture and a Cozy BoK
-      publication fixture, without a Cozy-only HTML rewrite.
+- [x] Prove the direct SmartDox DoxSite projection through the physical and
+      virtual source-root evidence without a Cozy-only HTML rewrite.
+- [x] (Future Development Candidate) DEV-006: Defer actual Cozy BoK fixture
+      acceptance to a later explicitly invoked cross-repository Phase, initially
+      freezing SmartDox and Cozy, while retaining the same projection and the
+      no-Cozy-only-rewrite requirement.
 - [ ] Complete mandatory independent Phase review and any bounded convergence
       cycle.
 - [ ] Run the final full SmartDox suite on the final release tree.
