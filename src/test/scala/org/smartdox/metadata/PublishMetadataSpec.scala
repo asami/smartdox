@@ -10,7 +10,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.junit.JUnitRunner
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.goldenport.i18n.I18NContext
 import org.smartdox.metadata.PublishMetadata.{VideoPresentation, VideoStatus}
+import org.smartdox.semanticweb.Rdf
 
 /*
  * @since   Aug.  4, 2026
@@ -382,22 +384,187 @@ class PublishMetadataSpec extends AnyWordSpec with Matchers with GivenWhenThen w
     }
   }
 
+  "PublishMetadata loading and projection" should {
+    "select metadata sources" which {
+      "load recognized standalone metadata when no bundle is present" in {
+        val directory = Files.createTempDirectory("smartdox-publish-metadata-standalone")
+        try {
+          Given("a directory containing one recognized standalone catalog metadata file")
+          Files.createDirectories(directory.resolve("catalog"))
+          Files.write(
+            directory.resolve("catalog/standalone.json"),
+            """{"type":"publication","publication":{"name":"standalone","title":"Standalone"}}""".getBytes(StandardCharsets.UTF_8)
+          )
+
+          When("publication metadata is loaded without a publication bundle")
+          val metadata = PublishMetadata.load(directory.toFile).get
+
+          Then("the standalone entry is selected with its source path and identity")
+          metadata.entries.map(_.path) shouldBe Vector("catalog/standalone.json")
+          metadata.entries.map(_.identity) shouldBe Vector("standalone")
+        } finally {
+          _delete_tree(directory.toFile)
+        }
+      }
+
+      "prefer a publication bundle when standalone metadata is also present" in {
+        val directory = Files.createTempDirectory("smartdox-publish-metadata-bundle")
+        try {
+          Given("a directory containing standalone metadata and a publication bundle")
+          Files.createDirectories(directory.resolve("catalog"))
+          Files.write(
+            directory.resolve("catalog/standalone.json"),
+            """{"type":"publication","publication":{"name":"standalone"}}""".getBytes(StandardCharsets.UTF_8)
+          )
+          _write_bundle(directory, Vector(
+            "metadata/catalog/bundled.json" -> """{"type":"publication","publication":{"name":"bundled"}}"""
+          ))
+
+          When("publication metadata is loaded")
+          val metadata = PublishMetadata.load(directory.toFile).get
+
+          Then("only the bundle entry participates in the loaded registry")
+          metadata.entries.map(_.path) shouldBe Vector("metadata/catalog/bundled.json")
+          metadata.entries.map(_.identity) shouldBe Vector("bundled")
+        } finally {
+          _delete_tree(directory.toFile)
+        }
+      }
+    }
+
+    "project the publication catalog" which {
+      "retain the established catalog and group page paths" in {
+        Given("a publication bundle containing one named publication")
+        val metadata = _load_bundle_entries(Vector(
+          "metadata/catalog/tutorial.json" -> """{"type":"publication","publication":{"name":"tutorial","title":"Tutorial","summary":"A tutorial"},"version":"1.0.0"}"""
+        ))
+
+        When("the loaded metadata generates publication pages")
+        val pagepaths = metadata.generatedPages.map(_._1)
+
+        Then("the global catalog and publication group pages remain observable")
+        pagepaths should contain allOf (
+          "catalog/index.dox",
+          "repository/tutorial/index.dox",
+          "catalog/tutorial/index.dox",
+          "catalog/tutorial/metadata.dox"
+        )
+      }
+
+      "expose bundle paths and payloads through the public realm" in {
+        val directory = Files.createTempDirectory("smartdox-publish-metadata-realm")
+        try {
+          Given("a publication bundle containing one catalog metadata entry")
+          _write_bundle(directory, Vector(
+            "metadata/catalog/tutorial.json" -> """{"type":"publication","publication":{"name":"tutorial"}}"""
+          ))
+
+          When("the bundle is projected to the public realm")
+          val realm = PublishMetadata.publicRealm(Some(directory.toFile)).get
+          implicit val i18ncontext: I18NContext = I18NContext.default
+          val payload = realm.getString("metadata/catalog/tutorial.json")
+
+          Then("the bundle path is present with its serialized metadata payload")
+          payload should not be empty
+          payload.get should include ("\"type\" : \"publication\"")
+          payload.get should include ("\"name\" : \"tutorial\"")
+        } finally {
+          _delete_tree(directory.toFile)
+        }
+      }
+    }
+
+    "merge configured RDF artifacts" which {
+      "parse a matching Turtle artifact only when merging is enabled" in {
+        val publication = Files.createTempDirectory("smartdox-publish-metadata-rdf")
+        val repository = Files.createTempDirectory("smartdox-publish-metadata-repository")
+        try {
+          Given("a publication bundle and repository containing its registered Turtle artifact")
+          _write_bundle(publication, _rdf_publication_entries)
+          val turtle = repository.resolve("repository/video/tutorial/0.1.0/tutorial.ttl")
+          Files.createDirectories(turtle.getParent)
+          Files.write(turtle, """<https://example.com/video/tutorial> <https://schema.org/name> "Tutorial".""".getBytes(StandardCharsets.UTF_8))
+          val metadata = PublishMetadata.load(publication.toFile).get
+
+          When("RDF artifact triples are requested with merge enabled and disabled")
+          val merged = metadata.videoRdfArtifactTriples(PublishMetadata.RdfMergeConfig(Some(repository.toFile), "fail"))
+          val disabled = metadata.videoRdfArtifactTriples(PublishMetadata.RdfMergeConfig(Some(repository.toFile), "fail", mergePublicationArtifacts = false))
+
+          Then("the configured artifact is parsed and disabling the merge returns no triples")
+          merged should contain (Rdf.Triple(
+            Rdf.Node.Uri("https://example.com/video/tutorial"),
+            Rdf.Node.Uri("https://schema.org/name"),
+            Rdf.Node.Literal("Tutorial")
+          ))
+          disabled shouldBe empty
+        } finally {
+          _delete_tree(publication.toFile)
+          _delete_tree(repository.toFile)
+        }
+      }
+
+      "apply the configured missing-artifact policy" in {
+        val publication = Files.createTempDirectory("smartdox-publish-metadata-rdf-missing")
+        val repository = Files.createTempDirectory("smartdox-publish-metadata-rdf-empty")
+        try {
+          Given("a publication bundle whose registered Turtle artifact is absent from the repository")
+          _write_bundle(publication, _rdf_publication_entries)
+          val metadata = PublishMetadata.load(publication.toFile).get
+
+          When("warn and fail missing-artifact policies are applied")
+          val warned = metadata.videoRdfArtifactTriples(PublishMetadata.RdfMergeConfig(Some(repository.toFile), "warn"))
+          val failed = intercept[IllegalArgumentException] {
+            metadata.videoRdfArtifactTriples(PublishMetadata.RdfMergeConfig(Some(repository.toFile), "fail"))
+          }
+
+          Then("warn remains reference-only and fail reports the missing artifact")
+          warned shouldBe empty
+          failed.getMessage should include ("Missing RDF artifact")
+        } finally {
+          _delete_tree(publication.toFile)
+          _delete_tree(repository.toFile)
+        }
+      }
+    }
+  }
+
   private def _load_bundle(metadata: Vector[String]): PublishMetadata = {
     val directory = Files.createTempDirectory("smartdox-article-media-publication")
     try {
-      Files.write(directory.resolve("publication.json"), _bundle(metadata).getBytes(StandardCharsets.UTF_8))
+      _write_bundle(directory, metadata.zipWithIndex.map {
+        case (json, index) => s"metadata/article-media/$index.json" -> json
+      })
       PublishMetadata.load(directory.toFile).getOrElse(fail("Article-media test registry was not loaded"))
     } finally {
       _delete_tree(directory.toFile)
     }
   }
 
+  private def _load_bundle_entries(entries: Vector[(String, String)]): PublishMetadata = {
+    val directory = Files.createTempDirectory("smartdox-publication-bundle")
+    try {
+      _write_bundle(directory, entries)
+      PublishMetadata.load(directory.toFile).getOrElse(fail("Publication metadata test registry was not loaded"))
+    } finally {
+      _delete_tree(directory.toFile)
+    }
+  }
+
   private def _bundle(metadata: Vector[String]): String = {
-    val entries = metadata.zipWithIndex.map {
-      case (json, index) =>
-        s"""{"path":"metadata/article-media/$index.json","metadata":$json}"""
+    _bundle_entries(metadata.zipWithIndex.map {
+      case (json, index) => s"metadata/article-media/$index.json" -> json
+    })
+  }
+
+  private def _bundle_entries(entries: Vector[(String, String)]): String = {
+    val values = entries.map {
+      case (path, json) => s"""{"path":"$path","metadata":$json}"""
     }.mkString(",")
-    s"""{"type":"publication-bundle","entries":[$entries]}"""
+    s"""{"type":"publication-bundle","entries":[$values]}"""
+  }
+
+  private def _write_bundle(directory: java.nio.file.Path, entries: Vector[(String, String)]): Unit = {
+    Files.write(directory.resolve("publication.json"), _bundle_entries(entries).getBytes(StandardCharsets.UTF_8))
   }
 
   private def _native(identity: String, variants: String): String =
@@ -408,6 +575,11 @@ class PublishMetadataSpec extends AnyWordSpec with Matchers with GivenWhenThen w
 
   private def _video_publication(name: String, sourcepackage: String, articlepath: String, publicpath: String): String =
     s"""{"type":"video-publication","video":{"name":"$name","sourcePackage":"$sourcepackage","articlePath":"$articlepath","artifact":{"repositoryPublicPath":"$publicpath"}}}"""
+
+  private val _rdf_publication_entries = Vector(
+    "metadata/videos/tutorial.json" -> """{"type":"video-publication","video":{"name":"tutorial","version":"0.1.0","artifact":{"repositoryPublicPath":"repository/video/tutorial/0.1.0/tutorial.mp4"}}}""",
+    "metadata/video/tutorial/0.1.0/rdf.json" -> """{"type":"video-rdf","video":{"name":"tutorial","version":"0.1.0"},"files":{"turtle":{"warehousePath":"repository/video/tutorial/0.1.0/tutorial.ttl","publicPath":"repository/video/tutorial/0.1.0/tutorial.ttl"}}}"""
+  )
 
   private val _external_published =
     """{"video":{"presentation":"external-link","status":"published","watch_url":"https://example.com/watch"}}"""
