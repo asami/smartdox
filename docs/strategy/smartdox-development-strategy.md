@@ -234,7 +234,7 @@ Primary reference:
 
 ### Phase 13: Parser and PDF Operation Responsibility Decomposition
 
-Status: in progress.
+Status: closed through the final release boundary.
 
 Purpose:
 
@@ -254,13 +254,32 @@ Primary reference:
 - `docs/design/parser-pdf-responsibility-decomposition.md`
 - `docs/spec/parser-pdf-decomposition-compatibility.md`
 
+### Phase 14: PublishMetadata Responsibility Decomposition
+
+Status: closed through the final release boundary.
+
+Purpose:
+
+- separate `PublishMetadata` loading, article-media, registry, catalog-page,
+  video-publication, and RDF-artifact responsibilities behind its existing
+  facade; and
+- preserve all established public methods, nested public model identities, and
+  compatibility behavior with deterministic executable evidence.
+
+Primary reference:
+
+- `docs/phase/phase-14.md`
+- `docs/phase/phase-14-checklist.md`
+- `docs/design/publish-metadata-responsibility-decomposition.md`
+- `docs/spec/publish-metadata-decomposition-compatibility.md`
+
 ### Phase 15: Article Header Metadata and Media Actions
 
 Status: planned; not started.
 
-Scheduling note: Phase 14 remains reserved for the previously recorded
-`PublishMetadata` responsibility decomposition. Phase 15 must be sequenced
-against the accepted Phase 13/14 boundaries before activation.
+Scheduling note: Phase 14 is closed through its final release boundary. Phase
+15 must be explicitly activated after the accepted Phase 13/14 boundaries; it
+is not activated by either closure.
 
 Purpose:
 
@@ -343,6 +362,20 @@ authoritative. The phase retains the SmartDox diagnostic and retryability
 contract only; Cozy workflow retries and Cozy launcher/local-wrapper resolution
 remain outside its boundary. No successor Phase is activated by this closure.
 
+Phase 13 is closed through its final release boundary after its accepted parser,
+PDF-operation, and effective-content compatibility Steps. Its final release
+does not activate either the PublishMetadata decomposition or Phase 15.
+
+Phase 14 is closed through its final release boundary after compatibility
+coverage commit `e0c7c0d130a276f8cffc18da215844eadf503223`, article-media
+extraction commit `dfa589c848209e3971416079c18bdbf7f9de99b1`, and registry,
+catalog, video, and RDF extraction commits
+`a64dafecdeadc4c1016e3a865e1ae82df84d0804`,
+`b20bdf21a97b034cd4f19826d9b07343614f3ff4`, and
+`728b495088faa416b3b6ea95472a8e3679c1f07c`. The mandatory full review found
+no Current Phase Blocker. Its retained hygiene records remain separate
+maintenance work, and Phase 15 remains planned and not started.
+
 ## 9. Development Item Status
 
 | ID | Source | Development item | Disposition | Target | Status |
@@ -352,5 +385,6 @@ remain outside its boundary. No successor Phase is activated by this closure.
 | DEV-003 | Cozy Phase 39 scope decision on 2026-08-29 | Admit Markdown image syntax into the common SmartDox image model and preserve alt text, source-relative paths, and deterministic PDF-path behavior without a Cozy-local preprocessor. | NEW_PHASE | [Phase 10](../phase/phase-10.md) | CLOSED |
 | DEV-P10-01 | Phase 10 full review | Define explicit physical/virtual DoxSite source-root semantics for Markdown-image consumers instead of relying on a current-directory fallback. | ADOPTED | [Phase 11](../phase/phase-11.md) | CLOSED |
 | DEV-004 | KnowledgeHub weekly-report PDF incident on 2026-09-07 | Replace parser-internal failure dumps with source-located structured rendering diagnostics, preserve stage identity through PDF generation, and expose deterministic failures as terminal/non-retryable. | NEW_PHASE | [Phase 12](../phase/phase-12.md) | CLOSED THROUGH FINAL RELEASE BOUNDARY |
-| HYG-P10-02 | Phase 10 full review | Separate the remaining inline/document parser and PDF-operation responsibilities while preserving their existing facades and executable behavior. | ADOPTED | [Phase 13](../phase/phase-13.md) | IN PROGRESS |
+| HYG-P10-02 | Phase 10 full review | Separate the remaining inline/document parser and PDF-operation responsibilities while preserving their existing facades and executable behavior. | ADOPTED | [Phase 13](../phase/phase-13.md) | CLOSED THROUGH FINAL RELEASE BOUNDARY |
+| HYG-APDF91-001 | Phase 9.1 full review | Separate the PublishMetadata responsibilities while preserving the established facade and executable behavior. | ADOPTED | [Phase 14](../phase/phase-14.md) | CLOSED THROUGH FINAL RELEASE BOUNDARY |
 | DEV-005 | `docs/journal/2026/09/2026-09-08-article-header-media-discoverability-decision.md` | Add an extensible title-adjacent metadata strip and discoverable media actions, render the registered infographic below the effective LEAD, and reuse the common projection in Cozy-built BoKs. | NEW_PHASE | [Phase 15](../phase/phase-15.md) | PLANNED |

@@ -4,21 +4,16 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Active phase: `phase-13.md`: Parser and PDF Operation Responsibility
-  Decomposition. It preserves established parser and PDF behavior while
-  separating their internal responsibilities behind the existing facades.
+- Active phase: none. Phase 14 is closed through its final release boundary;
+  no successor implementation is activated by that closure.
 - Planned phase: `phase-15.md`: Article Header Metadata and Media Actions. It
   adds a title-adjacent metadata/action region and effective-LEAD infographic
-  projection shared by direct SmartDox sites and Cozy-built BoKs. Phase 14
-  remains reserved for the previously recorded `PublishMetadata`
-  responsibility decomposition; Phase 15 is not started.
-- Most recently closed phase: `phase-12.md`: Structured Rendering Diagnostics
-  and Terminal Failure Semantics. Its DIAG12-01 vocabulary, DIAG12-02 parser/
-  PDF propagation, and DIAG12-03 executable-acceptance stages are committed or
-  closed through this final release boundary. The focused closure review sealed
-  its two-cycle repair delta after 111 focused tests passed; closure becomes
-  authoritative only when the final full suite and distinct release commit
-  succeed.
+  projection shared by direct SmartDox sites and Cozy-built BoKs. It remains
+  planned and not started.
+- Most recently closed phase: `phase-14.md`: PublishMetadata Responsibility
+  Decomposition. It preserves the `PublishMetadata` facade and nested public
+  model identities while separating internal loading, article-media, registry,
+  catalog, video, and RDF responsibilities.
 - Phase 7 was accepted in the `TAG7-01` Step commit
   `496fa8c1af8ef2e75d473f4b05c25061397fb5d8` (`Phase 7: complete generic
   inline open-tag grammar`). Its mandatory full Phase review found one bounded
@@ -78,3 +73,14 @@ distinct parse/locale/diagram/typesetting stage evidence, and terminal
 non-retryable semantics for deterministic input failures. Cozy retry
 orchestration and Cozy launcher/local-wrapper resolution remain outside the
 SmartDox Phase boundary.
+
+Phase 13 is closed through its final release boundary in `phase-13.md` plus
+`phase-13-checklist.md`. It preserves the parser, PDF operation, and Document
+Project effective-content compatibility contracts without starting the separate
+PublishMetadata work.
+
+Phase 14 is closed through its final release boundary in `phase-14.md` plus
+`phase-14-checklist.md`. It preserves the established PublishMetadata facade,
+loading, realm, catalog, article-media, video, and RDF behavior through
+internal responsibility extraction. The three retained hygiene records are
+separate maintenance work; Phase 15 remains planned and not started.

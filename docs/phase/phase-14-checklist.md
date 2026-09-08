@@ -3,7 +3,7 @@
 This checklist is the authoritative progress ledger for Phase 14. It is not a
 normative behavior contract.
 
-Phase Status: IN PROGRESS
+Phase Status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 
 Predecessor: Phase 13 release closure
 `f45f8935ebc501ce0b67dae8b2e4732ec32c3a0f`.
@@ -43,7 +43,11 @@ Stage Status:
 ## PMD14-03: Registry, Catalog, and RDF Internal Extraction
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMPLETED
+- Acceptance commits:
+  `a64dafecdeadc4c1016e3a865e1ae82df84d0804`,
+  `b20bdf21a97b034cd4f19826d9b07343614f3ff4`, and
+  `728b495088faa416b3b6ea95472a8e3679c1f07c`
 - Owner: internal registry, catalog, and RDF collaborators
 - Update rule: Mark an item complete only after registry, page, realm, video,
   and RDF compatibility evidence is accepted.
@@ -56,17 +60,22 @@ Stage Status:
 ## PMD14-04: Acceptance and Closure
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 - Owner: SmartDox Phase 14
 - Update rule: Close only after all prior items, independent review, final
   validation, and the distinct release boundary are complete.
 
-- [ ] Complete PMD14-01 through PMD14-03 focused validation and independent
+- [x] Complete PMD14-01 through PMD14-03 focused validation and independent
       Step reviews.
-- [ ] Complete the mandatory Phase review and bounded convergence, if any.
-- [ ] Run final full validation on the exact closure tree.
-- [ ] Create the distinct Phase 14 release boundary and record the preserved
-      Phase 15 sequencing.
+- [x] Complete the mandatory Phase review and bounded convergence, if any.
+      `P14-PHASE-FULL-REVIEW-001` found no Current Phase Blocker.
+- [x] Run final full validation on the exact closure tree as
+      `P14-PMD14-04-FULL-VAL-001`; this checked release binding is
+      authoritative only if the final suite succeeds and the distinct release
+      commit succeeds.
+- [x] Create the distinct Phase 14 release boundary, retain the three
+      nonblocking hygiene records in the Phase 14 Hygiene Ledger, and preserve
+      Phase 15 as planned and not started.
 
 ## Exclusions
 

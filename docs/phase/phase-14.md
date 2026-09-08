@@ -1,6 +1,6 @@
 # Phase 14: PublishMetadata Responsibility Decomposition
 
-Status: IN PROGRESS
+Status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 
 Plan date: 2026-09-08
 
@@ -56,7 +56,11 @@ schemas, locale semantics, media projection, or public model identities.
 ### PMD14-03: Registry, Catalog, and RDF Internal Extraction
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMPLETED
+- Acceptance commits:
+  `a64dafecdeadc4c1016e3a865e1ae82df84d0804`,
+  `b20bdf21a97b034cd4f19826d9b07343614f3ff4`, and
+  `728b495088faa416b3b6ea95472a8e3679c1f07c`
 - Owner: internal publication registry, catalog-page, and RDF collaborators
 - Update rule: Advance only after registry selection, catalog pages, public
   realm, video publication, and RDF merge behavior remains compatible.
@@ -67,12 +71,18 @@ facade and configured policy boundary.
 ### PMD14-04: Acceptance and Closure
 
 Stage Status:
-- Current status: OPEN
+- Current status: CLOSED THROUGH FINAL RELEASE BOUNDARY
 - Owner: SmartDox Phase 14
 - Update rule: Close only after every checklist item has exact-tree evidence,
   independent review, final validation, and a distinct release boundary.
 
-Complete focused and full acceptance, independent review, and release closure.
+- The independent full review `P14-PHASE-FULL-REVIEW-001` accepted the Phase
+  accumulator without a Current Phase Blocker. Its three nonblocking hygiene
+  records are preserved verbatim in the Phase 14 Hygiene Ledger; no hygiene
+  repair is part of this behavior-preserving Phase.
+- `P14-PMD14-04-FULL-VAL-001` is the final full SmartDox suite binding for the
+  final closure tree. The distinct release commit and that successful receipt
+  together make this closure authoritative.
 
 ## Explicit Exclusions
 
@@ -83,7 +93,9 @@ semanticweb, Strategy, and README changes are not admitted by PMD14-01.
 
 ## Completion Criteria
 
-Phase 14 closes only when the checklist is complete, the compatibility
-specification is satisfied by the preserved facade and extracted collaborators,
-focused and full validation pass, independent review is accepted, and the
-distinct release boundary succeeds.
+Phase 14 closes through its final release boundary when the checklist is
+complete, the compatibility specification is satisfied by the preserved facade
+and extracted collaborators, focused and full validation pass, independent
+review is accepted, and the distinct release boundary succeeds. It does not
+start Phase 15, repair the recorded hygiene items, or claim publication,
+deployment, or downstream-consumer acceptance.
