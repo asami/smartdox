@@ -27,7 +27,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 /*
  * @since   Aug. 30, 2026
  *  version Aug. 30, 2026
- * @version Sep.  8, 2026
+ * @version Sep.  9, 2026
  * @author  ASAMI, Tomoharu
  */
   class DoxSiteBuilder(
@@ -294,7 +294,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
     private def _to_html(node: TreeNode[Node], p: Page): TreeTransformer.Directive.LeafNode[Realm.Data] = {
       val filtered = _filter(p.dox)
       val dox = rule.targetLocale.fold(filtered) { locale =>
-        DoxSite.projectArticleMedia(Dox.toDocument(filtered), node.pathnameRelative, locale, articleMediaProjection)
+        DoxSiteArticleMedia.projectArticleHeader(Dox.toDocument(filtered), node.pathnameRelative, locale, articleMediaProjection)
       }
       val htmlrule = Dox2HtmlTransformer.Rule.noCss
       val s = Consequence.from(Dox2HtmlTransformer(gcontext, htmlrule).transform(dox)).

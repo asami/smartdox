@@ -15,6 +15,8 @@ private[metadata] object PublishMetadataArticleMediaSupport {
       case _document_project_entrypoint_pattern(identity) => identity
       case value if value.endsWith(".dox") => value.stripSuffix(".dox")
       case value if value.endsWith(".html") => value.stripSuffix(".html")
+      case value if value.endsWith(".md") => value.stripSuffix(".md")
+      case value if value.endsWith(".markdown") => value.stripSuffix(".markdown")
       case value => value
     }
     _normalize_article_identity_option(suffixfree)

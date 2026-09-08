@@ -2,6 +2,8 @@ package org.smartdox.generators
 
 import java.io.File
 import java.net.URI
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.util.Locale
 import org.yaml.snakeyaml.Yaml
 import scala.collection.JavaConverters._
@@ -45,23 +47,33 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val englisharticle = _string(site, "doxsite.d/en/development-process/example.html")
       val japanesearticle = _string(site, "doxsite.d/ja/development-process/example.html")
       englisharticle should include ("/en/development-process/pdf/example-article.pdf")
-      englisharticle should include ("  Read the full English article  ")
+      englisharticle should include ("Article PDF")
+      englisharticle should not include ("  Read the full English article  ")
       englisharticle should include ("/en/development-process/pdf/example-summary-slides.pdf")
       englisharticle should include ("Summary slides PDF")
-      englisharticle should include ("smartdox-article-media")
-      englisharticle should include ("smartdox-article-media-pdf")
+      englisharticle should include ("smartdox-article-header")
+      englisharticle should include ("smartdox-article-header-metadata")
+      englisharticle should include ("smartdox-article-header-actions")
+      englisharticle should not include ("smartdox-article-media")
       englisharticle should include ("https://example.com/watch-en")
       englisharticle should include ("Watch video")
-      englisharticle should include ("smartdox-article-media-video")
-      englisharticle.indexOf("/en/development-process/pdf/example-article.pdf") should be < englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf")
-      englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf") should be < englisharticle.indexOf("https://example.com/watch-en")
-      englisharticle.indexOf("smartdox-article-media-pdf") should be < englisharticle.indexOf("smartdox-article-media-video")
+      englisharticle should include ("smartdox-article-header-action")
+      englisharticle.indexOf("https://example.com/watch-en") should be < englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf")
+      englisharticle.indexOf("/en/development-process/pdf/example-summary-slides.pdf") should be < englisharticle.indexOf("/en/development-process/pdf/example-article.pdf")
+      englisharticle.indexOf("/en/development-process/pdf/example-article.pdf") should be < englisharticle.indexOf("#smartdox-article-infographic")
+      englisharticle should include ("smartdox-article-infographic")
+      englisharticle should include ("modeling")
+      englisharticle should include ("ai-collaboration")
       japanesearticle should include ("/ja/development-process/pdf/example-article.pdf")
-      japanesearticle should include ("  記事 PDF  ")
+      japanesearticle should include ("記事 PDF")
+      japanesearticle should not include ("  記事 PDF  ")
       japanesearticle should not include ("summary-slides.pdf")
       japanesearticle should not include ("要約スライド PDF")
       japanesearticle should include ("https://example.com/watch-ja")
       japanesearticle should include ("動画を見る")
+      japanesearticle should include ("インフォグラフィックを見る")
+      japanesearticle should include ("smartdox-article-header")
+      japanesearticle should not include ("smartdox-article-media")
       japanesearticle should not include ("watch-en")
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should include ("https://example.com/watch-ja")
       _string(antora, "antora.d/docs/development-process/modules/ROOT/pages/example.adoc") should not include ("https://example.com/watch-en")
@@ -125,14 +137,14 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val japanesecategory = _notice(site, "doxsite.d/WEB-INF/data/ja/development-process", "development-process/part-5.html")
 
       Then("each article-top projection exposes only its exact locale projectable video and labels")
-      englisharticle should not include ("/en/development-process/part-5/_images/summary.png")
+      englisharticle should include ("/en/development-process/part-5/_images/summary.png")
       englisharticle should include ("https://youtu.be/Part5MediaEn1")
-      englisharticle should not include ("View infographic")
+      englisharticle should include ("View infographic")
       englisharticle should include ("Watch video")
       englisharticle should not include ("https://youtu.be/Part5MediaJa1")
-      japanesearticle should not include ("/ja/development-process/part-5/_images/summary.png")
+      japanesearticle should include ("/ja/development-process/part-5/_images/summary.png")
       japanesearticle should include ("https://youtu.be/Part5MediaJa1")
-      japanesearticle should not include ("インフォグラフィックを見る")
+      japanesearticle should include ("インフォグラフィックを見る")
       japanesearticle should include ("動画を見る")
       japanesearticle should not include ("https://youtu.be/Part5MediaEn1")
 
@@ -179,9 +191,11 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val englishnotice = _notice(site, "doxsite.d/WEB-INF/data/en", "development-process/draft.html")
       val japanesenotice = _notice(site, "doxsite.d/WEB-INF/data/ja", "development-process/draft.html")
 
-      Then("the unavailable videos have no article-top block or Notice video")
-      _string(site, "doxsite.d/en/development-process/draft.html") should not include ("smartdox-article-media-video")
-      _string(site, "doxsite.d/ja/development-process/draft.html") should not include ("smartdox-article-media-video")
+      Then("the unavailable videos have no header video action while the infographic remains available")
+      _string(site, "doxsite.d/en/development-process/draft.html") should not include ("https://example.com/draft")
+      _string(site, "doxsite.d/en/development-process/draft.html") should include ("smartdox-article-infographic")
+      _string(site, "doxsite.d/ja/development-process/draft.html") should not include ("https://example.com/withdrawn")
+      _string(site, "doxsite.d/ja/development-process/draft.html") should include ("smartdox-article-infographic")
       _media(englishnotice) shouldBe Some(Map(
         "infographic" -> Map("public_path" -> "/en/development-process/images/draft.png")
       ))
@@ -200,12 +214,13 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val hostednotice = _notice(site, "doxsite.d/WEB-INF/data/en", "development-process/hosted.html")
       val plainnotice = _notice(site, "doxsite.d/WEB-INF/data/en", "development-process/plain.html")
 
-      Then("the hosted article has a player and the unregistered article remains unchanged")
-      hosted should include ("smartdox-article-media-video")
-      hosted should include ("<video")
-      hosted should include ("src=\"/en/development-process/videos/hosted.mp4\"")
-      _string(site, "doxsite.d/ja/development-process/hosted.html") should not include ("smartdox-article-media-video")
-      plain should not include ("smartdox-article-media-video")
+      Then("the hosted article has a native header action and the unregistered article remains unchanged")
+      hosted should include ("smartdox-article-header-actions")
+      hosted should include ("href=\"/en/development-process/videos/hosted.mp4\"")
+      hosted should include ("Watch video")
+      hosted should not include ("<video")
+      _string(site, "doxsite.d/ja/development-process/hosted.html") should not include ("/en/development-process/videos/hosted.mp4")
+      plain should not include ("smartdox-article-header-actions")
       plain should include ("Plain article lead.")
       _media(hostednotice) shouldBe Some(Map(
         "video" -> Map(
@@ -419,7 +434,7 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       }
 
     "placement, identity, and compatibility" which {
-      "place the callout after the lead and before the first section, share Notice media with the category projection, and avoid a legacy duplicate" in {
+      "place the header before the lead and the infographic after the lead, share Notice media with the category projection, and avoid a legacy duplicate" in {
       Given("the localized site, registry, and a legacy video-package source")
       val site = _site()
       val globalnotice = _notice(site, "doxsite.d/WEB-INF/data/en", "development-process/example.html")
@@ -431,15 +446,24 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       val article = _string(site, "doxsite.d/en/development-process/example.html")
       val legacyarticle = _string(legacy, "antora.d/docs/concepts/modules/ROOT/pages/tutorial.adoc")
 
-      Then("the lead, callout, and section retain their required order")
+      Then("the title, header, lead, infographic, and section retain their required order")
+      val titleindex = article.indexOf("<h1>Article Media Example</h1>")
+      val headerindex = article.indexOf("smartdox-article-header")
       val leadindex = article.indexOf("The effective lead paragraph.")
-      val mediaindex = article.indexOf("smartdox-article-media-video")
+      val mediaindex = article.indexOf("smartdox-article-header-actions")
+      val figureindex = article.indexOf("smartdox-article-infographic")
       val bodysectionindex = article.lastIndexOf("First body section")
+      titleindex should be >= 0
+      headerindex should be >= 0
       leadindex should be >= 0
       mediaindex should be >= 0
+      figureindex should be >= 0
       bodysectionindex should be >= 0
-      leadindex should be < mediaindex
-      mediaindex should be < bodysectionindex
+      titleindex should be < headerindex
+      headerindex should be < mediaindex
+      mediaindex should be < leadindex
+      mediaindex should be < figureindex
+      figureindex should be < bodysectionindex
 
       And("global and category Notices encode the same resolved media")
       _media(globalnotice) shouldBe _media(categorynotice)
@@ -503,9 +527,414 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       When("the localized article is rendered")
       val article = _string(site, "doxsite.d/en/development-process/no-lead.html")
 
-      Then("the media callout precedes that first section instead of treating it as a lead")
-      article.indexOf("smartdox-article-media-video") should be >= 0
-      article.indexOf("smartdox-article-media-video") should be < article.indexOf("First body section")
+      Then("the header action precedes that first section and no infographic is synthesized")
+      article.indexOf("smartdox-article-header-actions") should be >= 0
+      article.indexOf("smartdox-article-header-actions") should be < article.indexOf("First body section")
+      article should not include ("smartdox-article-infographic")
+      }
+    }
+
+    "direct header contract" should {
+      "retain one legacy player while suppressing only its duplicate direct video action" in {
+        Given("a legacy video source package and an explicit direct-media variant with video, PDF, and infographic roles")
+        val input = Realm.create(new File("src/test/resources/video-package-site"))
+        val videopublications = PublishMetadata.load(new File("src/test/resources/video-publication-fixture")).toVector.
+          flatMap(_.videoPublications)
+        val projection = _legacy_article_media_projection
+
+        When("DoxSite creates the direct localized article and resolves its media projection")
+        val site = DoxSite.create(
+          _context,
+          input,
+          None,
+          DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full),
+          Nil,
+          videopublications,
+          Nil,
+          Some(projection)
+        ).toRealm(_context)
+        val article = _string(site, "en/concepts/tutorial.html")
+
+        Then("the established source-page player remains exactly once while the direct header keeps its independent PDF and infographic actions")
+        _occurrences(article, "class=\"smartdox-video-publication\"") shouldBe 1
+        _occurrences(article, "class=\"smartdox-video-player\"") shouldBe 1
+        _header_actions(article) shouldBe Vector(
+          "/en/concepts/tutorial.pdf" -> "Article PDF",
+          "#smartdox-article-infographic" -> "View infographic"
+        )
+        article should not include ("https://example.com/direct-legacy-video")
+        article should include ("id=\"smartdox-article-infographic\"")
+        article should include ("class=\"smartdox-article-infographic\"")
+      }
+
+      "project all sixteen availability masks for both exact locales through physical and virtual roots" in {
+        Given("a resolved article-media variant for every availability mask")
+        val roots = Vector(false -> "physical source root", true -> "virtual Realm root")
+        val locales = Vector(Locale.ENGLISH, Locale.JAPANESE)
+
+        When("the ordinary DoxSite builder renders every root, locale, and mask")
+        roots.foreach { case (virtualroot, rootdescription) =>
+          locales.foreach { locale =>
+            (0 to 15).foreach { maskbits =>
+              val article = _direct_article(_direct_site(maskbits, virtualroot), locale)
+
+              Then(s"the $rootdescription projection preserves mask $maskbits for ${locale.toLanguageTag}")
+              _assert_header_mask(article, locale, maskbits)
+            }
+          }
+        }
+      }
+
+      "insert an infographic after the title when no effective lead exists" in {
+        Given("a direct virtual Realm article whose first substantive section has no effective lead")
+        val source =
+          """Direct No Lead Article
+            |=======================
+            |
+            |# HEAD
+            |
+            |status=published
+            |
+            |# First body section
+            |
+            |Only the first body section is present.
+            |""".stripMargin
+
+        When("DoxSite renders the direct article with an active infographic projection")
+        val article = _direct_article(_direct_virtual_site(source, 8, Some("Direct no-lead infographic")), Locale.ENGLISH)
+        val titleindex = article.indexOf("<h1>Direct No Lead Article</h1>")
+        val headerindex = article.indexOf("class=\"smartdox-article-header\"")
+        val figureindex = article.indexOf("class=\"smartdox-article-infographic\"")
+        val sectionindex = article.indexOf("First body section")
+
+        Then("the title, header, infographic figure, and first body section retain their exact order without an effective lead")
+        titleindex should be >= 0
+        headerindex should be >= 0
+        figureindex should be >= 0
+        sectionindex should be >= 0
+        titleindex should be < headerindex
+        headerindex should be < figureindex
+        figureindex should be < sectionindex
+        article should not include ("The effective lead paragraph.")
+      }
+
+      "propagate an origin-backed physical Markdown parent through an active direct header projection" in {
+        Given("an origin-backed physical Markdown page and its nested local image")
+        val source =
+          """Header Image Root Article
+            |=========================
+            |
+            |# HEAD
+            |
+            |status=published
+            |
+            |# Body
+            |
+            |A lead with a nested local image: ![Diagram](images/../images/diagram.png)
+            |""".stripMargin
+        val physicalroot = Files.createTempDirectory("smartdox-direct-article-physical-image-root")
+        try {
+          Files.createDirectories(physicalroot.resolve("development-process/images"))
+          Files.write(physicalroot.resolve("development-process/images/diagram.png"), "image".getBytes(StandardCharsets.UTF_8))
+          Files.write(physicalroot.resolve("development-process/example.md"), source.getBytes(StandardCharsets.UTF_8))
+
+          When("DoxSite creates the physical page with the direct header projection")
+          val physicalinput = Realm.create(DoxSite.realmConfig, physicalroot.toFile)
+          val physicalsite = DoxSite.create(
+            _context,
+            physicalinput,
+            None,
+            DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full),
+            Nil,
+            Nil,
+            Nil,
+            Some(_article_media_projection(8, Some("Physical image")))
+          ).toRealm(_context)
+          val physicalarticle = _string(physicalsite, "en/development-process/example.html")
+
+          Then("the physical page uses its canonical document parent and normalizes the nested image URI")
+          physicalarticle should include ("smartdox-article-header-actions")
+          physicalarticle should include ("src=\"images/diagram.png\"")
+          physicalarticle should not include ("images/../images/diagram.png")
+        } finally {
+          org.goldenport.io.IoUtils.removeDirectory(physicalroot.toFile)
+        }
+      }
+
+      "propagate an origin-less virtual Realm parent through an active direct header projection" in {
+        Given("an origin-less virtual Realm Markdown page with a nested local image")
+        val source =
+          """Header Image Root Article
+            |=========================
+            |
+            |# HEAD
+            |
+            |status=published
+            |
+            |# Body
+            |
+            |A lead with a nested local image: ![Diagram](images/../images/diagram.png)
+            |""".stripMargin
+        val virtualinput = Realm.create()
+        virtualinput.backend.setContent("development-process/example.md", StringData(source, 1L))
+
+        When("DoxSite creates the virtual page with the direct header projection")
+        val virtualsite = DoxSite.create(
+          _context,
+          virtualinput,
+          None,
+          DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full),
+          Nil,
+          Nil,
+          Nil,
+          Some(_article_media_projection(8, Some("Virtual image")))
+        ).toRealm(_context)
+        val virtualarticle = _string(virtualsite, "en/development-process/example.html")
+
+        Then("the virtual page uses its normalized Realm parent and the same active header projection")
+        virtualarticle should include ("smartdox-article-header-actions")
+        virtualarticle should include ("src=\"images/diagram.png\"")
+        virtualarticle should not include ("images/../images/diagram.png")
+      }
+
+      "reject an origin-backed physical Markdown traversal with the stable diagnostic" in {
+        Given("an origin-backed physical Markdown page whose image path escapes its source root")
+        val source = "![Escape](../../outside.png)\n"
+        val projection = _article_media_projection(8, Some("Traversal image"))
+        val physicalroot = Files.createTempDirectory("smartdox-direct-article-physical-image-escape")
+        try {
+          Files.createDirectories(physicalroot.resolve("development-process"))
+          Files.write(physicalroot.resolve("development-process/example.md"), source.getBytes(StandardCharsets.UTF_8))
+
+          When("DoxSite creates the physical page")
+          val physicalfailure = intercept[IllegalArgumentException] {
+            val physicalinput = Realm.create(DoxSite.realmConfig, physicalroot.toFile)
+            DoxSite.create(
+              _context,
+              physicalinput,
+              None,
+              DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full),
+              Nil,
+              Nil,
+              Nil,
+              Some(projection)
+            ).toRealm(_context)
+          }
+
+          Then("the physical traversal reports the stable unsupported-resource diagnostic and raw path")
+          physicalfailure.getMessage should include ("image.markdown.unsupported-resource")
+          physicalfailure.getMessage should include ("raw-path=../../outside.png")
+        } finally {
+          org.goldenport.io.IoUtils.removeDirectory(physicalroot.toFile)
+        }
+      }
+
+      "reject an origin-less virtual Realm Markdown traversal with the stable diagnostic" in {
+        Given("an origin-less virtual Realm page whose image path escapes its Realm parent")
+        val source = "![Escape](../../outside.png)\n"
+        val virtualinput = Realm.create()
+        virtualinput.backend.setContent("development-process/example.md", StringData(source, 1L))
+
+        When("DoxSite creates the virtual page")
+        val virtualfailure = intercept[IllegalArgumentException] {
+          DoxSite.create(
+            _context,
+            virtualinput,
+            None,
+            DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full),
+            Nil,
+            Nil,
+            Nil,
+            Some(_article_media_projection(8, Some("Traversal image")))
+          ).toRealm(_context)
+        }
+
+        Then("the virtual traversal reports the stable unsupported-resource diagnostic and raw path")
+        virtualfailure.getMessage should include ("image.markdown.unsupported-resource")
+        virtualfailure.getMessage should include ("raw-path=../../outside.png")
+      }
+
+      "read tags and publication dates from the documented HOCON sources" in {
+        Given("a virtual Realm article using tag and publishedAt fallbacks")
+        val source =
+          """Header Fallback Example
+            |========================
+            |
+            |# HEAD
+            |
+            |status=published
+            |tag="  first-tag, , second-tag  "
+            |publishedAt=2026-09-09
+            |modifiedAt=2026-09-08
+            |
+            |# Body
+            |
+            |Fallback lead.
+            |
+            |# Body section
+            |
+            |Fallback body.
+            |""".stripMargin
+
+        When("the virtual-root DoxSite page is generated for each exact locale")
+        val englisharticle = _direct_article(_direct_virtual_site(source, 8, Some("Alt text")), Locale.ENGLISH)
+        val japanesearticle = _direct_article(_direct_virtual_site(source, 8, Some("Alt text")), Locale.JAPANESE)
+
+        Then("the fallback tags are trimmed, blank values are omitted, and supplied order is retained")
+        englisharticle should include ("Tags")
+        englisharticle should include ("first-tag")
+        englisharticle should include ("second-tag")
+        englisharticle.indexOf("first-tag") should be < englisharticle.indexOf("second-tag")
+        englisharticle should not include ("modifiedAt")
+        englisharticle should not include ("2026-09-08")
+
+        And("the fallback publication date has semantic and localized markup")
+        englisharticle should include ("Published")
+        englisharticle should include ("datetime=\"2026-09-09\"")
+        englisharticle should include ("2026-09-09")
+        japanesearticle should include ("タグ")
+        japanesearticle should include ("公開日")
+        japanesearticle should include ("datetime=\"2026-09-09\"")
+        japanesearticle should not include ("Tags")
+        japanesearticle should not include (">Published<")
+      }
+
+      "prefer tags and publication dates over their legacy fallback keys" in {
+        Given("a direct virtual article with preferred and fallback metadata keys")
+        val preferredsource =
+          """Preferred Metadata Example
+            |===========================
+            |
+            |# HEAD
+            |
+            |status=published
+            |tags=["  preferred-first  ", "", "  preferred-second  "]
+            |tag="fallback-tag"
+            |published_at=2026-09-10
+            |publishedAt=2026-09-09
+            |modifiedAt=2026-09-08
+            |
+            |# Body
+            |
+            |Preferred metadata lead.
+            |""".stripMargin
+
+        When("DoxSite renders the preferred metadata article for both exact locales")
+        val englishpreferred = _direct_article(_direct_virtual_site(preferredsource, 8, Some("Preferred infographic")), Locale.ENGLISH)
+        val japanesepreferred = _direct_article(_direct_virtual_site(preferredsource, 8, Some("Preferred infographic")), Locale.JAPANESE)
+
+        Then("preferred tags win, preserve input order, trim values, and omit blanks")
+        englishpreferred should include ("Tags")
+        englishpreferred should include ("preferred-first")
+        englishpreferred should include ("preferred-second")
+        englishpreferred should not include ("fallback-tag")
+        englishpreferred.indexOf("preferred-first") should be < englishpreferred.indexOf("preferred-second")
+        englishpreferred should not include ("  preferred-first  ")
+        englishpreferred should not include ("2026-09-08")
+        englishpreferred should include ("<span class=\"smartdox-article-header-label\">Tags</span>")
+        englishpreferred should include ("<span class=\"smartdox-article-header-label\">Published</span>")
+        englishpreferred should include ("datetime=\"2026-09-10\"")
+        englishpreferred should include ("2026-09-10")
+        englishpreferred should not include ("2026-09-09")
+
+        And("preferred metadata uses exact localized labels and semantic time markup")
+        japanesepreferred should include ("<span class=\"smartdox-article-header-label\">タグ</span>")
+        japanesepreferred should include ("<span class=\"smartdox-article-header-label\">公開日</span>")
+        japanesepreferred should not include ("Tags")
+        japanesepreferred should not include (">Published<")
+        japanesepreferred should include ("datetime=\"2026-09-10\"")
+      }
+
+      "use fallback metadata when the preferred values are empty" in {
+        Given("a direct virtual article whose empty preferred metadata permits fallback values")
+        val fallbacksource =
+          """Empty Preferred Metadata Example
+            |=================================
+            |
+            |# HEAD
+            |
+            |status=published
+            |tags=[]
+            |tag=["  fallback-first  ", "", "  fallback-second  "]
+            |published_at=""
+            |publishedAt=2026-09-11
+            |
+            |# Body
+            |
+            |Fallback metadata lead.
+            |""".stripMargin
+
+        When("DoxSite renders the empty-preferred article")
+        val emptypreferred = _direct_article(_direct_virtual_site(fallbacksource, 8, Some("Fallback infographic")), Locale.ENGLISH)
+
+        Then("the documented fallback values remain trimmed, ordered, and semantically rendered")
+        emptypreferred should include ("Tags")
+        emptypreferred should include ("fallback-first")
+        emptypreferred should include ("fallback-second")
+        emptypreferred.indexOf("fallback-first") should be < emptypreferred.indexOf("fallback-second")
+        emptypreferred should include ("<span class=\"smartdox-article-header-label\">Tags</span>")
+        emptypreferred should include ("<span class=\"smartdox-article-header-label\">Published</span>")
+        emptypreferred should include ("datetime=\"2026-09-11\"")
+        emptypreferred should not include ("2026-09-10")
+      }
+
+      "retain an action wrapper while omitting metadata with no metadata inputs" in {
+        Given("a direct virtual article with no metadata and an available infographic action")
+        val actiononlysource =
+          """Action Only Metadata Example
+            |=============================
+            |
+            |Action-only body.
+            |""".stripMargin
+
+        When("DoxSite renders the action-only article")
+        val actiononly = _direct_article(_direct_virtual_site(actiononlysource, 8, Some("Action-only infographic")), Locale.ENGLISH)
+
+        Then("the header wrapper and action remain while metadata is omitted")
+        actiononly should include ("smartdox-article-header")
+        actiononly should include ("smartdox-article-header-actions")
+        actiononly should include ("View infographic")
+        actiononly should not include ("smartdox-article-header-metadata")
+      }
+
+      "preserve all infographic alt states and the full-size accessible link" in {
+        Given("a direct virtual-root article and an infographic with each registered alt state")
+        val altstates = Vector(Some("Meaningful alt"), Some(""), None)
+
+        When("the direct DoxSite projection is rendered for English and Japanese")
+        Vector(Locale.ENGLISH, Locale.JAPANESE).foreach { locale =>
+          altstates.foreach { altvalue =>
+            val article = _direct_article(_direct_virtual_site(_virtual_example_source, 8, altvalue), locale)
+            val expectedalt = altvalue.getOrElse("")
+            val expectedlabel = if (locale == Locale.JAPANESE) "インフォグラフィックを見る" else "View infographic"
+
+            Then(s"the ${locale.toLanguageTag} image keeps alt state $altvalue")
+            _image_alt(article) shouldBe expectedalt
+            article should include ("id=\"smartdox-article-infographic\"")
+            article should include ("class=\"smartdox-article-infographic\"")
+            article should include ("href=\"#smartdox-article-infographic\"")
+            article should include ("aria-label=\"" + expectedlabel + "\"")
+            article should include ("href=\"/" + locale.toLanguageTag + "/development-process/matrix-infographic.png\"")
+            article should not include ("disabled")
+          }
+        }
+      }
+
+      "omit an empty header and keep the direct page free of the retired media callout" in {
+        Given("a virtual Realm article with no metadata and no resolved media")
+        val source = """No Header Example
+          |==================
+          |
+          |No metadata body.
+          |""".stripMargin
+
+        When("the direct DoxSite page is rendered")
+        val article = _direct_article(_direct_virtual_site(source, 0, None), Locale.ENGLISH)
+
+        Then("no article header, action, figure, or old article-media callout is emitted")
+        article should not include ("smartdox-article-header")
+        article should not include ("smartdox-article-infographic")
+        article should not include ("smartdox-article-media")
       }
     }
   }
@@ -522,6 +951,203 @@ class ArticleMediaProjectionSpec extends AnyWordSpec with Matchers with GivenWhe
       DoxSite.Config.default,
       Some(new File("src/test/resources/article-media-projection-publication"))
     ).generate(Realm.create(DoxSite.realmConfig, new File("src/test/resources/article-media-projection-site")))
+
+  private val _virtual_example_source =
+    """Article Media Example
+      |=====================
+      |
+      |# HEAD
+      |
+      |status=published
+      |published_at=2026-08-04
+      |tags=["  modeling  ", "", "  ai-collaboration  "]
+      |
+      |# Body
+      |
+      |The effective lead paragraph.
+      |
+      |# First body section
+      |
+      |The first section body.
+      |""".stripMargin
+
+  private def _direct_site(maskbits: Int, virtualroot: Boolean): Realm =
+    _direct_site(_virtual_example_source, maskbits, Some("Matrix infographic"), virtualroot)
+
+  private def _direct_virtual_site(
+    source: String,
+    maskbits: Int,
+    altvalue: Option[String]
+  ): Realm =
+    _direct_site(source, maskbits, altvalue, true)
+
+  private def _direct_site(
+    source: String,
+    maskbits: Int,
+    altvalue: Option[String],
+    virtualroot: Boolean
+  ): Realm = {
+    val input = if (virtualroot) {
+      val realm = Realm.create()
+      realm.backend.setContent("development-process/example.dox", StringData(source, 1L))
+      realm
+    } else {
+      Realm.create(DoxSite.realmConfig, new File("src/test/resources/article-media-projection-site"))
+    }
+    val projection = _article_media_projection(maskbits, altvalue)
+    DoxSite.create(
+      _context,
+      input,
+      None,
+      DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full),
+      Nil,
+      Nil,
+      Nil,
+      Some(projection)
+    ).toRealm(_context)
+  }
+
+  private def _article_media_projection(
+    maskbits: Int,
+    altvalue: Option[String]
+  ): PublishMetadata.ArticleMediaProjection = {
+    val variants = Vector(Locale.ENGLISH, Locale.JAPANESE).map { locale =>
+      val localetag = locale.toLanguageTag
+      val video = if ((maskbits & 1) != 0)
+        Some(PublishMetadata.VideoReference(
+          presentation = PublishMetadata.VideoPresentation.ExternalLink,
+          status = PublishMetadata.VideoStatus.Published,
+          provider = Some("youtube"),
+          watchUrl = Some(new URI(s"https://example.com/$localetag/matrix-video"))
+        ))
+      else
+        None
+      val summaryslidespdf = if ((maskbits & 2) != 0)
+        Some(PublishMetadata.PdfDocumentReference(
+          publicPath = new URI(s"/$localetag/development-process/matrix-summary.pdf"),
+          mediaType = "application/pdf"
+        ))
+      else
+        None
+      val articlepdf = if ((maskbits & 4) != 0)
+        Some(PublishMetadata.PdfDocumentReference(
+          publicPath = new URI(s"/$localetag/development-process/matrix-article.pdf"),
+          mediaType = "application/pdf"
+        ))
+      else
+        None
+      val infographic = if ((maskbits & 8) != 0)
+        Some(PublishMetadata.ImageReference(
+          publicPath = new URI(s"/$localetag/development-process/matrix-infographic.png"),
+          mediaType = Some("image/png"),
+          alt = altvalue
+        ))
+      else
+        None
+      localetag -> PublishMetadata.ArticleMediaVariant(
+        locale = localetag,
+        infographic = infographic,
+        video = video,
+        articlePdf = articlepdf,
+        summarySlidesPdf = summaryslidespdf
+      )
+    }
+    val publication = PublishMetadata.ArticleMediaPublication(
+      articleIdentity = "development-process/example",
+      variants = variants.map(_._2)
+    )
+    PublishMetadata.ArticleMediaProjection(PublishMetadata.ArticleMediaRegistry(
+      publications = Vector(publication),
+      compatibilityVariants = Map.empty,
+      diagnostics = Vector.empty
+    ))
+  }
+
+  private def _legacy_article_media_projection: PublishMetadata.ArticleMediaProjection = {
+    val variant = PublishMetadata.ArticleMediaVariant(
+      locale = "en",
+      infographic = Some(PublishMetadata.ImageReference(
+        publicPath = new URI("/en/concepts/tutorial.png"),
+        mediaType = Some("image/png"),
+        alt = Some("Legacy direct infographic")
+      )),
+      video = Some(PublishMetadata.VideoReference(
+        presentation = PublishMetadata.VideoPresentation.ExternalLink,
+        status = PublishMetadata.VideoStatus.Published,
+        provider = Some("youtube"),
+        watchUrl = Some(new URI("https://example.com/direct-legacy-video"))
+      )),
+      articlePdf = Some(PublishMetadata.PdfDocumentReference(
+        publicPath = new URI("/en/concepts/tutorial.pdf"),
+        mediaType = "application/pdf"
+      ))
+    )
+    PublishMetadata.ArticleMediaProjection(PublishMetadata.ArticleMediaRegistry(
+      publications = Vector(PublishMetadata.ArticleMediaPublication(
+        articleIdentity = "concepts/tutorial",
+        variants = Vector(variant)
+      )),
+      compatibilityVariants = Map.empty,
+      diagnostics = Vector.empty
+    ))
+  }
+
+  private def _direct_article(realm: Realm, locale: Locale): String =
+    realm.get(s"$locale/development-process/example.html").orElse(
+      realm.get(s"${locale.toLanguageTag}/development-process/example.html")
+    ).collect {
+      case data: StringData => data.string
+    }.getOrElse(fail(s"Missing direct generated content for ${locale.toLanguageTag}"))
+
+  private def _assert_header_mask(article: String, locale: Locale, maskbits: Int): Unit = {
+    val localetag = locale.toLanguageTag
+    val expectedvideo = s"https://example.com/$localetag/matrix-video"
+    val expectedsummary = s"/$localetag/development-process/matrix-summary.pdf"
+    val expectedarticle = s"/$localetag/development-process/matrix-article.pdf"
+    val videolabel = if (locale == Locale.JAPANESE) "動画を見る" else "Watch video"
+    val summarylabel = if (locale == Locale.JAPANESE) "要約スライド PDF" else "Summary slides PDF"
+    val articlelabel = if (locale == Locale.JAPANESE) "記事 PDF" else "Article PDF"
+    val infographiclabel = if (locale == Locale.JAPANESE) "インフォグラフィックを見る" else "View infographic"
+    val expectedactions = Vector(
+      1 -> (expectedvideo, videolabel),
+      2 -> (expectedsummary, summarylabel),
+      4 -> (expectedarticle, articlelabel),
+      8 -> ("#smartdox-article-infographic", infographiclabel)
+    ).filter { case (bit, _) => (maskbits & bit) != 0 }
+    val actions = _header_actions(article)
+    actions shouldBe expectedactions.map { case (_, action) => action }
+    if (expectedactions.isEmpty)
+      article should not include ("smartdox-article-header-actions")
+    else
+      article should include ("smartdox-article-header-actions")
+    if ((maskbits & 8) != 0) {
+      article should include ("id=\"smartdox-article-infographic\"")
+      article should include ("class=\"smartdox-article-infographic\"")
+    } else {
+      article should not include ("smartdox-article-infographic")
+    }
+    article should not include ("smartdox-article-media")
+    article should not include ("disabled")
+    article should not include ("href=\"\"")
+    article should not include ("<style")
+    article should not include ("<link")
+    article should not include ("<script src=")
+    article should not include ("type=\"text/javascript\"")
+    article should not include ("javascript:")
+    article should not include ("onclick=")
+    "(?i)<h1(?:\\s|>)".r.findAllMatchIn(article).size shouldBe 1
+    article should not include ("role=\"heading\"")
+  }
+
+  private def _header_actions(article: String): Vector[(String, String)] =
+    """(?s)<a\b(?=[^>]*\bclass="smartdox-article-header-action")(?=[^>]*\bhref="([^"]*)")[^>]*>([^<]*)</a>""".r.
+      findAllMatchIn(article).
+      map(m => m.group(1) -> m.group(2)).
+      toVector
+
+  private def _image_alt(article: String): String =
+    "(?s)<img[^>]*\\balt=\"([^\"]*)\"".r.findFirstMatchIn(article).
+      map(_.group(1)).getOrElse(fail("Missing infographic alt attribute"))
 
   private def _string(realm: Realm, path: String): String =
     realm.get(path).collect {
