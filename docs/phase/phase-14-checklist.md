@@ -29,20 +29,21 @@ Stage Status:
 ## PMD14-02: Article-Media Internal Extraction
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMPLETED
+- Acceptance commit: `dfa589c848209e3971416079c18bdbf7f9de99b1`
 - Owner: internal article-media collaborators
 - Update rule: Mark an item complete only after facade compatibility, focused
   validation, and independent Step review.
 
-- [ ] Extract article-media parsing, normalization, and exact-locale
+- [x] Extract article-media parsing, normalization, and exact-locale
       resolution behind the existing facade.
-- [ ] Preserve native roles, legacy video compatibility, diagnostics, and
+- [x] Preserve native roles, legacy video compatibility, diagnostics, and
       article-media projection behavior.
 
 ## PMD14-03: Registry, Catalog, and RDF Internal Extraction
 
 Stage Status:
-- Current status: OPEN
+- Current status: IN PROGRESS
 - Owner: internal registry, catalog, and RDF collaborators
 - Update rule: Mark an item complete only after registry, page, realm, video,
   and RDF compatibility evidence is accepted.

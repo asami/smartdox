@@ -43,7 +43,8 @@ RDF artifact merge and missing-policy behavior.
 ### PMD14-02: Article-Media Internal Extraction
 
 Stage Status:
-- Current status: IN PROGRESS
+- Current status: COMPLETED
+- Acceptance commit: `dfa589c848209e3971416079c18bdbf7f9de99b1`
 - Owner: internal article-media loading, normalization, and projection
   collaborators
 - Update rule: Advance only after exact-locale, role, legacy compatibility,
@@ -55,7 +56,7 @@ schemas, locale semantics, media projection, or public model identities.
 ### PMD14-03: Registry, Catalog, and RDF Internal Extraction
 
 Stage Status:
-- Current status: OPEN
+- Current status: IN PROGRESS
 - Owner: internal publication registry, catalog-page, and RDF collaborators
 - Update rule: Advance only after registry selection, catalog pages, public
   realm, video publication, and RDF merge behavior remains compatible.
