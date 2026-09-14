@@ -66,6 +66,11 @@ operation or a replacement public parser API.
 
 ### Document Project effective content
 
+- `DoxSiteBuilder.Rule` owns source-input admission for a physical
+  `xxx.dox/index.dox` Document Project: only the direct index is public parser
+  input, while private nested document-shaped files are retained outside parser
+  and generated-metadata surfaces. Direct package metadata and non-document
+  resource handling remain unchanged.
 - `DoxSiteEffectiveContent` owns the shared logical-content view of a Document
   Project package; and
 - LinkCollection, related-link projection, and Antora consume that view rather

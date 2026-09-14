@@ -275,13 +275,13 @@ Primary reference:
 
 ### Phase 15: Article Header Metadata and Media Actions
 
-Status: in progress.
+Status: force released with exceptions recorded.
 
-Scheduling note: Phase 14 is closed through its final release boundary. Phase
-15 is active after the accepted Phase 13/14 boundaries. AHEAD15-02 is accepted
-by its Step commit and focused receipt; AHEAD15-03 remains in progress for
-independent review, final full validation, and release closure. Actual Cozy BoK
-fixture acceptance is retained as `DEV-006` and is not started here.
+Scheduling note: Phase 15 established its operational baseline through the
+exception-recorded force-release commit
+`34d27df6b8516951d2f664bc60e5be1f556f2901`. Its ordinary Phase ledger is
+intentionally not rewritten to claim normal review closure. Actual Cozy BoK
+fixture acceptance is owned by planned Phase 16 as `DEV-006`.
 
 Purpose:
 
@@ -297,6 +297,24 @@ Primary reference:
 - `docs/phase/phase-15.md`
 - `docs/phase/phase-15-checklist.md`
 - `docs/notes/article-header-metadata-and-media-actions.md`
+
+### Phase 16: Cozy BoK Consumer Acceptance
+
+Status: planned.
+
+Purpose:
+
+- prove, with an actual Cozy-built BoK fixture, that the unchanged direct
+  DoxSite article-header projection is consumed under the established virtual
+  source-root semantics; and
+- preserve the SmartDox-owned projection without a Cozy-only HTML rewrite,
+  preprocessor, registry schema, or product mutation responsibility.
+
+Primary reference:
+
+- `docs/phase/phase-16.md`
+- `docs/phase/phase-16-checklist.md`
+- `docs/journal/2026/09/2026-09-09-phase-16-cozy-bok-consumer-acceptance-registration.md`
 
 ## Current Priority
 
@@ -376,11 +394,10 @@ catalog, video, and RDF extraction commits
 `b20bdf21a97b034cd4f19826d9b07343614f3ff4`, and
 `728b495088faa416b3b6ea95472a8e3679c1f07c`. The mandatory full review found
 no Current Phase Blocker. Its retained hygiene records remain separate
-maintenance work. Phase 15 is in progress: AHEAD15-02 is accepted with Step
-commit `ba7b672c2bc1ba5c50e1b51e724d7b0d5e031a2b` and focused receipt
-`P15-AHEAD15-02-VAL-006` (24 succeeded, 0 failed). AHEAD15-03 direct DoxSite
-proof is complete; actual Cozy BoK fixture acceptance remains `DEV-006`, and
-the independent review, final full validation, and release gates remain open.
+maintenance work. Phase 15 is force released with the auditable exceptions in
+`2026-09-09-phase-15-force-release.md`; it does not claim ordinary ledger
+closure. DEV-006 is registered as planned Phase 16 and has not begun consumer
+fixture execution.
 
 ## 9. Development Item Status
 
@@ -393,5 +410,5 @@ the independent review, final full validation, and release gates remain open.
 | DEV-004 | KnowledgeHub weekly-report PDF incident on 2026-09-07 | Replace parser-internal failure dumps with source-located structured rendering diagnostics, preserve stage identity through PDF generation, and expose deterministic failures as terminal/non-retryable. | NEW_PHASE | [Phase 12](../phase/phase-12.md) | CLOSED THROUGH FINAL RELEASE BOUNDARY |
 | HYG-P10-02 | Phase 10 full review | Separate the remaining inline/document parser and PDF-operation responsibilities while preserving their existing facades and executable behavior. | ADOPTED | [Phase 13](../phase/phase-13.md) | CLOSED THROUGH FINAL RELEASE BOUNDARY |
 | HYG-APDF91-001 | Phase 9.1 full review | Separate the PublishMetadata responsibilities while preserving the established facade and executable behavior. | ADOPTED | [Phase 14](../phase/phase-14.md) | CLOSED THROUGH FINAL RELEASE BOUNDARY |
-| DEV-005 | `docs/journal/2026/09/2026-09-08-article-header-media-discoverability-decision.md` | Add an extensible title-adjacent metadata strip and discoverable media actions, render the registered infographic below the effective LEAD, and reuse the common projection in Cozy-built BoKs. | NEW_PHASE | [Phase 15](../phase/phase-15.md) | IN PROGRESS |
-| DEV-006 | `docs/journal/2026/09/2026-09-09-phase-15-cozy-consumer-acceptance-deferral.md` | Prove actual Cozy BoK fixture consumption of the unchanged direct DoxSite projection, with SmartDox and Cozy initially frozen for an explicitly invoked cross-repository acceptance Phase. | FUTURE_PHASE | Later explicitly invoked cross-repository acceptance Phase (not created here) | FUTURE DEVELOPMENT CANDIDATE |
+| DEV-005 | `docs/journal/2026/09/2026-09-08-article-header-media-discoverability-decision.md` | Add an extensible title-adjacent metadata strip and discoverable media actions, render the registered infographic below the effective LEAD, and reuse the common projection in Cozy-built BoKs. | NEW_PHASE | [Phase 15](../phase/phase-15.md) | FORCE RELEASED — EXCEPTIONS RECORDED |
+| DEV-006 | `docs/journal/2026/09/2026-09-09-phase-15-cozy-consumer-acceptance-deferral.md` | Prove actual Cozy BoK fixture consumption of the unchanged direct DoxSite projection, with SmartDox and Cozy initially frozen for an explicitly invoked cross-repository acceptance Phase. | ADOPTED | [Phase 16](../phase/phase-16.md) | PLANNED |

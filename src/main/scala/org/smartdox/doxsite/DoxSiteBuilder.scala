@@ -27,7 +27,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 /*
  * @since   Aug. 30, 2026
  *  version Aug. 30, 2026
- * @version Sep.  9, 2026
+ * @version Sep. 14, 2026
  * @author  ASAMI, Tomoharu
  */
   class DoxSiteBuilder(
@@ -46,6 +46,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
       // println("S: " + content)
       content match {
         case Realm.EmptyData => TreeTransformer.Directive.Default[Node]
+        case _: Realm.StringData if !rule.isPublicDocument(node) => directive_empty
         case m: Realm.StringData => _build_file(node, m)
         case m: Realm.UrlData => TreeTransformer.Directive.Default[Node]
         case m: Realm.FileData => directive_leaf(ImageNode(Node.Name(newname), m.file))
@@ -198,8 +199,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
       override def config = doxSiteConfig.inputTreeTransformerConfig
       override def getTargetName(p: TreeNode[Realm.Data]): Option[String] = {
         val filename = p.name
-        val pathname = p.pathname
-        if (_is_available(filename, pathname)) {
+        if (_is_available(p) && isPublicDocument(p)) {
           p.getNameSuffix.collect {
             case "dox" => s"${p.nameBody}.dox"
             case "org" => s"${p.nameBody}.dox"
@@ -216,8 +216,9 @@ import org.smartdox.transformers.LanguageFilterTransformer
         }
       }
 
-      private def _is_available(filename: String, pathname: String) =
-        _is_available_filename(filename) && _is_available_pathname(pathname)
+      private def _is_available(p: TreeNode[Realm.Data]) =
+        _is_available_filename(p.name) &&
+          _is_available_pathname(p.pathname)
 
       private def _is_available_filename(filename: String) = (
         RegexUtils.isWholeMatch(doxSiteConfig.includeFilePatterns, filename) &&
@@ -228,6 +229,30 @@ import org.smartdox.transformers.LanguageFilterTransformer
         RegexUtils.isWholeMatch(doxSiteConfig.includePathPatterns, pathname) &&
           !RegexUtils.isWholeMatch(doxSiteConfig.excludePathPatterns, pathname)
       )
+
+      private[doxsite] def isPublicDocument(p: TreeNode[Realm.Data]) =
+        p.getNameSuffix match {
+          case Some("dox" | "org" | "md" | "markdown") => _is_document_project_input(p)
+          case _ => true
+        }
+
+      private def _is_document_project_input(p: TreeNode[Realm.Data]) =
+        _nearest_document_project(p.getParent) match {
+          case Some(project) => project.getChild("index.dox").contains(p)
+          case None => true
+        }
+
+      private def _nearest_document_project(p: Option[TreeNode[Realm.Data]]): Option[TreeNode[Realm.Data]] =
+        p match {
+          case Some(node) if _is_document_project(node) => Some(node)
+          case Some(node) => _nearest_document_project(node.getParent)
+          case None => None
+        }
+
+      private def _is_document_project(p: TreeNode[Realm.Data]) =
+        p.isContainer &&
+          p.name.endsWith(".dox") &&
+          p.getChild("index.dox").exists(_.getContent.isDefined)
 
       override def isIgnore(p: TreeNode[Realm.Data]): Boolean =
         p.name.endsWith(".d")

@@ -86,7 +86,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
  *  version Aug. 30, 2026
- * @version Sep.  8, 2026
+ * @version Sep. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(

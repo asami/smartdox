@@ -26,7 +26,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Aug. 29, 2026
- * @version Sep.  8, 2026
+ * @version Sep. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -278,7 +278,7 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
     "resolve a Site link to its localized HTTPS projection without a raw Dox fallback" in {
       val root = Files.createTempDirectory("smartdox-pdf-site-link")
       try {
-        Given("an explicit multi-locale site fixture with a Document Project source and sibling target")
+        Given("an explicit multi-locale site fixture with a Document Project source, sibling target, and malformed private review sources")
         val input = _write_site_publication_fixture(root)
         val request = Request.create(
           PdfOperationClass.specification,
@@ -1738,6 +1738,8 @@ class PdfOperationClassSpec extends AnyWordSpec with Matchers with GivenWhenThen
          |
          |Previous article: site:[literate-modeling.dox]
          |""".stripMargin)
+    _write(root.resolve("development-process/domain-modeling.dox/review/private.md"), "~~~text")
+    _write(root.resolve("development-process/domain-modeling.dox/review/private.dox"), "~~~text")
     _write(root.resolve("development-process/literate-modeling.dox"),
       """|Literate Modeling｜文芸モデリング
          |==================================

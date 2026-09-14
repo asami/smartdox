@@ -30,7 +30,7 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Sep.  8, 2026
+ * @version Sep. 14, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -116,7 +116,7 @@ class DoxSiteSpec
     "normalize Document Project public paths across localized generation and publication links" in {
       val dir = Files.createTempDirectory("smartdox-site-publication-context")
       try {
-        Given("a multi-locale site whose Document Project index refers to a sibling article")
+        Given("a multi-locale site whose Document Project index refers to a sibling article beside malformed private review sources")
         _write(dir.resolve("site.conf"),
           """|site.metadata.url = "https://inferred.example.test/"
              |site.output.locale_mode = "multi_locale_subdirs"
@@ -161,6 +161,8 @@ class DoxSiteSpec
              |
              |Previous article: site:[literate-modeling.dox]
              |""".stripMargin)
+        _write(dir.resolve("development-process/domain-modeling.dox/review/private.md"), "~~~text")
+        _write(dir.resolve("development-process/domain-modeling.dox/review/private.dox"), "~~~text")
         _write(dir.resolve("development-process/literate-modeling.dox"),
           """|Literate Modeling｜文芸モデリング
              |==================================
@@ -295,12 +297,17 @@ class DoxSiteSpec
           case page: Page => page.name.name
         } shouldBe Some("index.dox")
         site.space.getContent("development-process/domain-modeling.dox/category.yaml") should not be empty
+        And("private Document Project review sources are excluded before parsing while direct package metadata remains available")
+        site.space.getContent("development-process/domain-modeling.dox/review/private.md") shouldBe empty
+        site.space.getContent("development-process/domain-modeling.dox/review/private.dox") shouldBe empty
         val effective = site.space.getNode("development-process/domain-modeling.dox").flatMap(DoxSiteEffectiveContent.effectiveContent)
         effective.map(_.logicalPath.v) shouldBe Some("development-process/domain-modeling.dox")
         effective.map(_.sourcePath.v) shouldBe Some("development-process/domain-modeling.dox/index.dox")
         effective.map(_.getDox) should not be empty
         realm.getString("ja/development-process/domain-modeling.dox/index.html") shouldBe None
         realm.getString("en/development-process/domain-modeling.dox/index.html") shouldBe None
+        realm.getString("ja/development-process/domain-modeling.dox/review/private.html") shouldBe None
+        realm.getString("en/development-process/domain-modeling.dox/review/private.html") shouldBe None
         And("the exact selected configuration yields the accepted Japanese HTTPS route and localized title")
         japanese.uri.toString shouldBe "https://www.simplemodeling.org/ja/development-process/literate-modeling.html"
         japanese.title shouldBe "文芸モデリング"
@@ -370,11 +377,17 @@ class DoxSiteSpec
         japaneseatom should include_metadata("development-process/domain-modeling.html")
         englishatom should include_metadata("development-process/domain-modeling.html")
         fragments should include_metadata("domain-modeling.dox/index.html")
+        fragments should not (include_metadata("domain-modeling.dox/review/private"))
         tags should not (include_metadata("domain-modeling.dox/index.html"))
+        tags should not (include_metadata("domain-modeling.dox/review/private"))
         turtle should not (include_metadata("domain-modeling.dox/index.html"))
+        turtle should not (include_metadata("domain-modeling.dox/review/private"))
         jsonld should not (include_metadata("domain-modeling.dox/index.html"))
+        jsonld should not (include_metadata("domain-modeling.dox/review/private"))
         japaneseatom should not (include_metadata("domain-modeling.dox/index.html"))
+        japaneseatom should not (include_metadata("domain-modeling.dox/review/private"))
         englishatom should not (include_metadata("domain-modeling.dox/index.html"))
+        englishatom should not (include_metadata("domain-modeling.dox/review/private"))
         And("Antora receives the same logical Document Project page for both locales")
         antora.get("antora.d/ja/docs/development-process/modules/ROOT/pages/domain-modeling.adoc") should not be empty
         antora.get("antora.d/en/docs/development-process/modules/ROOT/pages/domain-modeling.adoc") should not be empty

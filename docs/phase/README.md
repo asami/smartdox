@@ -4,11 +4,14 @@ Purpose: engineering work management.
 
 Current phase state:
 
-- Active phase: `phase-15.md`: Article Header Metadata and Media Actions. It is
-  `IN PROGRESS`; AHEAD15-02 is accepted and AHEAD15-03 remains in progress for
-  independent review, final full validation, and release closure. Direct
-  DoxSite proof is complete; actual Cozy BoK fixture acceptance is recorded as
-  Future Development Candidate `DEV-006` and is not claimed here.
+- No Phase is active. `phase-15.md` retains its ordinary `IN PROGRESS` ledger,
+  whose historical review slot could not be safely rewritten; its operational
+  baseline is instead the exception-recorded force release
+  `34d27df6b8516951d2f664bc60e5be1f556f2901`.
+- Planned phase: `phase-16.md`: Cozy BoK Consumer Acceptance. It owns DEV-006,
+  the actual Cozy-built BoK fixture proof for the unchanged direct DoxSite
+  projection. It has not started, and no Cozy source or fixture is changed by
+  its registration.
 - Phase 14 is closed through its final release boundary; no successor phase is
   created or activated by that closure or by this Phase 15 status update.
 - Most recently closed phase: `phase-14.md`: PublishMetadata Responsibility

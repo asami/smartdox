@@ -145,10 +145,10 @@ Direct-DoxSite physical and virtual source-root evidence demonstrates the
 SmartDox-owned projection and its accepted Phase 11 source-root semantics. It
 MUST NOT be described as acceptance of an actual Cozy BoK fixture. Actual
 Cozy-built BoK fixture acceptance remains a required consumer proof of this
-same projection and is deferred to a later explicitly invoked cross-repository
-acceptance Phase, initially freezing both the SmartDox and Cozy repositories.
-That deferral does not add a Cozy-only HTML rewrite, preprocessor, registry
-schema, or mutation responsibility.
+same projection and is owned by planned Phase 16, the explicitly invoked
+cross-repository acceptance Phase. Phase 16 must initially freeze both the
+SmartDox and Cozy repositories. That acceptance does not add a Cozy-only HTML
+rewrite, preprocessor, registry schema, or mutation responsibility.
 
 ## Required Executable Evidence
 

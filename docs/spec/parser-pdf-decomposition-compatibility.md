@@ -57,6 +57,12 @@ operation's existing behavior.
 
 ## Document Project compatibility
 
+- A Document Project is a physical `xxx.dox` directory with an immediate
+  `index.dox` child. Its public parser input is that direct index alone;
+  nested `.dox`, `.org`, `.md`, and `.markdown` sources are private package
+  content and do not become pages, diagnostics, or generated site metadata.
+  Direct package metadata and non-document resources retain their established
+  handling.
 - LinkCollection records outgoing and incoming relations under logical
   `xxx.dox` identity, including Site-link references authored as
   `xxx.dox/index.html`.
