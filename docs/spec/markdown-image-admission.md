@@ -9,6 +9,19 @@ This specification is also the delegated ordinary Markdown image chapter of
 [`docs/spec/smartdox-grammar.md`](smartdox-grammar.md); the latter continues to
 define the established `[[image-uri]]` form.
 
+## Source profiles (Phase75 direction, 2026-10-01)
+
+The exact source/state-machine grammar below governs raw Dox-inline callers,
+including explicit Enhanced Markdown. Dedicated `.md`/`.markdown` Pure parsing
+uses CommonMark inline/reference images and titles as specified by
+[Markdown source AST](../spec/markdown-source-ast.md). Pure alt is plain AST child
+text (including emphasized, Japanese and empty labels); optional title becomes
+an image attribute. Pure invokes only the shared resource-admission boundary,
+never the raw-inline parser states. Local resource normalization, classification,
+origin requirements and unsupported-resource diagnostics remain shared. The
+historical documentation-only Slice statements below describe Phase10 scope;
+Phase75 validation and acceptance remain pending and parent-owned.
+
 ## Exact source grammar
 
 The only admitted ordinary Markdown inline image source form is:

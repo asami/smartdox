@@ -9,10 +9,15 @@ import org.smartdox.parser.DoxInlineParser._
 
 /*
  * @since   Aug. 29, 2026
- * @version Aug. 30, 2026
+ *  version Aug. 30, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 private[parser] object MarkdownImageInlineParser {
+  private[parser] def fromMarkdownAst(
+    config: Config, alt: String, destination: String, source: String
+  ): ReferenceImg = MarkdownImageAdmission._admit(config, alt, source, destination)
+
   def state(config: Config, parent: DoxInlineParseState, evt: CharEvent): DoxInlineParseState =
     if (evt.next.contains('['))
       MarkdownImageDelimiterState(config, MarkdownImageAltState(config, parent), '[', "![")

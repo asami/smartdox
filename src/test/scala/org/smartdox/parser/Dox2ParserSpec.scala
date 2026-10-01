@@ -22,7 +22,8 @@ import org.smartdox.{Dfn, Div, Document, Dox, Hyperlink, InlineMacro, NoTerm, Pr
  *  version Jun. 23, 2026
  *  version Jul.  6, 2026
  *  version Aug. 24, 2026
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -316,12 +317,12 @@ published_at=2026-06-08
       dox.toString should include ("本文です。")
     }
 
-    "parse SmartDox HEAD metadata inside Markdown documents" in {
-      Given("a Markdown document with a SmartDox HEAD metadata section")
+    "parse SmartDox HEAD metadata inside explicit Enhanced Markdown documents" in {
+      Given("an explicit Enhanced Markdown document with a SmartDox HEAD metadata section")
       val stderr = new ByteArrayOutputStream()
       When("Dox2Parser parses the document using its Markdown filename")
       val dox = Console.withErr(new PrintStream(stderr, true, "UTF-8")) {
-        Dox2Parser.parseWithFilename("published.md", """# HEAD
+        Dox2Parser.parseWithFilename(Dox2Parser.Config.enhancedMarkdown, "published.md", """# HEAD
 
 status=published
 published_at=2026-06-23

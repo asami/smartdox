@@ -30,7 +30,8 @@ import io.circe.parser
  *  version Aug. 16, 2025
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
- * @version Sep. 14, 2026
+ *  version Sep. 14, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -369,14 +370,20 @@ class DoxSiteSpec
         bibliography should include_metadata("\"id\" : \"bib:document-project-reference\"")
         bibliography should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
         bibliography should not (include_metadata("domain-modeling.dox/index.html"))
-        And("document fragments retain their source Site-link while published metadata uses only the normalized public path")
+        And("document fragments retain physical source evidence and resolved public links")
         fragments should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
         tags should include_metadata("\"public_path\" : \"development-process/domain-modeling.html\"")
         turtle should include_metadata("development-process/domain-modeling.html")
         jsonld should include_metadata("development-process/domain-modeling.html")
         japaneseatom should include_metadata("development-process/domain-modeling.html")
         englishatom should include_metadata("development-process/domain-modeling.html")
-        fragments should include_metadata("domain-modeling.dox/index.html")
+        fragments should include_metadata("\"source_path\" : \"development-process/domain-modeling.dox/index.dox\"")
+        fragments should not (include_metadata("domain-modeling.dox/index.html"))
+        for (locale <- Vector("ja", "en")) {
+          val body = _fragment_body(fragments, "development-process/literate-modeling.dox", locale)
+          body should include_html("href=\"domain-modeling.html\"")
+          body should not (include_text("domain-modeling.dox/index.html"))
+        }
         fragments should not (include_metadata("domain-modeling.dox/review/private"))
         tags should not (include_metadata("domain-modeling.dox/index.html"))
         tags should not (include_metadata("domain-modeling.dox/review/private"))
@@ -980,44 +987,41 @@ class DoxSiteSpec
       }
     }
 
-    "use Markdown SmartDox HEAD metadata for site strategy" in {
-      val dir = Files.createTempDirectory("smartdox-markdown-head-metadata")
+    "use YAML status while keeping Pure Markdown HEAD as visible body" in {
+      Given("admitted Markdown pages with HEAD-only, published YAML and contradictory WIP YAML status")
+      val fixture = java.nio.file.Paths.get("target/phase75/site-markdown-status")
+      Files.createDirectories(fixture)
+      val dir = Files.createTempDirectory(fixture, "site-")
       try {
-        Given("a Markdown document that uses SmartDox HEAD metadata instead of YAML front matter")
         _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        val headonly = "# HEAD\nstatus=published\n\n# Body\nHEAD-only body.\n"
+        _write(dir.resolve("head-only.md"), headonly)
         _write(dir.resolve("published.md"),
-          """# HEAD
-            |
-            |status=published
-            |published_at=2026-06-23
-            |
-            |## SUMMARY
-            |
-            |Published Markdown HEAD summary.
-            |
-            |# Published Body
-            |
-            |Published markdown body.
-            |""".stripMargin)
-        _write(dir.resolve("wip.md"),
-          """# HEAD
-            |
-            |status=work-in-progress
-            |published_at=2026-06-23
-            |
-            |# WIP Body
-            |
-            |WIP markdown body.
-            |""".stripMargin)
-        When("SmartDox parses the Markdown document through the Dox parser path")
+          "---\ntitle: Published Markdown\nstatus: published\n---\n# HEAD\nstatus=work-in-progress\n\n# Body\nPublished **Markdown** body.\n")
+        _write(dir.resolve("wip.markdown"),
+          "---\nstatus: work-in-progress\n---\n# HEAD\nstatus=published\n\n# Body\nWIP body.\n")
+
+        When("the admitted Markdown pages are generated with production strategy")
         val site = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Production))
         val realm = site_realm(site, context)
         implicit val i18ncontext: I18NContext = context.i18NContext
 
-        Then("SmartDox HEAD metadata controls production inclusion")
-        html_at(realm, "/ja/published.html", "ja/published.html") should include_html("Published markdown body.")
-        And("work-in-progress Markdown HEAD metadata keeps draft content out of production")
+        Then("YAML-published Markdown renders native emphasis and literal contradictory HEAD properties")
+        val html = html_at(realm, "/ja/published.html", "ja/published.html")
+        html should include_html("status=work-in-progress")
+        html should include_html("<strong>Markdown</strong>")
+        And("HEAD-only and YAML-WIP sources remain excluded")
+        realm.getString("/ja/head-only.html").orElse(realm.getString("ja/head-only.html")) shouldBe None
         realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
+
+        When("the same site is generated with Full strategy")
+        val fullsite = create_site(context, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val fullrealm = site_realm(fullsite, context)
+
+        Then("the HEAD-only page renders its ordinary Markdown body")
+        val fullhtml = html_at(fullrealm, "/ja/head-only.html", "ja/head-only.html")
+        fullhtml should include_html("status=published")
+        fullhtml should include_html("HEAD-only body.")
       } finally {
         _delete(dir)
       }

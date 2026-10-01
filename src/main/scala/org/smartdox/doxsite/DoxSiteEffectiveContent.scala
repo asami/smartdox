@@ -7,7 +7,7 @@ import org.smartdox.Document
 
 /*
  * @since   Sep.  8, 2026
- * @version Sep.  8, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 private[smartdox] object DoxSiteEffectiveContent {
@@ -52,7 +52,9 @@ private[smartdox] object DoxSiteEffectiveContent {
   def effectivePath(basePath: String, targetPath: String): String = {
     val normalizedbase = basePath.replace('\\', '/')
     val resolvablebase =
-      if (normalizedbase.isEmpty || normalizedbase.contains("/") || normalizedbase.endsWith("/"))
+      if (normalizedbase.isEmpty)
+        "./"
+      else if (normalizedbase.contains("/") || normalizedbase.endsWith("/"))
         normalizedbase
       else
         s"./$normalizedbase"
@@ -63,6 +65,22 @@ private[smartdox] object DoxSiteEffectiveContent {
       else
         resolved
     effectivePath(doxpath)
+  }
+
+  def publicPath(path: String): String = {
+    val normalized = path.replace('\\', '/')
+    val prefix = if (normalized.startsWith("/")) "/" else ""
+    val segments = normalized.split('/').toVector.filter(_.nonEmpty)
+    val publicsegments = segments match {
+      case xs if xs.size >= 2 &&
+        (xs.last == "index.dox" || xs.last == "index.html") &&
+        xs(xs.size - 2).endsWith(".dox") =>
+        xs.dropRight(2) :+ s"${xs(xs.size - 2).stripSuffix(".dox")}.html"
+      case xs if xs.lastOption.exists(_.endsWith(".dox")) =>
+        xs.dropRight(1) :+ s"${xs.last.stripSuffix(".dox")}.html"
+      case xs => xs
+    }
+    prefix + publicsegments.mkString("/")
   }
 
   private def _is_document_project_index(path: String): Boolean = {

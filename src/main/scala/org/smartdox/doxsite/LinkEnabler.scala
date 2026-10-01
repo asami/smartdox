@@ -30,7 +30,8 @@ import org.smartdox.metadata._
  *  version Oct. 28, 2025
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -65,16 +66,15 @@ class LinkEnabler(
   }
 
   def getMetaData(path: String): Option[DocumentMetaData] =
-    site.getContent(path).flatMap {
-      case m: Page => Dox.getMetadata(m.dox)
-      case _ => None
-    }
+    _get_metadata(site, path)
 
   def getMetaDataFull(path: String): Option[DocumentMetaData] =
-    full.getContent(path).flatMap {
-      case m: Page => Dox.getMetadata(m.dox)
-      case _ => None
-    }
+    _get_metadata(full, path)
+
+  private def _get_metadata(tree: Tree[Node], path: String): Option[DocumentMetaData] =
+    tree.getNode(DoxSiteEffectiveContent.effectivePath(path))
+      .flatMap(DoxSiteEffectiveContent.effectiveContent)
+      .flatMap(effective => Dox.getMetadata(effective.page.dox))
 }
 
 object LinkEnabler {

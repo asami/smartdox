@@ -14,7 +14,7 @@ import org.smartdox.transformer.DoxHomoTreeTransformer
 
 /*
  * @since   Sep.  7, 2026
- * @version Sep.  8, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 final case class SitePublicationContext private (
@@ -46,28 +46,31 @@ final case class SitePublicationContext private (
       Dox.transform(dox, new SiteLinkProjection(this, locale))
     }
 
-  private def _verify_target(targetPath: String): Consequence[Unit] = {
-    val candidate = siteRoot.resolve(targetPath).normalize
-    if (!candidate.startsWith(siteRoot))
-      Consequence.invalidArgumentFault(s"pdf.site-link.target.outside-root: $targetPath")
-    else if (Files.isSymbolicLink(candidate))
-      Consequence.invalidArgumentFault(s"pdf.site-link.target.outside-root: $targetPath")
+  private def _verify_target(targetpath: String): Consequence[Unit] = {
+    val logicalcandidate = siteRoot.resolve(targetpath).normalize
+    val sourcepath = _effective_content(targetpath).map(_.sourcePath.v).getOrElse(targetpath)
+    val candidate = siteRoot.resolve(sourcepath).normalize
+    if (!logicalcandidate.startsWith(siteRoot) || !candidate.startsWith(siteRoot))
+      Consequence.invalidArgumentFault(s"pdf.site-link.target.outside-root: $targetpath")
+    else if (Files.isSymbolicLink(logicalcandidate) || Files.isSymbolicLink(candidate))
+      Consequence.invalidArgumentFault(s"pdf.site-link.target.outside-root: $targetpath")
     else if (!Files.isRegularFile(candidate, LinkOption.NOFOLLOW_LINKS))
-      Consequence.resourceNotFound(s"pdf.site-link.target.unresolved: source=$sourcePath target=$targetPath")
+      Consequence.resourceNotFound(s"pdf.site-link.target.unresolved: source=$sourcePath target=$targetpath")
     else {
       Consequence.execute {
         val canonical = candidate.toRealPath(LinkOption.NOFOLLOW_LINKS)
         if (!canonical.startsWith(siteRoot))
-          throw new IllegalArgumentException(s"pdf.site-link.target.outside-root: $targetPath")
+          throw new IllegalArgumentException(s"pdf.site-link.target.outside-root: $targetpath")
       }
     }
   }
 
+  private def _effective_content(path: String): Option[DoxSiteEffectiveContent.EffectiveContent] =
+    site.space.getNode(path).flatMap(DoxSiteEffectiveContent.effectiveContent)
+
   private def _site_document_metadata(path: String): Option[DocumentMetaData] =
-    site.space.getContent(path).flatMap {
-      case page: Page if Dox.getMetadata(page.dox).exists(_.status == DocumentMetaData.Status.Published) =>
-        Dox.getMetadata(page.dox)
-      case _ => None
+    _effective_content(path).flatMap { effective =>
+      Dox.getMetadata(effective.page.dox).filter(_.status == DocumentMetaData.Status.Published)
     }
 }
 
@@ -265,19 +268,14 @@ object SitePublicationContext {
             if (segments.isEmpty)
               Consequence.invalidArgumentFault(s"pdf.site-link.target.invalid: ${target.toString}")
             else
-              Consequence.success(segments.mkString("/"))
+              Consequence.success(DoxSiteEffectiveContent.effectivePath("", segments.mkString("/")))
           }
         case None => Consequence.invalidArgumentFault(s"pdf.site-link.target.invalid: ${target.toString}")
       }
     }
 
-  private def _source_parent_segments(sourcePath: String): Vector[String] = {
-    val segments = sourcePath.split('/').toVector.filter(_.nonEmpty)
-    if (segments.length >= 2 && segments.last == "index.dox" && segments(segments.length - 2).endsWith(".dox"))
-      segments.dropRight(2)
-    else
-      segments.dropRight(1)
-  }
+  private def _source_parent_segments(sourcepath: String): Vector[String] =
+    DoxSiteEffectiveContent.effectivePath(sourcepath).split('/').toVector.filter(_.nonEmpty).dropRight(1)
 
   private def _resolve_segments(base: Vector[String], path: String): Consequence[Vector[String]] =
     path.split("/", -1).foldLeft(Consequence.success(base)) { (state, segment) =>

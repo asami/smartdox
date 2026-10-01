@@ -53,7 +53,8 @@ import Dox._
  *  version Jun.  8, 2026
  *  version Jun. 23, 2026
  *  version Aug. 30, 2026
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -65,8 +66,12 @@ class Dox2Parser(context: Dox2Parser.ParseContext) {
   implicit def dateTimeContext = context.dateTimeContext
 
   def apply(s: String): ParseResult[Document] = {
-    val blocks = LogicalBlocks.parse(config.blocksConfig, s)
-    apply(blocks)
+    if (config.style == Config.DoxStyle.Markdown && config.markdownMode == Config.MarkdownMode.Pure)
+      ParseSuccess(MarkdownDocumentParser.parse(context, s))
+    else {
+      val blocks = LogicalBlocks.parse(config.blocksConfig, s)
+      apply(blocks)
+    }
   }
 
   def apply(in: LogicalBlock): ParseResult[Document] = {
@@ -90,6 +95,23 @@ object Dox2Parser {
     file: Option[URI],
     style: Config.DoxStyle
   ) extends ParseConfig {
+    private var _markdown_mode: Config.MarkdownMode = Config.MarkdownMode.Pure
+
+    def markdownMode: Config.MarkdownMode = _markdown_mode
+
+    def copy(
+      isDebug: Boolean = this.isDebug,
+      isLocation: Boolean = this.isLocation,
+      blocksConfig: LogicalBlocks.Config = this.blocksConfig,
+      linesConfig: DoxLinesParser.Config = this.linesConfig,
+      file: Option[URI] = this.file,
+      style: Config.DoxStyle = this.style
+    ): Config = {
+      val config = Config(isDebug, isLocation, blocksConfig, linesConfig, file, style)
+      config._markdown_mode = _markdown_mode
+      config
+    }
+
     def isAutoI18n: Boolean = true // AutoI18nTransformer
     def autoI18nDelimiter = "｜"
     def autoI18nLanguages = List(LocaleUtils.en, LocaleUtils.ja)
@@ -118,6 +140,12 @@ object Dox2Parser {
 
     def withoutComplementParagraph() = copy(linesConfig = linesConfig.withoutComplementParagraph())
 
+    def withMarkdownMode(p: Config.MarkdownMode): Config = {
+      val config = copy()
+      config._markdown_mode = p
+      config
+    }
+
     def withDoxStyle(p: Config.DoxStyle): Config =
       p match {
         case Config.DoxStyle.SmartDox => copy(
@@ -144,6 +172,12 @@ object Dox2Parser {
   }
   object Config {
     import DoxLinesParser.{Config => _, _}
+
+    sealed trait MarkdownMode
+    object MarkdownMode {
+      case object Pure extends MarkdownMode
+      case object Enhanced extends MarkdownMode
+    }
 
     sealed trait DoxStyle {
     }
@@ -185,10 +219,12 @@ object Dox2Parser {
       style = DoxStyle.OrgMode
     )
     val orgmode = orgmodeInline
-    val markdown = default.copy(
+    val pureMarkdown = default.copy(
       linesConfig = DoxLinesParser.Config.markdown,
       style = DoxStyle.Markdown
     )
+    val markdown = pureMarkdown
+    val enhancedMarkdown = pureMarkdown.withMarkdownMode(MarkdownMode.Enhanced)
     val literateModel = default.copy(
       blocksConfig = LogicalBlocks.Config.literateModel,
       linesConfig = DoxLinesParser.Config.literateModel
@@ -358,7 +394,10 @@ object Dox2Parser {
     }
   }
 
-  def parse2(config: Config, in: String): Dox = {
+  def parse2(config: Config, in: String): Dox =
+    if (config.style == Config.DoxStyle.Markdown && config.markdownMode == Config.MarkdownMode.Pure)
+      parse(config, in)
+    else {
     val parser = LogicalBlockReaderWriterStateClass(config, RootState.init)
     val (messages, result, state) = parser.apply(in)
     result match {

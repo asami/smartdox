@@ -62,6 +62,10 @@ libraryDependencies += "org.apache.poi" % "poi-ooxml" % "3.12"
 // // libraryDependencies += "net.sourceforge.nekohtml" % "nekohtml" % "1.9.15"
 // >>>>>>> origin/master
 
+libraryDependencies += "org.commonmark" % "commonmark" % "0.30.0"
+
+libraryDependencies += "org.commonmark" % "commonmark-ext-gfm-tables" % "0.30.0"
+
 libraryDependencies += "org.jsoup" % "jsoup" % "1.18.1"
 
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.10.0.202012080955-r"

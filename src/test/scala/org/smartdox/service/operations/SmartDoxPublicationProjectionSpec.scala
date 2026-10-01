@@ -12,7 +12,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 /*
  * @since   Aug. 24, 2026
- * @version Aug. 24, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -65,7 +65,7 @@ class SmartDoxPublicationProjectionSpec
           (sourcename, SmartDoxPublicationProjection.project(sourceName = sourcename, source = source))
         }
 
-        Then("SmartDox keeps the marker literal and Markdown renders it as bold")
+        Then("SmartDox keeps the marker literal and Markdown renders it as emphasis")
         results.foreach { case (sourcename, result) =>
           result shouldBe a[SmartDoxPublicationProjection.Projected]
           val projected = result.asInstanceOf[SmartDoxPublicationProjection.Projected]
@@ -75,13 +75,13 @@ class SmartDoxPublicationProjectionSpec
             projected.html should include ("<p>*profile marker*</p>")
             projected.html should not include ("<p><b>profile marker</b></p>")
           } else {
-            projected.html should include ("<b>profile marker</b>")
+            projected.html should include ("<em>profile marker</em>")
             projected.html should not include ("*profile marker*")
           }
         }
       }
 
-"reject canonical include directives before resolving unavailable targets" in {
+      "reject canonical include directives before resolving unavailable targets" in {
         Given("canonical suffixes and an include directive targeting an unavailable file")
         val source = "# SmartDox Projection Heading\n\ninclude::/smartdox-projection-target-that-does-not-exist.dox[]"
         val sourcenames = Vector("publication.dox", "publication.md", "publication.markdown")

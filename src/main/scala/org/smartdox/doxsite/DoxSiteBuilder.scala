@@ -26,8 +26,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Aug. 30, 2026
- *  version Aug. 30, 2026
- * @version Sep. 14, 2026
+ *  version Sep. 14, 2026
+ * @version Oct.  1, 2026
  * @author  ASAMI, Tomoharu
  */
   class DoxSiteBuilder(
@@ -104,8 +104,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
     ) = {
       // println(s"_dox_page: $c")
       val dox = context.cache.get(node.pathname, lastmodified) getOrElse {
-        val (pathname, parserconfig) = _source_parser(node, Dox2Parser.Config.default)
-        Dox2Parser.parseWithFilename(parserconfig, pathname, c)
+        val parserconfig = _source_parser(node, Dox2Parser.Config.default)
+        Dox2Parser.parse(parserconfig, c)
       }
       _create_dox(node.name, dox, lastmodified)
     }
@@ -113,13 +113,16 @@ import org.smartdox.transformers.LanguageFilterTransformer
     private def _source_parser(
       node: TreeNode[Realm.Data],
       baseconfig: Dox2Parser.Config
-    ): (String, Dox2Parser.Config) = {
+    ): Dox2Parser.Config = {
       rule.doxSiteConfig.origin match {
         case Some(origin) =>
-          val pathname = new File(origin, node.pathname).getCanonicalFile
-          (pathname.toString, baseconfig.withResourceRoot(pathname.getParentFile.toPath))
+          val canonicalfile = new File(origin, node.pathname).getCanonicalFile
+          baseconfig.withFilename(node.pathname).
+            withResourceRoot(canonicalfile.getParentFile.toPath).
+            copy(file = Some(canonicalfile.toURI))
         case None =>
-          (node.pathname, baseconfig._with_virtual_resource_parent(_virtual_parent(node.pathname)))
+          baseconfig.withFilename(node.pathname).
+            _with_virtual_resource_parent(_virtual_parent(node.pathname))
       }
     }
 
@@ -144,8 +147,8 @@ import org.smartdox.transformers.LanguageFilterTransformer
     }
 
     private def _markdown_page(node: TreeNode[Realm.Data], c: String) = {
-      val (pathname, parserconfig) = _source_parser(node, Dox2Parser.Config.markdown)
-      val dox = Dox2Parser.parseWithFilename(parserconfig, pathname, c)
+      val parserconfig = _source_parser(node, Dox2Parser.Config.markdown)
+      val dox = Dox2Parser.parse(parserconfig, c)
       _create_dox(node.name, dox)
     }
 

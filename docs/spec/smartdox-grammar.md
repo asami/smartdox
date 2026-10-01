@@ -9,6 +9,13 @@ syntax. Syntax that is still under design is tracked in `docs/journal`.
 
 ## Scope
 
+The mixed grammar in this document governs SmartDox `.dox` sources and explicit
+Enhanced Markdown (`Config.MarkdownMode.Enhanced`). Default Pure `.md` and
+`.markdown` sources instead follow [Markdown source AST](markdown-source-ast.md):
+CommonMark plus GFM tables is projected into the shared SmartDox AST without
+Dox grammar over source or AST leaves. Source admission precedes parser
+selection, and source contents never select a mode.
+
 SmartDox is a document grammar that combines:
 
 - Org-style section and annotation syntax
@@ -82,10 +89,12 @@ The visible section title is parsed as inline content.
 
 ### Section Title Termination
 
-A blank line terminates the section title. This rule is intentional: SmartDox
-allows a section title to span multiple adjacent non-blank lines. Therefore, when
-a section title is meant to be one line, the heading line must be followed by a
-blank line before body content or child sections.
+In SmartDox `.dox` and explicit Enhanced Markdown, a blank line terminates the
+section title. This rule is intentional: these profiles allow a section title
+to span multiple adjacent non-blank lines. Therefore, when a section title is
+meant to be one line, the heading line must be followed by a blank line before
+body content or child sections. Default Pure Markdown follows CommonMark
+heading termination and does not require that blank line.
 
 Correct one-line title:
 
@@ -111,13 +120,17 @@ Incorrect when the second line is intended as body content:
 This is body text.
 ```
 
-Reserved metadata section names such as `HEAD`, `HEADLINE`, `BRIEF`, `SUMMARY`,
-and `DESCRIPTION` are single-line names. Their metadata body must start after a
-blank line.
+In SmartDox `.dox` and explicit Enhanced Markdown, reserved metadata section
+names such as `HEAD`, `HEADLINE`, `BRIEF`, `SUMMARY`, and `DESCRIPTION` are
+single-line names. Their metadata body must start after a blank line. In
+default Pure Markdown these names are ordinary body headings.
 
 ## Metadata Head
 
-A top-level section named `HEAD` is treated as document metadata.
+In SmartDox `.dox` and explicit Enhanced Markdown, a top-level section named
+`HEAD` is treated as document metadata. In default Pure Markdown, `HEAD` and its
+contents remain ordinary body content; only the existing static YAML
+front-matter API supplies document metadata.
 
 ```dox
 # HEAD
@@ -149,10 +162,11 @@ Java-specific forms such as `key:value`, space-separated entries, continuation
 lines, and Java escape semantics are not part of the stable HEAD grammar. Use
 regular HOCON when nested objects, lists, or typed values are needed.
 
-This rule applies in both SmartDox authoring and Markdown mode; `.md` /
-`.markdown` sources may use `# HEAD` for SmartDox operational metadata when YAML
-front matter is not enough. The leading properties paragraph inside `HEAD` is
-metadata-only and is not parsed as Markdown body text.
+This rule applies in SmartDox `.dox` authoring and explicit Enhanced Markdown;
+`.md` / `.markdown` sources in Enhanced may use `# HEAD` for SmartDox operational
+metadata when YAML front matter is not enough. In those profiles, the leading
+properties paragraph inside `HEAD` is metadata-only and is not parsed as body
+text. In default Pure Markdown, that paragraph remains ordinary body content.
 
 Terminology grammar additionally defines a stable HOCON object named
 `term_namespaces` for an explicit CURIE context, for example:
@@ -529,9 +543,16 @@ Known forms:
 
 Unknown inline macros are preserved as inline macro nodes.
 
-## Markdown Mode
+## Markdown Modes
 
-Markdown parsing supports:
+`.md`/`.markdown` defaults to Pure CommonMark plus GFM tables, projected into
+the shared AST under [Markdown source AST](markdown-source-ast.md). Pure never
+interprets Dox HEAD, macros, includes or definition-list syntax. YAML metadata
+uses the existing static parser boundary; direct parsing remains body-oriented.
+Explicit `Config.MarkdownMode.Enhanced` retains the legacy grammar described
+below. Source admission precedes mode selection and content never selects mode.
+
+Enhanced Markdown parsing supports:
 
 - ATX headings: `# Heading`
 - Setext headings: `Heading` followed by `==`
@@ -543,11 +564,11 @@ Markdown parsing supports:
 Markdown mode shares the SmartDox document tree with the Org-style parser.
 YAML front matter is accepted as document metadata. SmartDox operational
 metadata sections such as `# HEAD`, `## HEADLINE`, `## BRIEF`, `## SUMMARY`, and
-`## DESCRIPTION` are also accepted in Markdown mode and are normalized into the
+`## DESCRIPTION` are also accepted in explicit Enhanced Markdown mode and are normalized into the
 same Dox metadata IR.
 
 Glossary term sources may also use Markdown. The term title is resolved from the
-SmartDox document title or Markdown front matter `title`; metadata properties
+SmartDox document title (Enhanced) or Markdown front matter `title`; metadata properties
 such as `reading`, `brief`, `summary`, `status`, and `published_at` are resolved
 through the same Dox metadata path. The generated glossary metadata is therefore
 independent of whether the source file is `.dox`, `.md`, or `.markdown`.
