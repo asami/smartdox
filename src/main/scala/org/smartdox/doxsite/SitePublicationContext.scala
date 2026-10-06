@@ -14,7 +14,8 @@ import org.smartdox.transformer.DoxHomoTreeTransformer
 
 /*
  * @since   Sep.  7, 2026
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  6, 2026
  * @author  ASAMI, Tomoharu
  */
 final case class SitePublicationContext private (
@@ -47,7 +48,9 @@ final case class SitePublicationContext private (
     }
 
   private def _verify_target(targetPath: String): Consequence[Unit] = {
-    val candidate = siteRoot.resolve(targetPath).normalize
+    val sourcepath = DoxSiteEffectiveContent.effectiveContent(site.space, targetPath).
+      map(_.sourcePath.v).getOrElse(targetPath)
+    val candidate = siteRoot.resolve(sourcepath).normalize
     if (!candidate.startsWith(siteRoot))
       Consequence.invalidArgumentFault(s"pdf.site-link.target.outside-root: $targetPath")
     else if (Files.isSymbolicLink(candidate))
@@ -64,11 +67,9 @@ final case class SitePublicationContext private (
   }
 
   private def _site_document_metadata(path: String): Option[DocumentMetaData] =
-    site.space.getContent(path).flatMap {
-      case page: Page if Dox.getMetadata(page.dox).exists(_.status == DocumentMetaData.Status.Published) =>
-        Dox.getMetadata(page.dox)
-      case _ => None
-    }
+    DoxSiteEffectiveContent.effectiveContent(site.space, path).
+      flatMap(effective => Dox.getMetadata(effective.getDox)).
+      filter(_.status == DocumentMetaData.Status.Published)
 }
 
 object SitePublicationContext {
@@ -271,13 +272,8 @@ object SitePublicationContext {
       }
     }
 
-  private def _source_parent_segments(sourcePath: String): Vector[String] = {
-    val segments = sourcePath.split('/').toVector.filter(_.nonEmpty)
-    if (segments.length >= 2 && segments.last == "index.dox" && segments(segments.length - 2).endsWith(".dox"))
-      segments.dropRight(2)
-    else
-      segments.dropRight(1)
-  }
+  private def _source_parent_segments(sourcePath: String): Vector[String] =
+    DoxSiteEffectiveContent.effectivePath(sourcePath).split('/').toVector.filter(_.nonEmpty).dropRight(1)
 
   private def _resolve_segments(base: Vector[String], path: String): Consequence[Vector[String]] =
     path.split("/", -1).foldLeft(Consequence.success(base)) { (state, segment) =>

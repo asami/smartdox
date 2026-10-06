@@ -40,7 +40,6 @@ import org.goldenport.util.LocalDateUtils
 import org.goldenport.util.InstantUtils.instantOrderingAsc
 import org.goldenport.util.RegexUtils
 import org.smartdox._
-import org.smartdox.parser.Dox2Parser
 import org.smartdox.metadata.MetaData
 import org.smartdox.metadata.PublishMetadata
 import org.smartdox.metadata.DoxSiteDashboard
@@ -86,7 +85,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
  *  version Aug. 30, 2026
- * @version Sep. 14, 2026
+ *  version Sep. 14, 2026
+ * @version Oct.  6, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -561,21 +561,8 @@ object DoxSite {
   import io.circe.generic.extras.semiauto._
   import org.goldenport.util.CirceUtils.Codec._
 
-  def publicPath(path: String): String = {
-    val normalized = path.replace('\\', '/')
-    val prefix = if (normalized.startsWith("/")) "/" else ""
-    val segments = normalized.split('/').toVector.filter(_.nonEmpty)
-    val publicsegments = segments match {
-      case xs if xs.size >= 2 &&
-        (xs.last == "index.dox" || xs.last == "index.html") &&
-        xs(xs.size - 2).endsWith(".dox") =>
-        xs.dropRight(2) :+ s"${xs(xs.size - 2).stripSuffix(".dox")}.html"
-      case xs if xs.lastOption.exists(_.endsWith(".dox")) =>
-        xs.dropRight(1) :+ s"${xs.last.stripSuffix(".dox")}.html"
-      case xs => xs
-    }
-    prefix + publicsegments.mkString("/")
-  }
+  def publicPath(path: String): String =
+    DoxSiteEffectiveContent.publicPath(path)
 
   private[doxsite] def relativePublicPath(sourcePath: String, targetPath: String): String = {
     val source = _public_path_segments(sourcePath).dropRight(1)
@@ -1387,12 +1374,18 @@ object DoxSite {
   ): Bibliography = {
     val entries = ArrayBuffer.empty[Bibliography.Entry]
     val refs = ArrayBuffer.empty[BibliographyRef]
+    def _collect_document_(node: TreeNode[Node]): Unit =
+      DoxSiteEffectiveContent.effectiveContent(node).foreach { effective =>
+        _bibliography_entry(ctx, node, effective.page).foreach(entries += _)
+        refs ++= _bibliography_refs(effective.logicalPath.v, effective.page)
+      }
     p.traverse(new DoxSiteVisitor {
+      override protected def enter_Container(node: TreeNode[Node]): Unit =
+        _collect_document_(node)
+
       override protected def enter_Content(node: TreeNode[Node], content: Node): Unit =
         content match {
-          case page: Page =>
-            _bibliography_entry(ctx, node, page).foreach(entries += _)
-            refs ++= _bibliography_refs(node.pathnameRelative, page)
+          case _: Page => _collect_document_(node)
           case file: FileData =>
             _bibliography_bibtex_entry(node.pathnameRelative, file.file.toPath).foreach(entries += _)
           case _ =>
@@ -1400,7 +1393,6 @@ object DoxSite {
     })
     ctx.doxSiteConfig.origin.foreach { root =>
       entries ++= _bibliography_bibtex_entries(root.toPath)
-      refs ++= _bibliography_source_refs(ctx, root.toPath)
     }
     val definedentries = entries.toVector.
       sortBy(_bibliography_entry_priority).
@@ -1578,52 +1570,6 @@ object DoxSite {
       case category +: _ if category.nonEmpty && !special(category) => Some(category)
       case _ => None
     }
-  }
-
-  private def _bibliography_source_refs(
-    ctx: DoxSiteTransformer.Context,
-    root: Path
-  ): Vector[BibliographyRef] = {
-    val stream = Files.walk(root)
-    try {
-      stream.iterator.asScala.toVector.filter(_is_bibliography_ref_source).flatMap { path =>
-        val sourcepath = root.relativize(path).toString.replace(File.separatorChar, '/')
-        try {
-          val dox = _parse_source_document(path)
-          val metadatarefs = Dox.getMetadata(dox).flatMap(_.toOption).toVector.flatMap { metadata =>
-            _metadata_string_list(metadata, "bibliography.refs", "references.bibliography", "bibid", "bibids")
-          }
-          val inlinerefs = _bibliography_inline_refs(dox)
-          val category = _bibliography_reference_category(sourcepath).getOrElse("bibliography")
-          _bibliography_refs(sourcepath, category, metadatarefs ++ inlinerefs)
-        } catch {
-          case NonFatal(e) =>
-            ctx.generatorContext.log.error(s"Skip bibliography reference source parse: ${path}: ${e.getMessage}")
-            Vector.empty
-        }
-      }
-    } finally {
-      stream.close()
-    }
-  }
-
-  private def _is_bibliography_ref_source(path: Path): Boolean = {
-    val name = path.getFileName.toString.toLowerCase(java.util.Locale.ROOT)
-    Files.isRegularFile(path) &&
-      (name.endsWith(".dox") || name.endsWith(".md") || name.endsWith(".markdown")) &&
-      !path.toString.replace(File.separatorChar, '/').contains("/bibliography/")
-  }
-
-  private def _parse_source_document(path: Path): Dox = {
-    val canonical = path.toFile.getCanonicalFile
-    val name = canonical.getName.toLowerCase(java.util.Locale.ROOT)
-    val config =
-      if (name.endsWith(".md") || name.endsWith(".markdown"))
-        Dox2Parser.Config.markdown
-      else
-        Dox2Parser.Config.default
-    val parserconfig = config.withResourceRoot(canonical.getParentFile.toPath)
-    Dox2Parser.parseWithFilename(parserconfig, canonical.toString, Files.readString(canonical.toPath))
   }
 
   private def _bibliography_bibtex_entries(root: Path): Vector[Bibliography.Entry] = {
