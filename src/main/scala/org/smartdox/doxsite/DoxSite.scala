@@ -86,7 +86,7 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Jul. 13, 2026
  *  version Aug. 30, 2026
  *  version Sep. 14, 2026
- * @version Oct.  6, 2026
+ * @version Oct.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -623,9 +623,10 @@ object DoxSite {
     includePathPatterns: Vector[Regex] = Vector(".*").map(_.r),
     excludePathPatterns: Vector[Regex] = Vector(
       """(?x)
-  (?:^|[\\/])_                   # directories starting with "_"
-  | \.d(?:[\\/]|\Z)              # directories ending with ".d"
-  | (?:^|[\\/])(assets|styles|includes)[\\/]  # static resource directories
+  (?:.*[\\/])?_[^\\/]*[\\/].*  # directories starting with "_"
+  | (?:.*[\\/])?[^\\/]*\.d(?:[\\/].*|\Z)  # directories ending with ".d"
+  | (?:.*[\\/])?(assets|styles|includes)[\\/].*  # static resource directories
+# Case-sensitive whole paths with slash or backslash directory boundaries.
 """
     ).map(_.r)
   ) {

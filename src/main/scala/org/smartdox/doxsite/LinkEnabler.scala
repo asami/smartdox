@@ -31,7 +31,7 @@ import org.smartdox.metadata._
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
  *  version Sep.  8, 2026
- * @version Oct.  6, 2026
+ * @version Oct.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -577,8 +577,9 @@ object LinkEnabler {
               case Some(title0) =>
                 val title = _prepend(_link_mark, _inline_contents(locale, title0))
                 val relpath = DoxSite.relativePublicPath(base, path)
+                val relativeuri = new URI(relpath + Option(href.getRawFragment).map(fragment => "#" + fragment).getOrElse(""))
                 val tooltip = s.getEffectiveTooltip // .map(_text(locale, _))
-                val r = Hyperlink.createArticle(title, new URI(relpath), tooltip, pageNode.pathnameValue)
+                val r = Hyperlink.createArticle(title, relativeuri, tooltip, pageNode.pathnameValue)
                 _internal_link(locale, r)
               case None => _external_link(locale, dox)
             }

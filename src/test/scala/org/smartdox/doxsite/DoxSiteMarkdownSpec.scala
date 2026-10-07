@@ -17,7 +17,7 @@ import org.smartdox.metadata.DocumentMetaData
 
 /*
  * @since   Oct.  6, 2026
- * @version Oct.  6, 2026
+ * @version Oct.  7, 2026
  */
 class DoxSiteMarkdownSpec
     extends AnyWordSpec
@@ -270,6 +270,62 @@ class DoxSiteMarkdownSpec
     }
 
     "resolve localized links and publication" which {
+      "P751-02A-SDX-FRAGMENT-01 preserve raw fragments across ordinary Markdown package aliases" in {
+        Given("a published bilingual physical package with a real fragment target and two published bilingual Markdown sources with distinct stems")
+        _with_fixture("fragments-") { root =>
+          _write_config(root)
+          _write(root.resolve("development-process/targets/package.dox/index.dox"),
+            _dox_source("Package target｜対象パッケージ", "<dfn id=\"package-part\">Actual target.</dfn>"))
+          val cases = (for {
+            alias <- Vector("../targets/package.dox", "../targets/package.dox/index.dox", "../targets/package.dox/index.html", "../targets/package.html")
+            fragment <- Vector("", "#package-part", "#package%2Dpart")
+          } yield alias -> fragment).zipWithIndex
+          val body = cases.map { case ((alias, fragment), index) =>
+            s"Alias-$index [Authored caption]($alias$fragment)"
+          }.mkString("\n\n")
+          Vector("md", "markdown").foreach { suffix =>
+            _write(root.resolve(s"development-process/sources/one-$suffix.$suffix"),
+              _localized_markdown_source(s"Source $suffix", s"参照元 $suffix", body))
+          }
+          val context = Context.create()
+          implicit val i18ncontext: I18NContext = context.i18NContext
+
+          When("one real site renders both distinct Markdown pages and their package target in Japanese and English")
+          val site = create_site(context, root.toFile, _full_config)
+          val realm = site_realm(site, context)
+
+          Then("each marked paragraph has exactly one canonical article link with its authored raw fragment and the actual localized package caption")
+          Vector("ja" -> "対象パッケージ", "en" -> "Package target").foreach { case (language, title) =>
+            val target = Jsoup.parse(html_at(realm, s"$language/development-process/targets/package.html"))
+            val definitions = target.select("dfn#package-part").asScala.toVector
+            definitions should have size 1
+            definitions.head.attr("id") shouldBe "package-part"
+            definitions.head.text() shouldBe "Actual target."
+            target.select("h1").asScala.map(_.text()).toVector should contain (title)
+            Vector("md", "markdown").foreach { suffix =>
+              val source = Jsoup.parse(html_at(realm, s"$language/development-process/sources/one-$suffix.html"))
+              val paragraphs = source.select("p").asScala.filter(_.text().startsWith("Alias-")).toVector
+              paragraphs should have size 12
+              paragraphs.map(_.text().takeWhile(_ != ' ')) shouldBe cases.map { case (_, index) => s"Alias-$index" }
+              paragraphs.zip(cases).foreach { case (paragraph, ((_, fragment), _)) =>
+                val links = paragraph.select("a.article").asScala.toVector
+                links should have size 1
+                val link = links.head
+                link.attr("href") shouldBe s"../targets/package.html$fragment"
+                link.text().stripPrefix(DoxSite.Config.WorkAround.textMark.article) shouldBe title
+                val uri = new URI(link.attr("href"))
+                if (fragment.isEmpty) {
+                  Option(uri.getRawFragment) shouldBe None
+                } else {
+                  uri.getRawFragment shouldBe fragment.stripPrefix("#")
+                  uri.getFragment shouldBe definitions.head.attr("id")
+                }
+              }
+            }
+          }
+        }
+      }
+
       "P751-01C2-06 resolve real Dox site links and publication aliases through actual Markdown files" in {
         Given("a real Dox source linking to md and markdown source/HTML aliases with fragments and exact YAML JA/EN titles")
         _with_fixture("publication-") { root =>

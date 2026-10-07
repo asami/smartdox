@@ -1,7 +1,7 @@
 # DoxSite Public Content
 
 Status: normative Phase 75.1 producer contract
-Date: 2026-10-06
+Date: 2026-10-07
 
 ## Admission and identity
 
@@ -17,6 +17,16 @@ Private names are not a denylist. A `.dox` directory without a direct index
 is an ordinary directory, and its ordinary descendants remain eligible.
 Existing availability and path-pattern rules remain applicable. Direct package
 metadata and static resources retain their established handling.
+
+Default excluded-path expressions consume the whole source path. They exclude
+children of directories starting with `_`, directories ending with `.d`
+(including a terminal `.d` segment), and exact `assets`, `styles` or `includes`
+directory segments at any depth, with slash or backslash boundaries and
+case-sensitive names. Reserved-name lookalikes remain eligible. Configured
+patterns retain user-controlled whole-match semantics, and Rule `isIgnore`
+ancestry remains applicable. Structural catalogue and parsed-site admission
+share this default availability owner; static-resource and source-origin
+handling retain their established responsibilities.
 
 An ordinary article retains its source path. A selected package article has
 physical source `<directory>/<slug>.dox/index.dox`, logical source
@@ -55,6 +65,60 @@ contracts.
 
 ## Parsed content and consumers
 
+### Structural source catalogue
+
+The public stable object
+[DoxSitePublicDocuments](../../src/main/scala/org/smartdox/doxsite/DoxSitePublicDocuments.scala)
+exposes `Source(sourcePath: String, publicPath: String)` and
+`sources(realm: Realm, config: DoxSite.Config = DoxSite.Config.default): Vector[Source]`.
+It selects recognized Dox/Org/Markdown `Realm.StringData` from the supplied
+native tree through existing `DoxSiteBuilder.Rule.getTargetName`, including
+availability and public admission. A Rule-ignored node or ancestor is excluded.
+It retains the actual physical `pathnameRelative`, replaces only its leaf with
+the Rule-selected name, and delegates canonical public mapping to the existing
+effective-content owner. Org therefore retains its physical `.org` source and
+gets the established Dox-to-HTML route; package direct indexes flatten once.
+For a root-relative leaf with no parent directory, the Rule-selected name is
+used directly: root articles and `index.dox` retain their exact physical identity
+and map to root HTML leaves without an invented directory or leading slash.
+Nested sources retain their parent directory during selected-leaf replacement.
+Pairs are sorted by physical then public path without deduplication or a new
+collision policy.
+
+This API is structural admission, not Published-status or rendered acceptance.
+It does not parse source text, discover an origin, walk a filesystem, create a
+DoxSite, flush caches or write/render output. Existing parsed strategy selection
+remains authoritative downstream. Cozy uses this catalogue for category lists
+and source counts without imposing a new status policy on legacy source articles.
+
+[DoxSitePublicDocumentsSpec](../../src/test/scala/org/smartdox/doxsite/DoxSitePublicDocumentsSpec.scala)
+authors P751-02F-CATALOGUE-SDX-01–07: exact ordinary physical/public pairs;
+direct/deep private closure, nested projects and bare `_source`; ordinary `.dox`
+directories; default and configured availability with ignored ancestry; physical
+spaces/Japanese and in-memory parity; and empty deterministic input. These pure
+selection scenarios do not establish the actual site's build/browser result.
+
+P751-02F-CATALOGUE-SDX-08–10 add exact root/deep facade exclusion and positive
+lookalike pairs, actual default-regex whole matches across both separators and
+terminal `.d` segments, and actual Full-strategy parsed-site exclusion with
+retained ordinary/package/lookalike identities. These scenarios are authored,
+not executed acceptance evidence. The preceding visitor14 producer run executed
+29 tests: 28 passed and original scenario 04 failed its unchanged exclusion
+expectation. That failure remains history; validation and connected actual-site
+acceptance for the default-pattern repair remain pending.
+
+P751-02F-CATALOGUE-SDX-11–12 author the complete unordered root-leaf matrix:
+root Dox/Org/both Markdown suffixes and index, a nested ordinary source, a
+flattened package, private controls and a Japanese filename. The actual memory
+Realm and the physical Realm built with `DoxSite.realmConfig` each compare their
+entire ordered vector independently with explicit physical/public pairs, using
+identical deliberately unparsed contents. Historical defaults15 producer
+validation passed 32/32; the connected Cozy run executed 145 tests, passed 138
+and failed seven: five source-root narrative regressions and two catalogue
+fixtures missing generated glossary metadata. Repair16 is authored only;
+parent validation, connected actual-site acceptance and Step/Phase closure
+remain pending.
+
 [DoxSiteBuilder.Rule](../../src/main/scala/org/smartdox/doxsite/DoxSiteBuilder.scala)
 delegates admission to the owner before document parsing. LinkCollector,
 LinkCollection and Antora continue to consume selected effective articles.
@@ -70,6 +134,21 @@ walk or second source parse may supply article references.
 effective tree/path metadata lookup for real `site:[...]` links. Its full-tree
 fallback remains unfiltered. Localized titles and canonical relative HTML links
 retain logical package identity, including reciprocal LinkCollection relations.
+
+Ordinary local Hyperlink canonicalization must preserve the authored raw URI
+fragment when replacing a source or package alias with its canonical relative
+HTML path. An absent fragment leaves the canonical path unchanged; existing
+percent-escapes remain unchanged, so `#package%2Dpart` must not become
+`#package%252Dpart`. The caption remains the selected target's exact localized
+title. This rendered-link contract is independent of relation document identity,
+which ignores fragments. Producer scenario P751-02A-SDX-FRAGMENT-01 in
+[DoxSiteMarkdownSpec](../../src/test/scala/org/smartdox/doxsite/DoxSiteMarkdownSpec.scala)
+and existing Cozy SPEC04 in
+[CozyDocumentProjectSiteProjectionSpec](../../../cozy/src/test/scala/cozy/publication/CozyDocumentProjectSiteProjectionSpec.scala)
+cover this contract. Focused repair validation completed on 2026-10-07:
+producer 206/206 tests in ten suites, consumer 4/4 tests, and a separate
+regression accumulator 11/11 tests in three suites. Independent Slice review
+remains pending; Step and Phase acceptance remain OPEN.
 
 Incoming relations use the same parsed effective-content owner as public alias
 lookup. Document identity uses the decoded URI path, resolves it from the

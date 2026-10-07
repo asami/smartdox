@@ -1,7 +1,7 @@
 # DoxSite Public Content Design
 
 Status: normative Phase 75.1 producer design
-Date: 2026-10-06
+Date: 2026-10-07
 
 The [public-content specification](../spec/doxsite-public-content.md) fixes the
 behavior. The stable package-internal `DoxSiteEffectiveContent` object is the
@@ -49,6 +49,72 @@ selected site. Incoming-only candidates therefore share the actual target key
 with complete parsed documents, and reciprocal filtering shares that identity.
 
 ## Responsibility
+
+`DoxSitePublicDocuments` is a small public projection of the existing structural
+selection boundary. Its `Source` case class belongs to the stable object rather
+than an instance-bearing trait. A native `ContentTreeVisitor` shares one private
+collector for root/content entries and a closed invocation-local accumulator.
+Recognized StringData nodes pass through Rule selection and Rule-ignore ancestry;
+the facade does not reproduce package recognition or availability expressions.
+For a parentless root-relative leaf, the Rule-selected target is used directly;
+for a nested path, only the selected leaf is substituted with
+`StringUtils.changeLeafRelative`. Both paths then call
+`DoxSiteEffectiveContent.publicPath`, without inventing a parent directory or
+leading slash. The input physical path is
+retained independently, including `.org` and package direct-index spellings.
+
+The canonical `DoxSite.Config` defaults own whole-path exclusion expressions for
+underscore-prefixed directories, `.d` directories and exact `assets`, `styles`
+or `includes` directory segments. Each expression consumes the complete path
+with case-sensitive slash/backslash segment boundaries at any depth; the `.d`
+expression also accepts a terminal directory segment. Both the facade and
+parsed Builder Rule use these same defaults. Custom patterns retain their
+whole-match contract and Rule `isIgnore` ancestry remains in place. This repair
+changes the default expressions without adding a second selector or changing
+static-resource, source-origin or subtree responsibilities.
+
+The facade is deliberately independent of parser, renderer, cache and source
+origin. It adds no status, collision or deduplication policy. Its sorted vector
+lets Cozy build one whole-root selection per category-content invocation, then
+group the producer's canonical paths for presentation and read metadata from
+the actual selected physical files. Existing parsed producers remain unchanged.
+The paired structural selection spec provides authored regression evidence;
+parent execution and connected actual-site acceptance remain pending.
+
+Authored P751-02F-CATALOGUE-SDX-08–10 cover exact facade root/deep exclusion
+with lookalike controls, the actual default regex across slash/backslash and
+terminal `.d` boundaries, and Full-strategy parsed admission with retained
+ordinary/package/lookalike identities. The preceding visitor14 producer result
+was 29 executed, 28 passed and one failure in original scenario 04's unchanged
+exclusion expectation. The authored additions do not establish a successful
+repair run or Step/Phase closure; parent validation and connected actual-site
+acceptance remain pending.
+
+Authored P751-02F-CATALOGUE-SDX-11–12 retain root article/index physical identity
+and public mapping alongside nested ordinary, package and private controls and
+a Japanese leaf. Identical deliberately unparsed contents supply actual memory
+and physical Realms; each complete sorted vector has an independent explicit
+pair oracle. Historical defaults15 producer validation passed 32/32. The
+connected Cozy run executed 145 tests, passed 138 and failed seven: five
+source-root narrative regressions and two incomplete generated-glossary process
+fixtures. These results remain historical evidence; repair16 execution,
+connected actual-site acceptance and Step/Phase closure remain pending.
+
+LinkEnabler's ordinary local Hyperlink branch owns reconstruction of the rendered
+URI after existing effective metadata lookup and canonical relative-public-path
+calculation. It appends the authored raw fragment unchanged, preserving existing
+percent-escapes and leaving fragment-free paths unchanged, while retaining
+selected localized captions, tooltip and internal-link processing. Relation
+identity remains the effective-content owner's responsibility and ignores
+fragments independently of rendering. P751-02A-SDX-FRAGMENT-01 in
+[DoxSiteMarkdownSpec](../../src/test/scala/org/smartdox/doxsite/DoxSiteMarkdownSpec.scala)
+and existing Cozy SPEC04 in
+[CozyDocumentProjectSiteProjectionSpec](../../../cozy/src/test/scala/cozy/publication/CozyDocumentProjectSiteProjectionSpec.scala)
+provide the producer and consumer regression boundaries. Focused repair
+validation completed on 2026-10-07: producer 206/206 tests in ten suites,
+consumer 4/4 tests, and a separate regression accumulator 11/11 tests in three
+suites. Independent Slice review remains pending; Step and Phase acceptance
+remain OPEN.
 
 | Boundary | Decision |
 | --- | --- |
