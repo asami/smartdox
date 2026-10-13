@@ -12,7 +12,7 @@ import org.smartdox.generator.Context
 
 /*
  * @since   Oct.  1, 2026
- * @version Oct.  1, 2026
+ * @version Oct. 13, 2026
  */
 class DoxSiteEffectiveContentSpec extends AnyWordSpec with Matchers with GivenWhenThen {
   "Effective site content" should {
@@ -245,10 +245,10 @@ class DoxSiteEffectiveContentSpec extends AnyWordSpec with Matchers with GivenWh
           val draft = entries.find(_.id == "doi:10.5555/draft-admitted").get
           val rdf = realm.getString("site.ttl").get
 
-          Then("published references remain present with physical source evidence and canonical public paths")
+          Then("published references remain present with canonical logical source identity and public paths")
           ordinary.sourceRefs.map(_.sourcePath) shouldBe Vector("guide/ordinary.dox")
           ordinary.sourceRefs.map(_.publicPath) shouldBe Vector("guide/ordinary.html")
-          article.sourceRefs.map(_.sourcePath) shouldBe Vector("guide/article.dox/index.dox")
+          article.sourceRefs.map(_.sourcePath) shouldBe Vector("guide/article.dox")
           article.sourceRefs.map(_.publicPath) shouldBe Vector("guide/article.html")
           And("the admitted ordinary draft's reference survives although its public page is absent")
           draft.sourceRefs.map(_.sourcePath) shouldBe Vector("guide/ordinary-draft.dox")

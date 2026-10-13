@@ -33,7 +33,10 @@ final case class SitePublicationContext private (
 
   def resolve(target: URI, locale: Locale): Consequence[ResolvedLink] =
     _target_path(sourcePath, target).flatMap(_verify_target).flatMap { _ =>
-      resolveSiteLink(sourcePath, target, _site_document_metadata).flatMap { link =>
+      resolveSiteLink(sourcePath, target, _site_document_metadata).map { link =>
+        _effective_content(link.targetPath).
+          fold(link)(effective => link.copy(targetPath = effective.logicalPath.v))
+      }.flatMap { link =>
         link.localizedTitle(locale).flatMap { title =>
           publicUri(baseUri, site.config, locale, link.publicPath).map { uri =>
             ResolvedLink(uri, title, link)
@@ -176,10 +179,10 @@ object SitePublicationContext {
     language: Locale,
     publicPath: String
   ): Consequence[URI] =
-    locale(language.toLanguageTag).flatMap { routeLocale =>
+    locale(language.toLanguageTag).flatMap { routelocale =>
       val route = config.siteOutput.localeMode match {
         case DoxSite.Config.SiteOutput.LocaleMode.MultiLocaleSubdirs =>
-          s"${routeLocale.toLanguageTag}/$publicPath"
+          s"${routelocale.toLanguageTag}/$publicPath"
         case DoxSite.Config.SiteOutput.LocaleMode.SingleLocaleRoot =>
           publicPath
       }
@@ -254,7 +257,7 @@ object SitePublicationContext {
       case None => Consequence.invalidArgumentFault("pdf.site-context.base-url.missing")
     }
 
-  private def _target_path(sourcePath: String, target: URI): Consequence[String] =
+  private def _target_path(sourcepath: String, target: URI): Consequence[String] =
     if (
       target.isAbsolute ||
       target.getRawAuthority != null ||
@@ -265,7 +268,7 @@ object SitePublicationContext {
     else {
       Option(target.getPath).filter(_.nonEmpty) match {
         case Some(path) =>
-          _resolve_segments(_source_parent_segments(sourcePath), path).flatMap { segments =>
+          _resolve_segments(_source_parent_segments(sourcepath), path).flatMap { segments =>
             if (segments.isEmpty)
               Consequence.invalidArgumentFault(s"pdf.site-link.target.invalid: ${target.toString}")
             else
@@ -275,8 +278,8 @@ object SitePublicationContext {
       }
     }
 
-  private def _source_parent_segments(sourcePath: String): Vector[String] =
-    DoxSiteEffectiveContent.effectivePath(sourcePath).split('/').toVector.filter(_.nonEmpty).dropRight(1)
+  private def _source_parent_segments(sourcepath: String): Vector[String] =
+    DoxSiteEffectiveContent.effectivePath(sourcepath).split('/').toVector.filter(_.nonEmpty).dropRight(1)
 
   private def _resolve_segments(base: Vector[String], path: String): Consequence[Vector[String]] =
     path.split("/", -1).foldLeft(Consequence.success(base)) { (state, segment) =>
@@ -295,8 +298,8 @@ object SitePublicationContext {
       }
     }
 
-  private def _relative_uri(sourcePath: String, targetPath: String, fragment: String): URI = {
-    val path = DoxSite.relativePublicPath(sourcePath, targetPath)
+  private def _relative_uri(sourcepath: String, targetpath: String, fragment: String): URI = {
+    val path = DoxSite.relativePublicPath(sourcepath, targetpath)
     new URI(null, null, path, null, fragment)
   }
 

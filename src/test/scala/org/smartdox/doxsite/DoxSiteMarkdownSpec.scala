@@ -17,7 +17,7 @@ import org.smartdox.metadata.DocumentMetaData
 
 /*
  * @since   Oct.  6, 2026
- * @version Oct.  7, 2026
+ * @version Oct. 13, 2026
  */
 class DoxSiteMarkdownSpec
     extends AnyWordSpec
@@ -362,6 +362,8 @@ class DoxSiteMarkdownSpec
             link.title shouldBe title
             link.document.relativeUri.toString shouldBe s"guides/$stem.html#part"
             link.document.publicPath shouldBe s"development-process/guides/$stem.html"
+            val suffix = if (first) "md" else "markdown"
+            link.document.targetPath shouldBe s"development-process/guides/$stem.$suffix"
           }
           Vector("first.md", "second.markdown").foreach { leaf =>
             val source = s"development-process/guides/$leaf"
