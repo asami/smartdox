@@ -13,6 +13,7 @@ import org.commonmark.ext.gfm.tables.{TablesExtension, TableBlock, TableHead,
   TableBody, TableRow, TableCell}
 import org.jsoup.Jsoup
 import org.jsoup.nodes.{Node => HtmlNode, Element, TextNode, DataNode}
+import org.goldenport.context.Consequence
 import org.goldenport.collection.VectorMap
 import org.goldenport.i18n.I18NString
 import org.goldenport.parser.ParseLocation
@@ -20,10 +21,21 @@ import org.smartdox._
 
 /*
  * @since   Oct.  1, 2026
- * @version Oct.  1, 2026
+ * @version Oct. 13, 2026
  * @author  ASAMI, Tomoharu
  */
-private[parser] object MarkdownDocumentParser {
+private[smartdox] object MarkdownDocumentParser {
+  def parseC(config: Dox2Parser.Config, source: String): Consequence[Document] =
+    Consequence.execute { parse(config, source) }
+
+  def parse(config: Dox2Parser.Config, source: String): Document = {
+    val (body, metadata) = Dox2ParserFrontMatter.split(config, source)
+    val extensions = java.util.Collections.singletonList(TablesExtension.create())
+    val parser = Parser.builder().extensions(extensions).build()
+    val document = MarkdownDocumentAst.convert(config, parser.parse(body))
+    metadata.fold(document)(Dox2ParserFrontMatter.merge(document, _))
+  }
+
   private val _extensions = java.util.Collections.singletonList(TablesExtension.create())
   private val _parser = Parser.builder().extensions(_extensions).
     includeSourceSpans(IncludeSourceSpans.BLOCKS_AND_INLINES).build()

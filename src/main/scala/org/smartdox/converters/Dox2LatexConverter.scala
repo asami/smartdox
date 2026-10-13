@@ -16,7 +16,8 @@ import org.smartdox.generators.KrokiGenerator
 /*
  * @since   Jun.  2, 2026
  *  version Jun.  3, 2026
- * @version Sep.  7, 2026
+ *  version Sep.  7, 2026
+ * @version Oct. 11, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2LatexConverter(
@@ -388,7 +389,8 @@ class Dox2LatexConverter(
 
   override protected def enter_Table(p: Table): Unit = {
     val width = math.max(1, p.width)
-    val columns = (1 to width).map(_ => "l").mkString("|", "|", "|")
+    val column = s"p{\\dimexpr(\\linewidth-${2 * width}\\tabcolsep-${width + 1}\\arrayrulewidth)/$width\\relax}"
+    val columns = (1 to width).map(_ => column).mkString("|", "|", "|")
     sb_println(s"\\begin{longtable}{$columns}")
     p.caption.foreach(c => sb_println(s"\\caption{${_escape_latex(c.toText)}}\\\\"))
     p.head.foreach(_rows(_, isHeader = true))

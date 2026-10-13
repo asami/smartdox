@@ -85,7 +85,8 @@ import GlossaryCollector.PROP_GLOSSARY_DIRECTORY
  *  version Jun. 29, 2026
  *  version Jul. 13, 2026
  *  version Aug. 30, 2026
- * @version Oct.  1, 2026
+ *  version Sep. 14, 2026
+ * @version Oct. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class DoxSite(
@@ -625,9 +626,10 @@ object DoxSite {
     includePathPatterns: Vector[Regex] = Vector(".*").map(_.r),
     excludePathPatterns: Vector[Regex] = Vector(
       """(?x)
-  (?:^|[\\/])_                   # directories starting with "_"
-  | \.d(?:[\\/]|\Z)              # directories ending with ".d"
-  | (?:^|[\\/])(assets|styles|includes)[\\/]  # static resource directories
+  (?:.*[\\/])?_[^\\/]*[\\/].*  # directories starting with "_"
+  | (?:.*[\\/])?[^\\/]*\.d(?:[\\/].*|\Z)  # directories ending with ".d"
+  | (?:.*[\\/])?(assets|styles|includes)[\\/].*  # static resource directories
+# Case-sensitive whole paths with slash or backslash directory boundaries.
 """
     ).map(_.r)
   ) {
@@ -1589,7 +1591,7 @@ object DoxSite {
 
       private def _collect_refs(node: TreeNode[Node]): Unit =
         DoxSiteEffectiveContent.effectiveContent(node).foreach { effective =>
-          refs ++= _bibliography_refs(effective.sourcePath.v, effective.page)
+          refs ++= _bibliography_refs(effective.logicalPath.v, effective.page)
         }
     })
     refs.toVector

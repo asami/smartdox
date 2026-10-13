@@ -1,6 +1,7 @@
 package org.smartdox.parser
 
 import scalaz._, Scalaz._, Validation._, Tree._
+import java.io.File
 import java.net.URI
 import java.util.Locale
 import com.typesafe.config.{Config => Hocon}
@@ -13,6 +14,7 @@ import org.goldenport.i18n.I18NElement
 import org.goldenport.i18n.LocaleUtils
 import org.goldenport.io.InputSource
 import org.goldenport.io.FileTextResolver
+import org.goldenport.io.FileResourceLocator
 import org.goldenport.tree._
 import org.goldenport.util.VectorUtils
 import org.goldenport.util.StringUtils
@@ -54,7 +56,7 @@ import Dox._
  *  version Jun. 23, 2026
  *  version Aug. 30, 2026
  *  version Sep.  8, 2026
- * @version Oct.  1, 2026
+ * @version Oct. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 class Dox2Parser(context: Dox2Parser.ParseContext) {
@@ -119,7 +121,18 @@ object Dox2Parser {
 
     lazy val fileTextResolverContext: FileTextResolver.Context = {
       val c = FileTextResolver.Context.default
-      file.fold(c)(c.withBaseFile)
+      file.fold(c) { uri =>
+        if (uri.getScheme == "file" && !uri.isOpaque &&
+            uri.getAuthority == null && uri.getQuery == null && uri.getFragment == null) {
+          val directory = new File(uri).getParentFile
+          val resolvercontext = c.fileResolverContext
+          c.copy(fileResolverContext = resolvercontext.copy(
+            resources = FileResourceLocator(directory) +: resolvercontext.resources
+          ))
+        } else {
+          c.withBaseFile(uri)
+        }
+      }
     }
 
     def withPathname(pathname: String) = {

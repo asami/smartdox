@@ -10,7 +10,8 @@ import org.smartdox.doxsite.LinkEnabler.LinkEmbedder.LinkHolder
 /*
  * @since   Nov. 14, 2025
  *  version Nov. 22, 2025
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  6, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkCollector(
@@ -19,7 +20,7 @@ class LinkCollector(
   import LinkCollector._
 
   def apply(p: Tree[Node]): LinkCollection = {
-    val scanner = new SiteScanner()
+    val scanner = SiteScanner.forSite(p)
     p.traverse(scanner)
     val a = scanner.collection
     val builder = new Builder(a)
@@ -29,12 +30,17 @@ class LinkCollector(
 }
 
 object LinkCollector {
-  class SiteScanner() extends DoxSiteVisitor {
+  class SiteScanner private (sitetree: Option[Tree[Node]]) extends DoxSiteVisitor {
     import SiteScanner._
+
+    def this() = this(None)
 
     def collection: LinkCollection = _builder.build()
 
-    private val _builder: LinkCollection.Builder = new LinkCollection.Builder()
+    private val _builder: LinkCollection.Builder = sitetree match {
+      case Some(tree) => LinkCollection.Builder.forSite(tree)
+      case None => new LinkCollection.Builder()
+    }
 
     override protected def enter_Container(node: TreeNode[Node]): Unit =
       DoxSiteEffectiveContent.effectiveContent(node).foreach(_scan_link)
@@ -59,6 +65,8 @@ object LinkCollector {
     }
   }
   object SiteScanner {
+    private[doxsite] def forSite(tree: Tree[Node]): SiteScanner = new SiteScanner(Some(tree))
+
     class Scanner() extends DoxTreeScanner {
       import Scanner._
 

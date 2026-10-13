@@ -18,7 +18,8 @@ import org.smartdox.doxsite.LinkCollector.SiteScanner.Scanner.ProgramHolder
  * @since   Nov. 14, 2025
  *  version Nov. 22, 2025
  *  version Dec. 16, 2025
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  6, 2026
  * @author  ASAMI, Tomoharu
  */
 case class LinkCollection(
@@ -79,6 +80,12 @@ object LinkCollection {
       copy(links = links.filterNot(_is_match_))
     }
 
+    private[doxsite] def filterNot(tree: Tree[Node], p: LinkHolder): IncomingLinkHolder = {
+      val excludes = p.links.flatMap { link =>
+        link.pathname.map(base => DoxSiteEffectiveContent.relationPath(tree, base.v, link.href))
+      }.toSet
+      copy(links = links.filterNot(link => excludes.contains(link.source.v)))
+    }
 
     def toListContents(newsource: PathName): Vector[ListContent] =
       links.map(_.toListContent(newsource))
@@ -123,7 +130,9 @@ object LinkCollection {
     }
   }
 
-  class Builder() {
+  class Builder private (sitetree: Option[Tree[Node]]) {
+    def this() = this(None)
+
     val tree = Tree.create[DoxLinks.Candidate]()
 
     def build(): LinkCollection = {
@@ -171,7 +180,10 @@ object LinkCollection {
       dox: Dox,
       p: Link
     ): Unit = {
-      val pathname = DoxSiteEffectiveContent.effectivePath(logicalpath.v, p.href.toString)
+      val pathname = sitetree match {
+        case Some(site) => DoxSiteEffectiveContent.relationPath(site, logicalpath.v, p.href)
+        case None => DoxSiteEffectiveContent.effectivePath(logicalpath.v, p.href.toString)
+      }
       val doc = Dox.toDocument(dox).head.metadata
       val x = tree.getContent(pathname) match {
         case Some(s) => s.addIncoming(logicalpath, doc, p)
@@ -183,5 +195,6 @@ object LinkCollection {
 
   }
   object Builder {
+    private[doxsite] def forSite(tree: Tree[Node]): Builder = new Builder(Some(tree))
   }
 }

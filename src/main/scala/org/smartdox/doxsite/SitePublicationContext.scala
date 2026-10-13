@@ -14,7 +14,8 @@ import org.smartdox.transformer.DoxHomoTreeTransformer
 
 /*
  * @since   Sep.  7, 2026
- * @version Oct.  1, 2026
+ *  version Sep.  8, 2026
+ * @version Oct. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 final case class SitePublicationContext private (
@@ -66,12 +67,12 @@ final case class SitePublicationContext private (
   }
 
   private def _effective_content(path: String): Option[DoxSiteEffectiveContent.EffectiveContent] =
-    site.space.getNode(path).flatMap(DoxSiteEffectiveContent.effectiveContent)
+    DoxSiteEffectiveContent.effectiveContent(site.space, path)
 
   private def _site_document_metadata(path: String): Option[DocumentMetaData] =
-    _effective_content(path).flatMap { effective =>
-      Dox.getMetadata(effective.page.dox).filter(_.status == DocumentMetaData.Status.Published)
-    }
+    DoxSiteEffectiveContent.effectiveContent(site.space, path).
+      flatMap(effective => Dox.getMetadata(effective.getDox)).
+      filter(_.status == DocumentMetaData.Status.Published)
 }
 
 object SitePublicationContext {
@@ -268,14 +269,14 @@ object SitePublicationContext {
             if (segments.isEmpty)
               Consequence.invalidArgumentFault(s"pdf.site-link.target.invalid: ${target.toString}")
             else
-              Consequence.success(DoxSiteEffectiveContent.effectivePath("", segments.mkString("/")))
+              Consequence.success(segments.mkString("/"))
           }
         case None => Consequence.invalidArgumentFault(s"pdf.site-link.target.invalid: ${target.toString}")
       }
     }
 
-  private def _source_parent_segments(sourcepath: String): Vector[String] =
-    DoxSiteEffectiveContent.effectivePath(sourcepath).split('/').toVector.filter(_.nonEmpty).dropRight(1)
+  private def _source_parent_segments(sourcePath: String): Vector[String] =
+    DoxSiteEffectiveContent.effectivePath(sourcePath).split('/').toVector.filter(_.nonEmpty).dropRight(1)
 
   private def _resolve_segments(base: Vector[String], path: String): Consequence[Vector[String]] =
     path.split("/", -1).foldLeft(Consequence.success(base)) { (state, segment) =>

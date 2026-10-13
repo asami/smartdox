@@ -68,6 +68,10 @@ libraryDependencies += "org.commonmark" % "commonmark-ext-gfm-tables" % "0.30.0"
 
 libraryDependencies += "org.jsoup" % "jsoup" % "1.18.1"
 
+libraryDependencies += "org.commonmark" % "commonmark" % "0.30.0"
+
+libraryDependencies += "org.commonmark" % "commonmark-ext-gfm-tables" % "0.30.0"
+
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.10.0.202012080955-r"
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.14"

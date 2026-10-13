@@ -31,7 +31,7 @@ import org.smartdox.metadata._
  *  version Nov. 29, 2025
  *  version Dec. 19, 2025
  *  version Sep.  8, 2026
- * @version Oct.  1, 2026
+ * @version Oct.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class LinkEnabler(
@@ -66,15 +66,10 @@ class LinkEnabler(
   }
 
   def getMetaData(path: String): Option[DocumentMetaData] =
-    _get_metadata(site, path)
+    DoxSiteEffectiveContent.effectiveContent(site, path).flatMap(effective => Dox.getMetadata(effective.getDox))
 
   def getMetaDataFull(path: String): Option[DocumentMetaData] =
-    _get_metadata(full, path)
-
-  private def _get_metadata(tree: Tree[Node], path: String): Option[DocumentMetaData] =
-    tree.getNode(DoxSiteEffectiveContent.effectivePath(path))
-      .flatMap(DoxSiteEffectiveContent.effectiveContent)
-      .flatMap(effective => Dox.getMetadata(effective.page.dox))
+    DoxSiteEffectiveContent.effectiveContent(full, path).flatMap(effective => Dox.getMetadata(effective.getDox))
 }
 
 object LinkEnabler {
@@ -205,7 +200,7 @@ object LinkEnabler {
     private def _create_reference_relation_related: Vector[Dox] = {
       val pathname = PathName(DoxSiteEffectiveContent.effectivePath(pageNode.pathname))
       val a = _link_collection.get(pathname.v) match {
-        case Some(s) => s.incomingLinks.filterNot(_internal_links).toListContents(pathname)
+        case Some(s) => s.incomingLinks.filterNot(enabler.site, _internal_links).toListContents(pathname)
         case None => Vector.empty
       }
       val xs = _create_ul(a)
@@ -582,8 +577,9 @@ object LinkEnabler {
               case Some(title0) =>
                 val title = _prepend(_link_mark, _inline_contents(locale, title0))
                 val relpath = DoxSite.relativePublicPath(base, path)
+                val relativeuri = new URI(relpath + Option(href.getRawFragment).map(fragment => "#" + fragment).getOrElse(""))
                 val tooltip = s.getEffectiveTooltip // .map(_text(locale, _))
-                val r = Hyperlink.createArticle(title, new URI(relpath), tooltip, pageNode.pathnameValue)
+                val r = Hyperlink.createArticle(title, relativeuri, tooltip, pageNode.pathnameValue)
                 _internal_link(locale, r)
               case None => _external_link(locale, dox)
             }

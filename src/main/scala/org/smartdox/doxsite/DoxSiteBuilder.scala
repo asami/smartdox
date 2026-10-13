@@ -21,13 +21,14 @@ import org.smartdox.generator.Context
 import org.smartdox.metadata.Category
 import org.smartdox.metadata.PublishMetadata
 import org.smartdox.parser.Dox2Parser
+import org.smartdox.parser.MarkdownDocumentParser
 import org.smartdox.transformers.Dox2HtmlTransformer
 import org.smartdox.transformers.LanguageFilterTransformer
 
 /*
  * @since   Aug. 30, 2026
  *  version Sep. 14, 2026
- * @version Oct.  1, 2026
+ * @version Oct.  6, 2026
  * @author  ASAMI, Tomoharu
  */
   class DoxSiteBuilder(
@@ -114,15 +115,14 @@ import org.smartdox.transformers.LanguageFilterTransformer
       node: TreeNode[Realm.Data],
       baseconfig: Dox2Parser.Config
     ): Dox2Parser.Config = {
+      val parserconfig = baseconfig.withFilename(node.pathname)
       rule.doxSiteConfig.origin match {
         case Some(origin) =>
-          val canonicalfile = new File(origin, node.pathname).getCanonicalFile
-          baseconfig.withFilename(node.pathname).
-            withResourceRoot(canonicalfile.getParentFile.toPath).
-            copy(file = Some(canonicalfile.toURI))
+          val canonical = new File(origin, node.pathnameRelative).getCanonicalFile
+          parserconfig.withResourceRoot(canonical.getParentFile.toPath).
+            copy(file = Some(canonical.toURI))
         case None =>
-          baseconfig.withFilename(node.pathname).
-            _with_virtual_resource_parent(_virtual_parent(node.pathname))
+          parserconfig._with_virtual_resource_parent(_virtual_parent(node.pathname))
       }
     }
 
@@ -148,7 +148,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
 
     private def _markdown_page(node: TreeNode[Realm.Data], c: String) = {
       val parserconfig = _source_parser(node, Dox2Parser.Config.markdown)
-      val dox = Dox2Parser.parse(parserconfig, c)
+      val dox = MarkdownDocumentParser.parse(parserconfig, c)
       _create_dox(node.name, dox)
     }
 
@@ -234,28 +234,7 @@ import org.smartdox.transformers.LanguageFilterTransformer
       )
 
       private[doxsite] def isPublicDocument(p: TreeNode[Realm.Data]) =
-        p.getNameSuffix match {
-          case Some("dox" | "org" | "md" | "markdown") => _is_document_project_input(p)
-          case _ => true
-        }
-
-      private def _is_document_project_input(p: TreeNode[Realm.Data]) =
-        _nearest_document_project(p.getParent) match {
-          case Some(project) => project.getChild("index.dox").contains(p)
-          case None => true
-        }
-
-      private def _nearest_document_project(p: Option[TreeNode[Realm.Data]]): Option[TreeNode[Realm.Data]] =
-        p match {
-          case Some(node) if _is_document_project(node) => Some(node)
-          case Some(node) => _nearest_document_project(node.getParent)
-          case None => None
-        }
-
-      private def _is_document_project(p: TreeNode[Realm.Data]) =
-        p.isContainer &&
-          p.name.endsWith(".dox") &&
-          p.getChild("index.dox").exists(_.getContent.isDefined)
+        DoxSiteEffectiveContent.isPublicDocument(p)
 
       override def isIgnore(p: TreeNode[Realm.Data]): Boolean =
         p.name.endsWith(".d")

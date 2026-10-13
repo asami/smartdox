@@ -31,7 +31,7 @@ import io.circe.parser
  *  version Apr. 20, 2026
  *  version Jun. 29, 2026
  *  version Sep. 14, 2026
- * @version Oct.  1, 2026
+ * @version Oct. 13, 2026
  * @author  ASAMI, Tomoharu
  */
 @RunWith(classOf[JUnitRunner])
@@ -379,10 +379,14 @@ class DoxSiteSpec
         englishatom should include_metadata("development-process/domain-modeling.html")
         fragments should include_metadata("\"source_path\" : \"development-process/domain-modeling.dox/index.dox\"")
         fragments should not (include_metadata("domain-modeling.dox/index.html"))
-        for (locale <- Vector("ja", "en")) {
-          val body = _fragment_body(fragments, "development-process/literate-modeling.dox", locale)
+        for {
+          language <- Vector("ja", "en")
+          sourcepath <- Vector("development-process/literate-modeling.dox", "development-process/backlink.dox")
+        } {
+          val body = _fragment_body(fragments, sourcepath, language)
           body should include_html("href=\"domain-modeling.html\"")
-          body should not (include_text("domain-modeling.dox/index.html"))
+          body should not (include_html("domain-modeling.dox/index.html"))
+          body should not (include_text("site:[domain-modeling.dox/index.html]"))
         }
         fragments should not (include_metadata("domain-modeling.dox/review/private"))
         tags should not (include_metadata("domain-modeling.dox/index.html"))
@@ -982,6 +986,61 @@ class DoxSiteSpec
         html should include_html("https://example.com")
         And("YAML front matter participates in production status filtering")
         realm.getString("/ja/wip.html").orElse(realm.getString("ja/wip.html")) shouldBe None
+      } finally {
+        _delete(dir)
+      }
+    }
+
+    "retain Markdown HEAD and status text as ordinary body content under Full strategy" in {
+      val dir = Files.createTempDirectory("smartdox-markdown-head-metadata")
+      try {
+        Given("Markdown documents with HEAD headings and contradictory body status declarations without YAML metadata")
+        _write(dir.resolve("site.conf"), "site { output { locale_mode = \"single_locale_root\" } }\n")
+        _write(dir.resolve("published.md"),
+          """# HEAD
+            |
+            |status=published
+            |published_at=2026-06-23
+            |
+            |## SUMMARY
+            |
+            |Published Markdown HEAD summary.
+            |
+            |# Published Body
+            |
+            |Published markdown body.
+            |""".stripMargin)
+        _write(dir.resolve("wip.md"),
+          """# HEAD
+            |
+            |status=work-in-progress
+            |published_at=2026-06-23
+            |
+            |# WIP Body
+            |
+            |WIP markdown body.
+            |""".stripMargin)
+        val markdowncontext = Context.create()
+        implicit val i18ncontext: I18NContext = markdowncontext.i18NContext
+        When("SmartDox parses admitted Markdown sources and renders Full strategy pages")
+        val site = create_site(markdowncontext, dir.toFile, DoxSite.Config.default.copy(strategy = DoxSite.Strategy.Full))
+        val realm = site_realm(site, markdowncontext)
+
+        Then("both bodies and status declarations survive without promoting HEAD to metadata")
+        Vector("published" -> "published", "wip" -> "work-in-progress").foreach { case (name, status) =>
+          val document = DoxSiteEffectiveContent.effectiveContent(site.space, s"$name.md").get.getDox
+          document.head.metadata.title shouldBe None
+          document.head.metadata.status shouldBe org.smartdox.metadata.DocumentMetaData.empty.status
+          document.head.metadata.statusOption shouldBe None
+          document.head.metadata.publishedAt shouldBe None
+          val html = html_at(realm, s"ja/$name.html")
+          html should include_html("HEAD")
+          html should include_html(s"status=$status")
+          html should include_html("published_at=2026-06-23")
+        }
+        html_at(realm, "ja/published.html") should include_html("Published markdown body.")
+        html_at(realm, "ja/published.html") should include_html("Published Markdown HEAD summary.")
+        html_at(realm, "ja/wip.html") should include_html("WIP markdown body.")
       } finally {
         _delete(dir)
       }

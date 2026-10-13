@@ -54,7 +54,8 @@ import org.smartdox.service.operations.AntoraOperationClass.AntoraCommand
  *  version Jun. 21, 2026
  *  version Jul. 13, 2026
  *  version Aug.  4, 2026
- * @version Sep.  8, 2026
+ *  version Sep.  8, 2026
+ * @version Oct.  7, 2026
  * @author  ASAMI, Tomoharu
  */
 class AntoraGenerator(
@@ -535,7 +536,7 @@ object AntoraGenerator {
       }
       object Asciidoc {
         val defaultAttributes: Map[String, String] = Map(
-          "kroki-server-url" -> "http://localhost:9609", // "https://kroki.io",
+          "kroki-server-url" -> "http://127.0.0.1:8000", // "https://kroki.io",
           "kroki-default-format" -> "svg",
           "kroki-fetch-diagram" -> "true"
         )
